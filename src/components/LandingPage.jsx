@@ -27,10 +27,10 @@ const LandingPage = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden" style={{background: 'linear-gradient(to bottom right, #1a237e, #283593, #303f9f)'}}>
       {/* Animated Background Circles */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-secondary-500/30 rounded-full blur-3xl animate-pulse"></div>
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-primary-600/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
+      <div className="absolute top-0 left-0 w-96 h-96 rounded-full blur-3xl animate-pulse" style={{backgroundColor: 'rgba(255, 152, 0, 0.3)'}}></div>
+      <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full blur-3xl animate-pulse" style={{backgroundColor: 'rgba(57, 73, 171, 0.3)', animationDelay: '1s'}}></div>
       
       <div className="relative z-10">
         {/* Navigation */}
@@ -55,7 +55,10 @@ const LandingPage = () => {
               </Link>
               <Link
                 to="/register"
-                className="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-600 hover:to-secondary-700 text-white font-bold text-sm sm:text-base rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                className="px-4 py-2 sm:px-6 sm:py-3 text-white font-bold text-sm sm:text-base rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                style={{background: 'linear-gradient(to right, #ff9800, #fb8c00)'}}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'linear-gradient(to right, #fb8c00, #f57c00)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'linear-gradient(to right, #ff9800, #fb8c00)'}
               >
                 Registrarse
               </Link>
@@ -67,25 +70,37 @@ const LandingPage = () => {
         <div className="container mx-auto px-4 sm:px-6 py-12 sm:py-20 md:py-28">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="text-white text-center md:text-left">
-              <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold mb-6 leading-tight">
+              <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold mb-6 leading-tight text-white">
                 🍽️ Tu Comida
-                <span className="block text-secondary-400 mt-2">A Un Click</span>
+                <span className="block mt-2" style={{color: '#ffa726'}}>A Un Click</span>
               </h1>
-              <p className="text-lg sm:text-xl md:text-2xl text-white/90 mb-8 leading-relaxed font-semibold drop-shadow-lg">
+              <p className="text-lg sm:text-xl md:text-2xl mb-8 leading-relaxed font-semibold drop-shadow-lg" style={{color: 'rgba(255, 255, 255, 0.9)'}}>
                 La mejor plataforma para gestionar tus pedidos de comida de manera profesional. 
                 <span className="block mt-2">✨ Fácil, rápido y eficiente.</span>
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
                 <Link
                   to="/register"
-                  className="flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-600 hover:to-secondary-700 text-white font-bold text-lg rounded-xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-200"
+                  className="flex items-center justify-center gap-2 px-8 py-4 text-white font-bold text-lg rounded-xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-200"
+                  style={{background: 'linear-gradient(to right, #ff9800, #fb8c00)'}}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'linear-gradient(to right, #fb8c00, #f57c00)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'linear-gradient(to right, #ff9800, #fb8c00)'}
                 >
                   ✨ Comenzar Ahora
                   <ArrowRight className="h-6 w-6" />
                 </Link>
                 <Link
                   to="/login"
-                  className="flex items-center justify-center gap-2 px-8 py-4 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white font-bold text-lg rounded-xl border-2 border-white/30 hover:border-white/50 transition-all duration-200"
+                  className="flex items-center justify-center gap-2 px-8 py-4 backdrop-blur-sm text-white font-bold text-lg rounded-xl border-2 transition-all duration-200"
+                  style={{backgroundColor: 'rgba(255, 255, 255, 0.1)', borderColor: 'rgba(255, 255, 255, 0.3)'}}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
+                  }}
                 >
                   🔑 Iniciar Sesión
                 </Link>
@@ -94,7 +109,7 @@ const LandingPage = () => {
 
             <div className="hidden md:block">
               <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-secondary-500 to-primary-600 rounded-3xl blur-2xl opacity-50 group-hover:opacity-70 transition-opacity"></div>
+                <div className="absolute inset-0 rounded-3xl blur-2xl opacity-50 group-hover:opacity-70 transition-opacity" style={{background: 'linear-gradient(to right, #ff9800, #3949ab)'}}></div>
                 <div className="relative bg-white p-8 rounded-3xl shadow-2xl transform group-hover:scale-105 transition-transform duration-300">
                   <img 
                     src={servifoodLogo} 
@@ -108,13 +123,13 @@ const LandingPage = () => {
         </div>
 
         {/* Features Section */}
-        <div className="bg-white/5 backdrop-blur-sm py-16 sm:py-20 mt-12">
+        <div className="backdrop-blur-sm py-16 sm:py-20 mt-12" style={{backgroundColor: 'rgba(255, 255, 255, 0.05)'}}>
           <div className="container mx-auto px-4 sm:px-6">
             <div className="text-center mb-12 sm:mb-16">
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mb-4 drop-shadow-lg">
                 💡 ¿Por qué ServiFood?
               </h2>
-              <p className="text-lg sm:text-xl text-white/90 font-semibold">
+              <p className="text-lg sm:text-xl font-semibold" style={{color: 'rgba(255, 255, 255, 0.9)'}}>
                 La mejor plataforma para gestionar tus pedidos de comida
               </p>
             </div>
@@ -123,15 +138,24 @@ const LandingPage = () => {
               {features.map((feature, index) => (
                 <div
                   key={index}
-                  className="bg-white/10 backdrop-blur-sm p-8 rounded-2xl border-2 border-white/20 hover:bg-white/20 hover:border-secondary-400 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl text-center"
+                  className="backdrop-blur-sm p-8 rounded-2xl border-2 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl text-center"
+                  style={{backgroundColor: 'rgba(255, 255, 255, 0.1)', borderColor: 'rgba(255, 255, 255, 0.2)'}}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'
+                    e.currentTarget.style.borderColor = '#ffa726'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
+                  }}
                 >
-                  <div className="bg-gradient-to-r from-secondary-500 to-secondary-600 text-white p-4 rounded-xl w-fit mx-auto mb-4">
+                  <div className="text-white p-4 rounded-xl w-fit mx-auto mb-4" style={{background: 'linear-gradient(to right, #ff9800, #fb8c00)'}}>
                     {feature.icon}
                   </div>
                   <h3 className="text-xl font-bold text-white mb-3">
                     {feature.title}
                   </h3>
-                  <p className="text-white/90 font-medium">
+                  <p className="font-medium" style={{color: 'rgba(255, 255, 255, 0.9)'}}>
                     {feature.description}
                   </p>
                 </div>
@@ -143,19 +167,20 @@ const LandingPage = () => {
         {/* CTA Section */}
         <div className="py-16 sm:py-20">
           <div className="container mx-auto px-4 sm:px-6">
-            <div className="bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-3xl p-8 sm:p-12 shadow-2xl text-center">
+            <div className="rounded-3xl p-8 sm:p-12 shadow-2xl text-center" style={{background: 'linear-gradient(to right, #ff9800, #fb8c00)'}}>
               <div className="bg-white rounded-full p-4 w-fit mx-auto mb-6">
-                <ChefHat className="h-16 w-16 text-secondary-600" />
+                <ChefHat className="h-16 w-16" style={{color: '#fb8c00'}} />
               </div>
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mb-6">
                 🚀 ¿Listo para comenzar?
               </h2>
-              <p className="text-lg sm:text-xl text-white/95 mb-8 max-w-2xl mx-auto font-semibold">
+              <p className="text-lg sm:text-xl mb-8 max-w-2xl mx-auto font-semibold" style={{color: 'rgba(255, 255, 255, 0.95)'}}>
                 Únete a ServiFood hoy y lleva la gestión de tus pedidos al siguiente nivel
               </p>
               <Link
                 to="/register"
-                className="inline-flex items-center gap-2 px-10 py-4 bg-white text-secondary-600 font-bold text-lg rounded-xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200"
+                className="inline-flex items-center gap-2 px-10 py-4 bg-white font-bold text-lg rounded-xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200"
+                style={{color: '#fb8c00'}}
               >
                 ✨ Crear Cuenta Gratis
                 <ArrowRight className="h-6 w-6" />
@@ -165,8 +190,8 @@ const LandingPage = () => {
         </div>
 
         {/* Footer */}
-        <footer className="bg-primary-900/50 backdrop-blur-sm py-8 border-t border-white/10">
-          <div className="container mx-auto px-4 sm:px-6 text-center text-white/90 font-medium">
+        <footer className="backdrop-blur-sm py-8 border-t" style={{backgroundColor: 'rgba(26, 35, 126, 0.5)', borderColor: 'rgba(255, 255, 255, 0.1)'}}>
+          <div className="container mx-auto px-4 sm:px-6 text-center font-medium" style={{color: 'rgba(255, 255, 255, 0.9)'}}>
             <p>© 2025 ServiFood Catering. Todos los derechos reservados.</p>
           </div>
         </footer>
