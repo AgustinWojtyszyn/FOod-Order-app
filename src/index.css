@@ -4,26 +4,61 @@
   html {
     font-family: 'Inter', system-ui, sans-serif;
   }
-  
-  body {
-    @apply bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 min-h-screen;
-  }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-600 hover:to-secondary-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200;
+    background: linear-gradient(to right, rgb(249 115 22), rgb(234 88 12));
+    color: white;
+    font-weight: 700;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    transition: all 0.2s;
+  }
+  
+  .btn-primary:hover {
+    background: linear-gradient(to right, rgb(234 88 12), rgb(194 65 12));
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
   }
 
   .btn-secondary {
-    @apply bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200;
+    background: linear-gradient(to right, rgb(34 197 94), rgb(22 163 74));
+    color: white;
+    font-weight: 700;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    transition: all 0.2s;
+  }
+  
+  .btn-secondary:hover {
+    background: linear-gradient(to right, rgb(22 163 74), rgb(21 128 61));
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
   }
 
   .input-field {
-    @apply w-full px-4 py-3 border-2 border-gray-300 rounded-xl outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all duration-200 text-base font-medium;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid rgb(209 213 219);
+    border-radius: 0.75rem;
+    outline: none;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  
+  .input-field:focus {
+    border-color: rgb(79 70 229);
+    box-shadow: 0 0 0 3px rgb(199 210 254 / 0.5);
   }
 
   .card {
-    @apply bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-6 border-2 border-white/20;
+    background-color: rgb(255 255 255 / 0.95);
+    backdrop-filter: blur(12px);
+    border-radius: 1rem;
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+    padding: 1.5rem;
+    border: 2px solid rgb(255 255 255 / 0.2);
   }
 }
