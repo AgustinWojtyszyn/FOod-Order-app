@@ -55,6 +55,32 @@ const OrderForm = ({ user }) => {
   }
 
   const handleItemSelect = (itemId, quantity) => {
+    const item = menuItems.find(m => m.id === itemId)
+    const isEnsalada = item?.name?.toLowerCase().includes('ensalada')
+    
+    // Limitar ensaladas a 1 unidad máxima
+    if (isEnsalada && quantity > 1) {
+      alert('Solo puedes seleccionar 1 ensalada')
+      return
+    }
+    
+    // Contar cuántos menús principales ya están seleccionados (sin ensaladas)
+    const mainMenuCount = menuItems
+      .filter(m => !m.name?.toLowerCase().includes('ensalada'))
+      .reduce((count, m) => count + (selectedItems[m.id] || 0), 0)
+    
+    // Si intentamos agregar un menú principal y ya hay uno seleccionado
+    if (!isEnsalada && quantity > 0 && mainMenuCount >= 1 && !selectedItems[itemId]) {
+      alert('Solo puedes seleccionar 1 menú principal por persona. Si necesitas más, haz múltiples pedidos.')
+      return
+    }
+    
+    // Si ya tiene un menú principal seleccionado, no puede cambiar la cantidad a más de 1
+    if (!isEnsalada && quantity > 1) {
+      alert('Solo puedes seleccionar 1 unidad del menú principal')
+      return
+    }
+    
     setSelectedItems(prev => ({
       ...prev,
       [itemId]: Math.max(0, quantity)

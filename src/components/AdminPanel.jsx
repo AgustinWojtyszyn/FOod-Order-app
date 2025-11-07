@@ -8,14 +8,7 @@ const AdminPanel = () => {
   const [menuItems, setMenuItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [editingMenu, setEditingMenu] = useState(false)
-  const [newMenuItems, setNewMenuItems] = useState([
-    { name: '', description: '' },
-    { name: '', description: '' },
-    { name: '', description: '' },
-    { name: '', description: '' },
-    { name: '', description: '' },
-    { name: '', description: '' }
-  ])
+  const [newMenuItems, setNewMenuItems] = useState([])
 
   useEffect(() => {
     fetchData()
@@ -41,18 +34,23 @@ const AdminPanel = () => {
         setNewMenuItems([
           { name: 'Plato Principal 1', description: 'Delicioso plato principal' },
           { name: 'Plato Principal 2', description: 'Otro plato delicioso' },
-          { name: 'Plato Principal 3', description: 'Plato especial del día' },
-          { name: 'Plato Principal 4', description: 'Plato vegetariano' },
-          { name: 'Plato Principal 5', description: 'Plato de la casa' },
-          { name: 'Plato Principal 6', description: 'Plato recomendado' }
+          { name: 'Ensalada César', description: 'Fresca ensalada' }
         ])
       } else {
         setMenuItems(menuResult.data || [])
         if (menuResult.data && menuResult.data.length > 0) {
           setNewMenuItems(menuResult.data.map(item => ({
+            id: item.id,
             name: item.name,
             description: item.description || ''
           })))
+        } else {
+          // Menú por defecto si no hay items
+          setNewMenuItems([
+            { name: 'Plato Principal 1', description: 'Delicioso plato principal' },
+            { name: 'Plato Principal 2', description: 'Otro plato delicioso' },
+            { name: 'Ensalada César', description: 'Fresca ensalada' }
+          ])
         }
       }
     } catch (err) {
@@ -118,9 +116,12 @@ const AdminPanel = () => {
   }
 
   const removeMenuItem = (index) => {
-    if (newMenuItems.length > 1) {
-      setNewMenuItems(newMenuItems.filter((_, i) => i !== index))
+    if (newMenuItems.length <= 1) {
+      alert('Debe haber al menos un plato en el menú')
+      return
     }
+    const updatedItems = newMenuItems.filter((_, i) => i !== index)
+    setNewMenuItems(updatedItems)
   }
 
   if (loading) {
@@ -284,7 +285,7 @@ const AdminPanel = () => {
             <div className="space-y-4">
               <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 mb-6">
                 <p className="text-blue-800 font-semibold text-center">
-                  Edita los nombres y descripciones de los platos. No puedes eliminar opciones del menú.
+                  Puedes agregar, editar o eliminar opciones del menú. Debe haber al menos un plato.
                 </p>
               </div>
               
@@ -310,8 +311,23 @@ const AdminPanel = () => {
                       className="input-field"
                     />
                   </div>
+                  <button
+                    onClick={() => removeMenuItem(index)}
+                    className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors flex-shrink-0"
+                    title="Eliminar plato"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
                 </div>
               ))}
+              
+              <button
+                onClick={addMenuItem}
+                className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-primary-300 rounded-xl text-primary-600 hover:bg-primary-50 hover:border-primary-500 transition-all font-semibold"
+              >
+                <Plus className="h-5 w-5" />
+                Agregar nuevo plato
+              </button>
             </div>
           )}
         </div>
