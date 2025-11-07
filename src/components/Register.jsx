@@ -67,24 +67,28 @@ const Register = () => {
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div className="text-center bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8">
-            <div className="flex justify-center">
-              <CheckCircle className="h-20 w-20 text-green-600" />
+        <div className="max-w-md w-full">
+          <div className="text-center bg-white rounded-3xl shadow-2xl p-10 border-4 border-white/20">
+            <div className="flex justify-center mb-6">
+              <div className="bg-green-100 rounded-full p-4">
+                <CheckCircle className="h-20 w-20 text-green-600" />
+              </div>
             </div>
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-              ¡Cuenta creada exitosamente!
+            <h2 className="text-4xl font-extrabold text-gray-900 mb-4">
+              ✅ ¡Cuenta creada!
             </h2>
-            <p className="mt-4 text-sm text-gray-600">
+            <p className="text-lg text-gray-600 mb-6">
               Hemos enviado un enlace de confirmación a tu correo electrónico.
-              Por favor, revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta.
+            </p>
+            <p className="text-base text-gray-500 mb-8">
+              📧 Revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta.
             </p>
             <div className="mt-6">
               <Link
                 to="/login"
-                className="btn-primary inline-block bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                className="inline-block bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-bold py-4 px-8 text-lg rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
               >
-                Ir al Inicio de Sesión
+                ➡️ Ir al Inicio de Sesión
               </Link>
             </div>
           </div>
@@ -95,10 +99,10 @@ const Register = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <div className="flex justify-center mb-6">
-            <div className="bg-white p-6 rounded-3xl shadow-2xl transform hover:scale-105 transition-transform duration-300">
+      <div className="max-w-md w-full">
+        <div className="text-center mb-10">
+          <div className="flex justify-center mb-8">
+            <div className="bg-white p-6 rounded-3xl shadow-2xl transform hover:scale-105 transition-transform duration-300 border-4 border-white/30">
               <img 
                 src={servifoodLogo} 
                 alt="Servifood Catering Logo" 
@@ -106,31 +110,31 @@ const Register = () => {
               />
             </div>
           </div>
-          <h2 className="mt-8 text-5xl font-extrabold text-white drop-shadow-2xl">
-            Crear Cuenta
+          <h2 className="text-6xl font-extrabold text-white drop-shadow-2xl mb-3">
+            📝 Crear Cuenta
           </h2>
-          <p className="mt-4 text-xl font-semibold text-white drop-shadow-lg">
-            Únete a nuestra comunidad
+          <p className="text-2xl font-bold text-white drop-shadow-lg mb-3">
+            ¡Únete a ServiFood!
           </p>
-          <p className="mt-2 text-sm text-white/90">
+          <p className="text-lg text-white/90 drop-shadow">
             ¿Ya tienes cuenta?{' '}
-            <Link to="/login" className="font-semibold text-secondary-400 hover:text-secondary-300 transition-colors">
-              Inicia sesión aquí
+            <Link to="/login" className="font-bold text-secondary-300 hover:text-secondary-200 transition-colors underline">
+              Inicia sesión aquí →
             </Link>
           </p>
         </div>
 
-        <div className="card bg-white/95 backdrop-blur-sm shadow-2xl border-2 border-white/20">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 border-4 border-white/20">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
-              <div className="bg-red-50 border-2 border-red-300 text-red-700 px-4 py-3 rounded-xl font-medium">
-                {error}
+              <div className="bg-red-50 border-2 border-red-400 text-red-800 px-5 py-4 rounded-xl font-bold text-base">
+                ⚠️ {error}
               </div>
             )}
 
             <div>
-              <label htmlFor="fullName" className="block text-sm font-semibold text-gray-700">
-                Nombre completo
+              <label htmlFor="fullName" className="block text-base font-bold text-gray-800 mb-2">
+                👤 Nombre Completo
               </label>
               <input
                 id="fullName"
@@ -138,16 +142,16 @@ const Register = () => {
                 type="text"
                 autoComplete="name"
                 required
-                className="input-field mt-1 border-2 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
-                placeholder="Tu nombre completo"
+                className="input-field text-base font-medium"
+                placeholder="Juan Pérez"
                 value={formData.fullName}
                 onChange={handleChange}
               />
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700">
-                Correo electrónico
+              <label htmlFor="email" className="block text-base font-bold text-gray-800 mb-2">
+                ✉️ Correo Electrónico
               </label>
               <input
                 id="email"
@@ -155,7 +159,7 @@ const Register = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className="input-field mt-1 border-2 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                className="input-field text-base font-medium"
                 placeholder="tu@email.com"
                 value={formData.email}
                 onChange={handleChange}
@@ -163,24 +167,24 @@ const Register = () => {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
-                Contraseña
+              <label htmlFor="password" className="block text-base font-bold text-gray-800 mb-2">
+                🔒 Contraseña
               </label>
-              <div className="relative mt-1">
+              <div className="relative">
                 <input
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   required
-                  className="input-field pr-10 border-2 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                  className="input-field pr-12 text-base font-medium"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={handleChange}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-primary-600"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-primary-600 transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
@@ -193,48 +197,50 @@ const Register = () => {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700">
-                Confirmar contraseña
+              <label htmlFor="confirmPassword" className="block text-base font-bold text-gray-800 mb-2">
+                🔐 Confirmar Contraseña
               </label>
-              <div className="relative mt-1">
+              <div className="relative">
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   required
-                  className="input-field pr-10 border-2 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                  className="input-field pr-12 text-base font-medium"
                   placeholder="••••••••"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-primary-600"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-primary-600 transition-colors"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
+                    <EyeOff className="h-6 w-6" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
+                    <Eye className="h-6 w-6" />
                   )}
                 </button>
               </div>
             </div>
 
-            <div>
+            <div className="pt-2">
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                className="w-full flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-600 hover:to-secondary-700 text-white font-bold py-4 px-6 text-lg rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
               >
                 {loading ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Creando cuenta...
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
+                    Creando tu cuenta...
                   </>
                 ) : (
-                  'Crear Cuenta'
+                  <>
+                    ✨ Crear Cuenta Gratis
+                  </>
                 )}
               </button>
             </div>
