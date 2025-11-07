@@ -91,6 +91,26 @@ export const db = {
     return { data, error }
   },
 
+  deleteUser: async (userId) => {
+    // Primero eliminar todos los pedidos del usuario
+    const { error: ordersError } = await supabase
+      .from('orders')
+      .delete()
+      .eq('user_id', userId)
+
+    if (ordersError) return { error: ordersError }
+
+    // Luego eliminar el usuario de auth usando Admin API
+    // Nota: Esto requiere que tengas configurado el Service Role Key
+    // Por ahora solo eliminamos de la tabla users
+    const { data, error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId)
+    
+    return { data, error }
+  },
+
   // Pedidos
   createOrder: async (orderData) => {
     const { data, error } = await supabase

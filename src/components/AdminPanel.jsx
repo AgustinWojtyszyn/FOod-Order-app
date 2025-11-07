@@ -79,6 +79,34 @@ const AdminPanel = () => {
     }
   }
 
+  const handleDeleteUser = async (userId, userName) => {
+    const confirmed = window.confirm(
+      `¿Estás seguro de que deseas eliminar al usuario "${userName}"?\n\n` +
+      'Esta acción eliminará:\n' +
+      '- El usuario de la base de datos\n' +
+      '- Todos los pedidos asociados\n\n' +
+      'Esta acción NO se puede deshacer.'
+    )
+
+    if (!confirmed) return
+
+    try {
+      const { error } = await db.deleteUser(userId)
+      
+      if (error) {
+        console.error('Error deleting user:', error)
+        alert('Error al eliminar el usuario: ' + error.message)
+      } else {
+        // Update local state
+        setUsers(users.filter(user => user.id !== userId))
+        alert('Usuario eliminado exitosamente')
+      }
+    } catch (err) {
+      console.error('Error:', err)
+      alert('Error al eliminar el usuario')
+    }
+  }
+
   const handleMenuUpdate = async () => {
     try {
       // Filter out empty items
@@ -217,14 +245,23 @@ const AdminPanel = () => {
                       {new Date(user.created_at).toLocaleDateString('es-ES')}
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium">
-                      <select
-                        value={user.user_metadata?.role || 'user'}
-                        onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                        className="text-sm border border-gray-300 rounded px-2 py-1"
-                      >
-                        <option value="user">Usuario</option>
-                        <option value="admin">Admin</option>
-                      </select>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={user.user_metadata?.role || 'user'}
+                          onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                          className="text-xs sm:text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                          <option value="user">Usuario</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                        <button
+                          onClick={() => handleDeleteUser(user.id, user.user_metadata?.full_name || user.email)}
+                          className="p-1.5 sm:p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 hover:text-red-700 transition-colors"
+                          title="Eliminar usuario"
+                        >
+                          <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
