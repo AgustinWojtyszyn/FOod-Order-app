@@ -134,24 +134,27 @@ const OrderForm = ({ user }) => {
 
   if (success) {
     return (
-      <div className="max-w-2xl mx-auto text-center py-12">
-        <div className="bg-white/95 backdrop-blur-sm border-2 border-green-300 rounded-2xl p-8 shadow-2xl">
-          <div className="flex justify-center mb-4">
-            <div className="p-4 rounded-full bg-green-100">
-              <ChefHat className="h-12 w-12 text-green-600" />
+      <div className="min-h-screen bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 p-6 flex items-center justify-center">
+        <div className="max-w-2xl mx-auto text-center">
+          <div className="bg-white/95 backdrop-blur-sm border-2 border-green-300 rounded-2xl p-8 shadow-2xl">
+            <div className="flex justify-center mb-4">
+              <div className="p-4 rounded-full bg-green-100">
+                <ChefHat className="h-12 w-12 text-green-600" />
+              </div>
             </div>
+            <h2 className="text-3xl font-bold text-green-900 mb-2">¡Pedido creado exitosamente!</h2>
+            <p className="text-lg text-green-700">Tu pedido ha sido registrado y será procesado pronto.</p>
+            <p className="text-sm text-green-600 mt-2">Redirigiendo al dashboard...</p>
           </div>
-          <h2 className="text-3xl font-bold text-green-900 mb-2">¡Pedido creado exitosamente!</h2>
-          <p className="text-lg text-green-700">Tu pedido ha sido registrado y será procesado pronto.</p>
-          <p className="text-sm text-green-600 mt-2">Redirigiendo al dashboard...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="text-center">
+    <div className="min-h-screen bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 p-6">
+      <div className="max-w-4xl mx-auto space-y-8">
+        <div className="text-center">
         <h1 className="text-5xl font-bold text-white drop-shadow-2xl mb-3">🍽️ Nuevo Pedido</h1>
         <p className="text-2xl text-white font-semibold drop-shadow-lg">Selecciona tu menú y completa tus datos</p>
         <p className="text-lg text-white/90 mt-2">¡Es rápido y fácil!</p>
@@ -381,6 +384,7 @@ const OrderForm = ({ user }) => {
           </button>
         </div>
       </form>
+      </div>
     </div>
   )
 }

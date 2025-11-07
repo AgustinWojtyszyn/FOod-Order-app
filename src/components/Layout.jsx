@@ -139,8 +139,8 @@ const Layout = ({ children, user }) => {
         )}
 
         {/* Main content */}
-        <main className="flex-1 md:ml-0">
-          <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <main className="flex-1 md:ml-0 bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 min-h-screen">
+          <div className="max-w-7xl mx-auto">
             {children}
           </div>
         </main>

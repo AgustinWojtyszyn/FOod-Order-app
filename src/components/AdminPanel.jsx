@@ -132,7 +132,7 @@ const AdminPanel = () => {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 p-6 space-y-8">
       <div>
         <h1 className="text-5xl font-bold text-white drop-shadow-2xl mb-2">⚙️ Panel de Administración</h1>
         <p className="text-xl text-white/90 drop-shadow-lg mt-2">Gestiona usuarios y el menú de opciones</p>

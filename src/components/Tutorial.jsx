@@ -60,9 +60,9 @@ const Tutorial = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 overflow-hidden">
+      <div className="bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 overflow-hidden border-4 border-white/20">
         {/* Header */}
-        <div className="bg-gradient-to-r from-primary-600 to-primary-700 p-6 text-white relative">
+        <div className="bg-gradient-to-r from-primary-900 to-primary-800 p-6 text-white relative border-b-4 border-secondary-500">
           <button
             onClick={handleClose}
             className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-colors"
@@ -79,7 +79,7 @@ const Tutorial = ({ isOpen, onClose }) => {
         </div>
 
         {/* Content */}
-        <div className="p-8">
+        <div className="p-8 bg-white/95 backdrop-blur-sm">
           <div className="text-center mb-6">
             <div className="text-6xl mb-4">{steps[currentStep].image}</div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">
