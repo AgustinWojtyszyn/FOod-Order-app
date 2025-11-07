@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: food-order-app
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npx serve -s dist -l 10000
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
+      - key: NPM_CONFIG_PRODUCTION
+        value: false
