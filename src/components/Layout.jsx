@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { auth } from '../supabaseClient'
-import { Menu, X, User, LogOut, ShoppingCart, Settings, HelpCircle } from 'lucide-react'
+import { Menu, X, User, LogOut, ShoppingCart, Settings, HelpCircle, UserCircle } from 'lucide-react'
 import servifoodLogo from '../assets/servifood logo.jpg'
 import Tutorial from './Tutorial'
 
@@ -25,6 +25,9 @@ const Layout = ({ children, user }) => {
   if (isAdmin) {
     menuItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
   }
+
+  // Add Profile option for all users
+  menuItems.push({ name: 'Mi Perfil', path: '/profile', icon: UserCircle })
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800">
