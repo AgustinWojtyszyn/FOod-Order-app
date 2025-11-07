@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../supabaseClient'
-import { ShoppingCart, Plus, Minus, X, ChefHat } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, X, ChefHat, User } from 'lucide-react'
 
 const OrderForm = ({ user }) => {
   const [menuItems, setMenuItems] = useState([])
