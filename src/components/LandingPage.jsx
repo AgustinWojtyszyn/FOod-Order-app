@@ -32,21 +32,19 @@ const LandingPage = () => {
       <div className="relative z-10">
         {/* Navigation */}
         <nav className="container mx-auto px-4 sm:px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img 
-                src={servifoodLogo} 
-                alt="Servifood Logo" 
-                className="h-16 sm:h-20 w-auto"
-              />
-              <span className="text-xl sm:text-2xl font-extrabold text-white drop-shadow-lg hidden sm:inline">ServiFood Catering</span>
-            </div>
+          <div className="flex items-center justify-end">
             <div className="flex gap-3">
               <Link
                 to="/login"
                 className="px-4 py-2 sm:px-6 sm:py-3 text-white font-bold text-sm sm:text-base hover:text-secondary-300 transition-colors"
               >
                 Iniciar Sesión
+              </Link>
+              <Link
+                to="/admin-login"
+                className="px-4 py-2 sm:px-6 sm:py-3 text-white font-bold text-sm sm:text-base hover:text-secondary-300 transition-colors"
+              >
+                Admin
               </Link>
               <Link
                 to="/register"
@@ -81,7 +79,7 @@ const LandingPage = () => {
               </h1>
               <p className="text-lg sm:text-xl md:text-2xl mb-8 leading-relaxed font-semibold drop-shadow-lg" style={{color: 'rgba(255, 255, 255, 0.9)'}}>
                 La mejor plataforma para gestionar tus pedidos de comida de manera profesional. 
-                <span className="block mt-2">✨ Fácil, rápido y eficiente.</span>
+                <span className="block mt-2">Fácil, rápido y eficiente.</span>
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
@@ -91,7 +89,7 @@ const LandingPage = () => {
                   onMouseEnter={(e) => e.currentTarget.style.background = 'linear-gradient(to right, #fb8c00, #f57c00)'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'linear-gradient(to right, #ff9800, #fb8c00)'}
                 >
-                  ✨ Comenzar Ahora
+                  Comenzar Ahora
                   <ArrowRight className="h-6 w-6" />
                 </Link>
                 <Link

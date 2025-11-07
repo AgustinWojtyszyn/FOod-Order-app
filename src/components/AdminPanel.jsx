@@ -134,7 +134,7 @@ const AdminPanel = () => {
   return (
     <div className="p-6 space-y-8">
       <div>
-        <h1 className="text-5xl font-bold text-white drop-shadow-2xl mb-2">⚙️ Panel de Administración</h1>
+        <h1 className="text-5xl font-bold text-white drop-shadow-2xl mb-2">Panel de Administración</h1>
         <p className="text-xl text-white/90 drop-shadow-lg mt-2">Gestiona usuarios y el menú de opciones</p>
       </div>
 
@@ -176,19 +176,19 @@ const AdminPanel = () => {
               <thead className="bg-gradient-to-r from-primary-600 to-primary-700">
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-wider">
-                    👤 Usuario
+                    Usuario
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-wider">
-                    ✉️ Email
+                    Email
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-wider">
-                    🔑 Rol
+                    Rol
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-wider">
-                    📅 Fecha de Registro
+                    Fecha de Registro
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-wider">
-                    ⚡ Acciones
+                    Acciones
                   </th>
                 </tr>
               </thead>
@@ -284,7 +284,7 @@ const AdminPanel = () => {
             <div className="space-y-4">
               <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 mb-6">
                 <p className="text-blue-800 font-semibold text-center">
-                  ⚠️ Edita los nombres y descripciones de los platos. No puedes eliminar opciones del menú.
+                  Edita los nombres y descripciones de los platos. No puedes eliminar opciones del menú.
                 </p>
               </div>
               
