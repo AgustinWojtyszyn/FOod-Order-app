@@ -66,7 +66,7 @@ const Register = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8" style={{background: 'linear-gradient(to bottom right, #1a237e, #283593, #303f9f)'}}>
         <div className="max-w-md w-full">
           <div className="text-center bg-white rounded-3xl shadow-2xl p-10 border-4 border-white/20">
             <div className="flex justify-center mb-6">
@@ -75,20 +75,23 @@ const Register = () => {
               </div>
             </div>
             <h2 className="text-4xl font-extrabold text-gray-900 mb-4">
-              ✅ ¡Cuenta creada!
+              ¡Cuenta creada!
             </h2>
             <p className="text-lg text-gray-600 mb-6">
               Hemos enviado un enlace de confirmación a tu correo electrónico.
             </p>
             <p className="text-base text-gray-500 mb-8">
-              📧 Revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta.
+              Revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta.
             </p>
             <div className="mt-6">
               <Link
                 to="/login"
-                className="inline-block bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-bold py-4 px-8 text-lg rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                className="inline-block text-white font-bold py-4 px-8 text-lg rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                style={{background: 'linear-gradient(to right, #ff9800, #fb8c00)'}}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'linear-gradient(to right, #fb8c00, #f57c00)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'linear-gradient(to right, #ff9800, #fb8c00)'}
               >
-                ➡️ Ir al Inicio de Sesión
+                Ir al Inicio de Sesión
               </Link>
             </div>
           </div>
@@ -98,28 +101,26 @@ const Register = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8" style={{background: 'linear-gradient(to bottom right, #1a237e, #283593, #303f9f)'}}>
       <div className="max-w-md w-full">
         <div className="text-center mb-10">
           <div className="flex justify-center mb-8">
-            <div className="bg-white p-6 rounded-3xl shadow-2xl transform hover:scale-105 transition-transform duration-300 border-4 border-white/30">
-              <img 
-                src={servifoodLogo} 
-                alt="Servifood Catering Logo" 
-                className="h-48 w-auto"
-              />
-            </div>
+            <img 
+              src={servifoodLogo} 
+              alt="Servifood Catering Logo" 
+              className="h-40 w-auto"
+            />
           </div>
           <h2 className="text-6xl font-extrabold text-white drop-shadow-2xl mb-3">
-            📝 Crear Cuenta
+            Crear Cuenta
           </h2>
           <p className="text-2xl font-bold text-white drop-shadow-lg mb-3">
             ¡Únete a ServiFood!
           </p>
-          <p className="text-lg text-white/90 drop-shadow">
+          <p className="text-lg drop-shadow" style={{color: 'rgba(255, 255, 255, 0.9)'}}>
             ¿Ya tienes cuenta?{' '}
-            <Link to="/login" className="font-bold text-secondary-300 hover:text-secondary-200 transition-colors underline">
-              Inicia sesión aquí →
+            <Link to="/login" className="font-bold hover:underline transition-colors" style={{color: '#ffa726'}}>
+              Inicia sesión aquí
             </Link>
           </p>
         </div>
@@ -128,13 +129,13 @@ const Register = () => {
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
               <div className="bg-red-50 border-2 border-red-400 text-red-800 px-5 py-4 rounded-xl font-bold text-base">
-                ⚠️ {error}
+                {error}
               </div>
             )}
 
             <div>
               <label htmlFor="fullName" className="block text-base font-bold text-gray-800 mb-2">
-                👤 Nombre Completo
+                Nombre Completo
               </label>
               <input
                 id="fullName"
@@ -151,7 +152,7 @@ const Register = () => {
 
             <div>
               <label htmlFor="email" className="block text-base font-bold text-gray-800 mb-2">
-                ✉️ Correo Electrónico
+                Correo Electrónico
               </label>
               <input
                 id="email"
@@ -168,7 +169,7 @@ const Register = () => {
 
             <div>
               <label htmlFor="password" className="block text-base font-bold text-gray-800 mb-2">
-                🔒 Contraseña
+                Contraseña
               </label>
               <div className="relative">
                 <input
@@ -198,7 +199,7 @@ const Register = () => {
 
             <div>
               <label htmlFor="confirmPassword" className="block text-base font-bold text-gray-800 mb-2">
-                🔐 Confirmar Contraseña
+                Confirmar Contraseña
               </label>
               <div className="relative">
                 <input
@@ -230,7 +231,10 @@ const Register = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-600 hover:to-secondary-700 text-white font-bold py-4 px-6 text-lg rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                className="w-full flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 px-6 text-lg rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                style={{background: loading ? '#9e9e9e' : 'linear-gradient(to right, #ff9800, #fb8c00)'}}
+                onMouseEnter={(e) => !loading && (e.currentTarget.style.background = 'linear-gradient(to right, #fb8c00, #f57c00)')}
+                onMouseLeave={(e) => !loading && (e.currentTarget.style.background = 'linear-gradient(to right, #ff9800, #fb8c00)')}
               >
                 {loading ? (
                   <>
@@ -238,9 +242,7 @@ const Register = () => {
                     Creando tu cuenta...
                   </>
                 ) : (
-                  <>
-                    ✨ Crear Cuenta Gratis
-                  </>
+                  'Crear Cuenta Gratis'
                 )}
               </button>
             </div>

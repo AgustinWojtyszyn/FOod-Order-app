@@ -42,17 +42,15 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8" style={{background: 'linear-gradient(to bottom right, #1a237e, #283593, #303f9f)'}}>
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="flex justify-center mb-6">
-            <div className="bg-white p-6 rounded-3xl shadow-2xl transform hover:scale-105 transition-transform duration-300">
-              <img 
-                src={servifoodLogo} 
-                alt="Servifood Catering Logo" 
-                className="h-48 w-auto"
-              />
-            </div>
+            <img 
+              src={servifoodLogo} 
+              alt="Servifood Catering Logo" 
+              className="h-40 w-auto"
+            />
           </div>
           <h2 className="mt-8 text-5xl font-extrabold text-white drop-shadow-2xl">
             Bienvenido
@@ -60,9 +58,9 @@ const Login = () => {
           <p className="mt-4 text-xl font-semibold text-white drop-shadow-lg">
             Inicia sesión para continuar
           </p>
-          <p className="mt-2 text-sm text-primary-200">
+          <p className="mt-2 text-sm" style={{color: 'rgba(255, 255, 255, 0.8)'}}>
             ¿No tienes cuenta?{' '}
-            <Link to="/register" className="font-semibold text-secondary-400 hover:text-secondary-300 transition-colors">
+            <Link to="/register" className="font-semibold hover:underline" style={{color: '#ffa726'}}>
               Regístrate aquí
             </Link>
           </p>
@@ -127,7 +125,10 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                className="btn-primary w-full flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                style={{background: loading ? '#9e9e9e' : 'linear-gradient(to right, #ff9800, #fb8c00)'}}
+                onMouseEnter={(e) => !loading && (e.currentTarget.style.background = 'linear-gradient(to right, #fb8c00, #f57c00)')}
+                onMouseLeave={(e) => !loading && (e.currentTarget.style.background = 'linear-gradient(to right, #ff9800, #fb8c00)')}
               >
                 {loading ? (
                   <>
