@@ -42,37 +42,42 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="flex justify-center">
-            <img 
-              src={servifoodLogo} 
-              alt="Servifood Catering Logo" 
-              className="h-24 w-auto rounded-lg shadow-lg"
-            />
+          <div className="flex justify-center mb-6">
+            <div className="bg-white p-4 rounded-2xl shadow-2xl transform hover:scale-105 transition-transform duration-300">
+              <img 
+                src={servifoodLogo} 
+                alt="Servifood Catering Logo" 
+                className="h-32 w-auto"
+              />
+            </div>
           </div>
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Iniciar Sesión
+          <h2 className="mt-6 text-4xl font-extrabold text-white drop-shadow-lg">
+            Bienvenido
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-3 text-lg text-primary-100">
+            Inicia sesión para continuar
+          </p>
+          <p className="mt-2 text-sm text-primary-200">
             ¿No tienes cuenta?{' '}
-            <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500">
+            <Link to="/register" className="font-semibold text-secondary-400 hover:text-secondary-300 transition-colors">
               Regístrate aquí
             </Link>
           </p>
         </div>
 
-        <div className="card">
+        <div className="card bg-white/95 backdrop-blur-sm shadow-2xl border-2 border-white/20">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              <div className="bg-red-50 border-2 border-red-300 text-red-700 px-4 py-3 rounded-xl font-medium">
                 {error}
               </div>
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-700">
                 Correo electrónico
               </label>
               <input
@@ -81,7 +86,7 @@ const Login = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className="input-field mt-1"
+                className="input-field mt-1 border-2 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
                 placeholder="tu@email.com"
                 value={formData.email}
                 onChange={handleChange}
@@ -89,7 +94,7 @@ const Login = () => {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
                 Contraseña
               </label>
               <div className="relative mt-1">
@@ -99,20 +104,20 @@ const Login = () => {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   required
-                  className="input-field pr-10"
+                  className="input-field pr-10 border-2 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={handleChange}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-primary-600"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
+                    <EyeOff className="h-5 w-5" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
+                    <Eye className="h-5 w-5" />
                   )}
                 </button>
               </div>
@@ -122,11 +127,11 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary w-full flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
               >
                 {loading ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                     Iniciando sesión...
                   </>
                 ) : (

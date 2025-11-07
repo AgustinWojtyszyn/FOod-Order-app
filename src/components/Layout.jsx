@@ -25,15 +25,15 @@ const Layout = ({ children, user }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-gradient-to-r from-primary-700 to-primary-800 shadow-lg border-b-4 border-secondary-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 md:hidden"
+                className="p-2 rounded-md text-white/80 hover:text-white hover:bg-white/10 md:hidden"
               >
                 <Menu className="h-6 w-6" />
               </button>
@@ -41,17 +41,17 @@ const Layout = ({ children, user }) => {
                 <img 
                   src={servifoodLogo} 
                   alt="Servifood Logo" 
-                  className="h-10 w-auto rounded"
+                  className="h-10 w-auto rounded bg-white p-1"
                 />
-                <span className="ml-3 text-xl font-bold text-gray-900">ServiFood Catering</span>
+                <span className="ml-3 text-xl font-bold text-white drop-shadow-lg">ServiFood Catering</span>
               </div>
             </div>
 
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">Hola, {user?.email?.split('@')[0]}</span>
+              <span className="text-sm font-medium text-white/90">Hola, {user?.email?.split('@')[0]}</span>
               <button
                 onClick={handleLogout}
-                className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                className="p-2 rounded-md text-white/80 hover:text-white hover:bg-white/10 transition-colors"
               >
                 <LogOut className="h-5 w-5" />
               </button>
@@ -64,14 +64,14 @@ const Layout = ({ children, user }) => {
         {/* Sidebar */}
         <aside className={`${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:inset-0`}>
-          <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200">
+        } fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:inset-0 border-r-4 border-primary-600`}>
+          <div className="flex items-center justify-center h-16 px-4 border-b-2 border-primary-200 bg-gradient-to-r from-primary-50 to-primary-100">
             <img 
               src={servifoodLogo} 
               alt="Servifood Logo" 
               className="h-10 w-auto rounded"
             />
-            <span className="ml-3 text-lg font-bold text-gray-900">ServiFood</span>
+            <span className="ml-3 text-lg font-bold text-primary-900">ServiFood</span>
           </div>
 
           <nav className="mt-8 px-4">
@@ -82,7 +82,7 @@ const Layout = ({ children, user }) => {
                   <li key={item.path}>
                     <Link
                       to={item.path}
-                      className="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 hover:text-primary-600 transition-colors duration-200"
+                      className="flex items-center px-4 py-3 text-gray-700 rounded-xl hover:bg-gradient-to-r hover:from-primary-600 hover:to-primary-700 hover:text-white font-medium transition-all duration-200 transform hover:scale-105"
                       onClick={() => setSidebarOpen(false)}
                     >
                       <Icon className="h-5 w-5 mr-3" />
