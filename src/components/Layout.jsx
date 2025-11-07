@@ -60,7 +60,7 @@ const Layout = ({ children, user }) => {
         </div>
       </header>
 
-      <div className="flex">
+      <div className="flex min-h-[calc(100vh-4rem)]">
         {/* Sidebar */}
         <aside className={`${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -74,7 +74,7 @@ const Layout = ({ children, user }) => {
             <span className="ml-3 text-lg font-bold text-white drop-shadow">ServiFood</span>
           </div>
 
-          <nav className="mt-8 px-4 bg-gradient-to-b from-white to-primary-50 min-h-screen">
+          <nav className="mt-8 px-4 bg-white min-h-full">
             <ul className="space-y-2">
               {menuItems.map((item) => {
                 const Icon = item.icon
@@ -112,7 +112,7 @@ const Layout = ({ children, user }) => {
         )}
 
         {/* Main content */}
-        <main className="flex-1 md:ml-0 bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 min-h-screen">
+        <main className="flex-1 md:ml-0">
           <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
             {children}
           </div>
