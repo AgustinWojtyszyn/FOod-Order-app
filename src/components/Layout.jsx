@@ -74,8 +74,8 @@ const Layout = ({ children, user }) => {
             <span className="ml-3 text-lg font-bold text-white drop-shadow">ServiFood</span>
           </div>
 
-          <nav className="mt-8 px-4 bg-white min-h-full">
-            <ul className="space-y-2">
+          <nav className="mt-8 px-4 bg-white min-h-full flex flex-col">
+            <ul className="space-y-2 flex-1">
               {menuItems.map((item) => {
                 const Icon = item.icon
                 return (
@@ -92,6 +92,20 @@ const Layout = ({ children, user }) => {
                 )
               })}
             </ul>
+
+            {/* Logout Button */}
+            <div className="mt-auto mb-6">
+              <button
+                onClick={() => {
+                  handleLogout()
+                  setSidebarOpen(false)
+                }}
+                className="flex items-center w-full px-4 py-3 text-red-700 rounded-xl hover:bg-gradient-to-r hover:from-red-600 hover:to-red-700 hover:text-white font-semibold transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-lg border-2 border-red-200 hover:border-transparent"
+              >
+                <LogOut className="h-5 w-5 mr-3" />
+                Cerrar Sesión
+              </button>
+            </div>
           </nav>
 
           {/* Botón cerrar en móvil */}
