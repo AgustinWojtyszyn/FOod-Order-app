@@ -41,12 +41,6 @@ const LandingPage = () => {
                 Iniciar Sesión
               </Link>
               <Link
-                to="/admin-login"
-                className="px-4 py-2 sm:px-6 sm:py-3 text-white font-bold text-sm sm:text-base hover:text-secondary-300 transition-colors"
-              >
-                Admin
-              </Link>
-              <Link
                 to="/register"
                 className="px-4 py-2 sm:px-6 sm:py-3 text-white font-bold text-sm sm:text-base rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                 style={{background: 'linear-gradient(to right, #ff9800, #fb8c00)'}}
