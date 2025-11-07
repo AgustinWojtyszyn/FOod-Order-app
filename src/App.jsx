@@ -4,6 +4,8 @@ import { supabase, auth } from './supabaseClient'
 import Layout from './components/Layout'
 import Login from './components/Login'
 import Register from './components/Register'
+import ForgotPassword from './components/ForgotPassword'
+import ResetPassword from './components/ResetPassword'
 import Dashboard from './components/Dashboard'
 import AdminPanel from './components/AdminPanel'
 import OrderForm from './components/OrderForm'
@@ -54,6 +56,10 @@ function App() {
           <Route path="/register" element={
             user ? <Navigate to="/dashboard" /> : <Register />
           } />
+          <Route path="/forgot-password" element={
+            user ? <Navigate to="/dashboard" /> : <ForgotPassword />
+          } />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/order" element={
             user ? <Layout user={user}><OrderForm user={user} /></Layout> : <Navigate to="/login" />
           } />
