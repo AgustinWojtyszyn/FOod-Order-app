@@ -17,12 +17,14 @@ const OrderForm = ({ user }) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [hasOrderToday, setHasOrderToday] = useState(false)
   const navigate = useNavigate()
 
   const locations = ['Los Berros', 'La Laja', 'Padre Bueno']
 
   useEffect(() => {
     fetchMenuItems()
+    checkTodayOrder()
     // Pre-fill user data
     setFormData(prev => ({
       ...prev,
@@ -30,6 +32,30 @@ const OrderForm = ({ user }) => {
       email: user?.email || ''
     }))
   }, [user])
+
+  const checkTodayOrder = async () => {
+    try {
+      // Obtener solo los pedidos del usuario actual
+      const { data, error } = await db.getOrders(user.id)
+      if (!error && data) {
+        // Verificar si tiene algún pedido pendiente (no entregado)
+        const hasPendingOrder = data.some(order => 
+          order.status === 'pending' || 
+          order.status === 'preparing' || 
+          order.status === 'ready'
+        )
+        setHasOrderToday(hasPendingOrder)
+        
+        if (hasPendingOrder) {
+          console.log('Usuario ya tiene un pedido pendiente:', data.filter(o => 
+            o.status === 'pending' || o.status === 'preparing' || o.status === 'ready'
+          ))
+        }
+      }
+    } catch (err) {
+      console.error('Error checking today order:', err)
+    }
+  }
 
   const fetchMenuItems = async () => {
     try {
@@ -109,6 +135,13 @@ const OrderForm = ({ user }) => {
     setLoading(true)
     setError('')
 
+    // Verificar si ya tiene un pedido pendiente
+    if (hasOrderToday) {
+      setError('Ya tienes un pedido pendiente. Espera a que se complete para crear uno nuevo.')
+      setLoading(false)
+      return
+    }
+
     const selectedItemsList = getSelectedItemsList()
 
     if (!formData.location) {
@@ -144,7 +177,13 @@ const OrderForm = ({ user }) => {
       const { error } = await db.createOrder(orderData)
 
       if (error) {
-        setError('Error al crear el pedido: ' + error.message)
+        // Verificar si es error de política de base de datos
+        if (error.message.includes('violates row-level security policy') || 
+            error.message.includes('new row violates row-level security')) {
+          setError('Ya tienes un pedido pendiente. Espera a que se complete para crear uno nuevo.')
+        } else {
+          setError('Error al crear el pedido: ' + error.message)
+        }
       } else {
         setSuccess(true)
         setTimeout(() => {
@@ -185,6 +224,22 @@ const OrderForm = ({ user }) => {
         <p className="text-lg sm:text-xl md:text-2xl text-white font-semibold drop-shadow-lg">Selecciona tu menú y completa tus datos</p>
         <p className="text-base sm:text-lg text-white/90 mt-1 sm:mt-2">¡Es rápido y fácil!</p>
       </div>
+
+      {hasOrderToday && (
+        <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-4 sm:p-6 shadow-lg">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 bg-yellow-100 rounded-full p-2">
+              <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-yellow-900 mb-1">Ya tienes un pedido pendiente</h3>
+              <p className="text-yellow-800">Solo puedes tener un pedido activo a la vez. Espera a que tu pedido actual sea entregado para crear uno nuevo, o elimínalo desde el Dashboard.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
         {/* Información Personal */}
@@ -393,7 +448,7 @@ const OrderForm = ({ user }) => {
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={loading || getSelectedItemsList().length === 0}
+            disabled={loading || getSelectedItemsList().length === 0 || hasOrderToday}
             className="btn-primary flex items-center disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3"
           >
             {loading ? (
@@ -401,6 +456,8 @@ const OrderForm = ({ user }) => {
                 <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
                 Creando pedido...
               </>
+            ) : hasOrderToday ? (
+              'Ya tienes un pedido pendiente'
             ) : (
               <>
                 <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
