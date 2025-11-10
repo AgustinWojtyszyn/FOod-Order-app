@@ -16,6 +16,7 @@ DROP POLICY IF EXISTS "Enable insert for service role" ON public.users;
 DROP POLICY IF EXISTS "Allow all to read users" ON public.users;
 DROP POLICY IF EXISTS "Allow insert users" ON public.users;
 DROP POLICY IF EXISTS "Allow update own profile" ON public.users;
+DROP POLICY IF EXISTS "Allow update users" ON public.users;
 DROP POLICY IF EXISTS "Allow delete users" ON public.users;
 
 -- Eliminar políticas de orders (TODAS LAS POSIBLES)
@@ -28,6 +29,9 @@ DROP POLICY IF EXISTS "Admins can view all orders" ON public.orders;
 DROP POLICY IF EXISTS "Users view own orders" ON public.orders;
 DROP POLICY IF EXISTS "Users create own orders" ON public.orders;
 DROP POLICY IF EXISTS "Users update own orders" ON public.orders;
+DROP POLICY IF EXISTS "Admins update orders" ON public.orders;
+DROP POLICY IF EXISTS "All can view orders" ON public.orders;
+DROP POLICY IF EXISTS "All can update orders" ON public.orders;
 DROP POLICY IF EXISTS "Users delete own orders" ON public.orders;
 
 -- Eliminar políticas de menu_items (TODAS LAS POSIBLES)
@@ -60,18 +64,19 @@ CREATE POLICY "Allow all to read users" ON public.users
 CREATE POLICY "Allow insert users" ON public.users
   FOR INSERT WITH CHECK (true);
 
--- Permitir actualizar solo su propio perfil
-CREATE POLICY "Allow update own profile" ON public.users
-  FOR UPDATE USING (auth.uid() = id);
+-- Permitir actualizar (cualquier usuario autenticado puede actualizar)
+-- Esto permite tanto que los usuarios actualicen su perfil como que los admins actualicen roles
+CREATE POLICY "Allow update users" ON public.users
+  FOR UPDATE USING (true);
 
 -- Permitir eliminar (necesario para admin)
 CREATE POLICY "Allow delete users" ON public.users
   FOR DELETE USING (true);
 
 -- POLÍTICAS PARA ORDERS (SIMPLES)
--- Ver sus propios pedidos
-CREATE POLICY "Users view own orders" ON public.orders
-  FOR SELECT USING (auth.uid() = user_id);
+-- Todos pueden ver todos los pedidos (necesario para admin dashboard)
+CREATE POLICY "All can view orders" ON public.orders
+  FOR SELECT USING (true);
 
 -- Crear sus propios pedidos (MÁXIMO 1 PEDIDO PENDIENTE A LA VEZ)
 CREATE POLICY "Users create own orders" ON public.orders
@@ -84,11 +89,11 @@ CREATE POLICY "Users create own orders" ON public.orders
     )
   );
 
--- Actualizar sus propios pedidos
-CREATE POLICY "Users update own orders" ON public.orders
-  FOR UPDATE USING (auth.uid() = user_id);
+-- Todos pueden actualizar pedidos (control de admin en frontend)
+CREATE POLICY "All can update orders" ON public.orders
+  FOR UPDATE USING (true);
 
--- Eliminar sus propios pedidos
+-- Usuarios pueden eliminar solo sus propios pedidos
 CREATE POLICY "Users delete own orders" ON public.orders
   FOR DELETE USING (auth.uid() = user_id);
 

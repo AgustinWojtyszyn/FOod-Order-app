@@ -6,6 +6,7 @@ import { ShoppingCart, Clock, CheckCircle, ChefHat, Plus, Package } from 'lucide
 const Dashboard = ({ user }) => {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -13,12 +14,33 @@ const Dashboard = ({ user }) => {
   })
 
   useEffect(() => {
-    fetchOrders()
+    checkIfAdmin()
   }, [user])
+
+  useEffect(() => {
+    if (isAdmin !== null) {
+      fetchOrders()
+    }
+  }, [isAdmin])
+
+  const checkIfAdmin = async () => {
+    try {
+      const { data, error } = await db.getUsers()
+      if (!error && data) {
+        const currentUser = data.find(u => u.id === user.id)
+        setIsAdmin(currentUser?.role === 'admin')
+      }
+    } catch (err) {
+      console.error('Error checking admin status:', err)
+    }
+  }
 
   const fetchOrders = async () => {
     try {
-      const { data, error } = await db.getOrders(user.id)
+      // Admins ven todos los pedidos, usuarios solo los suyos
+      const { data, error } = isAdmin 
+        ? await db.getOrders() 
+        : await db.getOrders(user.id)
 
       if (error) {
         console.error('Error fetching orders:', error)
@@ -187,7 +209,7 @@ const Dashboard = ({ user }) => {
                      order.status === 'pending' ? 'Pendiente' : 'En Proceso'}
                   </span>
                   
-                  {order.status !== 'delivered' && (
+                  {isAdmin && order.status !== 'delivered' && (
                     <button
                       onClick={() => handleMarkAsDelivered(order.id)}
                       className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors flex-shrink-0"
