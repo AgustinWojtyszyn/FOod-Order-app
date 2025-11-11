@@ -106,10 +106,7 @@ const Dashboard = ({ user }) => {
     if (currentStatus === newStatus) return // No hacer nada si es el mismo estado
     
     const statusNames = {
-      'pending': 'Pendiente',
-      'processing': 'En Proceso',
       'completed': 'Completado',
-      'delivered': 'Entregado',
       'cancelled': 'Cancelado'
     }
     
@@ -244,17 +241,13 @@ const Dashboard = ({ user }) => {
                       value={order.status}
                       onChange={(e) => handleStatusChange(order.id, e.target.value, order.status)}
                       className={`text-xs font-semibold rounded-full px-2 sm:px-3 py-1 border-2 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                        order.status === 'delivered' ? 'bg-green-100 text-green-800 border-green-300' :
-                        order.status === 'completed' ? 'bg-green-100 text-green-800 border-green-300' :
-                        order.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
-                        order.status === 'processing' ? 'bg-blue-100 text-blue-800 border-blue-300' :
-                        'bg-red-100 text-red-800 border-red-300'
+                        order.status === 'completed' || order.status === 'delivered' ? 'bg-green-100 text-green-800 border-green-300' :
+                        order.status === 'cancelled' ? 'bg-red-100 text-red-800 border-red-300' :
+                        'bg-yellow-100 text-yellow-800 border-yellow-300'
                       }`}
                     >
                       <option value="pending">Pendiente</option>
-                      <option value="processing">En Proceso</option>
                       <option value="completed">Completado</option>
-                      <option value="delivered">Entregado</option>
                       <option value="cancelled">Cancelado</option>
                     </select>
                   ) : (

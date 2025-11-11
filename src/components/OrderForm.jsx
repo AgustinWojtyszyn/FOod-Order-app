@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../supabaseClient'
-import { ShoppingCart, Plus, Minus, X, ChefHat, User } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, X, ChefHat, User, Settings } from 'lucide-react'
 
 const OrderForm = ({ user }) => {
   const [menuItems, setMenuItems] = useState([])
+  const [customOptions, setCustomOptions] = useState([])
+  const [customResponses, setCustomResponses] = useState({})
   const [selectedItems, setSelectedItems] = useState({})
   const [formData, setFormData] = useState({
     location: '',
     name: '',
     email: '',
     phone: '',
-    comments: '',
-    deliveryDate: ''
+    comments: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -24,6 +25,7 @@ const OrderForm = ({ user }) => {
 
   useEffect(() => {
     fetchMenuItems()
+    fetchCustomOptions()
     checkTodayOrder()
     // Pre-fill user data
     setFormData(prev => ({
@@ -80,6 +82,17 @@ const OrderForm = ({ user }) => {
     }
   }
 
+  const fetchCustomOptions = async () => {
+    try {
+      const { data, error } = await db.getCustomOptions()
+      if (!error && data) {
+        setCustomOptions(data)
+      }
+    } catch (err) {
+      console.error('Error fetching custom options:', err)
+    }
+  }
+
   const handleItemSelect = (itemId, quantity) => {
     const item = menuItems.find(m => m.id === itemId)
     const isEnsalada = item?.name?.toLowerCase().includes('ensalada')
@@ -120,6 +133,28 @@ const OrderForm = ({ user }) => {
     })
   }
 
+  const handleCustomResponse = (optionId, value, type) => {
+    if (type === 'checkbox') {
+      // Para checkboxes, mantener un array de valores seleccionados
+      setCustomResponses(prev => {
+        const current = prev[optionId] || []
+        const isChecked = current.includes(value)
+        return {
+          ...prev,
+          [optionId]: isChecked 
+            ? current.filter(v => v !== value)
+            : [...current, value]
+        }
+      })
+    } else {
+      // Para otros tipos, simplemente guardar el valor
+      setCustomResponses(prev => ({
+        ...prev,
+        [optionId]: value
+      }))
+    }
+  }
+
   const getSelectedItemsList = () => {
     return menuItems.filter(item => selectedItems[item.id] > 0)
   }
@@ -156,7 +191,30 @@ const OrderForm = ({ user }) => {
       return
     }
 
+    // Validar opciones requeridas
+    const missingRequiredOptions = customOptions
+      .filter(opt => opt.required && !customResponses[opt.id])
+      .map(opt => opt.title)
+
+    if (missingRequiredOptions.length > 0) {
+      setError(`Por favor completa: ${missingRequiredOptions.join(', ')}`)
+      setLoading(false)
+      return
+    }
+
     try {
+      // Calcular fecha de entrega (día siguiente)
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      const deliveryDate = tomorrow.toISOString().split('T')[0]
+      
+      // Preparar respuestas personalizadas
+      const customResponsesArray = customOptions.map(option => ({
+        option_id: option.id,
+        title: option.title,
+        response: customResponses[option.id] || null
+      }))
+      
       const orderData = {
         user_id: user.id,
         location: formData.location,
@@ -169,9 +227,10 @@ const OrderForm = ({ user }) => {
           quantity: selectedItems[item.id]
         })),
         comments: formData.comments,
-        delivery_date: formData.deliveryDate,
+        delivery_date: deliveryDate,
         status: 'pending',
-        total_items: calculateTotal()
+        total_items: calculateTotal(),
+        custom_responses: customResponsesArray
       }
 
       const { error } = await db.createOrder(orderData)
@@ -404,27 +463,82 @@ const OrderForm = ({ user }) => {
           </div>
         )}
 
+        {/* Opciones Personalizadas */}
+        {customOptions.length > 0 && (
+          <div className="card bg-white/95 backdrop-blur-sm shadow-xl border-2 border-white/20">
+            <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+              <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-2 sm:p-3 rounded-xl">
+                <Settings className="h-5 w-5 sm:h-6 sm:w-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Opciones Adicionales</h2>
+                <p className="text-xs sm:text-sm text-gray-600 font-medium mt-1">Personaliza tu pedido</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {customOptions.map((option) => (
+                <div key={option.id} className="border-2 border-gray-200 rounded-xl p-4 bg-gradient-to-br from-white to-gray-50">
+                  <label className="block text-sm font-medium text-gray-900 mb-3">
+                    {option.title}
+                    {option.required && <span className="text-red-600 ml-1">*</span>}
+                  </label>
+
+                  {option.type === 'multiple_choice' && option.options && (
+                    <div className="space-y-2">
+                      {option.options.map((opt, index) => (
+                        <label key={index} className="flex items-center p-3 border-2 border-gray-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-all cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`option-${option.id}`}
+                            value={opt}
+                            checked={customResponses[option.id] === opt}
+                            onChange={(e) => handleCustomResponse(option.id, e.target.value, 'multiple_choice')}
+                            className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                          />
+                          <span className="ml-3 text-sm font-medium text-gray-900">{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {option.type === 'checkbox' && option.options && (
+                    <div className="space-y-2">
+                      {option.options.map((opt, index) => (
+                        <label key={index} className="flex items-center p-3 border-2 border-gray-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-all cursor-pointer">
+                          <input
+                            type="checkbox"
+                            value={opt}
+                            checked={(customResponses[option.id] || []).includes(opt)}
+                            onChange={(e) => handleCustomResponse(option.id, e.target.value, 'checkbox')}
+                            className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                          />
+                          <span className="ml-3 text-sm font-medium text-gray-900">{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {option.type === 'text' && (
+                    <textarea
+                      value={customResponses[option.id] || ''}
+                      onChange={(e) => handleCustomResponse(option.id, e.target.value, 'text')}
+                      rows={3}
+                      className="input-field"
+                      placeholder="Escribe tu respuesta aquí..."
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Información Adicional */}
         <div className="card">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Información Adicional</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Fecha de entrega
-              </label>
-              <input
-                type="date"
-                name="deliveryDate"
-                value={formData.deliveryDate}
-                onChange={handleFormChange}
-                className="input-field"
-                min={new Date().toISOString().split('T')[0]}
-              />
-            </div>
-          </div>
-
-          <div className="mt-4 sm:mt-6">
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Comentarios adicionales
             </label>
@@ -436,6 +550,12 @@ const OrderForm = ({ user }) => {
               className="input-field"
               placeholder="Instrucciones especiales, alergias, etc."
             />
+          </div>
+          
+          <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              <strong>📅 Fecha de entrega:</strong> Todos los pedidos se entregan al día siguiente
+            </p>
           </div>
         </div>
 
@@ -467,7 +587,7 @@ const OrderForm = ({ user }) => {
           </button>
         </div>
       </form>
-      </div>
+    </div>
     </div>
   )
 }

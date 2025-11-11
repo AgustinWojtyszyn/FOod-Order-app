@@ -175,5 +175,53 @@ export const db = {
       .insert(menuItems)
       .select()
     return { data, error }
+  },
+
+  // Opciones personalizables
+  getCustomOptions: async () => {
+    const { data, error } = await supabase
+      .from('custom_options')
+      .select('*')
+      .eq('active', true)
+      .order('order_position', { ascending: true })
+    return { data, error }
+  },
+
+  createCustomOption: async (option) => {
+    const { data, error } = await supabase
+      .from('custom_options')
+      .insert([option])
+      .select()
+    return { data, error }
+  },
+
+  updateCustomOption: async (id, updates) => {
+    const { data, error } = await supabase
+      .from('custom_options')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+    return { data, error }
+  },
+
+  deleteCustomOption: async (id) => {
+    const { data, error } = await supabase
+      .from('custom_options')
+      .delete()
+      .eq('id', id)
+    return { data, error }
+  },
+
+  updateCustomOptionsOrder: async (options) => {
+    // Actualizar el orden de múltiples opciones
+    const promises = options.map((option, index) =>
+      supabase
+        .from('custom_options')
+        .update({ order_position: index })
+        .eq('id', option.id)
+    )
+    const results = await Promise.all(promises)
+    const error = results.find(r => r.error)?.error
+    return { error }
   }
 }
