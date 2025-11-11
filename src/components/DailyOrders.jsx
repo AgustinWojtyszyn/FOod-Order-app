@@ -7,6 +7,8 @@ const DailyOrders = ({ user }) => {
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState('all')
+  const [selectedStatus, setSelectedStatus] = useState('all')
+  const [sortBy, setSortBy] = useState('time') // time, location, status
   const [stats, setStats] = useState({
     total: 0,
     byLocation: {},
@@ -178,77 +180,129 @@ const DailyOrders = ({ user }) => {
     ? orders 
     : orders.filter(order => order.location === selectedLocation)
 
-  const exportToExcel = () => {
-    // Crear CSV con formato Excel
-    const headers = [
-      'Fecha Pedido',
-      'Hora Pedido',
-      'Usuario',
-      'Email',
-      'Ubicación',
-      'Fecha Entrega',
-      'Platillos',
-      'Cantidad Items',
-      'Estado',
-      'Comentarios',
-      'Opciones Adicionales',
-      'Teléfono',
-      'Cliente'
-    ]
+  // Aplicar filtro por estado
+  const statusFilteredOrders = selectedStatus === 'all'
+    ? filteredOrders
+    : filteredOrders.filter(order => {
+        if (selectedStatus === 'completed') {
+          return order.status === 'completed' || order.status === 'delivered'
+        }
+        return order.status === selectedStatus
+      })
 
-    const rows = filteredOrders.map(order => {
-      const items = order.items.map(item => 
-        `${item.name} (x${item.quantity})`
-      ).join('; ')
+  // Aplicar ordenamiento
+  const sortedOrders = [...statusFilteredOrders].sort((a, b) => {
+    switch(sortBy) {
+      case 'location':
+        return a.location.localeCompare(b.location)
+      case 'status':
+        return a.status.localeCompare(b.status)
+      case 'time':
+      default:
+        return new Date(b.created_at) - new Date(a.created_at)
+    }
+  })
 
-      const customResponses = order.custom_responses
-        ?.filter(r => r.response)
-        .map(r => {
-          const response = Array.isArray(r.response) ? r.response.join(', ') : r.response
-          return `${r.title}: ${response}`
-        }).join(' | ') || '-'
-
-      return [
-        formatDate(order.created_at),
-        formatTime(order.created_at),
-        order.user_name || 'Sin nombre',
-        order.customer_email || '-',
-        order.location,
-        getTomorrowDate(),
-        items,
-        order.total_items,
-        getStatusText(order.status),
-        order.comments || '-',
-        customResponses,
-        order.customer_phone || '-',
-        order.customer_name || '-'
-      ]
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
     })
+  }
 
-    // Crear contenido CSV
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => 
-        row.map(cell => {
-          // Escapar comillas y comas en el contenido
-          const cellStr = String(cell).replace(/"/g, '""')
-          return `"${cellStr}"`
-        }).join(',')
-      )
-    ].join('\n')
+  const exportToExcel = () => {
+    if (sortedOrders.length === 0) {
+      alert('No hay pedidos para exportar')
+      return
+    }
 
-    // Crear Blob y descargar
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    const url = URL.createObjectURL(blob)
-    
-    const today = new Date().toISOString().split('T')[0]
-    link.setAttribute('href', url)
-    link.setAttribute('download', `pedidos_diarios_${today}.csv`)
-    link.style.visibility = 'hidden'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    try {
+      // Crear CSV con formato Excel
+      const headers = [
+        'Fecha Pedido',
+        'Hora Pedido',
+        'Usuario',
+        'Email',
+        'Ubicación',
+        'Fecha Entrega',
+        'Platillos',
+        'Cantidad Items',
+        'Estado',
+        'Comentarios',
+        'Opciones Adicionales',
+        'Teléfono',
+        'Cliente'
+      ]
+
+      const rows = sortedOrders.map(order => {
+        const items = order.items?.map(item => 
+          `${item.name} (x${item.quantity})`
+        ).join('; ') || 'Sin items'
+
+        const customResponses = order.custom_responses
+          ?.filter(r => r.response)
+          .map(r => {
+            const response = Array.isArray(r.response) ? r.response.join(', ') : r.response
+            return `${r.title}: ${response}`
+          }).join(' | ') || 'Sin opciones'
+
+        return [
+          formatDate(order.created_at),
+          formatTime(order.created_at),
+          order.user_name || 'Sin nombre',
+          order.customer_email || order.user_email || 'Sin email',
+          order.location || 'Sin ubicación',
+          getTomorrowDate(),
+          items,
+          order.total_items || 0,
+          getStatusText(order.status),
+          order.comments || 'Sin comentarios',
+          customResponses,
+          order.customer_phone || 'Sin teléfono',
+          order.customer_name || order.user_name || 'Sin nombre'
+        ]
+      })
+
+      // Crear contenido CSV con BOM para Excel
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => 
+          row.map(cell => {
+            // Escapar comillas y comas en el contenido
+            const cellStr = String(cell).replace(/"/g, '""')
+            return `"${cellStr}"`
+          }).join(',')
+        )
+      ].join('\n')
+
+      // Crear Blob con BOM para que Excel lo abra correctamente con UTF-8
+      const BOM = '\uFEFF'
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+      
+      // Crear enlace y descargar
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      
+      const today = new Date().toISOString().split('T')[0]
+      const locationFilter = selectedLocation !== 'all' ? `_${selectedLocation.replace(/\s+/g, '_')}` : ''
+      const statusFilter = selectedStatus !== 'all' ? `_${selectedStatus}` : ''
+      
+      link.setAttribute('href', url)
+      link.setAttribute('download', `pedidos_diarios_${today}${locationFilter}${statusFilter}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      alert(`✓ ${sortedOrders.length} pedidos exportados correctamente`)
+    } catch (error) {
+      console.error('Error al exportar:', error)
+      alert('Error al exportar el archivo. Por favor, inténtalo de nuevo.')
+    }
   }
 
   if (!isAdmin) {
@@ -299,16 +353,21 @@ const DailyOrders = ({ user }) => {
             {/* Botón de exportar */}
             <button
               onClick={exportToExcel}
-              className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2"
+              disabled={sortedOrders.length === 0}
+              className={`font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2 ${
+                sortedOrders.length === 0 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-green-500 hover:bg-green-600 text-white'
+              }`}
             >
               <Download className="h-5 w-5" />
-              Exportar a Excel
+              Exportar a Excel ({sortedOrders.length})
             </button>
 
             {/* Filtro por ubicación */}
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
               <label className="text-sm font-semibold mb-2 block flex items-center gap-2">
-                <Filter className="h-4 w-4" />
+                <MapPin className="h-4 w-4" />
                 Filtrar por ubicación
               </label>
               <select
@@ -316,12 +375,47 @@ const DailyOrders = ({ user }) => {
                 onChange={(e) => setSelectedLocation(e.target.value)}
                 className="w-full px-4 py-2 rounded-lg bg-white text-gray-900 font-semibold focus:ring-2 focus:ring-blue-400"
               >
-                <option value="all">Todas las ubicaciones ({stats.total})</option>
+                <option value="all">Todas ({stats.total})</option>
                 {locations.map(location => (
                   <option key={location} value={location}>
                     {location} ({stats.byLocation[location] || 0})
                   </option>
                 ))}
+              </select>
+            </div>
+
+            {/* Filtro por estado */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+              <label className="text-sm font-semibold mb-2 block flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                Filtrar por estado
+              </label>
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg bg-white text-gray-900 font-semibold focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="all">Todos los estados</option>
+                <option value="pending">Pendientes ({stats.pending})</option>
+                <option value="completed">Completados ({stats.completed})</option>
+                <option value="cancelled">Cancelados ({stats.cancelled})</option>
+              </select>
+            </div>
+
+            {/* Ordenar por */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+              <label className="text-sm font-semibold mb-2 block flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Ordenar por
+              </label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg bg-white text-gray-900 font-semibold focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="time">Más recientes primero</option>
+                <option value="location">Ubicación (A-Z)</option>
+                <option value="status">Estado</option>
               </select>
             </div>
           </div>
@@ -372,24 +466,38 @@ const DailyOrders = ({ user }) => {
       </div>
 
       {/* Lista de pedidos */}
-      {filteredOrders.length === 0 ? (
+      {sortedOrders.length === 0 ? (
         <div className="bg-white rounded-xl p-12 text-center shadow-lg">
           <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-gray-700 mb-2">
-            {selectedLocation === 'all' 
-              ? 'No hay pedidos para hoy' 
-              : `No hay pedidos para ${selectedLocation}`}
+            No hay pedidos que coincidan con los filtros
           </h3>
-          <p className="text-gray-500">Los pedidos aparecerán aquí cuando se realicen.</p>
+          <p className="text-gray-500">
+            {selectedLocation !== 'all' && `Ubicación: ${selectedLocation}`}
+            {selectedLocation !== 'all' && selectedStatus !== 'all' && ' | '}
+            {selectedStatus !== 'all' && `Estado: ${getStatusText(selectedStatus)}`}
+          </p>
+          <p className="text-gray-400 mt-2 text-sm">Intenta cambiar los filtros para ver más resultados</p>
         </div>
       ) : (
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Package className="h-6 w-6" />
-            Listado de Pedidos ({filteredOrders.length})
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+              <Package className="h-6 w-6" />
+              Listado de Pedidos ({sortedOrders.length})
+            </h2>
+            <div className="text-white bg-white/20 px-4 py-2 rounded-lg">
+              <span className="font-semibold">
+                Ordenado por: {
+                  sortBy === 'time' ? 'Más recientes' :
+                  sortBy === 'location' ? 'Ubicación' :
+                  'Estado'
+                }
+              </span>
+            </div>
+          </div>
           
-          {filteredOrders.map((order) => (
+          {sortedOrders.map((order) => (
             <div 
               key={order.id} 
               className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow border-2 border-gray-200 overflow-hidden"
