@@ -3,6 +3,13 @@
 -- ============================================
 -- Este script crea una vista que muestra los pedidos con sus respuestas personalizadas en formato legible
 
+-- Eliminar vistas existentes si existen
+DROP VIEW IF EXISTS orders_today CASCADE;
+DROP VIEW IF EXISTS responses_by_question CASCADE;
+DROP VIEW IF EXISTS custom_responses_detail CASCADE;
+DROP VIEW IF EXISTS orders_summary CASCADE;
+DROP VIEW IF EXISTS orders_with_responses CASCADE;
+
 -- Vista principal de pedidos con respuestas
 CREATE OR REPLACE VIEW orders_with_responses AS
 SELECT 
