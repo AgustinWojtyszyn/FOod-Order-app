@@ -76,7 +76,7 @@ const Layout = ({ children, user }) => {
             <img 
               src={servifoodLogo} 
               alt="Servifood Logo" 
-              className="h-12 w-auto rounded bg-white p-1"
+              className="h-12 w-auto rounded"
             />
             <span className="ml-3 text-lg font-bold text-white drop-shadow">ServiFood</span>
           </div>
