@@ -451,9 +451,10 @@ const AdminTutorial = ({ isOpen, onClose }) => {
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/30 rounded-lg transition-colors bg-white/10 border-2 border-white/30"
+              title="Cerrar tutorial"
             >
-              <X className="h-6 w-6" />
+              <X className="h-6 w-6 text-white" />
             </button>
           </div>
           
@@ -477,18 +478,18 @@ const AdminTutorial = ({ isOpen, onClose }) => {
         </div>
 
         {/* Step Indicators */}
-        <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
+        <div className="px-6 py-4 bg-gray-100 border-t-2 border-gray-300">
           <div className="flex justify-center gap-2">
             {steps.map((_, index) => (
               <button
                 key={index}
                 onClick={() => goToStep(index)}
-                className={`w-3 h-3 rounded-full transition-all ${
+                className={`h-3 rounded-full transition-all shadow-sm ${
                   index === currentStep 
-                    ? 'bg-primary-600 w-8' 
+                    ? 'bg-blue-600 w-8 shadow-md' 
                     : index < currentStep
-                    ? 'bg-primary-400'
-                    : 'bg-gray-300'
+                    ? 'bg-green-500 w-3'
+                    : 'bg-gray-400 w-3'
                 }`}
                 title={`Ir al paso ${index + 1}`}
               />
@@ -497,28 +498,28 @@ const AdminTutorial = ({ isOpen, onClose }) => {
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center justify-between p-6 bg-gray-50 border-t border-gray-200">
+        <div className="flex items-center justify-between p-6 bg-white border-t-2 border-gray-300">
           <button
             onClick={prevStep}
             disabled={currentStep === 0}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all shadow-md ${
               currentStep === 0
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-600 hover:bg-gray-700 text-white'
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-gray-800 hover:bg-gray-900 text-white hover:shadow-lg transform hover:scale-105'
             }`}
           >
             <ChevronLeft className="h-5 w-5" />
             Anterior
           </button>
 
-          <div className="text-sm text-gray-600 font-semibold">
+          <div className="text-sm text-gray-700 font-bold bg-gray-100 px-4 py-2 rounded-lg border-2 border-gray-300">
             {currentStep + 1} / {steps.length}
           </div>
 
           {currentStep === steps.length - 1 ? (
             <button
               onClick={onClose}
-              className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold bg-green-600 hover:bg-green-700 text-white transition-all"
+              className="flex items-center gap-2 px-6 py-3 rounded-lg font-bold bg-green-600 hover:bg-green-700 text-white transition-all shadow-md hover:shadow-lg transform hover:scale-105"
             >
               ¡Entendido!
               <CheckCircle className="h-5 w-5" />
@@ -526,7 +527,7 @@ const AdminTutorial = ({ isOpen, onClose }) => {
           ) : (
             <button
               onClick={nextStep}
-              className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold bg-primary-600 hover:bg-primary-700 text-white transition-all"
+              className="flex items-center gap-2 px-6 py-3 rounded-lg font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-md hover:shadow-lg transform hover:scale-105"
             >
               Siguiente
               <ChevronRight className="h-5 w-5" />
