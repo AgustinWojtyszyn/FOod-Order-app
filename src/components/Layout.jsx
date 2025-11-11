@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { auth } from '../supabaseClient'
+import { auth, db } from '../supabaseClient'
 import { Menu, X, User, LogOut, ShoppingCart, Settings, HelpCircle, UserCircle, Calendar } from 'lucide-react'
 import servifoodLogo from '../assets/servifood logo.jpg'
 import Tutorial from './Tutorial'
@@ -12,14 +12,34 @@ const Layout = ({ children, user }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [adminTutorialOpen, setAdminTutorialOpen] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    checkUserRole()
+  }, [user])
+
+  const checkUserRole = async () => {
+    try {
+      const { data, error } = await db.getUsers()
+      if (!error && data) {
+        const currentUser = data.find(u => u.id === user?.id)
+        setIsAdmin(currentUser?.role === 'admin' || currentUser?.is_superadmin === true)
+        setIsSuperAdmin(currentUser?.is_superadmin === true)
+      }
+    } catch (err) {
+      console.error('Error checking user role:', err)
+      // Fallback a user_metadata si falla la consulta
+      setIsAdmin(user?.user_metadata?.role === 'admin')
+      setIsSuperAdmin(false)
+    }
+  }
 
   const handleLogout = async () => {
     await auth.signOut()
     navigate('/login')
   }
-
-  const isAdmin = user?.user_metadata?.role === 'admin'
 
   const menuItems = [
     { name: 'Panel Principal', path: '/dashboard', icon: User },
@@ -34,6 +54,10 @@ const Layout = ({ children, user }) => {
       highlighted: true  // Marcar como destacado
     })
     menuItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
+  }
+
+  if (isSuperAdmin) {
+    menuItems.push({ name: 'Super Admin', path: '/superadmin', icon: Settings })
   }
 
   // Add Profile option for all users

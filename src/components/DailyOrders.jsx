@@ -8,10 +8,13 @@ const DailyOrders = ({ user }) => {
   const [isAdmin, setIsAdmin] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
+  const [selectedDish, setSelectedDish] = useState('all')
   const [sortBy, setSortBy] = useState('time') // time, location, status
+  const [availableDishes, setAvailableDishes] = useState([])
   const [stats, setStats] = useState({
     total: 0,
     byLocation: {},
+    byDish: {},
     totalItems: 0,
     completed: 0,
     pending: 0,
@@ -57,6 +60,9 @@ const DailyOrders = ({ user }) => {
         const today = new Date()
         today.setHours(0, 0, 0, 0)
         
+        // Set para almacenar platillos únicos
+        const dishesSet = new Set()
+        
         // Filtrar solo pedidos de hoy
         const todayOrders = (ordersData || []).filter(order => {
           const orderDate = new Date(order.created_at)
@@ -75,6 +81,15 @@ const DailyOrders = ({ user }) => {
             userName = order.customer_name
           }
           
+          // Recopilar platillos únicos
+          if (order.items && Array.isArray(order.items)) {
+            order.items.forEach(item => {
+              if (item.name) {
+                dishesSet.add(item.name)
+              }
+            })
+          }
+          
           return {
             ...order,
             user_name: userName,
@@ -83,6 +98,7 @@ const DailyOrders = ({ user }) => {
         })
         
         setOrders(todayOrders)
+        setAvailableDishes(Array.from(dishesSet).sort())
         calculateStats(todayOrders)
       }
     } catch (err) {
@@ -94,6 +110,7 @@ const DailyOrders = ({ user }) => {
 
   const calculateStats = (ordersData) => {
     const byLocation = {}
+    const byDish = {}
     let totalItems = 0
     let completed = 0
     let pending = 0
@@ -105,6 +122,18 @@ const DailyOrders = ({ user }) => {
         byLocation[order.location] = 0
       }
       byLocation[order.location]++
+
+      // Contar por platillo
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach(item => {
+          if (item.name) {
+            if (!byDish[item.name]) {
+              byDish[item.name] = 0
+            }
+            byDish[item.name] += item.quantity || 1
+          }
+        })
+      }
 
       // Contar items totales
       totalItems += order.total_items || 0
@@ -122,6 +151,7 @@ const DailyOrders = ({ user }) => {
     setStats({
       total: ordersData.length,
       byLocation,
+      byDish,
       totalItems,
       completed,
       pending,
@@ -190,8 +220,15 @@ const DailyOrders = ({ user }) => {
         return order.status === selectedStatus
       })
 
+  // Aplicar filtro por platillo
+  const dishFilteredOrders = selectedDish === 'all'
+    ? statusFilteredOrders
+    : statusFilteredOrders.filter(order => {
+        return order.items?.some(item => item.name === selectedDish)
+      })
+
   // Aplicar ordenamiento
-  const sortedOrders = [...statusFilteredOrders].sort((a, b) => {
+  const sortedOrders = [...dishFilteredOrders].sort((a, b) => {
     switch(sortBy) {
       case 'location':
         return a.location.localeCompare(b.location)
@@ -399,6 +436,26 @@ const DailyOrders = ({ user }) => {
                 <option value="pending">Pendientes ({stats.pending})</option>
                 <option value="completed">Completados ({stats.completed})</option>
                 <option value="cancelled">Cancelados ({stats.cancelled})</option>
+              </select>
+            </div>
+
+            {/* Filtro por platillo */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+              <label className="text-sm font-semibold mb-2 block flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Filtrar por platillo
+              </label>
+              <select
+                value={selectedDish}
+                onChange={(e) => setSelectedDish(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg bg-white text-gray-900 font-semibold focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="all">Todos los platillos</option>
+                {availableDishes.map(dish => (
+                  <option key={dish} value={dish}>
+                    {dish} ({stats.byDish[dish] || 0} unidades)
+                  </option>
+                ))}
               </select>
             </div>
 

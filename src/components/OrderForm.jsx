@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../supabaseClient'
-import { ShoppingCart, Plus, Minus, X, ChefHat, User, Settings } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, X, ChefHat, User, Settings, Clock, AlertTriangle } from 'lucide-react'
 
 const OrderForm = ({ user }) => {
   const [menuItems, setMenuItems] = useState([])
@@ -19,11 +19,13 @@ const OrderForm = ({ user }) => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [hasOrderToday, setHasOrderToday] = useState(false)
+  const [isPastDeadline, setIsPastDeadline] = useState(false)
   const navigate = useNavigate()
 
   const locations = ['Los Berros', 'La Laja', 'Padre Bueno']
 
   useEffect(() => {
+    checkOrderDeadline()
     fetchMenuItems()
     fetchCustomOptions()
     checkTodayOrder()
@@ -34,6 +36,18 @@ const OrderForm = ({ user }) => {
       email: user?.email || ''
     }))
   }, [user])
+
+  const checkOrderDeadline = () => {
+    const now = new Date()
+    const currentHour = now.getHours()
+    
+    // Si son las 22:00 o más tarde, no se pueden hacer pedidos
+    if (currentHour >= 22) {
+      setIsPastDeadline(true)
+    } else {
+      setIsPastDeadline(false)
+    }
+  }
 
   const checkTodayOrder = async () => {
     try {
@@ -170,6 +184,15 @@ const OrderForm = ({ user }) => {
     setLoading(true)
     setError('')
 
+    // Verificar horario límite
+    const now = new Date()
+    if (now.getHours() >= 22) {
+      setError('Los pedidos deben realizarse antes de las 22:00 horas')
+      setLoading(false)
+      setIsPastDeadline(true)
+      return
+    }
+
     // Verificar si ya tiene un pedido pendiente
     if (hasOrderToday) {
       setError('Ya tienes un pedido pendiente. Espera a que se complete para crear uno nuevo.')
@@ -290,7 +313,32 @@ const OrderForm = ({ user }) => {
         <p className="text-base sm:text-lg text-white/90 mt-1 sm:mt-2">¡Es rápido y fácil!</p>
       </div>
 
-      {hasOrderToday && (
+      {!isPastDeadline && !hasOrderToday && (
+        <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-3 sm:p-4 shadow-lg">
+          <div className="flex items-center gap-2 sm:gap-3 justify-center">
+            <Clock className="h-5 w-5 text-blue-600 flex-shrink-0" />
+            <p className="text-sm sm:text-base text-blue-800 font-medium">
+              Horario de pedidos: hasta las <strong>22:00 horas</strong> del día anterior a la entrega
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isPastDeadline && (
+        <div className="bg-red-50 border-2 border-red-400 rounded-xl p-4 sm:p-6 shadow-lg">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 bg-red-100 rounded-full p-2">
+              <AlertTriangle className="h-6 w-6 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-red-900 mb-1">Horario de pedidos cerrado</h3>
+              <p className="text-red-800">Los pedidos deben realizarse antes de las 22:00 horas del día anterior. Por favor, vuelve mañana antes de las 22:00 para hacer tu pedido.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {hasOrderToday && !isPastDeadline && (
         <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-4 sm:p-6 shadow-lg">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 bg-yellow-100 rounded-full p-2">
@@ -574,7 +622,7 @@ const OrderForm = ({ user }) => {
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={loading || getSelectedItemsList().length === 0 || hasOrderToday}
+            disabled={loading || getSelectedItemsList().length === 0 || hasOrderToday || isPastDeadline}
             className="btn-primary flex items-center disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3"
           >
             {loading ? (
