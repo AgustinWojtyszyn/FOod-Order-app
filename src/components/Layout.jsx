@@ -13,7 +13,6 @@ const Layout = ({ children, user }) => {
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [adminTutorialOpen, setAdminTutorialOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -25,14 +24,12 @@ const Layout = ({ children, user }) => {
       const { data, error } = await db.getUsers()
       if (!error && data) {
         const currentUser = data.find(u => u.id === user?.id)
-        setIsAdmin(currentUser?.role === 'admin' || currentUser?.is_superadmin === true)
-        setIsSuperAdmin(currentUser?.is_superadmin === true)
+        setIsAdmin(currentUser?.role === 'admin')
       }
     } catch (err) {
       console.error('Error checking user role:', err)
       // Fallback a user_metadata si falla la consulta
       setIsAdmin(user?.user_metadata?.role === 'admin')
-      setIsSuperAdmin(false)
     }
   }
 
@@ -54,10 +51,6 @@ const Layout = ({ children, user }) => {
       highlighted: true  // Marcar como destacado
     })
     menuItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
-  }
-
-  if (isSuperAdmin) {
-    menuItems.push({ name: 'Super Admin', path: '/superadmin', icon: Settings })
   }
 
   // Add Profile option for all users

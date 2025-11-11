@@ -37,7 +37,7 @@ CREATE POLICY "Admins can view all orders" ON public.orders
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND (role = 'admin' OR is_superadmin = true)
+      WHERE id = auth.uid() AND role = 'admin'
     )
   );
 
@@ -46,12 +46,12 @@ CREATE POLICY "Admins can update all orders" ON public.orders
   FOR UPDATE USING (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND (role = 'admin' OR is_superadmin = true)
+      WHERE id = auth.uid() AND role = 'admin'
     )
   ) WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND (role = 'admin' OR is_superadmin = true)
+      WHERE id = auth.uid() AND role = 'admin'
     )
   );
 
@@ -60,7 +60,7 @@ CREATE POLICY "Admins can delete all orders" ON public.orders
   FOR DELETE USING (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND (role = 'admin' OR is_superadmin = true)
+      WHERE id = auth.uid() AND role = 'admin'
     )
   );
 
@@ -69,7 +69,7 @@ CREATE POLICY "Admins can insert orders" ON public.orders
   FOR INSERT WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND (role = 'admin' OR is_superadmin = true)
+      WHERE id = auth.uid() AND role = 'admin'
     )
   );
 
@@ -79,7 +79,7 @@ CREATE POLICY "Admins can insert menu items" ON public.menu_items
   FOR INSERT WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND (role = 'admin' OR is_superadmin = true)
+      WHERE id = auth.uid() AND role = 'admin'
     )
   );
 
@@ -88,12 +88,12 @@ CREATE POLICY "Admins can update menu items" ON public.menu_items
   FOR UPDATE USING (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND (role = 'admin' OR is_superadmin = true)
+      WHERE id = auth.uid() AND role = 'admin'
     )
   ) WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND (role = 'admin' OR is_superadmin = true)
+      WHERE id = auth.uid() AND role = 'admin'
     )
   );
 
@@ -102,7 +102,7 @@ CREATE POLICY "Admins can delete menu items" ON public.menu_items
   FOR DELETE USING (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND (role = 'admin' OR is_superadmin = true)
+      WHERE id = auth.uid() AND role = 'admin'
     )
   );
 
@@ -112,7 +112,7 @@ CREATE POLICY "Admins can insert custom options" ON public.custom_options
   FOR INSERT WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND (role = 'admin' OR is_superadmin = true)
+      WHERE id = auth.uid() AND role = 'admin'
     )
   );
 
@@ -121,12 +121,12 @@ CREATE POLICY "Admins can update custom options" ON public.custom_options
   FOR UPDATE USING (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND (role = 'admin' OR is_superadmin = true)
+      WHERE id = auth.uid() AND role = 'admin'
     )
   ) WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND (role = 'admin' OR is_superadmin = true)
+      WHERE id = auth.uid() AND role = 'admin'
     )
   );
 
@@ -135,7 +135,7 @@ CREATE POLICY "Admins can delete custom options" ON public.custom_options
   FOR DELETE USING (
     EXISTS (
       SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND (role = 'admin' OR is_superadmin = true)
+      WHERE id = auth.uid() AND role = 'admin'
     )
   );
 
@@ -187,7 +187,6 @@ DESPUÉS DE EJECUTAR ESTE SCRIPT, TODOS LOS ADMINISTRADORES PODRÁN:
 
 Los administradores se identifican por:
 - role = 'admin' EN LA TABLA users
-- O is_superadmin = true
 
 IMPORTANTE: 
 - Las políticas verifican el rol desde la tabla public.users

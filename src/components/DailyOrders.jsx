@@ -38,7 +38,7 @@ const DailyOrders = ({ user }) => {
       const { data, error } = await db.getUsers()
       if (!error && data) {
         const currentUser = data.find(u => u.id === user.id)
-        setIsAdmin(currentUser?.role === 'admin' || currentUser?.is_superadmin === true)
+        setIsAdmin(currentUser?.role === 'admin')
       }
     } catch (err) {
       console.error('Error checking admin status:', err)
