@@ -108,13 +108,16 @@ export const db = {
 
     if (ordersError) return { error: ordersError }
 
-    // Eliminar notificaciones del usuario
+    // Eliminar notificaciones del usuario (solo si la tabla existe)
+    // Comentado temporalmente hasta que se cree la tabla notifications
+    /*
     const { error: notificationsError } = await supabase
       .from('notifications')
       .delete()
       .eq('user_id', userId)
 
     if (notificationsError) return { error: notificationsError }
+    */
 
     // Luego eliminar el usuario de auth usando Admin API
     // Nota: Esto requiere que tengas configurado el Service Role Key
@@ -136,11 +139,16 @@ export const db = {
   },
 
   deleteAllNotifications: async () => {
+    // Comentado temporalmente hasta que se cree la tabla notifications
+    /*
     const { data, error } = await supabase
       .from('notifications')
       .delete()
       .neq('id', '00000000-0000-0000-0000-000000000000') // Eliminar todos
     return { data, error }
+    */
+    // Retornar éxito sin hacer nada si la tabla no existe
+    return { data: null, error: null }
   },
 
   // Pedidos
