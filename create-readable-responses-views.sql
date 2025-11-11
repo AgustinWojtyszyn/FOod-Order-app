@@ -115,19 +115,25 @@ WHERE DATE(SUBSTRING(fecha_hora, 7, 4) || '-' ||
 -- Vista de respuestas agrupadas por pregunta
 CREATE OR REPLACE VIEW responses_by_question AS
 SELECT 
-    response->>'title' as pregunta,
+    pregunta,
     COUNT(*) as total_respuestas,
-    CASE 
-        WHEN jsonb_typeof(response->'response') = 'array' THEN
-            string_agg(DISTINCT (SELECT string_agg(elem::text, ', ') FROM jsonb_array_elements_text(response->'response') elem), ' | ')
-        ELSE 
-            string_agg(DISTINCT response->>'response', ', ')
-    END as respuestas_unicas,
-    COUNT(DISTINCT o.id) as pedidos_con_respuesta
-FROM public.orders o,
-jsonb_array_elements(o.custom_responses) response
-WHERE response->>'response' IS NOT NULL
-GROUP BY response->>'title'
+    string_agg(DISTINCT respuesta_text, ' | ') as respuestas_unicas,
+    COUNT(DISTINCT pedido_id) as pedidos_con_respuesta
+FROM (
+    SELECT 
+        o.id as pedido_id,
+        response->>'title' as pregunta,
+        CASE 
+            WHEN jsonb_typeof(response->'response') = 'array' THEN
+                (SELECT string_agg(elem::text, ', ') FROM jsonb_array_elements_text(response->'response') elem)
+            ELSE 
+                response->>'response'
+        END as respuesta_text
+    FROM public.orders o,
+    jsonb_array_elements(o.custom_responses) response
+    WHERE response->>'response' IS NOT NULL
+) subquery
+GROUP BY pregunta
 ORDER BY total_respuestas DESC;
 
 -- Verificar que las vistas se crearon correctamente
