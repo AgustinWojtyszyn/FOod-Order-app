@@ -69,14 +69,13 @@ Las políticas verifican el rol del usuario de esta manera:
 ```sql
 EXISTS (
   SELECT 1 FROM public.users
-  WHERE id = auth.uid() AND (role = 'admin' OR is_superadmin = true)
+  WHERE id = auth.uid() AND role = 'admin'
 )
 ```
 
 Esto significa:
 1. ✅ Usuarios con `role = 'admin'` en la tabla `users`
-2. ✅ Usuarios con `is_superadmin = true`
-3. ❌ Usuarios normales (`role = 'user'`)
+2. ❌ Usuarios normales (`role = 'user'`)
 
 ## ⚡ Cambios Inmediatos
 
@@ -143,10 +142,10 @@ Para verificar que funciona:
 
 ## 💡 Notas Importantes
 
-1. **SuperAdmin vs Admin:**
-   - Ambos tienen los mismos permisos de gestión
-   - SuperAdmin puede además eliminar usuarios y hacer limpieza del sistema
-   - Ambos pueden editar menú, opciones y pedidos
+1. **Rol de Administrador:**
+   - Todos los usuarios con `role = 'admin'` tienen permisos completos
+   - Pueden gestionar menú, opciones y pedidos
+   - Autonomía completa en la gestión
 
 2. **Seguridad:**
    - Los usuarios normales siguen sin poder ver datos de otros
