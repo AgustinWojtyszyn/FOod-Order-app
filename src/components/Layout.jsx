@@ -5,6 +5,7 @@ import { Menu, X, User, LogOut, ShoppingCart, Settings, HelpCircle, UserCircle }
 import servifoodLogo from '../assets/servifood logo.jpg'
 import Tutorial from './Tutorial'
 import NotificationBell from './NotificationBell'
+import SupportButton from './SupportButton'
 
 const Layout = ({ children, user }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -152,6 +153,9 @@ const Layout = ({ children, user }) => {
           </div>
         </main>
       </div>
+      
+      {/* Support Button */}
+      <SupportButton />
       
       {/* Tutorial Modal */}
       <Tutorial isOpen={tutorialOpen} onClose={() => setTutorialOpen(false)} />
