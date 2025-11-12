@@ -159,10 +159,10 @@ const Layout = ({ children, user }) => {
                     setAdminTutorialOpen(true)
                     setSidebarOpen(false)
                   }}
-                  className="flex items-center w-full px-4 py-3 text-purple-700 rounded-xl bg-white hover:!bg-gradient-to-r hover:!from-purple-600 hover:!to-purple-700 hover:!text-white font-bold text-base transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-lg border-2 border-purple-200 hover:border-transparent"
+                  className="group flex items-center w-full px-4 py-3 text-purple-700 rounded-xl bg-white font-bold text-base transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-lg border-2 border-purple-200 hover:border-transparent hover:bg-gradient-to-r hover:from-purple-600 hover:to-purple-700"
                 >
-                  <Settings className="h-6 w-6 mr-3" />
-                  Tutorial Admin 👨‍💼
+                  <Settings className="h-6 w-6 mr-3 group-hover:text-white" />
+                  <span className="group-hover:text-white">Tutorial Admin 👨‍💼</span>
                 </button>
               )}
               
@@ -171,10 +171,10 @@ const Layout = ({ children, user }) => {
                   setTutorialOpen(true)
                   setSidebarOpen(false)
                 }}
-                className="flex items-center w-full px-4 py-3 text-primary-700 rounded-xl bg-white hover:!bg-gradient-to-r hover:!from-primary-600 hover:!to-primary-700 hover:!text-white font-bold text-base transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-lg border-2 border-primary-200 hover:border-transparent"
+                className="group flex items-center w-full px-4 py-3 text-primary-700 rounded-xl bg-white font-bold text-base transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-lg border-2 border-primary-200 hover:border-transparent hover:bg-gradient-to-r hover:from-primary-600 hover:to-primary-700"
               >
-                <HelpCircle className="h-6 w-6 mr-3" />
-                Ver Tutorial
+                <HelpCircle className="h-6 w-6 mr-3 group-hover:text-white" />
+                <span className="group-hover:text-white">Ver Tutorial</span>
               </button>
               
               <button
@@ -182,10 +182,10 @@ const Layout = ({ children, user }) => {
                   handleLogout()
                   setSidebarOpen(false)
                 }}
-                className="flex items-center w-full px-4 py-3 text-red-700 rounded-xl bg-white hover:!bg-gradient-to-r hover:!from-red-600 hover:!to-red-700 hover:!text-white font-bold text-base transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-lg border-2 border-red-200 hover:border-transparent"
+                className="group flex items-center w-full px-4 py-3 text-red-700 rounded-xl bg-white font-bold text-base transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-lg border-2 border-red-200 hover:border-transparent hover:bg-gradient-to-r hover:from-red-600 hover:to-red-700"
               >
-                <LogOut className="h-6 w-6 mr-3" />
-                Cerrar Sesión
+                <LogOut className="h-6 w-6 mr-3 group-hover:text-white" />
+                <span className="group-hover:text-white">Cerrar Sesión</span>
               </button>
             </div>
           </nav>
