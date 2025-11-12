@@ -5,7 +5,6 @@ import { Menu, X, User, LogOut, ShoppingCart, Settings, HelpCircle, UserCircle, 
 import servifoodLogo from '../assets/servifood logo.jpg'
 import Tutorial from './Tutorial'
 import AdminTutorial from './AdminTutorial'
-import NotificationBell from './NotificationBell'
 import SupportButton from './SupportButton'
 
 const Layout = ({ children, user }) => {
@@ -80,7 +79,6 @@ const Layout = ({ children, user }) => {
             </div>
 
             <div className="flex items-center space-x-4">
-              <NotificationBell user={user} />
               <span className="text-base font-bold text-white drop-shadow-lg">
                 Hola, {user?.user_metadata?.full_name || user?.email?.split('@')[0]}
               </span>
