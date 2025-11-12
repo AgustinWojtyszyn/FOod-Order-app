@@ -66,12 +66,10 @@ const AdminChat = ({ user }) => {
   }
 
   const subscribeToMessages = () => {
+    console.log('Setting up realtime subscription...')
+    
     const channel = supabase
-      .channel('admin-chat-realtime', {
-        config: {
-          broadcast: { self: true }
-        }
-      })
+      .channel('admin-chat-changes')
       .on(
         'postgres_changes',
         {
@@ -80,32 +78,43 @@ const AdminChat = ({ user }) => {
           table: 'admin_chat'
         },
         (payload) => {
-          console.log('Chat event received:', payload.eventType, payload)
+          console.log('🔔 Realtime event:', payload)
           
           if (payload.eventType === 'INSERT') {
             setMessages(prev => {
               // Evitar duplicados
-              if (prev.some(msg => msg.id === payload.new.id)) {
+              const exists = prev.some(msg => msg.id === payload.new.id)
+              if (exists) {
+                console.log('Message already exists, skipping')
                 return prev
               }
+              console.log('Adding new message to state')
               return [...prev, payload.new]
             })
           } else if (payload.eventType === 'UPDATE') {
+            console.log('Updating message in state')
             setMessages(prev =>
               prev.map(msg => msg.id === payload.new.id ? payload.new : msg)
             )
           } else if (payload.eventType === 'DELETE') {
+            console.log('Removing message from state')
             setMessages(prev => prev.filter(msg => msg.id !== payload.old.id))
           }
         }
       )
-      .subscribe((status) => {
-        console.log('Subscription status:', status)
+      .subscribe((status, err) => {
+        console.log('📡 Subscription status:', status)
+        if (err) {
+          console.error('❌ Subscription error:', err)
+        }
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Successfully subscribed to admin_chat realtime')
+        }
       })
 
     return () => {
-      console.log('Cleaning up subscription')
-      supabase.removeChannel(channel)
+      console.log('🧹 Cleaning up subscription')
+      channel.unsubscribe()
     }
   }
 
