@@ -183,31 +183,100 @@ const AdminChat = ({ user }) => {
   const saveEdit = async (msgId) => {
     if (!editingText.trim()) return
 
+    const newText = editingText.trim()
+    const originalMessage = messages.find(msg => msg.id === msgId)
+
+    // Actualización optimista - mostrar cambio inmediatamente
+    setMessages(prev =>
+      prev.map(msg => 
+        msg.id === msgId 
+          ? { ...msg, message: newText, is_edited: true, updated_at: new Date().toISOString() }
+          : msg
+      )
+    )
+    setEditingId(null)
+    setEditingText('')
+
     try {
       const { error } = await supabase
         .from('admin_chat')
-        .update({ message: editingText.trim() })
+        .update({ message: newText })
         .eq('id', msgId)
 
-      if (!error) {
-        setEditingId(null)
-        setEditingText('')
+      if (error) {
+        // Si hay error, revertir al mensaje original
+        console.error('Error editing message:', error)
+        setMessages(prev =>
+          prev.map(msg => msg.id === msgId ? originalMessage : msg)
+        )
+        // Restaurar modo edición
+        setEditingId(msgId)
+        setEditingText(originalMessage.message)
+      } else {
+        console.log('✏️ Message edited successfully')
       }
     } catch (err) {
       console.error('Error editing message:', err)
+      // Revertir al mensaje original
+      setMessages(prev =>
+        prev.map(msg => msg.id === msgId ? originalMessage : msg)
+      )
+      setEditingId(msgId)
+      setEditingText(originalMessage.message)
     }
   }
 
   const deleteMessage = async (msgId) => {
     if (!confirm('¿Eliminar este mensaje?')) return
 
+    const messageToDelete = messages.find(msg => msg.id === msgId)
+
+    // Actualización optimista - eliminar inmediatamente de la UI
+    setMessages(prev => prev.filter(msg => msg.id !== msgId))
+    console.log('🗑️ Deleting message optimistically')
+
     try {
-      await supabase
+      const { error } = await supabase
         .from('admin_chat')
         .delete()
         .eq('id', msgId)
+
+      if (error) {
+        // Si hay error, restaurar el mensaje
+        console.error('Error deleting message:', error)
+        setMessages(prev => {
+          // Encontrar la posición correcta para reinsertar
+          const index = prev.findIndex(msg => 
+            new Date(msg.created_at) > new Date(messageToDelete.created_at)
+          )
+          if (index === -1) {
+            return [...prev, messageToDelete]
+          }
+          return [
+            ...prev.slice(0, index),
+            messageToDelete,
+            ...prev.slice(index)
+          ]
+        })
+      } else {
+        console.log('✅ Message deleted successfully')
+      }
     } catch (err) {
       console.error('Error deleting message:', err)
+      // Restaurar el mensaje
+      setMessages(prev => {
+        const index = prev.findIndex(msg => 
+          new Date(msg.created_at) > new Date(messageToDelete.created_at)
+        )
+        if (index === -1) {
+          return [...prev, messageToDelete]
+        }
+        return [
+          ...prev.slice(0, index),
+          messageToDelete,
+          ...prev.slice(index)
+        ]
+      })
     }
   }
 
