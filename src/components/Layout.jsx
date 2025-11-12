@@ -118,21 +118,23 @@ const Layout = ({ children, user }) => {
                     <NavLink
                       to={item.path}
                       className={({ isActive }) => {
-                        const baseClasses = "flex items-center px-4 py-3 rounded-xl font-bold text-base transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-lg"
-                        const normalClasses = "text-gray-800 hover:bg-gradient-to-r hover:from-primary-600 hover:to-primary-700 hover:text-white"
-                        const highlightedClasses = "text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg border-2 border-blue-300"
-                        const activeClasses = "bg-gradient-to-r from-blue-700 to-blue-800 text-white shadow-xl border-2 border-blue-400"
+                        // Clase base para todos
+                        let classes = "flex items-center px-4 py-3 rounded-xl font-bold text-base transition-all duration-200 shadow-sm"
                         
-                        // Si está activo, usar estilos activos
+                        // Si está activo - fondo azul sólido con texto blanco
                         if (isActive) {
-                          return `${baseClasses} ${activeClasses}`
+                          classes += " !bg-blue-600 !text-white shadow-lg"
                         }
-                        // Si es destacado (nuevo), usar estilos destacados
-                        if (item.highlighted) {
-                          return `${baseClasses} ${highlightedClasses} animate-pulse-slow`
+                        // Si es destacado pero no activo
+                        else if (item.highlighted) {
+                          classes += " bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md animate-pulse-slow"
                         }
-                        // Estilos normales
-                        return `${baseClasses} ${normalClasses}`
+                        // Normal
+                        else {
+                          classes += " text-gray-800 hover:bg-blue-50"
+                        }
+                        
+                        return classes
                       }}
                       onClick={() => setSidebarOpen(false)}
                     >
