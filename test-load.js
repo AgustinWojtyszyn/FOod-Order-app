@@ -29,7 +29,19 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ Error: Faltan variables de entorno VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY')
+  console.error('\n❌ Error: Faltan variables de entorno\n')
+  console.error('El script necesita las credenciales de Supabase para funcionar.\n')
+  console.error('📝 SOLUCIÓN RÁPIDA:\n')
+  console.error('1. Crea un archivo .env en la raíz del proyecto:')
+  console.error('   touch .env\n')
+  console.error('2. Agrega las siguientes líneas (reemplaza con tus valores):')
+  console.error('   VITE_SUPABASE_URL=https://tu-proyecto.supabase.co')
+  console.error('   VITE_SUPABASE_ANON_KEY=tu-clave-anon-key\n')
+  console.error('3. Encuentra tus credenciales en:')
+  console.error('   • Supabase Dashboard > Settings > API')
+  console.error('   • Project URL = VITE_SUPABASE_URL')
+  console.error('   • anon/public key = VITE_SUPABASE_ANON_KEY\n')
+  console.error('📖 O consulta .env.example para ver la estructura completa\n')
   process.exit(1)
 }
 

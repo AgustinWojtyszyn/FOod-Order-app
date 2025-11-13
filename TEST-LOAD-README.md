@@ -90,6 +90,49 @@ node test-load.js 200 15   # 200 usuarios, 15 pedidos cada uno = 3000 pedidos to
 
 ### Variables de Entorno Requeridas
 
+**IMPORTANTE:** Antes de ejecutar las pruebas, debes crear un archivo `.env` con tus credenciales de Supabase.
+
+#### Paso 1: Crear archivo .env
+
+```bash
+# En la raíz del proyecto
+touch .env
+```
+
+#### Paso 2: Agregar credenciales
+
+Abre `.env` y agrega (reemplaza con tus valores reales):
+
+```env
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+#### Paso 3: Encontrar tus credenciales
+
+1. Ve a https://supabase.com/dashboard
+2. Selecciona tu proyecto
+3. Click en "Settings" (⚙️) en el menú lateral
+4. Click en "API"
+5. Copia:
+   - **Project URL** → `VITE_SUPABASE_URL`
+   - **anon public key** → `VITE_SUPABASE_ANON_KEY`
+
+#### Alternativa: Copiar desde .env.example
+
+```bash
+cp .env.example .env
+# Luego edita .env con tus credenciales reales
+```
+
+### Verificar Configuración
+
+Para verificar que las variables están cargadas correctamente:
+
+```bash
+node -e "import('dotenv').then(d => { d.default.config(); console.log('URL:', process.env.VITE_SUPABASE_URL ? '✓ OK' : '✗ Falta'); console.log('KEY:', process.env.VITE_SUPABASE_ANON_KEY ? '✓ OK' : '✗ Falta'); })"
+```
+
 El script usa las variables de entorno del archivo `.env`:
 
 ```env
