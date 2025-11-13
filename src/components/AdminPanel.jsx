@@ -388,64 +388,118 @@ const AdminPanel = ({ user }) => {
         <div className="card bg-white/95 backdrop-blur-sm shadow-xl border-2 border-white/20">
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 drop-shadow">👥 Gestión de Usuarios</h2>
 
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <div className="inline-block min-w-full align-middle">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gradient-to-r from-primary-600 to-primary-700">
-                  <tr>
-                    <th className="px-2 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
-                      Usuario
-                    </th>
-                    <th className="px-2 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-2 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
-                      Rol
-                    </th>
-                    <th className="hidden md:table-cell px-2 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
-                      Fecha de Registro
-                    </th>
-                    <th className="px-2 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-2 sm:px-6 py-3 sm:py-4">
-                        <div className="text-xs sm:text-base font-bold text-gray-900 max-w-[100px] sm:max-w-none truncate">
-                          {user.full_name || user.email || 'Sin nombre'}
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-6 py-3 sm:py-4">
-                        <div className="text-xs sm:text-base text-gray-900 truncate max-w-[120px] sm:max-w-none">{user.email}</div>
-                      </td>
-                      <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-1.5 sm:px-3 py-0.5 sm:py-1 text-xs font-bold rounded-full ${
-                          user.role === 'admin'
-                            ? 'bg-purple-100 text-purple-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {user.role === 'admin' ? 'Admin' : 'Usuario'}
-                        </span>
-                      </td>
-                      <td className="hidden md:table-cell px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
-                        {new Date(user.created_at).toLocaleDateString('es-ES')}
-                      </td>
-                    <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium">
-                      <div className="flex items-center gap-1 sm:gap-2">
+          {/* Vista Mobile - Cards */}
+          <div className="block md:hidden space-y-4">
+            {users.map((user) => (
+              <div key={user.id} className="border-2 border-gray-200 rounded-xl p-4 bg-white hover:border-primary-300 transition-all">
+                {/* Nombre y Badge de Rol */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-base text-gray-900 truncate">
+                      {user.full_name || user.email || 'Sin nombre'}
+                    </h3>
+                    <p className="text-sm text-gray-600 truncate mt-1">{user.email}</p>
+                  </div>
+                  <span className={`ml-2 flex-shrink-0 inline-flex px-2.5 py-1 text-xs font-bold rounded-full ${
+                    user.role === 'admin'
+                      ? 'bg-purple-100 text-purple-800'
+                      : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {user.role === 'admin' ? 'Admin' : 'Usuario'}
+                  </span>
+                </div>
+
+                {/* Fecha de Registro */}
+                <div className="text-xs text-gray-500 mb-3">
+                  Registrado: {new Date(user.created_at).toLocaleDateString('es-ES')}
+                </div>
+
+                {/* Controles */}
+                <div className="flex gap-2 pt-3 border-t border-gray-200">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Cambiar Rol</label>
+                    <select
+                      value={user.role || 'user'}
+                      onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                      className="w-full text-sm border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 font-medium"
+                    >
+                      <option value="user">Usuario</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      onClick={() => handleDeleteUser(user.id, user.full_name || user.email)}
+                      className="px-4 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 hover:text-red-700 transition-colors font-semibold text-sm flex items-center gap-1"
+                      title="Eliminar usuario"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span>Eliminar</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Vista Desktop - Tabla */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gradient-to-r from-primary-600 to-primary-700">
+                <tr>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-wider">
+                    Usuario
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-wider">
+                    Rol
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-wider">
+                    Fecha de Registro
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-wider">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {users.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="text-base font-bold text-gray-900">
+                        {user.full_name || user.email || 'Sin nombre'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-base text-gray-900">{user.email}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-3 py-1 text-sm font-bold rounded-full ${
+                        user.role === 'admin'
+                          ? 'bg-purple-100 text-purple-800'
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {user.role === 'admin' ? 'Admin' : 'Usuario'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(user.created_at).toLocaleDateString('es-ES')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center gap-2">
                         <select
                           value={user.role || 'user'}
                           onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                          className="text-xs sm:text-base border-2 border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 font-medium w-[90px] sm:min-w-[100px] sm:w-auto"
+                          className="text-base border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 font-medium min-w-[120px]"
                         >
                           <option value="user">Usuario</option>
                           <option value="admin">Admin</option>
                         </select>
                         <button
                           onClick={() => handleDeleteUser(user.id, user.full_name || user.email)}
-                          className="p-1.5 sm:p-2.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 hover:text-red-700 transition-colors flex-shrink-0"
+                          className="p-2.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 hover:text-red-700 transition-colors flex-shrink-0"
                           title="Eliminar usuario"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -456,7 +510,6 @@ const AdminPanel = ({ user }) => {
                 ))}
               </tbody>
             </table>
-            </div>
           </div>
         </div>
       )}
