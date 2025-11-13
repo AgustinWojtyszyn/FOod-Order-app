@@ -73,7 +73,7 @@ const Layout = ({ children, user }) => {
                 <img 
                   src={servifoodLogo} 
                   alt="Servifood Logo" 
-                  className="h-10 w-10 rounded object-cover"
+                  className="h-8 w-8 rounded object-cover"
                 />
                 <span className="ml-3 text-xl font-bold text-white drop-shadow-lg">ServiFood Catering</span>
               </div>
@@ -103,7 +103,7 @@ const Layout = ({ children, user }) => {
             <img 
               src={servifoodLogo} 
               alt="Servifood Logo" 
-              className="h-10 w-10 rounded object-cover"
+              className="h-8 w-8 rounded object-cover"
             />
             <span className="ml-3 text-lg font-bold text-white drop-shadow">ServiFood</span>
           </div>
