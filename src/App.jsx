@@ -71,7 +71,7 @@ function App() {
             user ? <Layout user={user}><Profile user={user} /></Layout> : <Navigate to="/login" />
           } />
           <Route path="/admin" element={
-            user?.user_metadata?.role === 'admin' ? <Layout user={user}><AdminPanel user={user} /></Layout> : <Navigate to="/dashboard" />
+            user ? <Layout user={user}><AdminPanel user={user} /></Layout> : <Navigate to="/login" />
           } />
           <Route path="/superadmin" element={
             user ? <Layout user={user}><SuperAdminPanel user={user} /></Layout> : <Navigate to="/login" />

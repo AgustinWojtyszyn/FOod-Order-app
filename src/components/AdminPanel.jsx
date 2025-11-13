@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { db } from '../supabaseClient'
-import { Users, ChefHat, Edit3, Save, X, Plus, Trash2, Settings, ArrowUp, ArrowDown } from 'lucide-react'
+import { Users, ChefHat, Edit3, Save, X, Plus, Trash2, Settings, ArrowUp, ArrowDown, Shield } from 'lucide-react'
 
 const AdminPanel = ({ user }) => {
   const [activeTab, setActiveTab] = useState('users')
@@ -13,10 +13,30 @@ const AdminPanel = ({ user }) => {
   const [newMenuItems, setNewMenuItems] = useState([])
   const [editingOptions, setEditingOptions] = useState(false)
   const [newOption, setNewOption] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    checkIfAdmin()
+  }, [user])
+
+  useEffect(() => {
+    if (isAdmin === true) {
+      fetchData()
+    }
+  }, [isAdmin])
+
+  const checkIfAdmin = async () => {
+    try {
+      const { data, error } = await db.getUsers()
+      if (!error && data) {
+        const currentUser = data.find(u => u.id === user.id)
+        setIsAdmin(currentUser?.role === 'admin')
+      }
+    } catch (err) {
+      console.error('Error checking admin status:', err)
+      setIsAdmin(false)
+    }
+  }
 
   const fetchData = async () => {
     setLoading(true)
@@ -282,6 +302,31 @@ const AdminPanel = ({ user }) => {
       ...prev,
       options: prev.options.map((opt, i) => i === index ? value : opt)
     }))
+  }
+
+  // Verificación de admin
+  if (!isAdmin && !loading) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <div className="bg-red-50 border-2 border-red-300 rounded-xl p-8 text-center">
+          <div className="flex justify-center mb-4">
+            <div className="p-4 bg-red-100 rounded-full">
+              <Shield className="h-12 w-12 text-red-600" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-red-900 mb-2">Acceso Restringido</h2>
+          <p className="text-red-700 mb-4">
+            Solo los administradores pueden acceder a este panel.
+          </p>
+          <Link
+            to="/dashboard"
+            className="inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition-colors"
+          >
+            Volver al Dashboard
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   if (loading) {

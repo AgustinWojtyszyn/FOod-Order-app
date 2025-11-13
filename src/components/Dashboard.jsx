@@ -38,10 +38,8 @@ const Dashboard = ({ user }) => {
 
   const fetchOrders = async () => {
     try {
-      // Admins ven todos los pedidos, usuarios solo los suyos
-      const { data, error } = isAdmin 
-        ? await db.getOrders() 
-        : await db.getOrders(user.id)
+      // TODOS (admins y usuarios) solo ven sus propios pedidos en el Dashboard
+      const { data, error } = await db.getOrders(user.id)
 
       if (error) {
         console.error('Error fetching orders:', error)
