@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { db } from '../supabaseClient'
-import { Calendar, MapPin, Clock, User, MessageCircle, Package, TrendingUp, Filter, CheckCircle, XCircle, Download, FileSpreadsheet, Shield } from 'lucide-react'
+import { Calendar, MapPin, Clock, User, MessageCircle, Package, TrendingUp, Filter, CheckCircle, XCircle, Download, FileSpreadsheet, Shield, Mail, Send } from 'lucide-react'
+import * as XLSX from 'xlsx'
 
 const DailyOrders = ({ user }) => {
   const [orders, setOrders] = useState([])
@@ -257,24 +258,8 @@ const DailyOrders = ({ user }) => {
     }
 
     try {
-      // Crear CSV con formato Excel
-      const headers = [
-        'Fecha Pedido',
-        'Hora Pedido',
-        'Usuario',
-        'Email',
-        'Ubicación',
-        'Fecha Entrega',
-        'Platillos',
-        'Cantidad Items',
-        'Estado',
-        'Comentarios',
-        'Opciones Adicionales',
-        'Teléfono',
-        'Cliente'
-      ]
-
-      const rows = sortedOrders.map(order => {
+      // Preparar datos para el Excel
+      const excelData = sortedOrders.map(order => {
         const items = order.items?.map(item => 
           `${item.name} (x${item.quantity})`
         ).join('; ') || 'Sin items'
@@ -286,59 +271,141 @@ const DailyOrders = ({ user }) => {
             return `${r.title}: ${response}`
           }).join(' | ') || 'Sin opciones'
 
-        return [
-          formatDate(order.created_at),
-          formatTime(order.created_at),
-          order.user_name || 'Sin nombre',
-          order.customer_email || order.user_email || 'Sin email',
-          order.location || 'Sin ubicación',
-          getTomorrowDate(),
-          items,
-          order.total_items || 0,
-          getStatusText(order.status),
-          order.comments || 'Sin comentarios',
-          customResponses,
-          order.customer_phone || 'Sin teléfono',
-          order.customer_name || order.user_name || 'Sin nombre'
-        ]
+        return {
+          'Fecha Pedido': formatDate(order.created_at),
+          'Hora Pedido': formatTime(order.created_at),
+          'Usuario': order.user_name || 'Sin nombre',
+          'Email': order.customer_email || order.user_email || 'Sin email',
+          'Teléfono': order.customer_phone || 'Sin teléfono',
+          'Ubicación': order.location || 'Sin ubicación',
+          'Fecha Entrega': getTomorrowDate(),
+          'Platillos': items,
+          'Cantidad Items': order.total_items || 0,
+          'Estado': getStatusText(order.status),
+          'Comentarios': order.comments || 'Sin comentarios',
+          'Opciones Adicionales': customResponses,
+          'Cliente': order.customer_name || order.user_name || 'Sin nombre'
+        }
       })
 
-      // Crear contenido CSV con BOM para Excel
-      const csvContent = [
-        headers.join(','),
-        ...rows.map(row => 
-          row.map(cell => {
-            // Escapar comillas y comas en el contenido
-            const cellStr = String(cell).replace(/"/g, '""')
-            return `"${cellStr}"`
-          }).join(',')
-        )
-      ].join('\n')
+      // Crear hoja de estadísticas
+      const statsData = [
+        { Concepto: 'Total de Pedidos', Valor: stats.total },
+        { Concepto: 'Pedidos Completados', Valor: stats.completed },
+        { Concepto: 'Pedidos Pendientes', Valor: stats.pending },
+        { Concepto: 'Pedidos Cancelados', Valor: stats.cancelled },
+        { Concepto: 'Total de Items', Valor: stats.totalItems },
+        { Concepto: '', Valor: '' },
+        { Concepto: 'PEDIDOS POR UBICACIÓN', Valor: '' },
+      ]
 
-      // Crear Blob con BOM para que Excel lo abra correctamente con UTF-8
-      const BOM = '\uFEFF'
-      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+      Object.entries(stats.byLocation).forEach(([location, count]) => {
+        statsData.push({ Concepto: location, Valor: count })
+      })
+
+      statsData.push({ Concepto: '', Valor: '' })
+      statsData.push({ Concepto: 'PEDIDOS POR PLATILLO', Valor: '' })
+
+      Object.entries(stats.byDish).forEach(([dish, count]) => {
+        statsData.push({ Concepto: dish, Valor: count })
+      })
+
+      // Crear libro de Excel
+      const wb = XLSX.utils.book_new()
       
-      // Crear enlace y descargar
-      const link = document.createElement('a')
-      const url = URL.createObjectURL(blob)
+      // Hoja 1: Pedidos detallados
+      const ws1 = XLSX.utils.json_to_sheet(excelData)
       
+      // Ajustar anchos de columna
+      const columnWidths = [
+        { wch: 12 }, // Fecha Pedido
+        { wch: 10 }, // Hora Pedido
+        { wch: 20 }, // Usuario
+        { wch: 25 }, // Email
+        { wch: 15 }, // Teléfono
+        { wch: 15 }, // Ubicación
+        { wch: 25 }, // Fecha Entrega
+        { wch: 40 }, // Platillos
+        { wch: 12 }, // Cantidad Items
+        { wch: 12 }, // Estado
+        { wch: 30 }, // Comentarios
+        { wch: 40 }, // Opciones Adicionales
+        { wch: 20 }  // Cliente
+      ]
+      ws1['!cols'] = columnWidths
+      
+      XLSX.utils.book_append_sheet(wb, ws1, 'Pedidos Detallados')
+      
+      // Hoja 2: Estadísticas
+      const ws2 = XLSX.utils.json_to_sheet(statsData)
+      ws2['!cols'] = [{ wch: 30 }, { wch: 15 }]
+      XLSX.utils.book_append_sheet(wb, ws2, 'Estadísticas')
+
+      // Generar nombre de archivo
       const today = new Date().toISOString().split('T')[0]
       const locationFilter = selectedLocation !== 'all' ? `_${selectedLocation.replace(/\s+/g, '_')}` : ''
       const statusFilter = selectedStatus !== 'all' ? `_${selectedStatus}` : ''
-      
-      link.setAttribute('href', url)
-      link.setAttribute('download', `pedidos_diarios_${today}${locationFilter}${statusFilter}.csv`)
-      link.style.visibility = 'hidden'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      const fileName = `Pedidos_ServiFood_${today}${locationFilter}${statusFilter}.xlsx`
 
-      alert(`✓ ${sortedOrders.length} pedidos exportados correctamente`)
+      // Descargar archivo con compatibilidad Excel 2016
+      XLSX.writeFile(wb, fileName, { 
+        bookType: 'xlsx',
+        type: 'binary',
+        cellStyles: true
+      })
+
+      alert(`✓ ${sortedOrders.length} pedidos exportados correctamente a ${fileName}`)
     } catch (error) {
       console.error('Error al exportar:', error)
       alert('Error al exportar el archivo. Por favor, inténtalo de nuevo.')
+    }
+  }
+
+  // Nueva función para compartir por WhatsApp
+  const shareViaWhatsApp = () => {
+    if (sortedOrders.length === 0) {
+      alert('No hay pedidos para compartir')
+      return
+    }
+
+    try {
+      // Crear resumen de texto para WhatsApp
+      const today = new Date().toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+
+      let message = `📋 *PEDIDOS SERVIFOOD - ${today.toUpperCase()}*\n\n`
+      message += `📊 *RESUMEN*\n`
+      message += `• Total: ${stats.total} pedidos\n`
+      message += `• Completados: ${stats.completed}\n`
+      message += `• Pendientes: ${stats.pending}\n`
+      message += `• Items totales: ${stats.totalItems}\n\n`
+
+      message += `📍 *POR UBICACIÓN*\n`
+      Object.entries(stats.byLocation).forEach(([location, count]) => {
+        message += `• ${location}: ${count} pedidos\n`
+      })
+
+      message += `\n🍽️ *PLATILLOS MÁS PEDIDOS*\n`
+      const topDishes = Object.entries(stats.byDish)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+      topDishes.forEach(([dish, count]) => {
+        message += `• ${dish}: ${count} unidades\n`
+      })
+
+      message += `\n_Para ver detalles completos, descarga el archivo Excel_`
+
+      // Abrir WhatsApp con el mensaje
+      const encodedMessage = encodeURIComponent(message)
+      const whatsappUrl = `https://wa.me/?text=${encodedMessage}`
+      window.open(whatsappUrl, '_blank')
+    } catch (error) {
+      console.error('Error al compartir:', error)
+      alert('Error al compartir por WhatsApp')
     }
   }
 
@@ -387,7 +454,7 @@ const DailyOrders = ({ user }) => {
           </div>
           
           <div className="flex flex-col gap-3">
-            {/* Botón de exportar */}
+            {/* Botón de exportar a Excel */}
             <button
               onClick={exportToExcel}
               disabled={sortedOrders.length === 0}
@@ -397,8 +464,22 @@ const DailyOrders = ({ user }) => {
                   : 'bg-green-500 hover:bg-green-600 text-white'
               }`}
             >
-              <Download className="h-5 w-5" />
+              <FileSpreadsheet className="h-5 w-5" />
               Exportar a Excel ({sortedOrders.length})
+            </button>
+
+            {/* Botón de compartir por WhatsApp */}
+            <button
+              onClick={shareViaWhatsApp}
+              disabled={sortedOrders.length === 0}
+              className={`font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2 ${
+                sortedOrders.length === 0 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+              }`}
+            >
+              <Send className="h-5 w-5" />
+              Compartir Resumen
             </button>
 
             {/* Filtro por ubicación */}
