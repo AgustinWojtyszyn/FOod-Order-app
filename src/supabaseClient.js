@@ -193,20 +193,78 @@ export const db = {
   },
 
   updateMenuItems: async (menuItems) => {
-    // Primero eliminar todos los items existentes
-    const { error: deleteError } = await supabase
-      .from('menu_items')
-      .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000') // Eliminar todos
+    try {
+      // Obtener items existentes
+      const { data: existingItems, error: fetchError } = await supabase
+        .from('menu_items')
+        .select('id')
+      
+      if (fetchError) {
+        console.error('Error fetching existing items:', fetchError)
+        return { error: fetchError }
+      }
 
-    if (deleteError) return { error: deleteError }
+      const existingIds = existingItems?.map(item => item.id) || []
+      const itemsToUpdate = menuItems.filter(item => item.id && existingIds.includes(item.id))
+      const itemsToInsert = menuItems.filter(item => !item.id || !existingIds.includes(item.id))
+      const idsToKeep = menuItems.filter(item => item.id).map(item => item.id)
+      const itemsToDelete = existingIds.filter(id => !idsToKeep.includes(id))
 
-    // Insertar los nuevos items
-    const { data, error } = await supabase
-      .from('menu_items')
-      .insert(menuItems)
-      .select()
-    return { data, error }
+      // Eliminar items que ya no están en la lista
+      if (itemsToDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('menu_items')
+          .delete()
+          .in('id', itemsToDelete)
+        
+        if (deleteError) {
+          console.error('Error deleting items:', deleteError)
+          return { error: deleteError }
+        }
+      }
+
+      // Actualizar items existentes
+      for (const item of itemsToUpdate) {
+        const { error: updateError } = await supabase
+          .from('menu_items')
+          .update({
+            name: item.name,
+            description: item.description
+          })
+          .eq('id', item.id)
+        
+        if (updateError) {
+          console.error('Error updating item:', updateError)
+          return { error: updateError }
+        }
+      }
+
+      // Insertar nuevos items
+      if (itemsToInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from('menu_items')
+          .insert(itemsToInsert.map(item => ({
+            name: item.name,
+            description: item.description
+          })))
+        
+        if (insertError) {
+          console.error('Error inserting items:', insertError)
+          return { error: insertError }
+        }
+      }
+
+      // Obtener todos los items actualizados
+      const { data, error } = await supabase
+        .from('menu_items')
+        .select('*')
+        .order('created_at', { ascending: true })
+      
+      return { data, error }
+    } catch (err) {
+      console.error('Unexpected error in updateMenuItems:', err)
+      return { error: err }
+    }
   },
 
   // Opciones personalizables
