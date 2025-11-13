@@ -1,0 +1,21 @@
+# Robots.txt para ServiFood - Food Order App
+# https://food-order-app-3avy.onrender.com
+
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /register
+Allow: /order
+
+# Bloquear páginas de administración para buscadores
+Disallow: /admin
+Disallow: /daily-orders
+Disallow: /dashboard
+
+# Bloquear archivos y carpetas técnicas
+Disallow: /api/
+Disallow: /*.json$
+Disallow: /*.js.map$
+
+# Sitemap
+Sitemap: https://food-order-app-3avy.onrender.com/sitemap.xml
