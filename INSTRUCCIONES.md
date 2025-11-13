@@ -2,7 +2,7 @@
 
 ## 🔐 Paso 1: Arreglar Permisos de Administradores
 
-Para que **TODOS los administradores** tengan los mismos permisos completos:
+Para que **TODOS los administradores** tengan los mismos permisos completos (sin distinción de superadmin):
 
 1. Ve a **Supabase Dashboard** → SQL Editor
 2. Copia y pega el contenido del archivo: `fix-admin-permissions-FINAL.sql`
@@ -11,13 +11,19 @@ Para que **TODOS los administradores** tengan los mismos permisos completos:
 
 ### ¿Qué hace este script?
 
+- ✅ **Elimina la columna `is_superadmin`** - Ya no existe distinción entre administradores
 - ✅ Crea una función `is_admin()` que verifica si un usuario tiene rol de admin
-- ✅ Da permisos completos a **TODOS** los administradores (no solo al primero)
+- ✅ Da permisos completos a **TODOS** los administradores por igual
 - ✅ Los admin pueden:
   - Editar el menú (agregar/modificar/eliminar platos)
   - Cambiar roles de usuarios
   - Ver y editar todos los pedidos
   - Acceder a todas las funciones administrativas
+
+### ⚠️ Importante:
+- **NO HAY** más categoría "superadmin"
+- **TODOS** los usuarios con rol `admin` tienen exactamente los mismos permisos
+- El panel de administración se ve igual para todos los admin
 
 ---
 
