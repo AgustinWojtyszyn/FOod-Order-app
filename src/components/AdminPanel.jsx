@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { db } from '../supabaseClient'
-import { Users, ChefHat, Edit3, Save, X, Plus, Trash2, Settings, ArrowUp, ArrowDown, Shield } from 'lucide-react'
+import { Users, ChefHat, Edit3, Save, X, Plus, Trash2, Settings, ArrowUp, ArrowDown, Shield, Search, Filter } from 'lucide-react'
 
 const AdminPanel = ({ user }) => {
   const [activeTab, setActiveTab] = useState('users')
@@ -14,6 +14,10 @@ const AdminPanel = ({ user }) => {
   const [editingOptions, setEditingOptions] = useState(false)
   const [newOption, setNewOption] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  
+  // Estados para búsqueda y filtrado de usuarios
+  const [searchTerm, setSearchTerm] = useState('')
+  const [roleFilter, setRoleFilter] = useState('all') // 'all', 'admin', 'user'
 
   useEffect(() => {
     checkIfAdmin()
@@ -89,6 +93,23 @@ const AdminPanel = ({ user }) => {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Función para filtrar usuarios según búsqueda y rol
+  const getFilteredUsers = () => {
+    return users.filter(user => {
+      // Filtro por término de búsqueda (nombre o email)
+      const matchesSearch = searchTerm === '' || 
+        (user.full_name && user.full_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
+      
+      // Filtro por rol
+      const matchesRole = roleFilter === 'all' || 
+        (roleFilter === 'admin' && user.role === 'admin') ||
+        (roleFilter === 'user' && user.role === 'user')
+      
+      return matchesSearch && matchesRole
+    })
   }
 
   const handleRoleChange = async (userId, newRole) => {
@@ -388,9 +409,55 @@ const AdminPanel = ({ user }) => {
         <div className="card bg-white/95 backdrop-blur-sm shadow-xl border-2 border-white/20">
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 drop-shadow">👥 Gestión de Usuarios</h2>
 
+          {/* Controles de Búsqueda y Filtrado */}
+          <div className="mb-6 space-y-3 sm:space-y-0 sm:flex sm:gap-3">
+            {/* Barra de Búsqueda */}
+            <div className="flex-1">
+              <label htmlFor="search" className="block text-sm font-bold text-gray-900 mb-2">
+                Buscar Usuario
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  id="search"
+                  type="text"
+                  placeholder="Buscar por nombre o email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900"
+                />
+              </div>
+            </div>
+
+            {/* Filtro por Rol */}
+            <div className="w-full sm:w-48">
+              <label htmlFor="roleFilter" className="block text-sm font-bold text-gray-900 mb-2">
+                Filtrar por Rol
+              </label>
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <select
+                  id="roleFilter"
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 font-medium appearance-none"
+                >
+                  <option value="all">Todos</option>
+                  <option value="admin">Administradores</option>
+                  <option value="user">Usuarios</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Contador de resultados */}
+          <div className="mb-4 text-sm text-gray-600">
+            Mostrando <span className="font-bold text-gray-900">{getFilteredUsers().length}</span> de <span className="font-bold text-gray-900">{users.length}</span> usuarios
+          </div>
+
           {/* Vista Mobile - Cards */}
           <div className="block md:hidden space-y-4">
-            {users.map((user) => (
+            {getFilteredUsers().map((user) => (
               <div key={user.id} className="border-2 border-gray-200 rounded-xl p-4 bg-white hover:border-primary-300 transition-all">
                 {/* Nombre y Badge de Rol */}
                 <div className="flex items-start justify-between mb-3">
@@ -465,7 +532,7 @@ const AdminPanel = ({ user }) => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {users.map((user) => (
+                {getFilteredUsers().map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="text-base font-bold text-gray-900">
@@ -511,6 +578,31 @@ const AdminPanel = ({ user }) => {
               </tbody>
             </table>
           </div>
+
+          {/* Mensaje cuando no hay resultados */}
+          {getFilteredUsers().length === 0 && (
+            <div className="text-center py-12">
+              <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-900 mb-2">No se encontraron usuarios</h3>
+              <p className="text-gray-600 mb-4">
+                {searchTerm || roleFilter !== 'all' 
+                  ? 'Intenta ajustar los filtros de búsqueda' 
+                  : 'No hay usuarios registrados en el sistema'}
+              </p>
+              {(searchTerm || roleFilter !== 'all') && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('')
+                    setRoleFilter('all')
+                  }}
+                  className="btn-secondary inline-flex items-center gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
