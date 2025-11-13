@@ -4,6 +4,25 @@
   html {
     font-family: 'Inter', system-ui, sans-serif;
   }
+  
+  /* Asegurar contraste en todos los inputs */
+  input,
+  textarea,
+  select {
+    background-color: rgb(255 255 255);
+    color: rgb(17 24 39);
+  }
+  
+  input::placeholder,
+  textarea::placeholder {
+    color: rgb(156 163 175);
+  }
+  
+  /* Asegurar contraste en opciones de select */
+  option {
+    background-color: rgb(255 255 255);
+    color: rgb(17 24 39);
+  }
 }
 
 @layer components {
@@ -46,11 +65,18 @@
     font-size: 1rem;
     font-weight: 500;
     transition: all 0.2s;
+    background-color: rgb(255 255 255);
+    color: rgb(17 24 39);
   }
   
   .input-field:focus {
     border-color: rgb(79 70 229);
     box-shadow: 0 0 0 3px rgb(199 210 254 / 0.5);
+    background-color: rgb(255 255 255);
+  }
+  
+  .input-field::placeholder {
+    color: rgb(156 163 175);
   }
 
   .card {

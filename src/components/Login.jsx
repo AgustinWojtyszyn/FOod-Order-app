@@ -90,7 +90,7 @@ const Login = () => {
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700">
+              <label htmlFor="email" className="block text-sm font-bold text-gray-900 mb-1">
                 Correo electrónico
               </label>
               <input
@@ -99,7 +99,7 @@ const Login = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className="input-field mt-1 border-2 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                className="input-field mt-1 border-2 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 bg-white text-gray-900"
                 placeholder="tu@email.com"
                 value={formData.email}
                 onChange={handleChange}
@@ -107,7 +107,7 @@ const Login = () => {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
+              <label htmlFor="password" className="block text-sm font-bold text-gray-900 mb-1">
                 Contraseña
               </label>
               <div className="relative mt-1">
@@ -117,7 +117,7 @@ const Login = () => {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   required
-                  className="input-field pr-10 border-2 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                  className="input-field pr-10 border-2 border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 bg-white text-gray-900"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={handleChange}

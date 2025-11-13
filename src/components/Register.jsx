@@ -183,7 +183,7 @@ const Register = () => {
             )}
 
             <div>
-              <label htmlFor="fullName" className="block text-base font-bold text-gray-800 mb-2">
+              <label htmlFor="fullName" className="block text-base font-bold text-gray-900 mb-2">
                 Nombre Completo
               </label>
               <input
@@ -192,7 +192,7 @@ const Register = () => {
                 type="text"
                 autoComplete="name"
                 required
-                className="input-field text-base font-medium"
+                className="input-field text-base font-medium bg-white text-gray-900"
                 placeholder="Juan Pérez"
                 value={formData.fullName}
                 onChange={handleChange}
@@ -200,7 +200,7 @@ const Register = () => {
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-base font-bold text-gray-800 mb-2">
+              <label htmlFor="email" className="block text-base font-bold text-gray-900 mb-2">
                 Correo Electrónico
               </label>
               <input
@@ -209,7 +209,7 @@ const Register = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className="input-field text-base font-medium"
+                className="input-field text-base font-medium bg-white text-gray-900"
                 placeholder="tu@email.com"
                 value={formData.email}
                 onChange={handleChange}
@@ -217,7 +217,7 @@ const Register = () => {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-base font-bold text-gray-800 mb-2">
+              <label htmlFor="password" className="block text-base font-bold text-gray-900 mb-2">
                 Contraseña
               </label>
               <div className="relative">
@@ -227,7 +227,7 @@ const Register = () => {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   required
-                  className="input-field pr-12 text-base font-medium"
+                  className="input-field pr-12 text-base font-medium bg-white text-gray-900"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={handleChange}
@@ -247,7 +247,7 @@ const Register = () => {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-base font-bold text-gray-800 mb-2">
+              <label htmlFor="confirmPassword" className="block text-base font-bold text-gray-900 mb-2">
                 Confirmar Contraseña
               </label>
               <div className="relative">
@@ -257,7 +257,7 @@ const Register = () => {
                   type={showConfirmPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   required
-                  className="input-field pr-12 text-base font-medium"
+                  className="input-field pr-12 text-base font-medium bg-white text-gray-900"
                   placeholder="••••••••"
                   value={formData.confirmPassword}
                   onChange={handleChange}
