@@ -4,7 +4,6 @@ import { supabase, auth } from './supabaseClient'
 import Layout from './components/Layout'
 import Login from './components/Login'
 import Register from './components/Register'
-import EmailVerification from './components/EmailVerification'
 import ForgotPassword from './components/ForgotPassword'
 import ResetPassword from './components/ResetPassword'
 import Dashboard from './components/Dashboard'
@@ -61,7 +60,6 @@ function App() {
           <Route path="/register" element={
             user ? <Navigate to="/dashboard" /> : <Register />
           } />
-          <Route path="/verify-email" element={<EmailVerification />} />
           <Route path="/forgot-password" element={
             user ? <Navigate to="/dashboard" /> : <ForgotPassword />
           } />

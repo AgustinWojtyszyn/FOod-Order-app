@@ -34,16 +34,16 @@ const Login = () => {
       if (error) {
         // Mensajes de error más específicos
         if (error.message.includes('Email not confirmed')) {
-          setError('⚠️ Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada y haz clic en el enlace de confirmación que te enviamos.')
+          setError('📧 Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada y haz clic en el enlace de confirmación.')
         } else if (error.message.includes('Invalid login credentials')) {
-          setError('Correo o contraseña incorrectos. Por favor, verifica tus datos.')
+          setError('❌ Correo o contraseña incorrectos. Por favor, verifica tus datos.')
         } else {
           setError(error.message || 'Error al iniciar sesión')
         }
       } else {
         // Verificar si el email está confirmado
         if (data?.user && !data.user.email_confirmed_at) {
-          setError('⚠️ Tu correo electrónico aún no ha sido verificado. Por favor, revisa tu bandeja de entrada y confirma tu email antes de continuar.')
+          setError('📧 Tu correo electrónico aún no ha sido verificado. Por favor, revisa tu bandeja de entrada y confirma tu email antes de iniciar sesión.')
           await auth.signOut()
         } else {
           navigate('/')
