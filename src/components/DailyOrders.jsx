@@ -251,6 +251,36 @@ const DailyOrders = ({ user }) => {
     })
   }
 
+  // Función helper para detectar y extraer guarniciones personalizadas
+  const getCustomSideFromResponses = (customResponses) => {
+    if (!customResponses || !Array.isArray(customResponses)) return null
+    
+    // Buscar opciones que contengan "guarnición" o "guarnicion" en el título
+    const sideOption = customResponses.find(r => 
+      r.title?.toLowerCase().includes('guarnición') || 
+      r.title?.toLowerCase().includes('guarnicion')
+    )
+    
+    if (sideOption && sideOption.response) {
+      return Array.isArray(sideOption.response) 
+        ? sideOption.response.join(', ') 
+        : sideOption.response
+    }
+    
+    return null
+  }
+
+  // Función helper para obtener otras opciones (sin guarniciones)
+  const getOtherCustomResponses = (customResponses) => {
+    if (!customResponses || !Array.isArray(customResponses)) return []
+    
+    return customResponses.filter(r => 
+      r.response && 
+      !r.title?.toLowerCase().includes('guarnición') && 
+      !r.title?.toLowerCase().includes('guarnicion')
+    )
+  }
+
   const exportToExcel = () => {
     if (sortedOrders.length === 0) {
       alert('No hay pedidos para exportar')
@@ -260,12 +290,22 @@ const DailyOrders = ({ user }) => {
     try {
       // Preparar datos para el Excel
       const excelData = sortedOrders.map(order => {
-        const items = order.items?.map(item => 
+        // Procesar items del menú
+        const menuItems = order.items?.map(item => 
           `${item.name} (x${item.quantity})`
-        ).join('; ') || 'Sin items'
+        ) || []
 
-        const customResponses = order.custom_responses
-          ?.filter(r => r.response)
+        // Detectar guarnición personalizada
+        const customSide = getCustomSideFromResponses(order.custom_responses)
+        if (customSide) {
+          menuItems.push(`🔸 Guarnición: ${customSide}`)
+        }
+
+        const items = menuItems.join('; ') || 'Sin items'
+
+        // Otras opciones personalizadas (excluyendo guarniciones)
+        const otherResponses = getOtherCustomResponses(order.custom_responses)
+        const customResponses = otherResponses
           .map(r => {
             const response = Array.isArray(r.response) ? r.response.join(', ') : r.response
             return `${r.title}: ${response}`
@@ -396,6 +436,20 @@ const DailyOrders = ({ user }) => {
       topDishes.forEach(([dish, count]) => {
         message += `• ${dish}: ${count} unidades\n`
       })
+
+      // Agregar guarniciones personalizadas si existen
+      const customSides = sortedOrders
+        .map(order => getCustomSideFromResponses(order.custom_responses))
+        .filter(side => side !== null)
+      
+      if (customSides.length > 0) {
+        message += `\n🔸 *GUARNICIONES PERSONALIZADAS*\n`
+        const uniqueSides = [...new Set(customSides)]
+        uniqueSides.forEach(side => {
+          const count = customSides.filter(s => s === side).length
+          message += `• ${side}: ${count} pedido${count > 1 ? 's' : ''}\n`
+        })
+      }
 
       message += `\n_Para ver detalles completos, descarga el archivo Excel_`
 
@@ -692,11 +746,32 @@ const DailyOrders = ({ user }) => {
                         </div>
                       </div>
                     ))}
+                    
+                    {/* Guarnición personalizada si existe */}
+                    {(() => {
+                      const customSide = getCustomSideFromResponses(order.custom_responses)
+                      if (customSide) {
+                        return (
+                          <div className="bg-orange-50 rounded-lg p-3 border-2 border-orange-300">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="font-semibold text-orange-900">🔸 Guarnición Personalizada</span>
+                                <p className="text-sm text-orange-700 mt-1">{customSide}</p>
+                              </div>
+                              <span className="px-3 py-1 bg-orange-200 text-orange-900 rounded-full text-xs font-bold">
+                                CUSTOM
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                   </div>
                 </div>
 
                 {/* Aclaraciones especiales */}
-                {(order.comments || (order.custom_responses && order.custom_responses.length > 0)) && (
+                {(order.comments || getOtherCustomResponses(order.custom_responses).length > 0) && (
                   <div className="bg-purple-50 rounded-lg p-4 border-2 border-purple-200">
                     <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
                       <MessageCircle className="h-5 w-5 text-purple-600" />
@@ -712,11 +787,10 @@ const DailyOrders = ({ user }) => {
                       </div>
                     )}
 
-                    {order.custom_responses && order.custom_responses.length > 0 && (
+                    {getOtherCustomResponses(order.custom_responses).length > 0 && (
                       <div className="space-y-2">
                         <p className="text-sm text-gray-600 font-semibold">Opciones Adicionales:</p>
-                        {order.custom_responses
-                          .filter(resp => resp.response)
+                        {getOtherCustomResponses(order.custom_responses)
                           .map((resp, index) => (
                             <div key={index} className="bg-white rounded-lg p-3 border border-purple-200">
                               <p className="font-semibold text-purple-900 text-sm mb-1">{resp.title}</p>
