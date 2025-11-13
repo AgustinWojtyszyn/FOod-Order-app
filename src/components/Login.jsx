@@ -29,15 +29,28 @@ const Login = () => {
     setError('')
 
     try {
-      const { error } = await auth.signIn(formData.email, formData.password, formData.rememberMe)
+      const { data, error } = await auth.signIn(formData.email, formData.password, formData.rememberMe)
 
       if (error) {
-        setError(error.message)
+        // Mensajes de error más específicos
+        if (error.message.includes('Email not confirmed')) {
+          setError('⚠️ Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada y haz clic en el enlace de confirmación que te enviamos.')
+        } else if (error.message.includes('Invalid login credentials')) {
+          setError('Correo o contraseña incorrectos. Por favor, verifica tus datos.')
+        } else {
+          setError(error.message || 'Error al iniciar sesión')
+        }
       } else {
-        navigate('/')
+        // Verificar si el email está confirmado
+        if (data?.user && !data.user.email_confirmed_at) {
+          setError('⚠️ Tu correo electrónico aún no ha sido verificado. Por favor, revisa tu bandeja de entrada y confirma tu email antes de continuar.')
+          await auth.signOut()
+        } else {
+          navigate('/')
+        }
       }
     } catch (err) {
-      setError('Error al iniciar sesión')
+      setError('Error al iniciar sesión. Por favor, intenta nuevamente.')
     } finally {
       setLoading(false)
     }

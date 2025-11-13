@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { auth } from '../supabaseClient'
-import { Eye, EyeOff, CheckCircle } from 'lucide-react'
+import { Eye, EyeOff, CheckCircle, Mail, AlertCircle } from 'lucide-react'
 import servifoodLogo from '../assets/servifood logo.jpg'
 
 const Register = () => {
@@ -16,6 +16,7 @@ const Register = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
   const navigate = useNavigate()
 
   const handleChange = (e) => {
@@ -54,9 +55,18 @@ const Register = () => {
 
       if (error) {
         console.error('Error de registro:', error)
-        setError(error.message || 'Error al crear la cuenta')
+        
+        // Mensajes de error más específicos
+        if (error.message.includes('already registered')) {
+          setError('Este correo electrónico ya está registrado. Por favor, inicia sesión.')
+        } else if (error.message.includes('invalid email')) {
+          setError('El correo electrónico no es válido')
+        } else {
+          setError(error.message || 'Error al crear la cuenta')
+        }
       } else {
         console.log('Usuario registrado exitosamente:', data)
+        setUserEmail(formData.email)
         setSuccess(true)
       }
     } catch (err) {
@@ -73,29 +83,65 @@ const Register = () => {
         <div className="max-w-md w-full">
           <div className="text-center bg-white rounded-3xl shadow-2xl p-10 border-4 border-white/20">
             <div className="flex justify-center mb-6">
-              <div className="bg-green-100 rounded-full p-4">
-                <CheckCircle className="h-20 w-20 text-green-600" />
+              <div className="bg-blue-100 rounded-full p-4">
+                <Mail className="h-20 w-20 text-blue-600" />
               </div>
             </div>
             <h2 className="text-4xl font-extrabold text-gray-900 mb-4">
-              ¡Cuenta creada!
+              ¡Verifica tu email!
             </h2>
-            <p className="text-lg text-gray-600 mb-6">
-              Hemos enviado un enlace de confirmación a tu correo electrónico.
+            <p className="text-lg text-gray-700 mb-4 font-semibold">
+              Te hemos enviado un correo de verificación a:
             </p>
-            <p className="text-base text-gray-500 mb-8">
-              Revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta.
+            <p className="text-lg text-blue-600 font-bold mb-6 break-all">
+              {userEmail}
             </p>
-            <div className="mt-6">
+            
+            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 mb-6">
+              <div className="flex items-start">
+                <AlertCircle className="h-6 w-6 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+                <div className="text-left">
+                  <p className="text-sm font-bold text-yellow-800 mb-2">
+                    ⚠️ Importante:
+                  </p>
+                  <p className="text-sm text-yellow-700">
+                    Debes confirmar tu correo electrónico antes de poder iniciar sesión. 
+                    Revisa tu bandeja de entrada y haz clic en el enlace de verificación.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+              <p className="text-sm font-bold text-gray-800 mb-3">
+                📧 Pasos a seguir:
+              </p>
+              <ol className="text-sm text-gray-700 space-y-2 list-decimal list-inside">
+                <li>Abre tu correo electrónico</li>
+                <li>Busca el email de ServiFood / Supabase</li>
+                <li>Haz clic en el enlace de confirmación</li>
+                <li>Regresa aquí e inicia sesión</li>
+              </ol>
+            </div>
+
+            <p className="text-sm text-gray-500 mb-6">
+              💡 <strong>Tip:</strong> Si no encuentras el correo, revisa tu carpeta de spam o correo no deseado.
+            </p>
+            
+            <div className="mt-6 space-y-3">
               <Link
                 to="/login"
-                className="inline-block text-white font-bold py-4 px-8 text-lg rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                style={{background: 'linear-gradient(to right, #ff9800, #fb8c00)'}}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'linear-gradient(to right, #fb8c00, #f57c00)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'linear-gradient(to right, #ff9800, #fb8c00)'}
+                className="block w-full text-white font-bold py-4 px-8 text-lg rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                style={{background: 'linear-gradient(to right, #2196f3, #1976d2)'}}
               >
-                Ir al Inicio de Sesión
+                Ir a Iniciar Sesión
               </Link>
+              <button
+                onClick={() => window.location.reload()}
+                className="block w-full text-gray-700 font-semibold py-3 px-6 text-base rounded-xl border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
+              >
+                Registrar otra cuenta
+              </button>
             </div>
           </div>
         </div>
