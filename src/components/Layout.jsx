@@ -73,9 +73,9 @@ const Layout = ({ children, user }) => {
                 <img 
                   src={servifoodLogo} 
                   alt="Servifood Logo" 
-                  className="h-8 w-8 rounded object-cover"
+                  className="h-12 w-12 rounded object-cover"
                 />
-                <span className="ml-3 text-xl font-bold text-white drop-shadow-lg">ServiFood Catering</span>
+                <span className="ml-3 text-2xl font-bold text-white drop-shadow-lg">ServiFood Catering</span>
               </div>
             </div>
 
@@ -100,12 +100,7 @@ const Layout = ({ children, user }) => {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:inset-0 border-r-4 border-secondary-500`}>
           <div className="flex items-center justify-center h-16 px-4 border-b-2 border-primary-200 bg-gradient-to-r from-primary-700 to-primary-800">
-            <img 
-              src={servifoodLogo} 
-              alt="Servifood Logo" 
-              className="h-8 w-8 rounded object-cover"
-            />
-            <span className="ml-3 text-lg font-bold text-white drop-shadow">ServiFood</span>
+            <span className="text-2xl font-extrabold text-white drop-shadow-lg">ServiFood</span>
           </div>
 
           <nav className="mt-8 px-4 bg-white min-h-full flex flex-col">
