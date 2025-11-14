@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { db } from '../supabaseClient'
-import { Calendar, MapPin, Clock, User, MessageCircle, Package, TrendingUp, Filter, CheckCircle, XCircle, Download, FileSpreadsheet, Shield, Mail, Send } from 'lucide-react'
+import { Calendar, MapPin, Clock, User, MessageCircle, Package, TrendingUp, Filter, CheckCircle, XCircle, Download, FileSpreadsheet, Shield, Mail, Send, RefreshCw } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
 const DailyOrders = ({ user }) => {
@@ -12,6 +12,7 @@ const DailyOrders = ({ user }) => {
   const [selectedDish, setSelectedDish] = useState('all')
   const [sortBy, setSortBy] = useState('time') // time, location, status
   const [availableDishes, setAvailableDishes] = useState([])
+  const [refreshing, setRefreshing] = useState(false)
   const [stats, setStats] = useState({
     total: 0,
     byLocation: {},
@@ -31,6 +32,13 @@ const DailyOrders = ({ user }) => {
   useEffect(() => {
     if (isAdmin === true) {
       fetchDailyOrders()
+      
+      // Auto-refresh cada 30 segundos
+      const interval = setInterval(() => {
+        fetchDailyOrders(true) // true = silent refresh (sin loading)
+      }, 30000) // 30 segundos
+
+      return () => clearInterval(interval)
     }
   }, [isAdmin])
 
@@ -47,8 +55,12 @@ const DailyOrders = ({ user }) => {
     }
   }
 
-  const fetchDailyOrders = async () => {
+  const fetchDailyOrders = async (silent = false) => {
     try {
+      if (!silent) {
+        setLoading(true)
+      }
+      
       const { data: ordersData, error } = await db.getOrders()
 
       if (error) {
@@ -105,8 +117,17 @@ const DailyOrders = ({ user }) => {
     } catch (err) {
       console.error('Error:', err)
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
+  }
+
+  // Función para refrescar manualmente
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await fetchDailyOrders()
+    setRefreshing(false)
   }
 
   // Función para normalizar nombres de platillos
@@ -610,6 +631,20 @@ const DailyOrders = ({ user }) => {
           </div>
           
           <div className="flex flex-col gap-3">
+            {/* Botón de refrescar */}
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className={`font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2 ${
+                refreshing 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+              }`}
+            >
+              <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Actualizando...' : 'Actualizar Pedidos'}
+            </button>
+
             {/* Botón de exportar a Excel */}
             <button
               onClick={exportToExcel}

@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { db } from '../supabaseClient'
-import { ShoppingCart, Clock, CheckCircle, ChefHat, Plus, Package, Eye, X, Settings, Users, MessageCircle, Phone } from 'lucide-react'
+import { ShoppingCart, Clock, CheckCircle, ChefHat, Plus, Package, Eye, X, Settings, Users, MessageCircle, Phone, RefreshCw } from 'lucide-react'
 
 const Dashboard = ({ user }) => {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -21,6 +22,13 @@ const Dashboard = ({ user }) => {
   useEffect(() => {
     if (isAdmin !== null) {
       fetchOrders()
+      
+      // Auto-refresh cada 30 segundos
+      const interval = setInterval(() => {
+        fetchOrders(true) // true = silent refresh
+      }, 30000)
+
+      return () => clearInterval(interval)
     }
   }, [isAdmin])
 
@@ -36,8 +44,12 @@ const Dashboard = ({ user }) => {
     }
   }
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (silent = false) => {
     try {
+      if (!silent) {
+        setLoading(true)
+      }
+      
       // TODOS (admins y usuarios) solo ven sus propios pedidos en el Dashboard
       const { data, error } = await db.getOrders(user.id)
 
@@ -88,8 +100,17 @@ const Dashboard = ({ user }) => {
     } catch (err) {
       console.error('Error:', err)
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
+  }
+
+  // Función para refrescar manualmente
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await fetchOrders()
+    setRefreshing(false)
   }
 
   const calculateStats = (ordersData) => {
@@ -356,6 +377,18 @@ const Dashboard = ({ user }) => {
           <p className="text-base sm:text-lg text-white/90 mt-1">Aquí está el resumen de tus pedidos</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 mt-4 sm:mt-0 w-full sm:w-auto">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className={`inline-flex items-center justify-center font-bold py-3 px-6 text-base rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 ${
+              refreshing
+                ? 'bg-gray-400 cursor-not-allowed text-white'
+                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
+            }`}
+          >
+            <RefreshCw className={`h-5 w-5 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Actualizando...' : 'Actualizar'}
+          </button>
           {isAdmin && (
             <button
               onClick={handleMarkAllAsCompleted}
