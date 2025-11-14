@@ -166,10 +166,10 @@ const Layout = ({ children, user }) => {
                   setTutorialOpen(true)
                   setSidebarOpen(false)
                 }}
-                className="group flex items-center w-full px-4 py-3 text-primary-700 rounded-xl bg-white font-bold text-base transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-lg border-2 border-primary-200 hover:border-transparent hover:bg-gradient-to-r hover:from-primary-600 hover:to-primary-700"
+                className="group flex items-center w-full px-4 py-3 rounded-xl bg-white font-bold text-base transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-lg border-2 border-primary-200 hover:border-transparent hover:bg-gradient-to-r hover:from-primary-600 hover:to-primary-700"
               >
-                <HelpCircle className="h-6 w-6 mr-3 flex-shrink-0 group-hover:text-white transition-colors" />
-                <span className="group-hover:text-white transition-colors">Ver Tutorial</span>
+                <HelpCircle className="h-6 w-6 mr-3 flex-shrink-0 text-primary-700 group-hover:text-white transition-colors" />
+                <span className="text-primary-700 group-hover:text-white transition-colors">Ver Tutorial</span>
               </button>
               
               <button

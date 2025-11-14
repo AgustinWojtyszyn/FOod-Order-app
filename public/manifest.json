@@ -4,7 +4,7 @@
   "description": "Sistema de gestión de pedidos de comida para empresas",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#1e3a8a",
   "theme_color": "#1e3a8a",
   "orientation": "portrait-primary",
   "icons": [

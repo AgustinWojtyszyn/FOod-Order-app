@@ -41,8 +41,9 @@ const OrderForm = ({ user }) => {
     const now = new Date()
     const currentHour = now.getHours()
     
-    // Si son las 22:00 o más tarde, no se pueden hacer pedidos
-    if (currentHour >= 22) {
+    // Pedidos permitidos entre las 6:00 y 22:00 del día anterior
+    // Fuera de ese horario, no se pueden hacer pedidos
+    if (currentHour < 6 || currentHour >= 22) {
       setIsPastDeadline(true)
     } else {
       setIsPastDeadline(false)
@@ -315,11 +316,16 @@ const OrderForm = ({ user }) => {
 
       {!isPastDeadline && !hasOrderToday && (
         <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-3 sm:p-4 shadow-lg">
-          <div className="flex items-center gap-2 sm:gap-3 justify-center">
+          <div className="flex items-start gap-3">
             <Clock className="h-5 w-5 text-blue-600 flex-shrink-0" />
-            <p className="text-sm sm:text-base text-blue-800 font-medium">
-              Horario de pedidos: hasta las <strong>22:00 horas</strong> del día anterior a la entrega
-            </p>
+            <div>
+              <p className="text-sm sm:text-base text-blue-800 font-medium">
+                Horario de pedidos: <strong>6:00 a 22:00 horas</strong> del día anterior a la entrega
+              </p>
+              <p className="text-xs sm:text-sm text-blue-700 mt-1">
+                Si necesitas realizar cambios, presiona el botón <strong>"¿Necesitas ayuda?"</strong>
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -332,7 +338,12 @@ const OrderForm = ({ user }) => {
             </div>
             <div>
               <h3 className="text-lg font-bold text-red-900 mb-1">Horario de pedidos cerrado</h3>
-              <p className="text-red-800">Los pedidos deben realizarse antes de las 22:00 horas del día anterior. Por favor, vuelve mañana antes de las 22:00 para hacer tu pedido.</p>
+              <p className="text-red-800 mb-3">
+                Los pedidos deben realizarse <strong>entre las 6:00 y las 22:00 horas del día anterior</strong> a la entrega.
+              </p>
+              <p className="text-red-700 text-sm">
+                Si necesitas realizar cambios urgentes, presiona el botón <strong>"¿Necesitas ayuda?"</strong> en la parte inferior de la pantalla.
+              </p>
             </div>
           </div>
         </div>

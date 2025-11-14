@@ -34,13 +34,19 @@ const InternalLoader = () => (
 function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [showSplash, setShowSplash] = useState(true)
+  const [showSplash, setShowSplash] = useState(() => {
+    // Solo mostrar splash en primera carga (no en recargas)
+    const hasLoadedBefore = sessionStorage.getItem('hasLoadedApp')
+    return !hasLoadedBefore
+  })
 
   useEffect(() => {
     // Obtener usuario inicial
     auth.getUser().then(({ user }) => {
       setUser(user)
       setLoading(false)
+      // Marcar que la app ya cargó en esta sesión
+      sessionStorage.setItem('hasLoadedApp', 'true')
     })
 
     // Escuchar cambios de autenticación
@@ -52,14 +58,9 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Mostrar splash screen durante la carga inicial
-  if (showSplash) {
+  // Mostrar splash screen solo en primera carga
+  if (showSplash && loading) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />
-  }
-
-  // Mostrar loader simple si aún está cargando después del splash
-  if (loading) {
-    return <InternalLoader />
   }
 
   return (
