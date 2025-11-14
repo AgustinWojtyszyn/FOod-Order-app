@@ -196,6 +196,7 @@ export const db = {
 
   // Pedidos
   createOrder: async (orderData) => {
+    cache.clear() // Limpiar cache al crear pedido nuevo
     const { data, error } = await supabase
       .from('orders')
       .insert([orderData])
@@ -206,7 +207,7 @@ export const db = {
   getOrders: async (userId = null) => {
     let query = supabase
       .from('orders')
-      .select('id, user_id, status, items, custom_options, total_price, created_at, updated_at')
+      .select('*') // Seleccionar TODOS los campos
       .order('created_at', { ascending: false })
 
     if (userId) {
@@ -218,6 +219,7 @@ export const db = {
   },
 
   updateOrderStatus: async (orderId, status) => {
+    cache.clear() // Limpiar cache al actualizar estado
     const { data, error } = await supabase
       .from('orders')
       .update({ status, updated_at: new Date().toISOString() })
@@ -227,6 +229,7 @@ export const db = {
   },
 
   deleteOrder: async (orderId) => {
+    cache.clear() // Limpiar cache al eliminar pedido
     const { data, error } = await supabase
       .from('orders')
       .delete()
@@ -235,6 +238,7 @@ export const db = {
   },
 
   deleteCompletedOrders: async () => {
+    cache.clear() // Limpiar cache al eliminar pedidos completados
     const { data, error } = await supabase
       .from('orders')
       .delete()
