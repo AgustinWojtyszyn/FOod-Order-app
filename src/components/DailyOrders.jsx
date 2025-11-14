@@ -876,7 +876,7 @@ const DailyOrders = ({ user }) => {
                     {order.items && order.items.map((item, index) => (
                       <div key={index} className="bg-white rounded-lg p-3 border border-gray-200">
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-gray-900">{item.name}</span>
+                          <span className="font-bold text-gray-900">{item.name}</span>
                           <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">
                             x{item.quantity}
                           </span>
@@ -892,8 +892,8 @@ const DailyOrders = ({ user }) => {
                           <div className="bg-orange-50 rounded-lg p-3 border-2 border-orange-300">
                             <div className="flex items-center justify-between">
                               <div>
-                                <span className="font-semibold text-orange-900">🔸 Guarnición Personalizada</span>
-                                <p className="text-sm text-orange-700 mt-1">{customSide}</p>
+                                <span className="font-bold text-orange-900">🔸 Guarnición Personalizada</span>
+                                <p className="text-sm font-bold text-orange-700 mt-1">{customSide}</p>
                               </div>
                               <span className="px-3 py-1 bg-orange-200 text-orange-900 rounded-full text-xs font-bold">
                                 CUSTOM
