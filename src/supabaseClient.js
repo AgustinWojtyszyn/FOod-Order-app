@@ -359,8 +359,7 @@ export const db = {
     
     const { data, error } = await supabase
       .from('custom_options')
-      .select('id, name, description, active, order_position, created_at')
-      .eq('active', true)
+      .select('*') // Seleccionar todos los campos
       .order('order_position', { ascending: true })
     
     if (!error && data) {
