@@ -25,8 +25,8 @@ const Profile = lazy(() => import('./components/Profile'))
 const InternalLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900">
     <div className="text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-3 border-white/30 border-t-white mx-auto mb-4"></div>
-      <p className="text-white/80 text-sm">Cargando componente...</p>
+      <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/30 border-t-white mx-auto mb-4"></div>
+      <p className="text-white text-base font-medium">Cargando...</p>
     </div>
   </div>
 )

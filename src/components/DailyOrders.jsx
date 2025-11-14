@@ -876,7 +876,7 @@ const DailyOrders = ({ user }) => {
                     {order.items && order.items.map((item, index) => (
                       <div key={index} className="bg-white rounded-lg p-3 border border-gray-200">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-gray-900">{item.name}</span>
+                          <span style={{ fontWeight: '900' }} className="text-gray-900">{item.name}</span>
                           <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">
                             x{item.quantity}
                           </span>
@@ -926,12 +926,12 @@ const DailyOrders = ({ user }) => {
 
                     {getOtherCustomResponses(order.custom_responses).length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-sm text-gray-600 font-semibold">Opciones Adicionales:</p>
+                        <p style={{ fontWeight: '900' }} className="text-sm text-gray-900 mb-2">Opciones Adicionales:</p>
                         {getOtherCustomResponses(order.custom_responses)
                           .map((resp, index) => (
                             <div key={index} className="bg-white rounded-lg p-3 border border-purple-200">
-                              <p className="font-semibold text-purple-900 text-sm mb-1">{resp.title}</p>
-                              <p className="text-gray-900">
+                              <p style={{ fontWeight: '900' }} className="text-purple-900 text-sm mb-1">{resp.title}</p>
+                              <p style={{ fontWeight: '900' }} className="text-gray-900">
                                 {Array.isArray(resp.response) 
                                   ? resp.response.join(', ') 
                                   : resp.response}

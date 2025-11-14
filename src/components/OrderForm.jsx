@@ -395,15 +395,17 @@ const OrderForm = ({ user }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="location" className="block text-sm font-bold text-gray-700 mb-2">
                 Lugar de trabajo *
               </label>
               <select
+                id="location"
                 name="location"
                 value={formData.location}
                 onChange={handleFormChange}
                 className="input-field"
                 required
+                autoComplete="organization"
               >
                 <option value="">Seleccionar lugar</option>
                 {locations.map(location => (
@@ -413,43 +415,49 @@ const OrderForm = ({ user }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="name" className="block text-sm font-bold text-gray-700 mb-2">
                 Nombre completo *
               </label>
               <input
+                id="name"
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleFormChange}
                 className="input-field"
                 required
+                autoComplete="name"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-bold text-gray-700 mb-2">
                 Correo electrónico *
               </label>
               <input
+                id="email"
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleFormChange}
                 className="input-field"
                 required
+                autoComplete="email"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="phone" className="block text-sm font-bold text-gray-700 mb-2">
                 Teléfono
               </label>
               <input
+                id="phone"
                 type="tel"
                 name="phone"
                 value={formData.phone}
                 onChange={handleFormChange}
                 className="input-field"
+                autoComplete="tel"
               />
             </div>
           </div>
@@ -471,7 +479,7 @@ const OrderForm = ({ user }) => {
             {menuItems.map((item) => (
               <div key={item.id} className="bg-white border-2 border-gray-200 rounded-2xl p-5 hover:border-primary-500 hover:shadow-xl transition-all duration-300 flex flex-col">
                 <div className="flex-1 mb-4">
-                  <h3 className="font-extrabold text-xl sm:text-2xl text-gray-900 mb-2">{item.name}</h3>
+                  <h3 style={{ fontWeight: '900' }} className="text-xl sm:text-2xl text-gray-900 mb-2">{item.name}</h3>
                   {item.description && (
                     <p className="text-sm text-gray-600 leading-relaxed">{item.description}</p>
                   )}
@@ -562,7 +570,7 @@ const OrderForm = ({ user }) => {
             <div className="space-y-6">
               {customOptions.filter(opt => opt.active).map((option) => (
                 <div key={option.id} className="border-2 border-gray-200 rounded-xl p-4 bg-gradient-to-br from-white to-gray-50">
-                  <label className="block text-sm font-medium text-gray-900 mb-3">
+                  <label className="block text-sm text-gray-900 mb-3" style={{ fontWeight: '900' }}>
                     {option.title}
                     {option.required && <span className="text-red-600 ml-1">*</span>}
                   </label>
@@ -579,7 +587,7 @@ const OrderForm = ({ user }) => {
                             onChange={(e) => handleCustomResponse(option.id, e.target.value, 'multiple_choice')}
                             className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
                           />
-                          <span className="ml-3 text-sm font-medium text-gray-900">{opt}</span>
+                          <span className="ml-3 text-sm text-gray-900" style={{ fontWeight: '900' }}>{opt}</span>
                         </label>
                       ))}
                     </div>
@@ -596,7 +604,7 @@ const OrderForm = ({ user }) => {
                             onChange={(e) => handleCustomResponse(option.id, e.target.value, 'checkbox')}
                             className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                           />
-                          <span className="ml-3 text-sm font-medium text-gray-900">{opt}</span>
+                          <span className="ml-3 text-sm text-gray-900" style={{ fontWeight: '900' }}>{opt}</span>
                         </label>
                       ))}
                     </div>
@@ -604,11 +612,14 @@ const OrderForm = ({ user }) => {
 
                   {option.type === 'text' && (
                     <textarea
+                      id={`custom-option-${option.id}`}
+                      name={`custom-option-${option.id}`}
                       value={customResponses[option.id] || ''}
                       onChange={(e) => handleCustomResponse(option.id, e.target.value, 'text')}
                       rows={3}
                       className="input-field"
                       placeholder="Escribe tu respuesta aquí..."
+                      style={{ fontWeight: '600' }}
                     />
                   )}
                 </div>
@@ -622,10 +633,11 @@ const OrderForm = ({ user }) => {
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Información Adicional</h2>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="additional-comments" className="block text-sm font-bold text-gray-700 mb-2">
               Comentarios adicionales
             </label>
             <textarea
+              id="additional-comments"
               name="comments"
               value={formData.comments}
               onChange={handleFormChange}
