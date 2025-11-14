@@ -1,16 +1,28 @@
 @import "tailwindcss";
 
 @layer base {
+  /* Base responsive - Mobile First */
   html {
     font-family: 'Inter', system-ui, sans-serif;
+    font-size: 16px; /* Base para rem */
+    -webkit-text-size-adjust: 100%; /* Evita zoom automático en iOS */
   }
   
-  /* Asegurar contraste en todos los inputs */
+  /* Prevenir scroll horizontal y overflow */
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+  }
+  
+  /* Asegurar contraste en todos los inputs - Mobile First */
   input,
   textarea,
   select {
     background-color: rgb(255 255 255);
     color: rgb(17 24 39);
+    font-size: 1rem; /* 16px para evitar zoom en iOS */
+    min-height: 44px; /* Área táctil mínima */
   }
   
   input::placeholder,
@@ -23,6 +35,27 @@
     background-color: rgb(255 255 255);
     color: rgb(17 24 39);
   }
+  
+  /* Botones con área táctil óptima */
+  button {
+    min-height: 44px; /* Mínimo recomendado para touch */
+    min-width: 44px;
+    touch-action: manipulation; /* Mejora respuesta táctil */
+  }
+  
+  /* Imágenes y media responsivos */
+  img, video, iframe {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+  
+  /* Mejorar rendimiento de scroll en móviles */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
 
 @layer components {
@@ -34,11 +67,19 @@
     border-radius: 0.75rem;
     box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
     transition: all 0.2s;
+    min-height: 48px; /* Touch target óptimo */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   
   .btn-primary:hover {
     background: linear-gradient(to right, rgb(234 88 12), rgb(194 65 12));
     box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  }
+  
+  .btn-primary:active {
+    transform: scale(0.98); /* Feedback táctil */
   }
 
   .btn-secondary {
@@ -49,11 +90,19 @@
     border-radius: 0.75rem;
     box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
     transition: all 0.2s;
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   
   .btn-secondary:hover {
     background: linear-gradient(to right, rgb(22 163 74), rgb(21 128 61));
     box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  }
+  
+  .btn-secondary:active {
+    transform: scale(0.98);
   }
 
   .input-field {
@@ -62,11 +111,12 @@
     border: 2px solid rgb(209 213 219);
     border-radius: 0.75rem;
     outline: none;
-    font-size: 1rem;
+    font-size: 1rem; /* 16px - evita zoom en iOS */
     font-weight: 500;
     transition: all 0.2s;
     background-color: rgb(255 255 255);
     color: rgb(17 24 39);
+    min-height: 48px;
   }
   
   .input-field:focus {
@@ -84,8 +134,15 @@
     backdrop-filter: blur(12px);
     border-radius: 1rem;
     box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
-    padding: 1.5rem;
+    padding: 1rem; /* Mobile */
     border: 2px solid rgb(255 255 255 / 0.2);
+  }
+  
+  /* Responsive: Tablet y Desktop */
+  @media screen and (min-width: 768px) {
+    .card {
+      padding: 1.5rem; /* Más padding en pantallas grandes */
+    }
   }
 
   .animate-pulse-slow {
@@ -109,5 +166,46 @@
     50% {
       opacity: 0.9;
     }
+  }
+}
+
+/* Media Queries para responsive - Mobile First */
+
+/* Tablets y superiores (768px+) */
+@media screen and (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    min-height: 48px;
+    padding: 0.875rem 1.75rem;
+  }
+}
+
+/* Desktop y superiores (1024px+) */
+@media screen and (min-width: 1024px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* Pantallas grandes (1280px+) */
+@media screen and (min-width: 1280px) {
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+}
+
+/* Optimizaciones para landscape en móviles */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+  .card {
+    padding: 0.75rem;
+  }
+  
+  html {
+    font-size: 14px; /* Reducir ligeramente en landscape */
   }
 }

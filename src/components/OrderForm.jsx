@@ -471,9 +471,9 @@ const OrderForm = ({ user }) => {
             {menuItems.map((item) => (
               <div key={item.id} className="bg-white border-2 border-gray-200 rounded-2xl p-5 hover:border-primary-500 hover:shadow-xl transition-all duration-300 flex flex-col">
                 <div className="flex-1 mb-4">
-                  <h3 className="font-bold text-xl text-gray-900 mb-2">{item.name}</h3>
+                  <h3 className="font-extrabold text-xl sm:text-2xl text-gray-900 mb-2">{item.name}</h3>
                   {item.description && (
-                    <p className="text-sm text-gray-600">{item.description}</p>
+                    <p className="text-sm text-gray-600 leading-relaxed">{item.description}</p>
                   )}
                 </div>
 
