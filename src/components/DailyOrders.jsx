@@ -109,6 +109,13 @@ const DailyOrders = ({ user }) => {
     }
   }
 
+  // Función para normalizar nombres de platillos
+  const normalizeDishName = (dishName) => {
+    if (!dishName) return dishName
+    // Convertir "Menú Principal" a "Plato Principal" para consistencia
+    return dishName.replace(/Menú Principal/gi, 'Plato Principal')
+  }
+
   const calculateStats = (ordersData) => {
     const byLocation = {}
     const byDish = {}
@@ -124,14 +131,15 @@ const DailyOrders = ({ user }) => {
       }
       byLocation[order.location]++
 
-      // Contar por platillo
+      // Contar por platillo (con normalización de nombres)
       if (order.items && Array.isArray(order.items)) {
         order.items.forEach(item => {
           if (item.name) {
-            if (!byDish[item.name]) {
-              byDish[item.name] = 0
+            const normalizedName = normalizeDishName(item.name)
+            if (!byDish[normalizedName]) {
+              byDish[normalizedName] = 0
             }
-            byDish[item.name] += item.quantity || 1
+            byDish[normalizedName] += item.quantity || 1
           }
         })
       }
@@ -290,9 +298,9 @@ const DailyOrders = ({ user }) => {
     try {
       // Preparar datos para el Excel
       const excelData = sortedOrders.map(order => {
-        // Procesar items del menú
+        // Procesar items del menú (con normalización de nombres)
         const menuItems = order.items?.map(item => 
-          `${item.name} (x${item.quantity})`
+          `${normalizeDishName(item.name)} (x${item.quantity})`
         ) || []
 
         // Detectar guarnición personalizada
@@ -523,13 +531,14 @@ const DailyOrders = ({ user }) => {
           
           message += `\n*${location}:*\n`
           
-          // Platillos en esta ubicación
+          // Platillos en esta ubicación (con normalización)
           const dishesInLocation = {}
           locationOrders.forEach(order => {
             if (order.items && Array.isArray(order.items)) {
               order.items.forEach(item => {
                 if (item.name) {
-                  dishesInLocation[item.name] = (dishesInLocation[item.name] || 0) + (item.quantity || 1)
+                  const normalizedName = normalizeDishName(item.name)
+                  dishesInLocation[normalizedName] = (dishesInLocation[normalizedName] || 0) + (item.quantity || 1)
                 }
               })
             }
