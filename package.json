@@ -6,12 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:analyze": "vite build --mode production && npx vite-bundle-visualizer",
     "lint": "eslint .",
     "preview": "vite preview",
     "test:load": "node test-load.js",
     "test:light": "node test-load.js 10 5",
     "test:medium": "node test-load.js 50 10",
-    "test:heavy": "node test-load.js 100 20"
+    "test:heavy": "node test-load.js 100 20",
+    "check:optimizations": "./check-optimizations.sh",
+    "deploy": "npm run build && echo 'Build completado. Listo para deployment'"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.80.0",
@@ -37,6 +40,7 @@
     "stylelint": "^16.25.0",
     "stylelint-config-standard": "^39.0.1",
     "tailwindcss": "^4.1.17",
+    "terser": "^5.44.1",
     "vite": "^7.1.7"
   }
 }

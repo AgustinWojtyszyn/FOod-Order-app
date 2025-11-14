@@ -3,7 +3,47 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'your-supabase-url'
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-supabase-anon-key'
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  },
+  db: {
+    schema: 'public'
+  },
+  global: {
+    headers: { 
+      'x-application-name': 'servifood-app'
+    }
+  }
+})
+
+// Cache simple en memoria para reducir consultas repetidas
+const cache = {
+  data: new Map(),
+  ttl: new Map(),
+  
+  get(key) {
+    const expiry = this.ttl.get(key)
+    if (expiry && Date.now() > expiry) {
+      this.data.delete(key)
+      this.ttl.delete(key)
+      return null
+    }
+    return this.data.get(key)
+  },
+  
+  set(key, value, ttlMs = 30000) { // TTL por defecto: 30 segundos
+    this.data.set(key, value)
+    this.ttl.set(key, Date.now() + ttlMs)
+  },
+  
+  clear() {
+    this.data.clear()
+    this.ttl.clear()
+  }
+}
 
 // Configuración de autenticación
 export const auth = {
@@ -76,14 +116,25 @@ export const auth = {
 export const db = {
   // Usuarios
   getUsers: async () => {
+    // Usar cache para reducir consultas repetidas
+    const cacheKey = 'users-list'
+    const cached = cache.get(cacheKey)
+    if (cached) return { data: cached, error: null }
+    
     const { data, error } = await supabase
       .from('users')
-      .select('*')
+      .select('id, email, full_name, role, created_at') // Solo campos necesarios
       .order('created_at', { ascending: false })
+    
+    if (!error && data) {
+      cache.set(cacheKey, data, 60000) // Cache por 1 minuto
+    }
+    
     return { data, error }
   },
 
   updateUserRole: async (userId, role) => {
+    cache.clear() // Limpiar cache al actualizar
     const { data, error } = await supabase
       .from('users')
       .update({ role })
@@ -155,7 +206,7 @@ export const db = {
   getOrders: async (userId = null) => {
     let query = supabase
       .from('orders')
-      .select('*')
+      .select('id, user_id, status, items, custom_options, total_price, created_at, updated_at')
       .order('created_at', { ascending: false })
 
     if (userId) {
@@ -185,15 +236,27 @@ export const db = {
 
   // Menú
   getMenuItems: async () => {
+    // Usar cache para menú (cambia poco)
+    const cacheKey = 'menu-items'
+    const cached = cache.get(cacheKey)
+    if (cached) return { data: cached, error: null }
+    
     const { data, error } = await supabase
       .from('menu_items')
-      .select('*')
+      .select('id, name, description, created_at') // Solo campos necesarios
       .order('created_at', { ascending: false })
+    
+    if (!error && data) {
+      cache.set(cacheKey, data, 300000) // Cache por 5 minutos (menú cambia poco)
+    }
+    
     return { data, error }
   },
 
   updateMenuItems: async (menuItems) => {
     try {
+      cache.clear() // Limpiar cache al actualizar menú
+      
       // Obtener items existentes
       const { data: existingItems, error: fetchError } = await supabase
         .from('menu_items')
@@ -257,7 +320,7 @@ export const db = {
       // Obtener todos los items actualizados
       const { data, error } = await supabase
         .from('menu_items')
-        .select('*')
+        .select('id, name, description, created_at')
         .order('created_at', { ascending: true })
       
       return { data, error }
@@ -269,15 +332,26 @@ export const db = {
 
   // Opciones personalizables
   getCustomOptions: async () => {
+    // Usar cache para opciones (cambian poco)
+    const cacheKey = 'custom-options'
+    const cached = cache.get(cacheKey)
+    if (cached) return { data: cached, error: null }
+    
     const { data, error } = await supabase
       .from('custom_options')
-      .select('*')
+      .select('id, name, description, active, order_position, created_at')
       .eq('active', true)
       .order('order_position', { ascending: true })
+    
+    if (!error && data) {
+      cache.set(cacheKey, data, 120000) // Cache por 2 minutos
+    }
+    
     return { data, error }
   },
 
   createCustomOption: async (option) => {
+    cache.clear() // Limpiar cache al crear opción
     const { data, error } = await supabase
       .from('custom_options')
       .insert([option])
@@ -286,6 +360,7 @@ export const db = {
   },
 
   updateCustomOption: async (id, updates) => {
+    cache.clear() // Limpiar cache al actualizar
     const { data, error } = await supabase
       .from('custom_options')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -295,6 +370,7 @@ export const db = {
   },
 
   deleteCustomOption: async (id) => {
+    cache.clear() // Limpiar cache al eliminar
     const { data, error } = await supabase
       .from('custom_options')
       .delete()
@@ -303,6 +379,7 @@ export const db = {
   },
 
   updateCustomOptionsOrder: async (options) => {
+    cache.clear() // Limpiar cache al reordenar
     // Actualizar el orden de múltiples opciones
     const promises = options.map((option, index) =>
       supabase

@@ -1,24 +1,40 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase, auth } from './supabaseClient'
+import SplashScreen from './components/SplashScreen'
+import './App.css'
+
+// Importaciones inmediatas (críticas para la carga inicial)
 import Layout from './components/Layout'
 import Login from './components/Login'
-import Register from './components/Register'
-import ForgotPassword from './components/ForgotPassword'
-import ResetPassword from './components/ResetPassword'
-import Dashboard from './components/Dashboard'
-import AdminPanel from './components/AdminPanel'
-import SuperAdminPanel from './components/SuperAdminPanel'
-import DailyOrders from './components/DailyOrders'
-import AdminChat from './components/AdminChat'
-import OrderForm from './components/OrderForm'
-import Profile from './components/Profile'
 import LandingPage from './components/LandingPage'
-import './App.css'
+
+// Lazy loading de componentes (carga diferida)
+const Register = lazy(() => import('./components/Register'))
+const ForgotPassword = lazy(() => import('./components/ForgotPassword'))
+const ResetPassword = lazy(() => import('./components/ResetPassword'))
+const Dashboard = lazy(() => import('./components/Dashboard'))
+const AdminPanel = lazy(() => import('./components/AdminPanel'))
+const SuperAdminPanel = lazy(() => import('./components/SuperAdminPanel'))
+const DailyOrders = lazy(() => import('./components/DailyOrders'))
+const AdminChat = lazy(() => import('./components/AdminChat'))
+const OrderForm = lazy(() => import('./components/OrderForm'))
+const Profile = lazy(() => import('./components/Profile'))
+
+// Componente de carga interno (para Suspense)
+const InternalLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-3 border-white/30 border-t-white mx-auto mb-4"></div>
+      <p className="text-white/80 text-sm">Cargando componente...</p>
+    </div>
+  </div>
+)
 
 function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showSplash, setShowSplash] = useState(true)
 
   useEffect(() => {
     // Obtener usuario inicial
@@ -36,54 +52,58 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Mostrar splash screen durante la carga inicial
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />
+  }
+
+  // Mostrar loader simple si aún está cargando después del splash
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-      </div>
-    )
+    return <InternalLoader />
   }
 
   return (
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900">
-        <Routes>
-          <Route path="/" element={
-            user ? <Navigate to="/dashboard" /> : <LandingPage />
-          } />
-          <Route path="/dashboard" element={
-            user ? <Layout user={user}><Dashboard user={user} /></Layout> : <Navigate to="/login" />
-          } />
-          <Route path="/login" element={
-            user ? <Navigate to="/dashboard" /> : <Login />
-          } />
-          <Route path="/register" element={
-            user ? <Navigate to="/dashboard" /> : <Register />
-          } />
-          <Route path="/forgot-password" element={
-            user ? <Navigate to="/dashboard" /> : <ForgotPassword />
-          } />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/order" element={
-            user ? <Layout user={user}><OrderForm user={user} /></Layout> : <Navigate to="/login" />
-          } />
-          <Route path="/profile" element={
-            user ? <Layout user={user}><Profile user={user} /></Layout> : <Navigate to="/login" />
-          } />
-          <Route path="/admin" element={
-            user ? <Layout user={user}><AdminPanel user={user} /></Layout> : <Navigate to="/login" />
-          } />
-          <Route path="/superadmin" element={
-            user ? <Layout user={user}><SuperAdminPanel user={user} /></Layout> : <Navigate to="/login" />
-          } />
-          <Route path="/daily-orders" element={
-            user ? <Layout user={user}><DailyOrders user={user} /></Layout> : <Navigate to="/login" />
-          } />
-          <Route path="/admin-chat" element={
-            user ? <Layout user={user}><AdminChat user={user} /></Layout> : <Navigate to="/login" />
-          } />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-        </Routes>
+        <Suspense fallback={<InternalLoader />}>
+          <Routes>
+            <Route path="/" element={
+              user ? <Navigate to="/dashboard" /> : <LandingPage />
+            } />
+            <Route path="/dashboard" element={
+              user ? <Layout user={user}><Dashboard user={user} /></Layout> : <Navigate to="/login" />
+            } />
+            <Route path="/login" element={
+              user ? <Navigate to="/dashboard" /> : <Login />
+            } />
+            <Route path="/register" element={
+              user ? <Navigate to="/dashboard" /> : <Register />
+            } />
+            <Route path="/forgot-password" element={
+              user ? <Navigate to="/dashboard" /> : <ForgotPassword />
+            } />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/order" element={
+              user ? <Layout user={user}><OrderForm user={user} /></Layout> : <Navigate to="/login" />
+            } />
+            <Route path="/profile" element={
+              user ? <Layout user={user}><Profile user={user} /></Layout> : <Navigate to="/login" />
+            } />
+            <Route path="/admin" element={
+              user ? <Layout user={user}><AdminPanel user={user} /></Layout> : <Navigate to="/login" />
+            } />
+            <Route path="/superadmin" element={
+              user ? <Layout user={user}><SuperAdminPanel user={user} /></Layout> : <Navigate to="/login" />
+            } />
+            <Route path="/daily-orders" element={
+              user ? <Layout user={user}><DailyOrders user={user} /></Layout> : <Navigate to="/login" />
+            } />
+            <Route path="/admin-chat" element={
+              user ? <Layout user={user}><AdminChat user={user} /></Layout> : <Navigate to="/login" />
+            } />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+          </Routes>
+        </Suspense>
       </div>
     </Router>
   )
@@ -104,14 +124,7 @@ function AuthCallback() {
     handleAuthCallback()
   }, [])
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-        <p className="text-white font-bold text-lg">Verificando tu cuenta...</p>
-      </div>
-    </div>
-  )
+  return <InternalLoader />
 }
 
 export default App
