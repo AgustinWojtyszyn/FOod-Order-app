@@ -178,6 +178,12 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+  
+  /* Mejorar scroll horizontal en mobile */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch; /* Smooth scroll en iOS */
+    scroll-behavior: smooth;
+  }
 
   @keyframes pulse-slow {
     0%, 100% {

@@ -471,7 +471,7 @@ const OrderForm = ({ user }) => {
             </div>
             <div>
               <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Selecciona tu Menú</h2>
-              <p className="text-xs sm:text-sm text-gray-600 font-medium mt-1">Elige uno o más platos disponibles</p>
+              <p style={{ fontWeight: '900' }} className="text-xs sm:text-sm text-gray-900 mt-1">Elige uno o más platos disponibles</p>
             </div>
           </div>
 
@@ -481,7 +481,7 @@ const OrderForm = ({ user }) => {
                 <div className="flex-1 mb-4">
                   <h3 style={{ fontWeight: '900' }} className="text-xl sm:text-2xl text-gray-900 mb-2">{item.name}</h3>
                   {item.description && (
-                    <p className="text-sm text-gray-600 leading-relaxed">{item.description}</p>
+                    <p style={{ fontWeight: '900' }} className="text-sm text-gray-900 leading-relaxed">{item.description}</p>
                   )}
                 </div>
 
@@ -563,7 +563,7 @@ const OrderForm = ({ user }) => {
               </div>
               <div>
                 <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Opciones Adicionales</h2>
-                <p className="text-xs sm:text-sm text-gray-600 font-medium mt-1">Personaliza tu pedido</p>
+                <p style={{ fontWeight: '900' }} className="text-xs sm:text-sm text-gray-900 mt-1">Personaliza tu pedido</p>
               </div>
             </div>
 

@@ -443,54 +443,54 @@ const AdminPanel = ({ user }) => {
       </div>
 
       {/* Tabs - Scroll horizontal completo en mobile */}
-      <div className="border-b-2 border-white/30 -mx-3 sm:-mx-6 md:mx-0">
-        <div className="overflow-x-auto scrollbar-hide">
-          <nav className="-mb-0.5 flex space-x-1 min-w-max px-3 sm:px-6 md:px-0 md:space-x-8">
+      <div className="border-b-2 border-white/30 w-full overflow-hidden">
+        <div className="overflow-x-auto scrollbar-hide -mx-3 sm:-mx-6 md:mx-0">
+          <nav className="-mb-0.5 flex space-x-2 sm:space-x-4 md:space-x-8 min-w-max px-3 sm:px-6 md:px-0">
             <button
               onClick={() => setActiveTab('users')}
-              className={`py-3 px-3 sm:px-4 border-b-4 font-bold text-sm sm:text-base transition-colors whitespace-nowrap ${
+              className={`py-4 px-4 sm:px-5 border-b-4 font-bold text-sm sm:text-base transition-colors whitespace-nowrap flex items-center gap-2 ${
                 activeTab === 'users'
                   ? 'border-secondary-500 text-white drop-shadow'
                   : 'border-transparent text-white/70 hover:text-white hover:border-white/50'
               }`}
             >
-              <Users className="h-4 w-4 sm:h-5 sm:w-5 inline mr-1.5 sm:mr-2" />
-              Usuarios
+              <Users className="h-5 w-5 flex-shrink-0" />
+              <span>Usuarios</span>
             </button>
             <button
               onClick={() => setActiveTab('menu')}
-              className={`py-3 px-3 sm:px-4 border-b-4 font-bold text-sm sm:text-base transition-colors whitespace-nowrap ${
+              className={`py-4 px-4 sm:px-5 border-b-4 font-bold text-sm sm:text-base transition-colors whitespace-nowrap flex items-center gap-2 ${
                 activeTab === 'menu'
                   ? 'border-secondary-500 text-white drop-shadow'
                   : 'border-transparent text-white/70 hover:text-white hover:border-white/50'
               }`}
             >
-              <ChefHat className="h-4 w-4 sm:h-5 sm:w-5 inline mr-1.5 sm:mr-2" />
-              Menú
+              <ChefHat className="h-5 w-5 flex-shrink-0" />
+              <span>Menú</span>
             </button>
             <button
               onClick={() => setActiveTab('options')}
-              className={`py-3 px-3 sm:px-4 border-b-4 font-bold text-sm sm:text-base transition-colors whitespace-nowrap ${
+              className={`py-4 px-4 sm:px-5 border-b-4 font-bold text-sm sm:text-base transition-colors whitespace-nowrap flex items-center gap-2 ${
                 activeTab === 'options'
                   ? 'border-secondary-500 text-white drop-shadow'
                   : 'border-transparent text-white/70 hover:text-white hover:border-white/50'
               }`}
             >
-              <Settings className="h-4 w-4 sm:h-5 sm:w-5 inline mr-1.5 sm:mr-2" />
-              Opciones
+              <Settings className="h-5 w-5 flex-shrink-0" />
+              <span>Opciones</span>
             </button>
             <button
               onClick={() => setActiveTab('cleanup')}
-              className={`py-3 px-3 sm:px-4 border-b-4 font-bold text-sm sm:text-base transition-colors whitespace-nowrap relative ${
+              className={`py-4 px-4 sm:px-5 border-b-4 font-bold text-sm sm:text-base transition-colors whitespace-nowrap flex items-center gap-2 relative ${
                 activeTab === 'cleanup'
                   ? 'border-secondary-500 text-white drop-shadow'
                   : 'border-transparent text-white/70 hover:text-white hover:border-white/50'
               }`}
             >
-              <Database className="h-4 w-4 sm:h-5 sm:w-5 inline mr-1.5 sm:mr-2" />
-              Limpieza
+              <Database className="h-5 w-5 flex-shrink-0" />
+              <span>Limpieza</span>
               {completedOrdersCount > 0 && (
-                <span className="ml-1.5 sm:ml-2 inline-flex items-center justify-center px-1.5 sm:px-2 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
+                <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
                   {completedOrdersCount}
                 </span>
               )}
