@@ -232,14 +232,30 @@ const OrderForm = ({ user }) => {
       tomorrow.setDate(tomorrow.getDate() + 1)
       const deliveryDate = tomorrow.toISOString().split('T')[0]
       
-      // Preparar respuestas personalizadas (solo las activas con respuesta)
+      // Preparar respuestas personalizadas (solo las activas con respuesta válida)
       const customResponsesArray = customOptions
-        .filter(opt => opt.active && customResponses[opt.id])
+        .filter(opt => {
+          if (!opt.active) return false
+          const response = customResponses[opt.id]
+          // Verificar que la respuesta existe y no está vacía
+          if (!response) return false
+          if (Array.isArray(response) && response.length === 0) return false
+          if (typeof response === 'string' && response.trim() === '') return false
+          return true
+        })
         .map(option => ({
           option_id: option.id,
           title: option.title,
           response: customResponses[option.id]
         }))
+
+      // Log para depuración
+      console.log('📋 Opciones personalizadas a guardar:', {
+        todasLasOpciones: customOptions.length,
+        opcionesActivas: customOptions.filter(o => o.active).length,
+        respuestasUsuario: customResponses,
+        respuestasAGuardar: customResponsesArray
+      })
 
       // Obtener el nombre del usuario desde auth
       const userName = user?.user_metadata?.full_name || 
