@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../supabaseClient'
-import { ShoppingCart, Plus, Minus, X, ChefHat, User, Settings, Clock, AlertTriangle, Type } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, X, ChefHat, User, Settings, Clock, AlertTriangle } from 'lucide-react'
 
 const OrderForm = ({ user }) => {
   const [menuItems, setMenuItems] = useState([])
@@ -368,55 +368,48 @@ const OrderForm = ({ user }) => {
   return (
     <div className="p-3 sm:p-6 pb-32 sm:pb-6 min-h-screen overflow-y-auto">
       <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8 mb-4">
-        {/* Control de tamaño de fuente - Flotante y mejorado */}
-        <div className="fixed top-4 right-4 sm:top-20 sm:right-4 z-40">
-          <div className="bg-white rounded-2xl shadow-2xl p-2 sm:p-3 border-2 border-gray-200">
-            <div className="flex sm:flex-col gap-2">
-              <div className="hidden sm:flex items-center gap-2 pb-2 border-b border-gray-200 mb-1">
-                <Type className="h-4 w-4 text-gray-600" />
-                <span className="text-xs font-bold text-gray-600">Tamaño</span>
-              </div>
-              <button
-                onClick={() => changeFontSize('small')}
-                className={`px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl font-bold transition-all flex items-center justify-center min-w-[44px] ${
-                  fontSize === 'small' 
-                    ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg scale-105' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:scale-95'
-                }`}
-                title="Letra pequeña"
-              >
-                <span className="text-sm sm:text-base">A-</span>
-              </button>
-              <button
-                onClick={() => changeFontSize('normal')}
-                className={`px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl font-bold transition-all flex items-center justify-center min-w-[44px] ${
-                  fontSize === 'normal' 
-                    ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg scale-105' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:scale-95'
-                }`}
-                title="Letra normal"
-              >
-                <span className="text-base sm:text-lg">A</span>
-              </button>
-              <button
-                onClick={() => changeFontSize('large')}
-                className={`px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl font-bold transition-all flex items-center justify-center min-w-[44px] ${
-                  fontSize === 'large' 
-                    ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg scale-105' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:scale-95'
-                }`}
-                title="Letra grande"
-              >
-                <span className="text-lg sm:text-xl">A+</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
         <div className="text-center">
           <h1 className={`${fontClasses.title} font-bold text-white drop-shadow-2xl mb-2 sm:mb-3`}>Nuevo Pedido</h1>
           <p className={`${fontClasses.subtitle} text-white font-semibold drop-shadow-lg`}>Selecciona tu menú y completa tus datos</p>
           <p className={`${fontClasses.body} text-white/90 mt-1 sm:mt-2`}>¡Es rápido y fácil!</p>
+          
+          {/* Selector de tamaño de texto - Simple y centrado */}
+          <div className="mt-6 inline-block">
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-1.5 shadow-2xl border-2 border-white/50">
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => changeFontSize('small')}
+                  className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
+                    fontSize === 'small' 
+                      ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg' 
+                      : 'bg-transparent text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Pequeño
+                </button>
+                <button
+                  onClick={() => changeFontSize('normal')}
+                  className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
+                    fontSize === 'normal' 
+                      ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg' 
+                      : 'bg-transparent text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Normal
+                </button>
+                <button
+                  onClick={() => changeFontSize('large')}
+                  className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
+                    fontSize === 'large' 
+                      ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg' 
+                      : 'bg-transparent text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Grande
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
       {!isPastDeadline && !hasOrderToday && (
