@@ -51,7 +51,7 @@ const OrderForm = ({ user }) => {
           heading: 'text-base sm:text-lg',
           body: 'text-sm sm:text-base',
           small: 'text-xs sm:text-sm',
-          menuItem: 'text-base sm:text-lg',
+          menuItem: 'text-sm sm:text-base',
           menuDesc: 'text-xs sm:text-sm'
         }
       case 'large':
@@ -61,7 +61,7 @@ const OrderForm = ({ user }) => {
           heading: 'text-xl sm:text-2xl',
           body: 'text-base sm:text-lg',
           small: 'text-sm sm:text-base',
-          menuItem: 'text-lg sm:text-xl',
+          menuItem: 'text-base sm:text-lg',
           menuDesc: 'text-sm sm:text-base'
         }
       default: // normal
@@ -71,7 +71,7 @@ const OrderForm = ({ user }) => {
           heading: 'text-lg sm:text-xl',
           body: 'text-base sm:text-lg',
           small: 'text-sm sm:text-base',
-          menuItem: 'text-base sm:text-lg',
+          menuItem: 'text-sm sm:text-base',
           menuDesc: 'text-xs sm:text-sm'
         }
     }
@@ -577,35 +577,35 @@ const OrderForm = ({ user }) => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {menuItems.map((item) => (
-              <div key={item.id} className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-5 hover:border-primary-500 hover:shadow-xl transition-all duration-300 flex flex-col min-w-0">
+              <div key={item.id} className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-5 hover:border-primary-500 hover:shadow-xl transition-all duration-300 flex flex-col min-w-0 overflow-hidden">
                 <div className="flex-1 mb-4">
-                  <h3 style={{ fontWeight: '900' }} className={`${fontClasses.menuItem} text-gray-900 mb-2 break-words`}>{item.name}</h3>
+                  <h3 style={{ fontWeight: '900' }} className={`${fontClasses.menuItem} text-gray-900 mb-2 break-words overflow-wrap-anywhere`}>{item.name}</h3>
                   {item.description && (
-                    <p style={{ fontWeight: '900' }} className={`${fontClasses.menuDesc} text-gray-900 leading-relaxed break-words`}>{item.description}</p>
+                    <p style={{ fontWeight: '900' }} className={`${fontClasses.menuDesc} text-gray-900 leading-relaxed break-words overflow-wrap-anywhere`}>{item.description}</p>
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-3 sm:p-4 border border-gray-200 gap-3 sm:gap-0">
-                  <span className={`${fontClasses.small} font-bold text-gray-700 uppercase tracking-wide text-center sm:text-left`}>Cantidad</span>
-                  <div className="flex items-center justify-center space-x-2 sm:space-x-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-3 sm:p-4 border border-gray-200 gap-3 sm:gap-2">
+                  <span className={`${fontClasses.small} font-bold text-gray-700 uppercase tracking-wide text-center sm:text-left flex-shrink-0`}>Cantidad</span>
+                  <div className="flex items-center justify-center space-x-2 flex-shrink-0">
                     <button
                       type="button"
                       onClick={() => handleItemSelect(item.id, (selectedItems[item.id] || 0) - 1)}
-                      className="p-2 sm:p-2.5 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95 flex-shrink-0"
+                      className="p-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95 flex-shrink-0"
                       aria-label={`Disminuir ${item.name}`}
                     >
-                      <Minus className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <Minus className="h-4 w-4" />
                     </button>
-                    <span className={`min-w-[3rem] text-center font-bold ${fontSize === 'large' ? 'text-2xl' : fontSize === 'small' ? 'text-xl' : 'text-2xl'} text-gray-900`}>
+                    <span className={`min-w-[2.5rem] text-center font-bold text-xl text-gray-900`}>
                       {selectedItems[item.id] || 0}
                     </span>
                     <button
                       type="button"
                       onClick={() => handleItemSelect(item.id, (selectedItems[item.id] || 0) + 1)}
-                      className="p-2 sm:p-2.5 rounded-lg bg-green-500 hover:bg-green-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95 flex-shrink-0"
+                      className="p-2 rounded-lg bg-green-500 hover:bg-green-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95 flex-shrink-0"
                       aria-label={`Aumentar ${item.name}`}
                     >
-                      <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <Plus className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
