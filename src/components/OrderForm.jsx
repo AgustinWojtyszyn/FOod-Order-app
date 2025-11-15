@@ -372,44 +372,6 @@ const OrderForm = ({ user }) => {
           <h1 className={`${fontClasses.title} font-bold text-white drop-shadow-2xl mb-2 sm:mb-3`}>Nuevo Pedido</h1>
           <p className={`${fontClasses.subtitle} text-white font-semibold drop-shadow-lg`}>Selecciona tu menú y completa tus datos</p>
           <p className={`${fontClasses.body} text-white/90 mt-1 sm:mt-2`}>¡Es rápido y fácil!</p>
-          
-          {/* Selector de tamaño de texto - Simple y centrado */}
-          <div className="mt-6 inline-block">
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-1.5 shadow-2xl border-2 border-white/50">
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => changeFontSize('small')}
-                  className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
-                    fontSize === 'small' 
-                      ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg' 
-                      : 'bg-transparent text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  Pequeño
-                </button>
-                <button
-                  onClick={() => changeFontSize('normal')}
-                  className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
-                    fontSize === 'normal' 
-                      ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg' 
-                      : 'bg-transparent text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  Normal
-                </button>
-                <button
-                  onClick={() => changeFontSize('large')}
-                  className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
-                    fontSize === 'large' 
-                      ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg' 
-                      : 'bg-transparent text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  Grande
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
 
       {!isPastDeadline && !hasOrderToday && (
@@ -423,6 +385,49 @@ const OrderForm = ({ user }) => {
               <p className={`${fontClasses.small} text-blue-700 mt-1`}>
                 Si necesitas realizar cambios, presiona el botón <strong>"¿Necesitas ayuda?"</strong>
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Selector de tamaño de letra - Después del horario */}
+      {!isPastDeadline && !hasOrderToday && (
+        <div className="text-center">
+          <p className={`${fontClasses.small} text-white/90 mb-3 font-medium`}>Tamaño de letra:</p>
+          <div className="inline-block">
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-1.5 shadow-2xl border-2 border-white/50">
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => changeFontSize('small')}
+                  className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
+                    fontSize === 'small' 
+                      ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg' 
+                      : 'bg-white text-gray-800 hover:bg-gray-50 border border-gray-200'
+                  }`}
+                >
+                  Pequeño
+                </button>
+                <button
+                  onClick={() => changeFontSize('normal')}
+                  className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
+                    fontSize === 'normal' 
+                      ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg' 
+                      : 'bg-white text-gray-800 hover:bg-gray-50 border border-gray-200'
+                  }`}
+                >
+                  Normal
+                </button>
+                <button
+                  onClick={() => changeFontSize('large')}
+                  className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
+                    fontSize === 'large' 
+                      ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg' 
+                      : 'bg-white text-gray-800 hover:bg-gray-50 border border-gray-200'
+                  }`}
+                >
+                  Grande
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -552,8 +557,8 @@ const OrderForm = ({ user }) => {
               <ChefHat className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <div>
-              <h2 className={`${fontClasses.heading} font-bold text-gray-900`}>Selecciona tu Menú</h2>
-              <p style={{ fontWeight: '900' }} className={`${fontClasses.small} text-gray-900 mt-1`}>Elige uno o más platos disponibles</p>
+              <h2 className={`${fontClasses.heading} font-bold text-gray-900`}>Menú del Día</h2>
+              <p style={{ fontWeight: '900' }} className={`${fontClasses.small} text-gray-900 mt-1`}>Selecciona tu plato (elige la cantidad que desees)</p>
             </div>
           </div>
 
