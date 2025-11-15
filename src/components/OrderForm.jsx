@@ -485,27 +485,27 @@ const OrderForm = ({ user }) => {
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-3 sm:p-4 border border-gray-200 gap-3 sm:gap-0">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-3 sm:p-4 border border-gray-200 gap-3 sm:gap-0 overflow-hidden">
                   <span className="text-base sm:text-lg font-extrabold text-gray-700 uppercase tracking-wide text-center sm:text-left">Cantidad</span>
                   <div className="flex items-center justify-center space-x-2 sm:space-x-3">
                     <button
                       type="button"
                       onClick={() => handleItemSelect(item.id, (selectedItems[item.id] || 0) - 1)}
-                      className="p-2 sm:p-2.5 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95"
+                      className="p-1.5 sm:p-2.5 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95"
                       aria-label={`Disminuir ${item.name}`}
                     >
-                      <Minus className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <Minus className="h-3 w-3 sm:h-5 sm:w-5" />
                     </button>
-                    <span className="min-w-[3rem] text-center font-extrabold text-3xl text-gray-900">
+                    <span className="min-w-[2.5rem] sm:min-w-[3rem] text-center font-extrabold text-2xl sm:text-3xl text-gray-900">
                       {selectedItems[item.id] || 0}
                     </span>
                     <button
                       type="button"
                       onClick={() => handleItemSelect(item.id, (selectedItems[item.id] || 0) + 1)}
-                      className="p-2 sm:p-2.5 rounded-lg bg-green-500 hover:bg-green-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95"
+                      className="p-1.5 sm:p-2.5 rounded-lg bg-green-500 hover:bg-green-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95"
                       aria-label={`Aumentar ${item.name}`}
                     >
-                      <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <Plus className="h-3 w-3 sm:h-5 sm:w-5" />
                     </button>
                   </div>
                 </div>
