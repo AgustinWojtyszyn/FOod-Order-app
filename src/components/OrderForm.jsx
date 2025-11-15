@@ -577,9 +577,9 @@ const OrderForm = ({ user }) => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {menuItems.map((item) => (
-              <div key={item.id} className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-5 hover:border-primary-500 hover:shadow-xl transition-all duration-300 flex flex-col min-w-0 overflow-hidden">
-                <div className="flex-1 mb-4">
-                  <h3 style={{ fontWeight: '900' }} className={`${fontClasses.menuItem} text-gray-900 mb-2 break-words overflow-wrap-anywhere`}>{item.name}</h3>
+              <div key={item.id} className="bg-white border-2 border-gray-200 rounded-2xl p-5 sm:p-6 hover:border-primary-500 hover:shadow-xl transition-all duration-300 flex flex-col min-w-0 overflow-hidden min-h-[200px] sm:min-h-[220px]">
+                <div className="flex-1 mb-5 sm:mb-6">
+                  <h3 style={{ fontWeight: '900' }} className={`${fontClasses.menuItem} text-gray-900 mb-3 break-words overflow-wrap-anywhere`}>{item.name}</h3>
                   {item.description && (
                     <p style={{ fontWeight: '900' }} className={`${fontClasses.menuDesc} text-gray-900 leading-relaxed break-words overflow-wrap-anywhere`}>{item.description}</p>
                   )}
@@ -591,10 +591,10 @@ const OrderForm = ({ user }) => {
                     <button
                       type="button"
                       onClick={() => handleItemSelect(item.id, (selectedItems[item.id] || 0) - 1)}
-                      className="p-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95 flex-shrink-0"
+                      className="p-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95 flex-shrink-0"
                       aria-label={`Disminuir ${item.name}`}
                     >
-                      <Minus className="h-4 w-4" />
+                      <Minus className="h-3.5 w-3.5" />
                     </button>
                     <span className={`min-w-[2.5rem] text-center font-bold text-xl text-gray-900`}>
                       {selectedItems[item.id] || 0}
@@ -602,10 +602,10 @@ const OrderForm = ({ user }) => {
                     <button
                       type="button"
                       onClick={() => handleItemSelect(item.id, (selectedItems[item.id] || 0) + 1)}
-                      className="p-2 rounded-lg bg-green-500 hover:bg-green-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95 flex-shrink-0"
+                      className="p-1.5 rounded-lg bg-green-500 hover:bg-green-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95 flex-shrink-0"
                       aria-label={`Aumentar ${item.name}`}
                     >
-                      <Plus className="h-4 w-4" />
+                      <Plus className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
