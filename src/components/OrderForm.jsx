@@ -401,8 +401,8 @@ const OrderForm = ({ user }) => {
                   onClick={() => changeFontSize('small')}
                   className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
                     fontSize === 'small' 
-                      ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg' 
-                      : 'bg-white text-gray-800 hover:bg-gray-50 border border-gray-200'
+                      ? 'bg-white text-gray-900 shadow-lg border-2 border-primary-600' 
+                      : 'bg-transparent text-gray-700 hover:bg-white/50'
                   }`}
                 >
                   Pequeño
@@ -411,8 +411,8 @@ const OrderForm = ({ user }) => {
                   onClick={() => changeFontSize('normal')}
                   className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
                     fontSize === 'normal' 
-                      ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg' 
-                      : 'bg-white text-gray-800 hover:bg-gray-50 border border-gray-200'
+                      ? 'bg-white text-gray-900 shadow-lg border-2 border-primary-600' 
+                      : 'bg-transparent text-gray-700 hover:bg-white/50'
                   }`}
                 >
                   Normal
@@ -421,8 +421,8 @@ const OrderForm = ({ user }) => {
                   onClick={() => changeFontSize('large')}
                   className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
                     fontSize === 'large' 
-                      ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg' 
-                      : 'bg-white text-gray-800 hover:bg-gray-50 border border-gray-200'
+                      ? 'bg-white text-gray-900 shadow-lg border-2 border-primary-600' 
+                      : 'bg-transparent text-gray-700 hover:bg-white/50'
                   }`}
                 >
                   Grande
@@ -558,7 +558,7 @@ const OrderForm = ({ user }) => {
             </div>
             <div>
               <h2 className={`${fontClasses.heading} font-bold text-gray-900`}>Menú del Día</h2>
-              <p style={{ fontWeight: '900' }} className={`${fontClasses.small} text-gray-900 mt-1`}>Selecciona tu plato (elige la cantidad que desees)</p>
+              <p style={{ fontWeight: '900' }} className={`${fontClasses.small} text-gray-900 mt-1`}>Selecciona tu plato principal</p>
             </div>
           </div>
 
