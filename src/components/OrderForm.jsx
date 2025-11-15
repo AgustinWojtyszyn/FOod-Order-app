@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../supabaseClient'
-import { ShoppingCart, Plus, Minus, X, ChefHat, User, Settings, Clock, AlertTriangle } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, X, ChefHat, User, Settings, Clock, AlertTriangle, Type } from 'lucide-react'
 
 const OrderForm = ({ user }) => {
   const [menuItems, setMenuItems] = useState([])
   const [customOptions, setCustomOptions] = useState([])
   const [customResponses, setCustomResponses] = useState({})
   const [selectedItems, setSelectedItems] = useState({})
+  const [fontSize, setFontSize] = useState(() => {
+    // Recuperar preferencia de tamaño de fuente del localStorage
+    return localStorage.getItem('orderFormFontSize') || 'normal'
+  })
   const [formData, setFormData] = useState({
     location: '',
     name: '',
@@ -23,6 +27,44 @@ const OrderForm = ({ user }) => {
   const navigate = useNavigate()
 
   const locations = ['Los Berros', 'La Laja', 'Padre Bueno']
+
+  // Función para cambiar el tamaño de fuente
+  const changeFontSize = (size) => {
+    setFontSize(size)
+    localStorage.setItem('orderFormFontSize', size)
+  }
+
+  // Obtener clases de tamaño según la preferencia
+  const getFontSizeClasses = () => {
+    switch(fontSize) {
+      case 'small':
+        return {
+          title: 'text-2xl sm:text-3xl',
+          subtitle: 'text-base sm:text-lg',
+          heading: 'text-lg sm:text-xl',
+          body: 'text-sm sm:text-base',
+          small: 'text-xs sm:text-sm'
+        }
+      case 'large':
+        return {
+          title: 'text-4xl sm:text-5xl',
+          subtitle: 'text-xl sm:text-2xl',
+          heading: 'text-2xl sm:text-3xl',
+          body: 'text-lg sm:text-xl',
+          small: 'text-base sm:text-lg'
+        }
+      default: // normal
+        return {
+          title: 'text-3xl sm:text-4xl md:text-5xl',
+          subtitle: 'text-lg sm:text-xl md:text-2xl',
+          heading: 'text-xl sm:text-2xl',
+          body: 'text-base sm:text-lg',
+          small: 'text-sm sm:text-base'
+        }
+    }
+  }
+
+  const fontClasses = getFontSizeClasses()
 
   useEffect(() => {
     checkOrderDeadline()
@@ -327,20 +369,61 @@ const OrderForm = ({ user }) => {
     <div className="p-3 sm:p-6 pb-32 sm:pb-6 min-h-screen overflow-y-auto">
       <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8 mb-4">
         <div className="text-center">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white drop-shadow-2xl mb-2 sm:mb-3">Nuevo Pedido</h1>
-        <p className="text-lg sm:text-xl md:text-2xl text-white font-semibold drop-shadow-lg">Selecciona tu menú y completa tus datos</p>
-        <p className="text-base sm:text-lg text-white/90 mt-1 sm:mt-2">¡Es rápido y fácil!</p>
-      </div>
+          <h1 className={`${fontClasses.title} font-bold text-white drop-shadow-2xl mb-2 sm:mb-3`}>Nuevo Pedido</h1>
+          <p className={`${fontClasses.subtitle} text-white font-semibold drop-shadow-lg`}>Selecciona tu menú y completa tus datos</p>
+          <p className={`${fontClasses.body} text-white/90 mt-1 sm:mt-2`}>¡Es rápido y fácil!</p>
+          
+          {/* Control de tamaño de fuente */}
+          <div className="flex items-center justify-center gap-2 mt-4 bg-white/10 backdrop-blur-sm rounded-xl p-3 border-2 border-white/20">
+            <Type className="h-5 w-5 text-white" />
+            <span className="text-sm font-medium text-white mr-2">Tamaño de letra:</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => changeFontSize('small')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+                  fontSize === 'small' 
+                    ? 'bg-white text-primary-700 shadow-lg' 
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+                title="Letra pequeña"
+              >
+                <span className="text-xs">A</span>
+              </button>
+              <button
+                onClick={() => changeFontSize('normal')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+                  fontSize === 'normal' 
+                    ? 'bg-white text-primary-700 shadow-lg' 
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+                title="Letra normal"
+              >
+                <span className="text-sm">A</span>
+              </button>
+              <button
+                onClick={() => changeFontSize('large')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+                  fontSize === 'large' 
+                    ? 'bg-white text-primary-700 shadow-lg' 
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+                title="Letra grande"
+              >
+                <span className="text-base">A</span>
+              </button>
+            </div>
+          </div>
+        </div>
 
       {!isPastDeadline && !hasOrderToday && (
         <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-3 sm:p-4 shadow-lg">
           <div className="flex items-start gap-3">
             <Clock className="h-5 w-5 text-blue-600 flex-shrink-0" />
             <div>
-              <p className="text-sm sm:text-base text-blue-800 font-medium">
+              <p className={`${fontClasses.small} text-blue-800 font-medium`}>
                 Horario de pedidos: <strong>6:00 a 22:00 horas</strong> del día anterior a la entrega
               </p>
-              <p className="text-xs sm:text-sm text-blue-700 mt-1">
+              <p className={`${fontClasses.small} text-blue-700 mt-1`}>
                 Si necesitas realizar cambios, presiona el botón <strong>"¿Necesitas ayuda?"</strong>
               </p>
             </div>
@@ -390,12 +473,12 @@ const OrderForm = ({ user }) => {
             <div className="bg-gradient-to-r from-primary-600 to-primary-700 text-white p-2 sm:p-3 rounded-xl">
               <User className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Información Personal</h2>
+            <h2 className={`${fontClasses.heading} font-bold text-gray-900`}>Información Personal</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             <div>
-              <label htmlFor="location" className="block text-sm font-bold text-gray-700 mb-2">
+              <label htmlFor="location" className={`block ${fontClasses.small} font-bold text-gray-700 mb-2`}>
                 Lugar de trabajo *
               </label>
               <select
@@ -406,6 +489,7 @@ const OrderForm = ({ user }) => {
                 className="input-field"
                 required
                 autoComplete="organization"
+                style={{ fontSize: fontSize === 'large' ? '1.125rem' : fontSize === 'small' ? '0.875rem' : '1rem' }}
               >
                 <option value="">Seleccionar lugar</option>
                 {locations.map(location => (
@@ -415,7 +499,7 @@ const OrderForm = ({ user }) => {
             </div>
 
             <div>
-              <label htmlFor="name" className="block text-sm font-bold text-gray-700 mb-2">
+              <label htmlFor="name" className={`block ${fontClasses.small} font-bold text-gray-700 mb-2`}>
                 Nombre completo *
               </label>
               <input
@@ -425,6 +509,7 @@ const OrderForm = ({ user }) => {
                 value={formData.name}
                 onChange={handleFormChange}
                 className="input-field"
+                style={{ fontSize: fontSize === 'large' ? '1.125rem' : fontSize === 'small' ? '0.875rem' : '1rem' }}
                 required
                 autoComplete="name"
               />
@@ -470,8 +555,8 @@ const OrderForm = ({ user }) => {
               <ChefHat className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Selecciona tu Menú</h2>
-              <p style={{ fontWeight: '900' }} className="text-xs sm:text-sm text-gray-900 mt-1">Elige uno o más platos disponibles</p>
+              <h2 className={`${fontClasses.heading} font-bold text-gray-900`}>Selecciona tu Menú</h2>
+              <p style={{ fontWeight: '900' }} className={`${fontClasses.small} text-gray-900 mt-1`}>Elige uno o más platos disponibles</p>
             </div>
           </div>
 
@@ -479,14 +564,14 @@ const OrderForm = ({ user }) => {
             {menuItems.map((item) => (
               <div key={item.id} className="bg-white border-2 border-gray-200 rounded-2xl p-5 hover:border-primary-500 hover:shadow-xl transition-all duration-300 flex flex-col">
                 <div className="flex-1 mb-4">
-                  <h3 style={{ fontWeight: '900' }} className="text-xl sm:text-2xl text-gray-900 mb-2">{item.name}</h3>
+                  <h3 style={{ fontWeight: '900' }} className={`${fontClasses.heading} text-gray-900 mb-2`}>{item.name}</h3>
                   {item.description && (
-                    <p style={{ fontWeight: '900' }} className="text-sm text-gray-900 leading-relaxed">{item.description}</p>
+                    <p style={{ fontWeight: '900' }} className={`${fontClasses.small} text-gray-900 leading-relaxed`}>{item.description}</p>
                   )}
                 </div>
 
                 <div className="flex items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
-                  <span className="text-sm font-bold text-gray-700 uppercase tracking-wide">Cantidad</span>
+                  <span className={`${fontClasses.small} font-bold text-gray-700 uppercase tracking-wide`}>Cantidad</span>
                   <div className="flex items-center space-x-3">
                     <button
                       type="button"
@@ -496,7 +581,7 @@ const OrderForm = ({ user }) => {
                     >
                       <Minus className="h-5 w-5" />
                     </button>
-                    <span className="w-12 text-center font-bold text-2xl text-gray-900">
+                    <span className={`w-12 text-center font-bold ${fontSize === 'large' ? 'text-3xl' : 'text-2xl'} text-gray-900`}>
                       {selectedItems[item.id] || 0}
                     </span>
                     <button
