@@ -8,10 +8,6 @@ const OrderForm = ({ user }) => {
   const [customOptions, setCustomOptions] = useState([])
   const [customResponses, setCustomResponses] = useState({})
   const [selectedItems, setSelectedItems] = useState({})
-  const [fontSize, setFontSize] = useState(() => {
-    // Recuperar preferencia de tamaño de fuente del localStorage
-    return localStorage.getItem('orderFormFontSize') || 'normal'
-  })
   const [formData, setFormData] = useState({
     location: '',
     name: '',
@@ -27,57 +23,6 @@ const OrderForm = ({ user }) => {
   const navigate = useNavigate()
 
   const locations = ['Los Berros', 'La Laja', 'Padre Bueno']
-
-  // Función para cambiar el tamaño de fuente
-  const changeFontSize = (size) => {
-    setFontSize(size)
-    localStorage.setItem('orderFormFontSize', size)
-    // Forzar actualización del DOM en mobile
-    document.documentElement.style.setProperty('--font-size-mode', size)
-  }
-
-  // Efecto para aplicar cambios de fuente
-  useEffect(() => {
-    document.documentElement.style.setProperty('--font-size-mode', fontSize)
-  }, [fontSize])
-
-  // Obtener clases de tamaño según la preferencia
-  const getFontSizeClasses = () => {
-    switch(fontSize) {
-      case 'small':
-        return {
-          title: 'text-2xl sm:text-3xl',
-          subtitle: 'text-base sm:text-lg',
-          heading: 'text-base sm:text-lg',
-          body: 'text-sm sm:text-base',
-          small: 'text-xs sm:text-sm',
-          menuItem: 'text-sm sm:text-base',
-          menuDesc: 'text-xs sm:text-sm'
-        }
-      case 'large':
-        return {
-          title: 'text-3xl sm:text-4xl',
-          subtitle: 'text-lg sm:text-xl',
-          heading: 'text-xl sm:text-2xl',
-          body: 'text-base sm:text-lg',
-          small: 'text-sm sm:text-base',
-          menuItem: 'text-base sm:text-lg',
-          menuDesc: 'text-sm sm:text-base'
-        }
-      default: // normal
-        return {
-          title: 'text-3xl sm:text-4xl md:text-5xl',
-          subtitle: 'text-lg sm:text-xl md:text-2xl',
-          heading: 'text-lg sm:text-xl',
-          body: 'text-base sm:text-lg',
-          small: 'text-sm sm:text-base',
-          menuItem: 'text-sm sm:text-base',
-          menuDesc: 'text-xs sm:text-sm'
-        }
-    }
-  }
-
-  const fontClasses = getFontSizeClasses()
 
   useEffect(() => {
     checkOrderDeadline()
@@ -382,9 +327,9 @@ const OrderForm = ({ user }) => {
     <div className="p-3 sm:p-6 pb-32 sm:pb-6 min-h-screen overflow-y-auto">
       <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8 mb-4">
         <div className="text-center">
-          <h1 className={`${fontClasses.title} font-bold text-white drop-shadow-2xl mb-2 sm:mb-3`}>Nuevo Pedido</h1>
-          <p className={`${fontClasses.subtitle} text-white font-semibold drop-shadow-lg`}>Selecciona tu menú y completa tus datos</p>
-          <p className={`${fontClasses.body} text-white/90 mt-1 sm:mt-2`}>¡Es rápido y fácil!</p>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white drop-shadow-2xl mb-2 sm:mb-3">Nuevo Pedido</h1>
+          <p className="text-lg sm:text-xl md:text-2xl text-white font-semibold drop-shadow-lg">Selecciona tu menú y completa tus datos</p>
+          <p className="text-base sm:text-lg text-white/90 mt-1 sm:mt-2">¡Es rápido y fácil!</p>
         </div>
 
       {!isPastDeadline && !hasOrderToday && (
@@ -392,55 +337,12 @@ const OrderForm = ({ user }) => {
           <div className="flex items-start gap-3">
             <Clock className="h-5 w-5 text-blue-600 flex-shrink-0" />
             <div>
-              <p className={`${fontClasses.small} text-blue-800 font-medium`}>
+              <p className="text-sm sm:text-base text-blue-800 font-medium">
                 Horario de pedidos: <strong>6:00 a 22:00 horas</strong> del día anterior a la entrega
               </p>
-              <p className={`${fontClasses.small} text-blue-700 mt-1`}>
+              <p className="text-sm sm:text-base text-blue-700 mt-1">
                 Si necesitas realizar cambios, presiona el botón <strong>"¿Necesitas ayuda?"</strong>
               </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Selector de tamaño de letra - Después del horario */}
-      {!isPastDeadline && !hasOrderToday && (
-        <div className="text-center">
-          <p className={`${fontClasses.small} text-white/90 mb-3 font-medium`}>Tamaño de letra:</p>
-          <div className="inline-block">
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-1.5 shadow-2xl border-2 border-white/50">
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => changeFontSize('small')}
-                  className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
-                    fontSize === 'small' 
-                      ? 'bg-white text-gray-900 shadow-lg border-2 border-primary-600' 
-                      : 'bg-transparent text-gray-700 hover:bg-white/50'
-                  }`}
-                >
-                  Pequeño
-                </button>
-                <button
-                  onClick={() => changeFontSize('normal')}
-                  className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
-                    fontSize === 'normal' 
-                      ? 'bg-white text-gray-900 shadow-lg border-2 border-primary-600' 
-                      : 'bg-transparent text-gray-700 hover:bg-white/50'
-                  }`}
-                >
-                  Normal
-                </button>
-                <button
-                  onClick={() => changeFontSize('large')}
-                  className={`px-6 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 ${
-                    fontSize === 'large' 
-                      ? 'bg-white text-gray-900 shadow-lg border-2 border-primary-600' 
-                      : 'bg-transparent text-gray-700 hover:bg-white/50'
-                  }`}
-                >
-                  Grande
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -488,12 +390,12 @@ const OrderForm = ({ user }) => {
             <div className="bg-gradient-to-r from-primary-600 to-primary-700 text-white p-2 sm:p-3 rounded-xl">
               <User className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
-            <h2 className={`${fontClasses.heading} font-bold text-gray-900`}>Información Personal</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Información Personal</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             <div>
-              <label htmlFor="location" className={`block ${fontClasses.small} font-bold text-gray-700 mb-2`}>
+              <label htmlFor="location" className="block text-sm font-bold text-gray-700 mb-2">
                 Lugar de trabajo *
               </label>
               <select
@@ -504,7 +406,6 @@ const OrderForm = ({ user }) => {
                 className="input-field"
                 required
                 autoComplete="organization"
-                style={{ fontSize: fontSize === 'large' ? '1.125rem' : fontSize === 'small' ? '0.875rem' : '1rem' }}
               >
                 <option value="">Seleccionar lugar</option>
                 {locations.map(location => (
@@ -514,7 +415,7 @@ const OrderForm = ({ user }) => {
             </div>
 
             <div>
-              <label htmlFor="name" className={`block ${fontClasses.small} font-bold text-gray-700 mb-2`}>
+              <label htmlFor="name" className="block text-sm font-bold text-gray-700 mb-2">
                 Nombre completo *
               </label>
               <input
@@ -524,7 +425,6 @@ const OrderForm = ({ user }) => {
                 value={formData.name}
                 onChange={handleFormChange}
                 className="input-field"
-                style={{ fontSize: fontSize === 'large' ? '1.125rem' : fontSize === 'small' ? '0.875rem' : '1rem' }}
                 required
                 autoComplete="name"
               />
@@ -570,42 +470,42 @@ const OrderForm = ({ user }) => {
               <ChefHat className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <div>
-              <h2 className={`${fontClasses.heading} font-bold text-gray-900`}>Menú del Día</h2>
-              <p style={{ fontWeight: '900' }} className={`${fontClasses.small} text-gray-900 mt-1`}>Selecciona tu plato principal</p>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Menú del Día</h2>
+              <p className="text-sm sm:text-base text-gray-600 mt-1">Selecciona tu plato principal</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {menuItems.map((item) => (
-              <div key={item.id} className="bg-white border-2 border-gray-200 rounded-2xl p-5 sm:p-6 hover:border-primary-500 hover:shadow-xl transition-all duration-300 flex flex-col min-w-0 overflow-hidden min-h-[200px] sm:min-h-[220px]">
-                <div className="flex-1 mb-5 sm:mb-6">
-                  <h3 style={{ fontWeight: '900' }} className={`${fontClasses.menuItem} text-gray-900 mb-3 break-words overflow-wrap-anywhere`}>{item.name}</h3>
+              <div key={item.id} className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-5 hover:border-primary-500 hover:shadow-xl transition-all duration-300 flex flex-col">
+                <div className="flex-1 mb-4">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2">{item.name}</h3>
                   {item.description && (
-                    <p style={{ fontWeight: '900' }} className={`${fontClasses.menuDesc} text-gray-900 leading-relaxed break-words overflow-wrap-anywhere`}>{item.description}</p>
+                    <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">{item.description}</p>
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-3 sm:p-4 border border-gray-200 gap-3 sm:gap-2">
-                  <span className={`${fontClasses.small} font-bold text-gray-700 uppercase tracking-wide text-center sm:text-left flex-shrink-0`}>Cantidad</span>
-                  <div className="flex items-center justify-center space-x-2 flex-shrink-0">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-3 sm:p-4 border border-gray-200 gap-3 sm:gap-0">
+                  <span className="text-xs sm:text-sm font-bold text-gray-700 uppercase tracking-wide text-center sm:text-left">Cantidad</span>
+                  <div className="flex items-center justify-center space-x-2 sm:space-x-3">
                     <button
                       type="button"
                       onClick={() => handleItemSelect(item.id, (selectedItems[item.id] || 0) - 1)}
-                      className="p-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95 flex-shrink-0"
+                      className="p-2 sm:p-2.5 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95"
                       aria-label={`Disminuir ${item.name}`}
                     >
-                      <Minus className="h-3.5 w-3.5" />
+                      <Minus className="h-4 w-4 sm:h-5 sm:w-5" />
                     </button>
-                    <span className={`min-w-[2.5rem] text-center font-bold text-xl text-gray-900`}>
+                    <span className="min-w-[3rem] text-center font-bold text-2xl text-gray-900">
                       {selectedItems[item.id] || 0}
                     </span>
                     <button
                       type="button"
                       onClick={() => handleItemSelect(item.id, (selectedItems[item.id] || 0) + 1)}
-                      className="p-1.5 rounded-lg bg-green-500 hover:bg-green-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95 flex-shrink-0"
+                      className="p-2 sm:p-2.5 rounded-lg bg-green-500 hover:bg-green-600 text-white transition-all shadow-md hover:shadow-lg active:scale-95"
                       aria-label={`Aumentar ${item.name}`}
                     >
-                      <Plus className="h-3.5 w-3.5" />
+                      <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
                     </button>
                   </div>
                 </div>
@@ -661,21 +561,19 @@ const OrderForm = ({ user }) => {
               <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-2 sm:p-3 rounded-xl">
                 <Settings className="h-5 w-5 sm:h-6 sm:w-6" />
               </div>
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Opciones Adicionales</h2>
-                <p style={{ fontWeight: '900' }} className="text-xs sm:text-sm text-gray-900 mt-1">Personaliza tu pedido</p>
-              </div>
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Opciones Adicionales</h2>
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">Personaliza tu pedido</p>
             </div>
+          </div>
 
-            <div className="space-y-6">
-              {customOptions.filter(opt => opt.active).map((option) => (
-                <div key={option.id} className="border-2 border-gray-200 rounded-xl p-4 bg-gradient-to-br from-white to-gray-50">
-                  <label className="block text-sm text-gray-900 mb-3" style={{ fontWeight: '900' }}>
-                    {option.title}
-                    {option.required && <span className="text-red-600 ml-1">*</span>}
-                  </label>
-
-                  {option.type === 'multiple_choice' && option.options && (
+          <div className="space-y-6">
+            {customOptions.filter(opt => opt.active).map((option) => (
+              <div key={option.id} className="border-2 border-gray-200 rounded-xl p-4 bg-gradient-to-br from-white to-gray-50">
+                <label className="block text-sm font-bold text-gray-700 mb-3">
+                  {option.title}
+                  {option.required && <span className="text-red-600 ml-1">*</span>}
+                </label>                  {option.type === 'multiple_choice' && option.options && (
                     <div className="space-y-2">
                       {option.options.map((opt, index) => (
                         <label key={index} className="flex items-center p-3 border-2 border-gray-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-all cursor-pointer">
@@ -687,7 +585,7 @@ const OrderForm = ({ user }) => {
                             onChange={(e) => handleCustomResponse(option.id, e.target.value, 'multiple_choice')}
                             className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
                           />
-                          <span className="ml-3 text-sm text-gray-900" style={{ fontWeight: '900' }}>{opt}</span>
+                          <span className="ml-3 text-sm text-gray-700">{opt}</span>
                         </label>
                       ))}
                     </div>
@@ -704,7 +602,7 @@ const OrderForm = ({ user }) => {
                             onChange={(e) => handleCustomResponse(option.id, e.target.value, 'checkbox')}
                             className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                           />
-                          <span className="ml-3 text-sm text-gray-900" style={{ fontWeight: '900' }}>{opt}</span>
+                          <span className="ml-3 text-sm text-gray-700">{opt}</span>
                         </label>
                       ))}
                     </div>
@@ -719,7 +617,6 @@ const OrderForm = ({ user }) => {
                       rows={3}
                       className="input-field"
                       placeholder="Escribe tu respuesta aquí..."
-                      style={{ fontWeight: '600' }}
                     />
                   )}
                 </div>
