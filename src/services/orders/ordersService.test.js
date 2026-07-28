@@ -54,6 +54,19 @@ const createSupabaseMock = (results) => {
   }
 }
 
+const createRpcSupabaseMock = (result = { data: 0, error: null }) => {
+  const calls = []
+  return {
+    calls,
+    supabase: {
+      rpc(name, args) {
+        calls.push(['rpc', name, args])
+        return Promise.resolve(result)
+      }
+    }
+  }
+}
+
 describe('ordersService daily orders query', () => {
   it('applies optional filters when loading orders', async () => {
     const { supabase, calls } = createSupabaseMock([{ data: [{ id: 'order-1' }], error: null }])
@@ -126,6 +139,32 @@ describe('ordersService daily orders query', () => {
 
     expect(calls).toContainEqual(['eq', 'status', 'pending'])
     expect(calls.some(([method]) => method === 'in')).toBe(false)
+  })
+})
+
+describe('ordersService admin cleanup RPCs', () => {
+  it('keeps deleteArchivedOrders using a semantic text request id', async () => {
+    const { supabase, calls } = createRpcSupabaseMock({ data: 3, error: null })
+    const service = createOrdersService({ supabase })
+
+    await expect(service.deleteArchivedOrders()).resolves.toEqual({ data: 3, error: null })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0][0]).toBe('rpc')
+    expect(calls[0][1]).toBe('admin_delete_archived_orders')
+    expect(calls[0][2].p_request_id).toMatch(/^orders-archived-delete-/)
+  })
+
+  it('keeps deleteAllOrders using a semantic text request id', async () => {
+    const { supabase, calls } = createRpcSupabaseMock({ data: 5, error: null })
+    const service = createOrdersService({ supabase })
+
+    await expect(service.deleteAllOrders()).resolves.toEqual({ data: 5, error: null })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0][0]).toBe('rpc')
+    expect(calls[0][1]).toBe('admin_delete_all_orders')
+    expect(calls[0][2].p_request_id).toMatch(/^orders-all-delete-/)
   })
 })
 
