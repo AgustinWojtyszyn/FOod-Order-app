@@ -7,7 +7,15 @@ import {
   DAILY_REPORT_TEST_TYPE,
   DAILY_REPORT_TYPE,
   DailyReportPayload,
+  DAILY_REPORT_ARCHIVE_STATUSES,
+  DAILY_REPORT_EMAIL_PROVIDER,
+  DAILY_REPORT_SEND_STATUSES,
+  buildArchiveCompletedPayload,
+  buildArchiveFailedPayload,
+  buildArchiveRunningPayload,
   buildDailySummary,
+  buildDailyReportFailurePayload,
+  buildDailyReportRunPayload,
   buildEmailHtml,
   buildEmailText,
   createMockOrders,
@@ -17,11 +25,12 @@ import {
   getCustomSide,
   getDefaultReportDate,
   getEmailSubject,
+  getEmailProviderMessageId,
   getMenuOptionText,
   getRecipientsForMode,
   getServiceLabel,
   isAuthorized,
-  isRecentSuccessfulDailyReportRun,
+  canArchiveSuccessfulDailyReportRun,
   isStaleRunningRun,
   isTestEmailMode,
   isValidISODate,
@@ -66,6 +75,16 @@ const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
 const safeError = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error || 'Error desconocido')
   return message.slice(0, 500)
+}
+
+type ReportFailureContext = {
+  reportDate?: string
+  reportType?: string
+  ordersCount?: number
+  recipients?: string[]
+  emailAccepted?: boolean
+  sentStatus?: string
+  emailMessageId?: string | null
 }
 
 const getMenuNames = (order: ReturnType<typeof normalizeOrder>) =>
@@ -330,7 +349,7 @@ const fetchOrdersForRealTestEmail = async (reportDate: string) => {
 const getExistingRun = async (reportDate: string, reportType = DAILY_REPORT_TYPE) => {
   const { data, error } = await supabase
     .from('daily_report_runs')
-    .select('id,status,sent_at,created_at,updated_at')
+    .select('id,status,sent_at,created_at,updated_at,archive_status,archived_at')
     .eq('report_date', reportDate)
     .eq('report_type', reportType)
     .maybeSingle()
@@ -356,7 +375,7 @@ const acquireRunLock = async ({
     await upsertRun({
       reportDate,
       reportType,
-      status: 'running',
+      status: DAILY_REPORT_SEND_STATUSES.RUNNING,
       ordersCount,
       recipients
     })
@@ -368,7 +387,7 @@ const acquireRunLock = async ({
     .insert({
       report_date: reportDate,
       report_type: reportType,
-      status: 'running',
+      status: DAILY_REPORT_SEND_STATUSES.RUNNING,
       orders_count: ordersCount,
       recipients,
       sent_at: null,
@@ -379,8 +398,8 @@ const acquireRunLock = async ({
 
   if (error.code === '23505') {
     const existingRun = await getExistingRun(reportDate, reportType)
-    const canRetryExistingRun = existingRun?.status === 'failed' ||
-      (existingRun?.status === 'running' && isStaleRunningRun({
+    const canRetryExistingRun = existingRun?.status === DAILY_REPORT_SEND_STATUSES.FAILED ||
+      (existingRun?.status === DAILY_REPORT_SEND_STATUSES.RUNNING && isStaleRunningRun({
         createdAt: existingRun?.created_at,
         updatedAt: existingRun?.updated_at
       }))
@@ -389,15 +408,15 @@ const acquireRunLock = async ({
       const { data: retriedRun, error: retryError } = await supabase
         .from('daily_report_runs')
         .update({
-          status: 'running',
+          status: DAILY_REPORT_SEND_STATUSES.RUNNING,
           orders_count: ordersCount,
           recipients,
           sent_at: null,
-          error: existingRun?.status === 'running' ? 'Retry after stale running lock' : null
+          error: existingRun?.status === DAILY_REPORT_SEND_STATUSES.RUNNING ? 'Retry after stale running lock' : null
         })
         .eq('report_date', reportDate)
         .eq('report_type', reportType)
-        .in('status', ['failed', 'running'])
+        .in('status', [DAILY_REPORT_SEND_STATUSES.FAILED, DAILY_REPORT_SEND_STATUSES.RUNNING])
         .select('id,status,sent_at,created_at,updated_at')
         .maybeSingle()
 
@@ -418,7 +437,9 @@ const upsertRun = async ({
   status,
   ordersCount,
   recipients,
-  error
+  error,
+  emailMessageId = null,
+  emailProvider = null
 }: {
   reportDate: string
   reportType: string
@@ -426,21 +447,79 @@ const upsertRun = async ({
   ordersCount: number
   recipients: string[]
   error?: string | null
+  emailMessageId?: string | null
+  emailProvider?: string | null
 }) => {
-  const payload = {
-    report_date: reportDate,
-    report_type: reportType,
+  const payload = buildDailyReportRunPayload({
+    reportDate,
+    reportType,
     status,
-    orders_count: ordersCount,
+    ordersCount,
     recipients,
-    sent_at: status === 'sent' || status === 'sent_empty' ? new Date().toISOString() : null,
-    error: error || null
-  }
+    error,
+    emailMessageId,
+    emailProvider
+  })
   const { error: upsertError } = await supabase
     .from('daily_report_runs')
     .upsert(payload, { onConflict: 'report_date,report_type' })
 
   if (upsertError) throw upsertError
+}
+
+const upsertFailureRun = async ({
+  reportDate,
+  reportType,
+  ordersCount,
+  recipients,
+  error,
+  emailAccepted,
+  sentStatus,
+  emailMessageId
+}: {
+  reportDate: string
+  reportType: string
+  ordersCount: number
+  recipients: string[]
+  error: string
+  emailAccepted?: boolean
+  sentStatus?: string
+  emailMessageId?: string | null
+}) => {
+  const payload = buildDailyReportFailurePayload({
+    reportDate,
+    reportType,
+    ordersCount,
+    recipients,
+    error,
+    emailAccepted,
+    sentStatus,
+    emailMessageId,
+    emailProvider: emailAccepted ? DAILY_REPORT_EMAIL_PROVIDER : null
+  })
+  const { error: upsertError } = await supabase
+    .from('daily_report_runs')
+    .upsert(payload, { onConflict: 'report_date,report_type' })
+
+  if (upsertError) throw upsertError
+}
+
+const updateArchiveRun = async ({
+  reportDate,
+  reportType,
+  patch
+}: {
+  reportDate: string
+  reportType: string
+  patch: Record<string, unknown>
+}) => {
+  const { error } = await supabase
+    .from('daily_report_runs')
+    .update(patch)
+    .eq('report_date', reportDate)
+    .eq('report_type', reportType)
+
+  if (error) throw error
 }
 
 const archiveReportedOrders = async (reportDate: string) => {
@@ -453,6 +532,7 @@ const archiveReportedOrders = async (reportDate: string) => {
 
 Deno.serve(async (req: Request) => {
   let currentPayload: DailyReportPayload = {}
+  const failureContext: ReportFailureContext = {}
   if (req.method !== 'POST') return toResponse({ error: 'Method not allowed' }, 405)
   if (!isAuthorized(req.headers, cronSecret)) return toResponse({ error: 'Unauthorized' }, 401)
 
@@ -477,6 +557,7 @@ Deno.serve(async (req: Request) => {
     })
     const shouldUseMocks = usesMockOrdersForMode(mode, Boolean(payload.useRealData))
     const shouldUseRealOrders = usesRealOrdersForMode(mode, Boolean(payload.useRealData))
+    failureContext.reportDate = reportDate
 
     console.log('[daily-orders-report] inicio', {
       mode,
@@ -489,7 +570,17 @@ Deno.serve(async (req: Request) => {
     if (mode === 'archiveAfterSuccessfulReport') {
       const existingRun = await getExistingRun(reportDate, DAILY_REPORT_TYPE)
 
-      if (!isRecentSuccessfulDailyReportRun(existingRun)) {
+      if (!canArchiveSuccessfulDailyReportRun(existingRun)) {
+        if (existingRun) {
+          await updateArchiveRun({
+            reportDate,
+            reportType: DAILY_REPORT_TYPE,
+            patch: {
+              archive_status: DAILY_REPORT_ARCHIVE_STATUSES.SKIPPED,
+              archive_error: 'report_not_sent'
+            }
+          })
+        }
         return toResponse({
           ok: true,
           mode,
@@ -502,21 +593,42 @@ Deno.serve(async (req: Request) => {
         })
       }
 
-      const archivedOrdersCount = await archiveReportedOrders(reportDate)
-
-      console.log('[daily-orders-report] archivado post reporte', {
-        mode,
+      await updateArchiveRun({
         reportDate,
-        archivedOrdersCount
+        reportType: DAILY_REPORT_TYPE,
+        patch: buildArchiveRunningPayload()
       })
 
-      return toResponse({
-        ok: true,
-        mode,
-        skipped: false,
-        reportDate,
-        archivedOrdersCount
-      })
+      try {
+        const archivedOrdersCount = await archiveReportedOrders(reportDate)
+        await updateArchiveRun({
+          reportDate,
+          reportType: DAILY_REPORT_TYPE,
+          patch: buildArchiveCompletedPayload(archivedOrdersCount)
+        })
+
+        console.log('[daily-orders-report] archivado post reporte', {
+          mode,
+          reportDate,
+          archivedOrdersCount
+        })
+
+        return toResponse({
+          ok: true,
+          mode,
+          skipped: false,
+          reportDate,
+          archivedOrdersCount
+        })
+      } catch (archiveError) {
+        const message = safeError(archiveError)
+        await updateArchiveRun({
+          reportDate,
+          reportType: DAILY_REPORT_TYPE,
+          patch: buildArchiveFailedPayload(message)
+        })
+        throw archiveError
+      }
     }
 
     const orders = shouldUseMocks
@@ -553,6 +665,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const reportType = isTest ? DAILY_REPORT_TEST_TYPE : DAILY_REPORT_TYPE
+    failureContext.reportType = reportType
+    failureContext.ordersCount = summary.totalOrders
+    failureContext.recipients = recipients
     if (shouldWriteDailyReportRun(mode)) {
       const { acquired, existingRun } = await acquireRunLock({
         reportDate,
@@ -586,14 +701,20 @@ Deno.serve(async (req: Request) => {
       filename,
       attachment: workbookBuffer
     })
+    const emailMessageId = getEmailProviderMessageId(emailResult)
+    failureContext.emailAccepted = true
+    failureContext.sentStatus = orders.length > 0 ? DAILY_REPORT_SEND_STATUSES.SENT : DAILY_REPORT_SEND_STATUSES.SENT_EMPTY
+    failureContext.emailMessageId = emailMessageId
 
     if (shouldWriteDailyReportRun(mode)) {
       await upsertRun({
         reportDate,
         reportType,
-        status: orders.length > 0 ? 'sent' : 'sent_empty',
+        status: orders.length > 0 ? DAILY_REPORT_SEND_STATUSES.SENT : DAILY_REPORT_SEND_STATUSES.SENT_EMPTY,
         ordersCount: summary.totalOrders,
-        recipients
+        recipients,
+        emailMessageId,
+        emailProvider: DAILY_REPORT_EMAIL_PROVIDER
       })
     }
 
@@ -622,13 +743,15 @@ Deno.serve(async (req: Request) => {
     try {
       const reportDate = isValidISODate(currentPayload.reportDate) ? currentPayload.reportDate : getDefaultReportDate()
       if (shouldWriteDailyReportRun(currentPayload.mode || 'send')) {
-        await upsertRun({
+        await upsertFailureRun({
           reportDate,
-          reportType: DAILY_REPORT_TYPE,
-          status: 'failed',
-          ordersCount: 0,
-          recipients: [],
-          error: message
+          reportType: failureContext.reportType || DAILY_REPORT_TYPE,
+          ordersCount: failureContext.ordersCount ?? 0,
+          recipients: failureContext.recipients || [],
+          error: message,
+          emailAccepted: Boolean(failureContext.emailAccepted),
+          sentStatus: failureContext.sentStatus,
+          emailMessageId: failureContext.emailMessageId
         })
       }
     } catch {

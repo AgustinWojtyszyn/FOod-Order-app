@@ -1,6 +1,23 @@
 export const ARGENTINA_TIME_ZONE = 'America/Argentina/Buenos_Aires'
 export const DAILY_REPORT_TYPE = 'daily_orders'
 export const DAILY_REPORT_TEST_TYPE = 'daily_orders_test'
+export const DAILY_REPORT_EMAIL_PROVIDER = 'resend'
+
+export const DAILY_REPORT_SEND_STATUSES = {
+  RUNNING: 'running',
+  SENT: 'sent',
+  SENT_EMPTY: 'sent_empty',
+  FAILED: 'failed'
+} as const
+
+export const DAILY_REPORT_ARCHIVE_STATUSES = {
+  PENDING: 'pending',
+  RUNNING: 'running',
+  ARCHIVED: 'archived',
+  FAILED: 'failed',
+  SKIPPED: 'skipped',
+  NOT_REQUIRED: 'not_required'
+} as const
 
 const DEFAULT_TEST_RECIPIENT = 'agustinwojtyszyn99@gmail.com'
 const PERMANENT_REPORT_RECIPIENTS = [
@@ -42,6 +59,15 @@ export type NormalizedOrder = {
   total_items?: number | null
   created_at?: string | null
   normalization_warnings?: string[]
+}
+
+export type DailyReportRunLike = {
+  status?: string | null
+  sent_at?: string | null
+  archive_status?: string | null
+  archived_at?: string | null
+  created_at?: string | null
+  updated_at?: string | null
 }
 
 export type DailySummary = {
@@ -749,6 +775,139 @@ export const isRecentSuccessfulDailyReportRun = (
   return ageMs >= 0 && ageMs <= maxAgeMinutes * 60 * 1000
 }
 
+export const isSuccessfulDailyReportRun = (
+  run: { status?: string | null; sent_at?: string | null } | null | undefined
+) =>
+  (run?.status === DAILY_REPORT_SEND_STATUSES.SENT || run?.status === DAILY_REPORT_SEND_STATUSES.SENT_EMPTY) &&
+  Boolean(run.sent_at)
+
+export const canArchiveSuccessfulDailyReportRun = (
+  run: DailyReportRunLike | null | undefined
+) =>
+  run?.status === DAILY_REPORT_SEND_STATUSES.SENT &&
+  Boolean(run.sent_at)
+
+export const getEmailProviderMessageId = (emailResult: unknown): string | null => {
+  if (!emailResult || typeof emailResult !== 'object') return null
+  const result = emailResult as Record<string, unknown>
+  const value = result.id ?? result.message_id ?? result.messageId
+  if (value === null || value === undefined) return null
+  const normalized = String(value).trim()
+  return normalized || null
+}
+
+export const buildDailyReportRunPayload = ({
+  reportDate,
+  reportType,
+  status,
+  ordersCount,
+  recipients,
+  error = null,
+  emailMessageId = null,
+  emailProvider = null,
+  now = new Date()
+}: {
+  reportDate: string
+  reportType: string
+  status: string
+  ordersCount: number
+  recipients: string[]
+  error?: string | null
+  emailMessageId?: string | null
+  emailProvider?: string | null
+  now?: Date
+}) => {
+  const sent = status === DAILY_REPORT_SEND_STATUSES.SENT || status === DAILY_REPORT_SEND_STATUSES.SENT_EMPTY
+  return {
+    report_date: reportDate,
+    report_type: reportType,
+    status,
+    orders_count: ordersCount,
+    recipients,
+    sent_at: sent ? now.toISOString() : null,
+    error: error || null,
+    email_message_id: emailMessageId || null,
+    email_provider: emailProvider || null,
+    archive_status: status === DAILY_REPORT_SEND_STATUSES.SENT_EMPTY
+      ? DAILY_REPORT_ARCHIVE_STATUSES.NOT_REQUIRED
+      : DAILY_REPORT_ARCHIVE_STATUSES.PENDING,
+    archived_count: 0,
+    archive_error: null,
+    archived_at: null
+  }
+}
+
+export const buildDailyReportFailurePayload = ({
+  reportDate,
+  reportType,
+  ordersCount,
+  recipients,
+  error,
+  emailAccepted = false,
+  sentStatus,
+  emailMessageId = null,
+  emailProvider = null,
+  now = new Date()
+}: {
+  reportDate: string
+  reportType: string
+  ordersCount: number
+  recipients: string[]
+  error: string
+  emailAccepted?: boolean
+  sentStatus?: string
+  emailMessageId?: string | null
+  emailProvider?: string | null
+  now?: Date
+}) => {
+  if (emailAccepted) {
+    return buildDailyReportRunPayload({
+      reportDate,
+      reportType,
+      status: sentStatus || DAILY_REPORT_SEND_STATUSES.SENT,
+      ordersCount,
+      recipients,
+      error,
+      emailMessageId,
+      emailProvider,
+      now
+    })
+  }
+
+  return {
+    report_date: reportDate,
+    report_type: reportType,
+    status: DAILY_REPORT_SEND_STATUSES.FAILED,
+    orders_count: ordersCount,
+    recipients,
+    sent_at: null,
+    error,
+    archive_status: DAILY_REPORT_ARCHIVE_STATUSES.SKIPPED,
+    archived_count: 0,
+    archive_error: null,
+    archived_at: null,
+    email_message_id: null,
+    email_provider: null
+  }
+}
+
+export const buildArchiveRunningPayload = () => ({
+  archive_status: DAILY_REPORT_ARCHIVE_STATUSES.RUNNING,
+  archive_error: null
+})
+
+export const buildArchiveCompletedPayload = (archivedCount: number, now = new Date()) => ({
+  archive_status: DAILY_REPORT_ARCHIVE_STATUSES.ARCHIVED,
+  archived_count: Math.max(0, archivedCount),
+  archive_error: null,
+  archived_at: now.toISOString()
+})
+
+export const buildArchiveFailedPayload = (error: string) => ({
+  archive_status: DAILY_REPORT_ARCHIVE_STATUSES.FAILED,
+  archive_error: error
+})
+
 export const isOrderEligibleForReportArchive = (
   order: { delivery_date?: string | null; status?: string | null },
   reportDate: string
@@ -775,8 +934,10 @@ export const shouldSkipExistingRun = ({
   force?: boolean
 }) => {
   if (force) return false
-  if (existingStatus === 'running' && isStaleRunningRun({ createdAt: existingCreatedAt, updatedAt: existingUpdatedAt }, now)) return false
-  return existingStatus === 'sent' || existingStatus === 'sent_empty' || existingStatus === 'running'
+  if (existingStatus === DAILY_REPORT_SEND_STATUSES.RUNNING && isStaleRunningRun({ createdAt: existingCreatedAt, updatedAt: existingUpdatedAt }, now)) return false
+  return existingStatus === DAILY_REPORT_SEND_STATUSES.SENT ||
+    existingStatus === DAILY_REPORT_SEND_STATUSES.SENT_EMPTY ||
+    existingStatus === DAILY_REPORT_SEND_STATUSES.RUNNING
 }
 
 export const isStaleRunningRun = ({
