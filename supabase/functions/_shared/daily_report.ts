@@ -1,7 +1,6 @@
 export const ARGENTINA_TIME_ZONE = 'America/Argentina/Buenos_Aires'
 export const DAILY_REPORT_TYPE = 'daily_orders'
 export const DAILY_REPORT_TEST_TYPE = 'daily_orders_test'
-export const DAILY_REPORT_EMAIL_PROVIDER = 'resend'
 
 export const DAILY_REPORT_SEND_STATUSES = {
   RUNNING: 'running',
@@ -12,11 +11,8 @@ export const DAILY_REPORT_SEND_STATUSES = {
 
 export const DAILY_REPORT_ARCHIVE_STATUSES = {
   PENDING: 'pending',
-  RUNNING: 'running',
   ARCHIVED: 'archived',
-  FAILED: 'failed',
-  SKIPPED: 'skipped',
-  NOT_REQUIRED: 'not_required'
+  FAILED: 'failed'
 } as const
 
 const DEFAULT_TEST_RECIPIENT = 'agustinwojtyszyn99@gmail.com'
@@ -65,7 +61,6 @@ export type DailyReportRunLike = {
   status?: string | null
   sent_at?: string | null
   archive_status?: string | null
-  archived_at?: string | null
   created_at?: string | null
   updated_at?: string | null
 }
@@ -785,16 +780,11 @@ export const canArchiveSuccessfulDailyReportRun = (
   run: DailyReportRunLike | null | undefined
 ) =>
   run?.status === DAILY_REPORT_SEND_STATUSES.SENT &&
-  Boolean(run.sent_at)
-
-export const getEmailProviderMessageId = (emailResult: unknown): string | null => {
-  if (!emailResult || typeof emailResult !== 'object') return null
-  const result = emailResult as Record<string, unknown>
-  const value = result.id ?? result.message_id ?? result.messageId
-  if (value === null || value === undefined) return null
-  const normalized = String(value).trim()
-  return normalized || null
-}
+  Boolean(run.sent_at) &&
+  (
+    run.archive_status === DAILY_REPORT_ARCHIVE_STATUSES.PENDING ||
+    run.archive_status === DAILY_REPORT_ARCHIVE_STATUSES.FAILED
+  )
 
 export const buildDailyReportRunPayload = ({
   reportDate,
@@ -803,8 +793,6 @@ export const buildDailyReportRunPayload = ({
   ordersCount,
   recipients,
   error = null,
-  emailMessageId = null,
-  emailProvider = null,
   now = new Date()
 }: {
   reportDate: string
@@ -813,8 +801,6 @@ export const buildDailyReportRunPayload = ({
   ordersCount: number
   recipients: string[]
   error?: string | null
-  emailMessageId?: string | null
-  emailProvider?: string | null
   now?: Date
 }) => {
   const sent = status === DAILY_REPORT_SEND_STATUSES.SENT || status === DAILY_REPORT_SEND_STATUSES.SENT_EMPTY
@@ -826,12 +812,10 @@ export const buildDailyReportRunPayload = ({
     recipients,
     sent_at: sent ? now.toISOString() : null,
     error: error || null,
-    email_message_id: emailMessageId || null,
-    email_provider: emailProvider || null,
-    archive_status: status === DAILY_REPORT_SEND_STATUSES.SENT_EMPTY
-      ? DAILY_REPORT_ARCHIVE_STATUSES.NOT_REQUIRED
-      : DAILY_REPORT_ARCHIVE_STATUSES.PENDING,
-    archived_count: 0,
+    archive_status: status === DAILY_REPORT_SEND_STATUSES.SENT
+      ? DAILY_REPORT_ARCHIVE_STATUSES.PENDING
+      : null,
+    archived_count: null,
     archive_error: null,
     archived_at: null
   }
@@ -845,8 +829,6 @@ export const buildDailyReportFailurePayload = ({
   error,
   emailAccepted = false,
   sentStatus,
-  emailMessageId = null,
-  emailProvider = null,
   now = new Date()
 }: {
   reportDate: string
@@ -856,8 +838,6 @@ export const buildDailyReportFailurePayload = ({
   error: string
   emailAccepted?: boolean
   sentStatus?: string
-  emailMessageId?: string | null
-  emailProvider?: string | null
   now?: Date
 }) => {
   if (emailAccepted) {
@@ -868,8 +848,6 @@ export const buildDailyReportFailurePayload = ({
       ordersCount,
       recipients,
       error,
-      emailMessageId,
-      emailProvider,
       now
     })
   }
@@ -882,19 +860,12 @@ export const buildDailyReportFailurePayload = ({
     recipients,
     sent_at: null,
     error,
-    archive_status: DAILY_REPORT_ARCHIVE_STATUSES.SKIPPED,
-    archived_count: 0,
+    archive_status: null,
+    archived_count: null,
     archive_error: null,
-    archived_at: null,
-    email_message_id: null,
-    email_provider: null
+    archived_at: null
   }
 }
-
-export const buildArchiveRunningPayload = () => ({
-  archive_status: DAILY_REPORT_ARCHIVE_STATUSES.RUNNING,
-  archive_error: null
-})
 
 export const buildArchiveCompletedPayload = (archivedCount: number, now = new Date()) => ({
   archive_status: DAILY_REPORT_ARCHIVE_STATUSES.ARCHIVED,
@@ -905,7 +876,9 @@ export const buildArchiveCompletedPayload = (archivedCount: number, now = new Da
 
 export const buildArchiveFailedPayload = (error: string) => ({
   archive_status: DAILY_REPORT_ARCHIVE_STATUSES.FAILED,
-  archive_error: error
+  archive_error: error,
+  archived_count: null,
+  archived_at: null
 })
 
 export const isOrderEligibleForReportArchive = (

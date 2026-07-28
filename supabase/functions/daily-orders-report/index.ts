@@ -8,11 +8,9 @@ import {
   DAILY_REPORT_TYPE,
   DailyReportPayload,
   DAILY_REPORT_ARCHIVE_STATUSES,
-  DAILY_REPORT_EMAIL_PROVIDER,
   DAILY_REPORT_SEND_STATUSES,
   buildArchiveCompletedPayload,
   buildArchiveFailedPayload,
-  buildArchiveRunningPayload,
   buildDailySummary,
   buildDailyReportFailurePayload,
   buildDailyReportRunPayload,
@@ -25,7 +23,6 @@ import {
   getCustomSide,
   getDefaultReportDate,
   getEmailSubject,
-  getEmailProviderMessageId,
   getMenuOptionText,
   getRecipientsForMode,
   getServiceLabel,
@@ -84,7 +81,6 @@ type ReportFailureContext = {
   recipients?: string[]
   emailAccepted?: boolean
   sentStatus?: string
-  emailMessageId?: string | null
 }
 
 const getMenuNames = (order: ReturnType<typeof normalizeOrder>) =>
@@ -438,8 +434,6 @@ const upsertRun = async ({
   ordersCount,
   recipients,
   error,
-  emailMessageId = null,
-  emailProvider = null
 }: {
   reportDate: string
   reportType: string
@@ -447,8 +441,6 @@ const upsertRun = async ({
   ordersCount: number
   recipients: string[]
   error?: string | null
-  emailMessageId?: string | null
-  emailProvider?: string | null
 }) => {
   const payload = buildDailyReportRunPayload({
     reportDate,
@@ -456,9 +448,7 @@ const upsertRun = async ({
     status,
     ordersCount,
     recipients,
-    error,
-    emailMessageId,
-    emailProvider
+    error
   })
   const { error: upsertError } = await supabase
     .from('daily_report_runs')
@@ -474,8 +464,7 @@ const upsertFailureRun = async ({
   recipients,
   error,
   emailAccepted,
-  sentStatus,
-  emailMessageId
+  sentStatus
 }: {
   reportDate: string
   reportType: string
@@ -484,7 +473,6 @@ const upsertFailureRun = async ({
   error: string
   emailAccepted?: boolean
   sentStatus?: string
-  emailMessageId?: string | null
 }) => {
   const payload = buildDailyReportFailurePayload({
     reportDate,
@@ -493,9 +481,7 @@ const upsertFailureRun = async ({
     recipients,
     error,
     emailAccepted,
-    sentStatus,
-    emailMessageId,
-    emailProvider: emailAccepted ? DAILY_REPORT_EMAIL_PROVIDER : null
+    sentStatus
   })
   const { error: upsertError } = await supabase
     .from('daily_report_runs')
@@ -576,7 +562,6 @@ Deno.serve(async (req: Request) => {
             reportDate,
             reportType: DAILY_REPORT_TYPE,
             patch: {
-              archive_status: DAILY_REPORT_ARCHIVE_STATUSES.SKIPPED,
               archive_error: 'report_not_sent'
             }
           })
@@ -592,12 +577,6 @@ Deno.serve(async (req: Request) => {
           archivedOrdersCount: 0
         })
       }
-
-      await updateArchiveRun({
-        reportDate,
-        reportType: DAILY_REPORT_TYPE,
-        patch: buildArchiveRunningPayload()
-      })
 
       try {
         const archivedOrdersCount = await archiveReportedOrders(reportDate)
@@ -701,10 +680,8 @@ Deno.serve(async (req: Request) => {
       filename,
       attachment: workbookBuffer
     })
-    const emailMessageId = getEmailProviderMessageId(emailResult)
     failureContext.emailAccepted = true
     failureContext.sentStatus = orders.length > 0 ? DAILY_REPORT_SEND_STATUSES.SENT : DAILY_REPORT_SEND_STATUSES.SENT_EMPTY
-    failureContext.emailMessageId = emailMessageId
 
     if (shouldWriteDailyReportRun(mode)) {
       await upsertRun({
@@ -712,9 +689,7 @@ Deno.serve(async (req: Request) => {
         reportType,
         status: orders.length > 0 ? DAILY_REPORT_SEND_STATUSES.SENT : DAILY_REPORT_SEND_STATUSES.SENT_EMPTY,
         ordersCount: summary.totalOrders,
-        recipients,
-        emailMessageId,
-        emailProvider: DAILY_REPORT_EMAIL_PROVIDER
+        recipients
       })
     }
 
@@ -750,8 +725,7 @@ Deno.serve(async (req: Request) => {
           recipients: failureContext.recipients || [],
           error: message,
           emailAccepted: Boolean(failureContext.emailAccepted),
-          sentStatus: failureContext.sentStatus,
-          emailMessageId: failureContext.emailMessageId
+          sentStatus: failureContext.sentStatus
         })
       }
     } catch {

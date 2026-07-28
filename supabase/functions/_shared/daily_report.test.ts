@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   DAILY_REPORT_ARCHIVE_STATUSES,
-  DAILY_REPORT_EMAIL_PROVIDER,
   DAILY_REPORT_SEND_STATUSES,
   buildArchiveCompletedPayload,
   buildArchiveFailedPayload,
-  buildArchiveRunningPayload,
   buildDailyReportFailurePayload,
   buildDailyReportRunPayload,
   buildDailySummary,
@@ -15,7 +13,6 @@ import {
   getArchiveOrdersRpcCall,
   getDefaultReportDate,
   getEmailSubject,
-  getEmailProviderMessageId,
   getRecipientsForMode,
   canArchiveSuccessfulDailyReportRun,
   isOrderEligibleForReportArchive,
@@ -509,15 +506,13 @@ describe('daily report helpers', () => {
     }, now)).toBe(true)
   })
 
-  it('registra envío exitoso con message id y archivado pendiente', () => {
+  it('registra envío exitoso con pedidos y archivado pendiente', () => {
     const payload = buildDailyReportRunPayload({
       reportDate: '2026-06-26',
       reportType: 'daily_orders',
       status: DAILY_REPORT_SEND_STATUSES.SENT,
       ordersCount: 7,
       recipients: ['ops@example.com'],
-      emailMessageId: 'resend-message-1',
-      emailProvider: DAILY_REPORT_EMAIL_PROVIDER,
       now: new Date('2026-06-25T22:05:00.000Z')
     })
 
@@ -526,10 +521,28 @@ describe('daily report helpers', () => {
       orders_count: 7,
       recipients: ['ops@example.com'],
       sent_at: '2026-06-25T22:05:00.000Z',
-      email_message_id: 'resend-message-1',
-      email_provider: 'resend',
       archive_status: 'pending',
-      archived_count: 0,
+      archived_count: null,
+      archive_error: null,
+      archived_at: null
+    })
+  })
+
+  it('deja archivado nulo para envío exitoso sin pedidos', () => {
+    const payload = buildDailyReportRunPayload({
+      reportDate: '2026-06-26',
+      reportType: 'daily_orders',
+      status: DAILY_REPORT_SEND_STATUSES.SENT_EMPTY,
+      ordersCount: 0,
+      recipients: ['ops@example.com'],
+      now: new Date('2026-06-25T22:05:00.000Z')
+    })
+
+    expect(payload).toMatchObject({
+      status: 'sent_empty',
+      sent_at: '2026-06-25T22:05:00.000Z',
+      archive_status: null,
+      archived_count: null,
       archive_error: null,
       archived_at: null
     })
@@ -544,8 +557,6 @@ describe('daily report helpers', () => {
       error: 'upsert failed after provider accepted email',
       emailAccepted: true,
       sentStatus: DAILY_REPORT_SEND_STATUSES.SENT,
-      emailMessageId: 'resend-message-2',
-      emailProvider: DAILY_REPORT_EMAIL_PROVIDER,
       now: new Date('2026-06-25T22:06:00.000Z')
     })
 
@@ -555,7 +566,6 @@ describe('daily report helpers', () => {
       recipients: ['ops@example.com'],
       sent_at: '2026-06-25T22:06:00.000Z',
       error: 'upsert failed after provider accepted email',
-      email_message_id: 'resend-message-2',
       archive_status: 'pending'
     })
   })
@@ -576,17 +586,12 @@ describe('daily report helpers', () => {
       recipients: ['ops@example.com', 'admin@example.com'],
       sent_at: null,
       error: 'Resend respondió 500',
-      archive_status: 'skipped',
-      archived_count: 0
+      archive_status: null,
+      archived_count: null
     })
   })
 
   it('registra archivado exitoso y fallo de archivado separadamente del envío', () => {
-    expect(buildArchiveRunningPayload()).toEqual({
-      archive_status: DAILY_REPORT_ARCHIVE_STATUSES.RUNNING,
-      archive_error: null
-    })
-
     expect(buildArchiveCompletedPayload(5, new Date('2026-06-25T22:15:00.000Z'))).toEqual({
       archive_status: DAILY_REPORT_ARCHIVE_STATUSES.ARCHIVED,
       archived_count: 5,
@@ -596,7 +601,9 @@ describe('daily report helpers', () => {
 
     expect(buildArchiveFailedPayload('rpc failed')).toEqual({
       archive_status: DAILY_REPORT_ARCHIVE_STATUSES.FAILED,
-      archive_error: 'rpc failed'
+      archive_error: 'rpc failed',
+      archived_count: null,
+      archived_at: null
     })
   })
 
@@ -606,6 +613,11 @@ describe('daily report helpers', () => {
       sent_at: '2026-06-25T22:00:00.000Z',
       archive_status: 'failed'
     })).toBe(true)
+    expect(canArchiveSuccessfulDailyReportRun({
+      status: 'sent',
+      sent_at: '2026-06-25T22:00:00.000Z',
+      archive_status: 'pending'
+    })).toBe(true)
   })
 
   it('rechaza autoarchivado sin envío exitoso correspondiente', () => {
@@ -613,6 +625,7 @@ describe('daily report helpers', () => {
     expect(canArchiveSuccessfulDailyReportRun({ status: 'failed', sent_at: null })).toBe(false)
     expect(canArchiveSuccessfulDailyReportRun({ status: 'sent', sent_at: null })).toBe(false)
     expect(canArchiveSuccessfulDailyReportRun({ status: 'sent_empty', sent_at: '2026-06-25T22:00:00.000Z' })).toBe(false)
+    expect(canArchiveSuccessfulDailyReportRun({ status: 'sent', sent_at: '2026-06-25T22:00:00.000Z', archive_status: null })).toBe(false)
   })
 
   it('una ejecución repetida no reenvía si ya existe envío aceptado persistido', () => {
@@ -621,13 +634,6 @@ describe('daily report helpers', () => {
       existingCreatedAt: '2026-06-25T22:00:00.000Z',
       existingUpdatedAt: '2026-06-25T22:00:00.000Z'
     })).toBe(true)
-  })
-
-  it('extrae message id sólo si el proveedor lo informa', () => {
-    expect(getEmailProviderMessageId({ id: 'email-id' })).toBe('email-id')
-    expect(getEmailProviderMessageId({ message_id: 'message-id' })).toBe('message-id')
-    expect(getEmailProviderMessageId({})).toBeNull()
-    expect(getEmailProviderMessageId(null)).toBeNull()
   })
 
   it('archiva solo pending de reportDate y no toca otra fecha ni archived existentes', () => {
