@@ -40,7 +40,7 @@ const overallIconByState = {
 }
 
 const Chip = ({ children, tone = 'neutral' }) => (
-  <span className={`inline-flex min-h-[30px] items-center rounded-full border px-3 py-1 text-xs font-bold ${toneClasses[tone] || toneClasses.neutral}`}>
+  <span className={`inline-flex min-h-[30px] items-center gap-1 rounded-full border px-3 py-1 text-xs font-bold ${toneClasses[tone] || toneClasses.neutral}`}>
     {children}
   </span>
 )
@@ -53,9 +53,9 @@ const getReportLabel = (reportStatus = {}) => {
 }
 
 const getArchiveLabel = (pendingCount = 0) => {
-  if (pendingCount === 0) return 'Archivado: Realizado'
-  if (pendingCount === 1) return 'Archivado: Pendiente'
-  return `Archivado: ${pendingCount} pendientes`
+  if (pendingCount === 0) return 'Pendientes por archivar: 0'
+  if (pendingCount === 1) return 'Pendientes por archivar: 1'
+  return `Pendientes por archivar: ${pendingCount}`
 }
 
 const getInconsistencyLabel = (inconsistencyCount = 0) => `Inconsistencias: ${inconsistencyCount}`
@@ -87,6 +87,7 @@ const DailyClosePanel = ({ status }) => {
   const overallStatus = status.overallStatus || { state: 'attention', label: 'Atención', tone: 'warning' }
   const OverallIcon = overallIconByState[overallStatus.state] || AlertTriangle
   const reportTone = status.reportStatus?.tone || 'warning'
+  const autoArchiveStatus = status.archiveStatus || null
   const archiveTone = status.pendingCount > 0 ? 'warning' : 'success'
   const inconsistencyTone = status.inconsistencyCount > 0 ? 'error' : 'success'
   const hasContextWarning = status.isExportFiltered || status.totalOrders === 0
@@ -113,6 +114,14 @@ const DailyClosePanel = ({ status }) => {
 
         <div className="flex flex-wrap items-center gap-2">
           <Chip tone={reportTone}>{reportLabel}</Chip>
+          {autoArchiveStatus && (
+            <Chip tone={autoArchiveStatus.tone}>
+              <span>{autoArchiveStatus.label}</span>
+              {autoArchiveStatus.detail && (
+                <span className="font-semibold opacity-80">· {autoArchiveStatus.detail}</span>
+              )}
+            </Chip>
+          )}
           <Chip tone={archiveTone}>{archiveLabel}</Chip>
           <Chip tone={inconsistencyTone}>{inconsistencyLabel}</Chip>
           <button

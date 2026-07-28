@@ -5,6 +5,46 @@ const normalizeText = (value = '') => String(value || '').trim()
 const countByStatus = (orders = [], status) =>
   (orders || []).filter(order => String(order?.status || '').toLowerCase() === status).length
 
+const normalizeDailyReportArchiveStatus = (run = null) => {
+  const status = String(run?.archive_status || '').toLowerCase()
+  if (!status) return null
+
+  if (status === 'pending') {
+    return {
+      state: 'pending',
+      label: 'Autoarchivado: Pendiente',
+      tone: 'warning',
+      detail: 'Pendiente de ejecución automática'
+    }
+  }
+
+  if (status === 'archived') {
+    const count = Number(run?.archived_count)
+    const hasCount = Number.isFinite(count)
+    const archivedAtLabel = run?.archived_at ? formatTimeOnly(run.archived_at) : ''
+    const countLabel = hasCount
+      ? `${count} pedido${count === 1 ? '' : 's'} archivado${count === 1 ? '' : 's'}`
+      : 'Pedidos archivados'
+    return {
+      state: 'archived',
+      label: 'Autoarchivado: Completado',
+      tone: 'success',
+      detail: archivedAtLabel ? `${countLabel} · ${archivedAtLabel}` : countLabel
+    }
+  }
+
+  if (status === 'failed') {
+    return {
+      state: 'failed',
+      label: 'Autoarchivado: Falló',
+      tone: 'error',
+      detail: 'No se pudieron archivar los pedidos automáticamente'
+    }
+  }
+
+  return null
+}
+
 export const normalizeDailyReportRunStatus = (run = null, error = '') => {
   const errorMessage = normalizeText(error)
   if (errorMessage) {
@@ -40,6 +80,7 @@ export const normalizeDailyReportRunStatus = (run = null, error = '') => {
     reportType: run.report_type || '',
     ordersCount: Number.isFinite(Number(run.orders_count)) ? Number(run.orders_count) : null,
     recipientsCount: Number.isFinite(Number(run.recipients_count)) ? Number(run.recipients_count) : null,
+    archiveStatus: normalizeDailyReportArchiveStatus(run),
     error: normalizeText(run.error)
   }
 
@@ -184,6 +225,7 @@ export const getDailyOperationalStatus = ({
     lastUpdatedLabel: lastUpdatedAt ? formatTimeOnly(lastUpdatedAt) : 'Sin actualización',
     overallStatus,
     reportStatus,
+    archiveStatus: reportStatus.archiveStatus || null,
     exportCompany,
     isExportFiltered: exportCompany !== 'all',
     canArchivePending: pendingCount > 0,

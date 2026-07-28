@@ -4,6 +4,7 @@ import {
   getDailyOperationalStatus,
   normalizeDailyReportRunStatus
 } from './dailyCloseStatus'
+import { formatTimeOnly } from './dailyOrdersExportModel'
 
 const baseOrder = {
   id: 'order-1',
@@ -99,5 +100,68 @@ describe('daily close status', () => {
       pendingCount: 0,
       reportStatus: normalizeDailyReportRunStatus({ status: 'failed' })
     })).toMatchObject({ state: 'failed', label: 'Falló', tone: 'error' })
+  })
+
+  it('does not expose autoarchive state when archive_status is null', () => {
+    const status = getDailyOperationalStatus({
+      orders: [],
+      reportRun: { status: 'sent', archive_status: null }
+    })
+
+    expect(status.archiveStatus).toBeNull()
+    expect(status.reportStatus.archiveStatus).toBeNull()
+  })
+
+  it('normalizes pending autoarchive state', () => {
+    const status = getDailyOperationalStatus({
+      orders: [],
+      reportRun: { status: 'sent', archive_status: 'pending' }
+    })
+
+    expect(status.archiveStatus).toMatchObject({
+      state: 'pending',
+      label: 'Autoarchivado: Pendiente',
+      tone: 'warning'
+    })
+  })
+
+  it('normalizes completed autoarchive state with count and time', () => {
+    const archivedAt = '2026-07-01T21:55:00Z'
+    const status = getDailyOperationalStatus({
+      orders: [],
+      reportRun: {
+        status: 'sent',
+        archive_status: 'archived',
+        archived_count: 5,
+        archived_at: archivedAt
+      }
+    })
+
+    expect(status.archiveStatus).toMatchObject({
+      state: 'archived',
+      label: 'Autoarchivado: Completado',
+      tone: 'success'
+    })
+    expect(status.archiveStatus.detail).toContain('5 pedidos archivados')
+    expect(status.archiveStatus.detail).toContain(formatTimeOnly(archivedAt))
+  })
+
+  it('normalizes failed autoarchive state without exposing the technical error', () => {
+    const status = getDailyOperationalStatus({
+      orders: [],
+      reportRun: {
+        status: 'sent',
+        archive_status: 'failed',
+        archive_error: 'rpc archive_orders_bulk_by_delivery_date failed with 500'
+      }
+    })
+
+    expect(status.archiveStatus).toMatchObject({
+      state: 'failed',
+      label: 'Autoarchivado: Falló',
+      tone: 'error',
+      detail: 'No se pudieron archivar los pedidos automáticamente'
+    })
+    expect(status.archiveStatus.detail).not.toContain('rpc')
   })
 })

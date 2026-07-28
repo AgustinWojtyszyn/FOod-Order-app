@@ -9,9 +9,10 @@ import DailyClosePanel from './DailyClosePanel.jsx'
 const currentDir = dirname(fileURLToPath(import.meta.url))
 const source = readFileSync(join(currentDir, 'DailyClosePanel.jsx'), 'utf8')
 
-const buildStatus = (reportStatus) => ({
+const buildStatus = (reportStatus, archiveStatus = null) => ({
   overallStatus: { state: 'attention', label: 'Atención', tone: 'warning' },
   reportStatus,
+  archiveStatus,
   pendingCount: 0,
   inconsistencyCount: 0,
   totalOrders: 1,
@@ -55,5 +56,58 @@ describe('DailyClosePanel structure', () => {
     }))
 
     expect(html).toContain(expectedLabel)
+  })
+
+  it('does not render autoarchive chip when archive_status is null', () => {
+    const html = renderToStaticMarkup(React.createElement(DailyClosePanel, {
+      status: buildStatus({ state: 'sent', label: 'Reporte enviado', tone: 'success' }, null)
+    }))
+
+    expect(html).not.toContain('Autoarchivado:')
+  })
+
+  it('renders pending autoarchive as warning', () => {
+    const html = renderToStaticMarkup(React.createElement(DailyClosePanel, {
+      status: buildStatus(
+        { state: 'sent', label: 'Reporte enviado', tone: 'success' },
+        { state: 'pending', label: 'Autoarchivado: Pendiente', tone: 'warning', detail: 'Pendiente de ejecución automática' }
+      )
+    }))
+
+    expect(html).toContain('Autoarchivado: Pendiente')
+    expect(html).toContain('border-amber-200')
+  })
+
+  it('renders completed autoarchive with count and time as success', () => {
+    const html = renderToStaticMarkup(React.createElement(DailyClosePanel, {
+      status: buildStatus(
+        { state: 'sent', label: 'Reporte enviado', tone: 'success' },
+        { state: 'archived', label: 'Autoarchivado: Completado', tone: 'success', detail: '5 pedidos archivados · 18:55' }
+      )
+    }))
+
+    expect(html).toContain('Autoarchivado: Completado')
+    expect(html).toContain('5 pedidos archivados')
+    expect(html).toContain('18:55')
+    expect(html).toContain('border-emerald-200')
+  })
+
+  it('renders failed autoarchive with friendly text only', () => {
+    const html = renderToStaticMarkup(React.createElement(DailyClosePanel, {
+      status: buildStatus(
+        { state: 'sent', label: 'Reporte enviado', tone: 'success' },
+        {
+          state: 'failed',
+          label: 'Autoarchivado: Falló',
+          tone: 'error',
+          detail: 'No se pudieron archivar los pedidos automáticamente'
+        }
+      )
+    }))
+
+    expect(html).toContain('Autoarchivado: Falló')
+    expect(html).toContain('No se pudieron archivar los pedidos automáticamente')
+    expect(html).toContain('border-red-200')
+    expect(html).not.toContain('rpc archive_orders_bulk_by_delivery_date')
   })
 })
