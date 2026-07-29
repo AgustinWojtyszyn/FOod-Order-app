@@ -124,7 +124,7 @@ class UsersService {
       }
 
       if (!Object.values(USER_ROLES).includes(role)) {
-        throw new Error('Rol de usuario inválido')
+        throw new Error('invalid_role')
       }
 
       const { data, error } = await supabaseService.withRetry(

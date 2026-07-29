@@ -13,7 +13,12 @@ describe('secure user role migration', () => {
     expect(normalized).toContain('revoke update on table public.users from public')
     expect(normalized).toContain('revoke update on table public.users from anon')
     expect(normalized).toContain('revoke update on table public.users from authenticated')
+    expect(normalized).toContain("from information_schema.columns")
+    expect(normalized).toContain("where c.table_schema = 'public'")
+    expect(normalized).toContain("and c.table_name = 'users'")
+    expect(normalized).toContain("revoke update (%i) on table public.users from anon")
     expect(normalized).not.toContain('grant update on table public.users to anon')
+    expect(normalized).not.toContain('grant update (full_name) on table public.users to anon')
     expect(normalized).not.toContain('grant update (role) on table public.users')
   })
 
