@@ -1,11 +1,13 @@
 import clipboardImg from '../../assets/clipboard.png'
 import choiceImg from '../../assets/choice.png'
+import MonthlyOperationalSummary from './MonthlyOperationalSummary'
 import MonthlyOrdersTable from './MonthlyOrdersTable'
 
 const MonthlySummary = ({
   totalsForView,
   dailyDataForView,
   ordersByDayForView,
+  empresasForView,
   selectedDate,
   onSelectDate
 }) => {
@@ -129,6 +131,13 @@ const MonthlySummary = ({
           </div>
         </div>
       </div>
+
+      <MonthlyOperationalSummary
+        totalsForView={totalsForView}
+        dailyDataForView={dailyDataForView}
+        ordersByDayForView={ordersByDayForView}
+        empresasForView={empresasForView}
+      />
 
       <MonthlyOrdersTable
         dailyDataForView={dailyDataForView}

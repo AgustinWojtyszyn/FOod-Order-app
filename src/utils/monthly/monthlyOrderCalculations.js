@@ -353,6 +353,102 @@ export const buildDailyBreakdownFromOrdersByDay = (dates = [], byDay = {}) => {
   return { daily_breakdown, range_totals }
 }
 
+const roundOneDecimal = (value) => {
+  if (!Number.isFinite(value)) return 0
+  return Math.round(value * 10) / 10
+}
+
+const getPedidoCount = (value) => {
+  const count = Number(value)
+  return Number.isFinite(count) && count > 0 ? count : 0
+}
+
+export const buildMonthlyOperationalSummary = ({
+  totalsForView = {},
+  dailyDataForView = null,
+  ordersByDayForView = {},
+  empresasForView = []
+} = {}) => {
+  const dailyBreakdown = Array.isArray(dailyDataForView?.daily_breakdown)
+    ? dailyDataForView.daily_breakdown
+    : []
+  const calendarDays = dailyBreakdown.length
+  const totalPedidos = getPedidoCount(totalsForView?.pedidos ?? dailyDataForView?.range_totals?.count)
+  const averagePerDay = calendarDays > 0 ? roundOneDecimal(totalPedidos / calendarDays) : 0
+
+  const peakDay = dailyBreakdown.reduce((best, day) => {
+    const count = getPedidoCount(day?.count)
+    if (!best || count > best.count) return { date: day?.date || '', count }
+    return best
+  }, null)
+  const normalizedPeakDay = peakDay && peakDay.count > 0
+    ? { ...peakDay, label: formatDateDMY(peakDay.date) }
+    : { date: '', label: 'Sin datos', count: 0 }
+
+  const companyRows = (Array.isArray(empresasForView) ? empresasForView : [])
+    .map((company) => ({
+      name: toDisplayString(company?.empresa),
+      count: getPedidoCount(company?.cantidadPedidos)
+    }))
+    .filter((company) => company.name && company.count > 0)
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count
+      return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
+    })
+
+  const topCompany = companyRows[0] || { name: 'Sin datos', count: 0 }
+  const maxCompanyCount = companyRows[0]?.count || 0
+  const topCompanies = companyRows.slice(0, 3).map((company) => ({
+    ...company,
+    percentage: maxCompanyCount > 0 ? Math.max(4, roundOneDecimal((company.count / maxCompanyCount) * 100)) : 0
+  }))
+
+  const lunchCount = getPedidoCount(dailyDataForView?.range_totals?.lunch_items)
+  const dinnerCount = getPedidoCount(dailyDataForView?.range_totals?.dinner_items)
+  const daysWithoutOrders = calendarDays > 0
+    ? Math.max(0, dailyBreakdown.filter((day) => getPedidoCount(day?.count) === 0).length)
+    : 0
+
+  const midpoint = Math.floor(calendarDays / 2)
+  const firstHalf = dailyBreakdown.slice(0, midpoint)
+  const secondHalf = dailyBreakdown.slice(midpoint)
+  const firstHalfTotal = firstHalf.reduce((sum, day) => sum + getPedidoCount(day?.count), 0)
+  const secondHalfTotal = secondHalf.reduce((sum, day) => sum + getPedidoCount(day?.count), 0)
+  const difference = secondHalfTotal - firstHalfTotal
+  const percentage = firstHalfTotal > 0 ? roundOneDecimal((difference / firstHalfTotal) * 100) : null
+  const direction = difference > 0 ? 'up' : difference < 0 ? 'down' : 'stable'
+  const trendLabel = difference === 0
+    ? 'Sin variación'
+    : firstHalfTotal === 0
+    ? (secondHalfTotal > 0 ? `+${secondHalfTotal} pedidos en la segunda mitad` : 'Sin variación')
+    : `${difference > 0 ? '+' : ''}${difference} pedidos${percentage !== null ? ` (${percentage > 0 ? '+' : ''}${percentage}%)` : ''}`
+
+  return {
+    hasData: totalPedidos > 0,
+    calendarDays,
+    totalPedidos,
+    averagePerDay,
+    peakDay: normalizedPeakDay,
+    topCompany,
+    companiesServed: companyRows.length,
+    mealMix: {
+      lunch: lunchCount,
+      dinner: dinnerCount
+    },
+    daysWithoutOrders,
+    topCompanies,
+    trend: {
+      firstHalfTotal,
+      secondHalfTotal,
+      difference,
+      percentage,
+      direction,
+      label: trendLabel
+    },
+    ordersByDayCount: Object.keys(ordersByDayForView || {}).length
+  }
+}
+
 export const createMonthlyExportModel = (orders = [], dates = []) => {
   const companies = {}
   const days = {}

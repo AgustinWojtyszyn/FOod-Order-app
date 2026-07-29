@@ -57,6 +57,7 @@ const MonthlyPanel = ({ user, loading }) => {
     handleClearEmpresas,
     ordersByDayForView,
     dailyDataForView,
+    empresasForView,
     totalsForView
   } = useMonthlyCompanyFilter({ metrics, ordersByDay, dailyData })
 
@@ -228,6 +229,7 @@ const MonthlyPanel = ({ user, loading }) => {
               totalsForView={totalsForView}
               dailyDataForView={dailyDataForView}
               ordersByDayForView={ordersByDayForView}
+              empresasForView={empresasForView}
               selectedDate={selectedDate}
               onSelectDate={setSelectedDate}
             />
