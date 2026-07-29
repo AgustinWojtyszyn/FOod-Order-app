@@ -3,6 +3,34 @@ import { usersService } from './users'
 import { handleError } from '../utils'
 import { ORDER_STATUS } from '../types'
 
+const ORDER_USER_SELECT = '*, users(*)'
+const DELETED_USER_FALLBACK = 'Usuario eliminado'
+
+const normalizeOrderUserFallback = (order) => {
+  if (!order || typeof order !== 'object') return order
+
+  const hasUserProfile = order.users && typeof order.users === 'object'
+  if (hasUserProfile) return order
+
+  const userFallback = {
+    id: order.user_id || null,
+    email: null,
+    full_name: DELETED_USER_FALLBACK,
+    role: 'user'
+  }
+
+  return {
+    ...order,
+    users: userFallback,
+    user_name: order.user_name || order.user_full_name || order.full_name || order.customer_name || DELETED_USER_FALLBACK,
+    user_email: order.user_email || order.customer_email || ''
+  }
+}
+
+const normalizeOrdersUserFallback = (orders) => (
+  Array.isArray(orders) ? orders.map(normalizeOrderUserFallback) : orders
+)
+
 const resolveIsAdminForUser = async (user) => {
   if (!user?.id) return false
   const roleFromMetadata = user?.user_metadata?.role || user?.app_metadata?.role || user?.role
@@ -96,7 +124,7 @@ class OrdersService {
       const queryFn = async () => {
         let query = supabase
           .from('orders')
-          .select(includeUserData ? '*, users!inner(*)' : '*')
+          .select(includeUserData ? ORDER_USER_SELECT : '*')
           .order('created_at', { ascending: false })
           .range(offset, offset + limit - 1)
 
@@ -120,7 +148,7 @@ class OrdersService {
 
         if (error) throw error
 
-        return data || []
+        return includeUserData ? normalizeOrdersUserFallback(data || []) : (data || [])
       }
 
       const data = await supabaseService.cachedQuery(cacheKey, queryFn, 30000, force)
@@ -143,7 +171,7 @@ class OrdersService {
       const queryFn = async () => {
         let { data, error } = await supabase
           .from('orders')
-          .select('*, users!inner(*)')
+          .select(ORDER_USER_SELECT)
           .eq('id', orderId)
           .single()
 
@@ -158,7 +186,7 @@ class OrdersService {
           data = fallback.data
         }
 
-        return data
+        return normalizeOrderUserFallback(data)
       }
 
       const data = await supabaseService.cachedQuery(cacheKey, queryFn, 60000)
@@ -398,7 +426,7 @@ class OrdersService {
       const queryFn = async () => {
         let query = supabase
           .from('orders')
-          .select('*, users!inner(*)')
+          .select(ORDER_USER_SELECT)
           .or(`customer_name.ilike.%${searchTerm}%,location.ilike.%${searchTerm}%,comments.ilike.%${searchTerm}%`)
           .order('created_at', { ascending: false })
           .limit(limit)
@@ -415,7 +443,7 @@ class OrdersService {
 
         if (error) throw error
 
-        return data || []
+        return normalizeOrdersUserFallback(data || [])
       }
 
       const data = await supabaseService.cachedQuery(cacheKey, queryFn, 30000)
