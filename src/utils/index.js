@@ -315,9 +315,23 @@ export const getUserFriendlyErrorMessage = (error, fallback = 'No pudimos comple
     normalized.includes('permission denied') ||
     normalized.includes('403') ||
     normalized.includes('not authorized') ||
+    normalized.includes('not_authorized') ||
+    normalized.includes('not_authenticated') ||
     normalized.includes('unauthorized')
   ) {
     return 'No tenés permisos para realizar esta acción. Si creés que es un error, contactá a un administrador.'
+  }
+
+  if (normalized.includes('invalid_role')) {
+    return 'El rol seleccionado no es válido.'
+  }
+
+  if (normalized.includes('user_not_found') || normalized.includes('target_user_required')) {
+    return 'No encontramos el usuario indicado. Actualizá la pantalla e intentá nuevamente.'
+  }
+
+  if (normalized.includes('last_admin')) {
+    return 'No se puede quitar el rol al último administrador.'
   }
 
   if (

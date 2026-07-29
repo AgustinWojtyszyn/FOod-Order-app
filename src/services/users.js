@@ -2,7 +2,7 @@ import { supabase, supabaseService, sanitizeQuery } from './supabase'
 import { handleError } from '../utils'
 import { USER_ROLES } from '../types'
 
-const PUBLIC_USER_COLUMNS = new Set(['id', 'email', 'role', 'created_at', 'full_name', 'email_confirmed_at'])
+const PUBLIC_USER_COLUMNS = new Set(['full_name'])
 
 const pickPublicUserColumns = (updates = {}) => Object.fromEntries(
   Object.entries(updates).filter(([column]) => PUBLIC_USER_COLUMNS.has(column))
@@ -128,16 +128,15 @@ class UsersService {
       }
 
       const { data, error } = await supabaseService.withRetry(
-        () => supabase
-          .from('users')
-          .update({ role })
-          .eq('id', userId)
-          .select()
-          .single(),
+        () => supabase.rpc('admin_update_user_role', {
+          p_user_id: userId,
+          p_role: role
+        }),
         'updateUserRole'
       )
 
       if (error) throw error
+      const normalizedData = Array.isArray(data) ? data[0] : data
 
       // Invalidar cache
       supabaseService.invalidateCache('users')
@@ -147,12 +146,12 @@ class UsersService {
         action: 'role_changed',
         details: `Rol actualizado a "${role}"`,
         target_id: userId,
-        target_email: data?.email || null,
-        target_name: data?.full_name || null,
+        target_email: null,
+        target_name: null,
         metadata: { role }
       })
 
-      return { data, error: null }
+      return { data: normalizedData, error: null }
     } catch (error) {
       return { data: null, error: handleError(error, 'updateUserRole') }
     }
