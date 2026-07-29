@@ -1,4 +1,4 @@
-const USER_ROLES = new Set(['user', 'admin'])
+import { updateUserRoleWithRpc } from './roleUpdates'
 
 export const createUsersService = ({
   supabase,
@@ -64,34 +64,13 @@ export const createUsersService = ({
     },
 
     updateUserRole: async (userId, role) => {
-      if (!userId) {
-        return { data: null, error: new Error('ID de usuario requerido') }
-      }
-      if (!USER_ROLES.has(role)) {
-        return { data: null, error: new Error('invalid_role') }
-      }
-
-      invalidateCache() // Limpiar cache al actualizar
-      const { data, error } = await supabase.rpc('admin_update_user_role', {
-        p_user_id: userId,
-        p_role: role
+      return updateUserRoleWithRpc({
+        rpc: (name, args) => supabase.rpc(name, args),
+        userId,
+        role,
+        invalidateCache: () => invalidateCache(),
+        logAudit
       })
-      // data es array, tomar el primero si existe
-      const normalizedData = Array.isArray(data) ? data[0] : data
-
-      if (!error && normalizedData && typeof logAudit === 'function') {
-        // Auditoría: cambio de rol
-        await logAudit({
-          action: 'role_changed',
-          details: `Rol actualizado a "${role}"`,
-          target_id: userId,
-          target_email: null,
-          target_name: null,
-          metadata: { role }
-        })
-      }
-
-      return { data: normalizedData, error }
     },
 
     deleteUser: async (userId) => {

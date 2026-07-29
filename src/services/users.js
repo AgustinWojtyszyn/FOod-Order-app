@@ -1,6 +1,7 @@
 import { supabase, supabaseService, sanitizeQuery } from './supabase'
 import { handleError } from '../utils'
 import { USER_ROLES } from '../types'
+import { updateUserRoleWithRpc } from './users/roleUpdates'
 
 const PUBLIC_USER_COLUMNS = new Set(['full_name'])
 
@@ -93,7 +94,7 @@ class UsersService {
       const queryFn = async () => {
         const { data, error } = await supabase
           .from('users')
-          .select('*')
+          .select('id, email, full_name, role, created_at, email_confirmed_at')
           .eq('id', userId)
           .maybeSingle()
 
@@ -119,39 +120,23 @@ class UsersService {
   // Actualizar rol de usuario
   async updateUserRole(userId, role) {
     try {
-      if (!userId) {
-        throw new Error('ID de usuario requerido')
-      }
-
-      if (!Object.values(USER_ROLES).includes(role)) {
-        throw new Error('invalid_role')
-      }
-
-      const { data, error } = await supabaseService.withRetry(
-        () => supabase.rpc('admin_update_user_role', {
-          p_user_id: userId,
-          p_role: role
-        }),
-        'updateUserRole'
-      )
-
-      if (error) throw error
-      const normalizedData = Array.isArray(data) ? data[0] : data
-
-      // Invalidar cache
-      supabaseService.invalidateCache('users')
-      supabaseService.invalidateCache(`user_${userId}`)
-
-      await logAudit({
-        action: 'role_changed',
-        details: `Rol actualizado a "${role}"`,
-        target_id: userId,
-        target_email: null,
-        target_name: null,
-        metadata: { role }
+      const result = await updateUserRoleWithRpc({
+        rpc: (name, args) => supabaseService.withRetry(
+          () => supabase.rpc(name, args),
+          'updateUserRole'
+        ),
+        userId,
+        role,
+        invalidateCache: (targetUserId) => {
+          supabaseService.invalidateCache('users')
+          supabaseService.invalidateCache(`user_${targetUserId}`)
+        },
+        logAudit
       })
 
-      return { data: normalizedData, error: null }
+      if (result.error) throw result.error
+
+      return result
     } catch (error) {
       return { data: null, error: handleError(error, 'updateUserRole') }
     }
@@ -288,59 +273,6 @@ class UsersService {
     }
   }
 
-  // Sincronizar nombres de usuarios (para mantener consistencia)
-  async syncUserNames() {
-    try {
-      // Obtener usuarios de auth
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers()
-
-      if (authError) throw authError
-
-      // Obtener usuarios de tabla users
-      const { data: dbUsers, error: dbError } = await supabase
-        .from('users')
-        .select('id, full_name')
-
-      if (dbError) throw dbError
-
-      // Crear mapa de auth users
-      const authUserMap = new Map()
-      authUsers.users.forEach(user => {
-        authUserMap.set(user.id, {
-          email: user.email,
-          full_name: user.user_metadata?.full_name || user.user_metadata?.name
-        })
-      })
-
-      // Actualizar nombres en tabla users
-      const updates = dbUsers
-        .filter(dbUser => {
-          const authUser = authUserMap.get(dbUser.id)
-          return authUser?.full_name && authUser.full_name !== dbUser.full_name
-        })
-        .map(dbUser => ({
-          id: dbUser.id,
-          full_name: authUserMap.get(dbUser.id).full_name
-        }))
-
-      if (updates.length > 0) {
-        const { error: updateError } = await supabase
-          .from('users')
-          .upsert(updates, { onConflict: 'id' })
-
-        if (updateError) throw updateError
-
-        // Invalidar cache
-        supabaseService.invalidateCache('users')
-
-        return { updated: updates.length, error: null }
-      }
-
-      return { updated: 0, error: null }
-    } catch (error) {
-      return { updated: 0, error: handleError(error, 'syncUserNames') }
-    }
-  }
 }
 
 // Instancia singleton del servicio

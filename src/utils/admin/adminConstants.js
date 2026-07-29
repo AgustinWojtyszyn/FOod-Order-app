@@ -1,12 +1,14 @@
+import { USER_ROLES } from '../../types'
+
 export const ROLE_FILTER_OPTIONS = [
   { value: 'all', label: 'Todos' },
-  { value: 'admin', label: 'Administradores' },
-  { value: 'user', label: 'Usuarios' }
+  { value: USER_ROLES.ADMIN, label: 'Administradores' },
+  { value: USER_ROLES.USER, label: 'Usuarios' }
 ]
 
 export const ROLE_OPTIONS = [
-  { value: 'user', label: 'Usuario' },
-  { value: 'admin', label: 'Admin' }
+  { value: USER_ROLES.USER, label: 'Usuario' },
+  { value: USER_ROLES.ADMIN, label: 'Admin' }
 ]
 
 export const USER_SORT_OPTIONS = [

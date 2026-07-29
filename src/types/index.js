@@ -4,6 +4,8 @@ export const USER_ROLES = {
   ADMIN: 'admin'
 }
 
+export const USER_ROLE_VALUES = Object.values(USER_ROLES)
+
 export const ORDER_STATUS = {
   PENDING: 'pending',
   ARCHIVED: 'archived',

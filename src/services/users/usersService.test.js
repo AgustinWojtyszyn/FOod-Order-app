@@ -55,6 +55,23 @@ describe('usersService role updates', () => {
     expect(Object.keys(calls[0][2])).toEqual(['p_user_id', 'p_role'])
   })
 
+  it('normaliza el rol antes de enviarlo a la RPC', async () => {
+    const { supabase, calls } = createSupabaseMock()
+    const logAudit = vi.fn()
+    const service = createUsersService({ supabase, logAudit })
+
+    const result = await service.updateUserRole('user-3', ' ADMIN ')
+
+    expect(result).toEqual({ data: { id: 'user-1', role: 'admin' }, error: null })
+    expect(calls).toEqual([
+      ['rpc', 'admin_update_user_role', { p_user_id: 'user-3', p_role: 'admin' }]
+    ])
+    expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({
+      details: 'Rol actualizado a "admin"',
+      metadata: { role: 'admin' }
+    }))
+  })
+
   it('rechaza roles invalidos antes de llamar a Supabase', async () => {
     const { supabase, calls } = createSupabaseMock()
     const service = createUsersService({ supabase })
