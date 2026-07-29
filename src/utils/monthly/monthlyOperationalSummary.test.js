@@ -65,6 +65,27 @@ describe('buildMonthlyOperationalSummary', () => {
     expect(summary.daysWithoutOrders).toBe(1)
   })
 
+  it('completa dias ausentes con cero cuando daily_breakdown trae start y end', () => {
+    const summary = buildSummary({
+      totalsForView: { pedidos: 4 },
+      dailyDataForView: {
+        start: '2026-07-01',
+        end: '2026-07-03',
+        daily_breakdown: [
+          day('2026-07-01', 2),
+          day('2026-07-03', 2)
+        ],
+        range_totals: { count: 4, lunch_items: 4, dinner_items: 0 }
+      }
+    })
+
+    expect(summary.calendarDays).toBe(3)
+    expect(summary.averagePerDay).toBe(1.3)
+    expect(summary.daysWithoutOrders).toBe(1)
+    expect(summary.trend.firstHalfTotal).toBe(2)
+    expect(summary.trend.secondHalfTotal).toBe(2)
+  })
+
   it('redondea el promedio a un decimal', () => {
     const summary = buildSummary({
       totalsForView: { pedidos: 10 },

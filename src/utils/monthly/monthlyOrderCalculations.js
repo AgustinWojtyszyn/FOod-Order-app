@@ -363,15 +363,28 @@ const getPedidoCount = (value) => {
   return Number.isFinite(count) && count > 0 ? count : 0
 }
 
+const normalizeDailyBreakdownForRange = (dailyBreakdown = [], start, end) => {
+  if (!start || !end) return dailyBreakdown
+  const rangeDates = buildRangeDates(start, end)
+  if (rangeDates.length === 0) return []
+  const rowsByDate = new Map(dailyBreakdown.map(day => [day?.date, day]))
+  return rangeDates.map(date => rowsByDate.get(date) || { date, count: 0 })
+}
+
 export const buildMonthlyOperationalSummary = ({
   totalsForView = {},
   dailyDataForView = null,
   ordersByDayForView = {},
   empresasForView = []
 } = {}) => {
-  const dailyBreakdown = Array.isArray(dailyDataForView?.daily_breakdown)
+  const rawDailyBreakdown = Array.isArray(dailyDataForView?.daily_breakdown)
     ? dailyDataForView.daily_breakdown
     : []
+  const dailyBreakdown = normalizeDailyBreakdownForRange(
+    rawDailyBreakdown,
+    dailyDataForView?.start,
+    dailyDataForView?.end
+  )
   const calendarDays = dailyBreakdown.length
   const totalPedidos = getPedidoCount(totalsForView?.pedidos ?? dailyDataForView?.range_totals?.count)
   const averagePerDay = calendarDays > 0 ? roundOneDecimal(totalPedidos / calendarDays) : 0
