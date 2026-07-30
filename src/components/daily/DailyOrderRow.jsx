@@ -19,6 +19,9 @@ const DailyOrderRow = ({
   onArchiveOrder,
   onViewOrder
 }) => {
+  const deliveryLocation = order.delivery_location || order.location
+  const deliveryDiffers = deliveryLocation && deliveryLocation !== order.location
+
   if (variant === 'card') {
     const summary = summarizeOrderItems(order.items)
     const customSide = getSideSummaryForOrder(order).summaryText
@@ -53,6 +56,11 @@ const DailyOrderRow = ({
           >
             {order.location}
           </span>
+          {deliveryDiffers && (
+            <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">
+              Entrega: {deliveryLocation}
+            </span>
+          )}
           <span
             className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${
               (order.service || 'lunch') === 'dinner'
@@ -155,6 +163,12 @@ const DailyOrderRow = ({
           title={`Ubicación: ${order.location}`}>
           {order.location}
         </span>
+        {deliveryDiffers && (
+          <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-bold text-blue-800"
+            title={`Entrega en: ${deliveryLocation}`}>
+            Entrega: {deliveryLocation}
+          </span>
+        )}
       </td>
       <td className="border-b border-slate-200/70 px-4 py-5">
         <span className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-sm font-extrabold text-slate-900">

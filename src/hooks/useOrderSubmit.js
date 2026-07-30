@@ -30,7 +30,8 @@ const useOrderSubmit = ({
   setSuccess,
   navigate,
   rawCompanySlug,
-  selectedDinnerDate
+  selectedDinnerDate,
+  deliveryLocationsByLocation
 }) => {
   const [submitting, setSubmitting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -70,7 +71,8 @@ const useOrderSubmit = ({
       calculateTotalDinner,
       companyConfig,
       isOutsideWindow,
-      selectedDinnerDate
+      selectedDinnerDate,
+      deliveryLocationsByLocation
     })
 
     if (validation.error) {

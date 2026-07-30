@@ -62,6 +62,11 @@ const addSummarySheet = (workbook, summary) => {
     worksheet.addRow({ Concepto: row.label, Valor: `${row.orders} pedidos / ${row.items} ítems` })
   })
 
+  addSectionRow(worksheet, 'Totales por lugar de entrega')
+  ;(summary.byDeliveryLocation || []).forEach((row) => {
+    worksheet.addRow({ Concepto: row.label, Valor: `${row.orders} pedidos / ${row.items} ítems` })
+  })
+
   addSectionRow(worksheet, 'Totales por menú / opción')
   summary.byMenu.forEach((row) => {
     worksheet.addRow({ Concepto: row.label, Valor: row.quantity })

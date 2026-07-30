@@ -328,8 +328,14 @@ const OrderDetails = ({ user, loading }) => {
                   <div className="flex items-start gap-3">
                     <Building2 className="h-5 w-5 text-gray-500 mt-0.5" />
                     <div>
-                      <p className="text-gray-600 font-semibold">Destino</p>
+                      <p className="text-gray-600 font-semibold">Locación solicitante</p>
                       <p className="text-gray-900 font-bold">{order.location || company?.name || 'No definida'}</p>
+                      {order.delivery_location && (
+                        <>
+                          <p className="text-gray-600 font-semibold mt-2">Lugar de entrega</p>
+                          <p className="text-gray-900 font-bold">{order.delivery_location}</p>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-start gap-3">

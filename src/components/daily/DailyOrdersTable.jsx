@@ -54,7 +54,7 @@ const DailyOrdersTable = ({
                   Cliente
                 </th>
                 <th className="min-w-40 px-6 py-4 text-xs font-bold uppercase tracking-wide text-slate-100">
-                  Ubicación
+                  Ubicación / entrega
                 </th>
                 <th className="min-w-[100px] px-6 py-4 text-xs font-bold uppercase tracking-wide text-slate-100">
                   Items

@@ -122,6 +122,13 @@ const submitOrders = async ({
           forceLunchOnly: false
         }
       }
+      if (msg.includes('location_not_allowed') || msg.includes('location_required')) {
+        return {
+          ok: false,
+          errorMessage: 'No tenés autorización para pedir en esa locación.',
+          forceLunchOnly: false
+        }
+      }
       if (msg.includes('dinner') || msg.toLowerCase().includes('service') || msg.includes('feature')) {
         return {
           ok: false,

@@ -63,6 +63,25 @@ export const COMPANY_CATALOG = {
     customHint: 'Incluye bebida y regla de postre/fruta igual que Genneia.',
     optionsSourceSlug: 'distro_cuyo'
   },
+  epse: {
+    slug: 'epse',
+    name: 'EPSE',
+    description: 'Pedidos para locaciones operativas de EPSE.',
+    accent: 'from-blue-500 to-cyan-700',
+    badgeClass: 'bg-blue-100 text-blue-700',
+    locations: [
+      'EPSE – Quebrada de Ullum',
+      'EPSE – Anchipurac',
+      'EPSE – Planta Fotovoltaica',
+      'EPSE – Estación Transformadora',
+      'EPSE – Punta Negra',
+      'EPSE – Los Caracoles',
+      'EPSE – Obra Línea de Alta Tensión'
+    ],
+    customHint: 'Solo se muestran locaciones autorizadas para tu correo.',
+    optionsSourceSlug: 'epse',
+    requiresAuthorizedLocations: true
+  },
   administracion_servifood: {
     slug: 'administracion_servifood',
     name: 'Administración ServiFood',

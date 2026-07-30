@@ -25,6 +25,15 @@ export const createUsersService = ({
       return { data, error }
     },
 
+    getUserOrderLocations: async ({ companySlug = null } = {}) => {
+      const normalizedSlug = (companySlug || '').toString().trim().toLowerCase()
+      const { data, error } = await supabase.rpc('get_user_order_locations', {
+        p_company_slug: normalizedSlug || null
+      })
+      const rows = Array.isArray(data) ? data : []
+      return { data: rows, error }
+    },
+
     // Usuarios
     getUsers: async (force = false) => {
       // Usar cache para reducir consultas repetidas

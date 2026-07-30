@@ -1,9 +1,10 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Clock, Save } from 'lucide-react'
 import { EDIT_WINDOW_MINUTES } from '../constants/orderRules'
 import RequireUser from './RequireUser'
 import { COMPANY_LOCATIONS } from '../constants/companyConfig'
+import { db } from '../supabaseClient'
 import EditOrderCustomOptionsSection from './edit-order/EditOrderCustomOptionsSection'
 import EditOrderPersonalInfoSection from './edit-order/EditOrderPersonalInfoSection'
 import EditOrderSummarySection from './edit-order/EditOrderSummarySection'
@@ -18,7 +19,15 @@ export default function EditOrderForm({ user, loading }) {
   const routerLocation = useLocation()
   const order = routerLocation.state?.order
 
-  const locations = COMPANY_LOCATIONS
+  const [authorizedEpseLocationRows, setAuthorizedEpseLocationRows] = useState([])
+  const isEpseOrder = String(order?.location || '').startsWith('EPSE')
+  const authorizedEpseLocations = useMemo(
+    () => authorizedEpseLocationRows.map((row) => row.name).filter(Boolean),
+    [authorizedEpseLocationRows]
+  )
+  const locations = useMemo(() => (
+    isEpseOrder ? authorizedEpseLocations : COMPANY_LOCATIONS
+  ), [authorizedEpseLocations, isEpseOrder])
 
   const {
     menuItems,
@@ -40,6 +49,25 @@ export default function EditOrderForm({ user, loading }) {
   })
 
   const selectedItemsList = getSelectedItemsList()
+  const deliveryLocationForEdit = useMemo(() => {
+    if (!isEpseOrder) return order?.delivery_location || formData?.location || ''
+    const row = authorizedEpseLocationRows.find((item) => item.name === formData?.location)
+    return row?.delivery_name || order?.delivery_location || formData?.location || ''
+  }, [authorizedEpseLocationRows, formData?.location, isEpseOrder, order?.delivery_location])
+
+  useEffect(() => {
+    if (!isEpseOrder) return
+    let mounted = true
+    const load = async () => {
+      const { data, error } = await db.getUserOrderLocations({ companySlug: 'epse' })
+      if (!mounted) return
+      setAuthorizedEpseLocationRows(error ? [] : (Array.isArray(data) ? data : []))
+    }
+    load()
+    return () => {
+      mounted = false
+    }
+  }, [isEpseOrder])
 
   const { handleSubmit, error, success } = useEditOrderSubmit({
     order,
@@ -177,6 +205,7 @@ export default function EditOrderForm({ user, loading }) {
           <EditOrderPersonalInfoSection
             formData={formData}
             locations={locations}
+            deliveryLocation={deliveryLocationForEdit}
             onChange={handleFormChange}
           />
 

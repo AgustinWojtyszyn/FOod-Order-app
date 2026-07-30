@@ -67,6 +67,12 @@ export const formatStatusForDisplay = (selectedStatus) => {
 export const getOrderLocation = (order = {}) =>
   normalizeText(order.location || order.company_name || order.company || order.company_slug || order.target_company) || 'Sin ubicación'
 
+export const getOrderDeliveryLocation = (order = {}) =>
+  normalizeText(order.delivery_location || order.deliveryLocation) || getOrderLocation(order)
+
+export const getOrderOrganization = (order = {}) =>
+  normalizeText(order.organization || order.company_name || order.company)
+
 export const getOrderCustomer = (order = {}) =>
   normalizeText(order.customer_name || order.user_name || order.user_full_name || order.full_name || order.name) || 'Sin cliente'
 
@@ -155,7 +161,9 @@ export const buildOrderExportRow = (order = {}) => {
     cliente: getOrderCustomer(order),
     email: getOrderEmail(order),
     telefono: getOrderPhone(order),
+    organizacion: getOrderOrganization(order),
     ubicacion: getOrderLocation(order),
+    lugarEntrega: getOrderDeliveryLocation(order),
     fechaEntregaISO: deliveryDate,
     fechaEntrega: formatDateOnly(deliveryDate),
     servicio: getOrderServiceLabel(order),
@@ -219,7 +227,9 @@ export const buildDailyOrdersExcelDetailRow = (order = {}) => {
 
   return {
     Cliente: getOrderCustomer(order).replace(/^Sin cliente$/, 'Sin nombre'),
+    Organización: getOrderOrganization(order) || 'Sin organización',
     'Ubicación / empresa': getOrderLocation(order).replace(/^Sin ubicación$/, 'Sin ubicación / empresa'),
+    'Lugar de entrega': getOrderDeliveryLocation(order).replace(/^Sin ubicación$/, 'Sin ubicación / empresa'),
     'Fecha de entrega': formatDateOnly(deliveryDate),
     'Turno / servicio': getOrderServiceLabel(order),
     'Menú elegido': getMenuNames(items),
@@ -473,6 +483,7 @@ const buildInconsistencies = (orders) => {
 export const buildDailyOrdersSummary = (orders = [], selectedStatus = 'pending') => {
   const rows = orders.map(buildOrderExportRow)
   const byLocation = new Map()
+  const byDeliveryLocation = new Map()
   const byMenu = new Map()
   const byService = new Map()
   const locationMenus = new Map()
@@ -485,6 +496,7 @@ export const buildDailyOrdersSummary = (orders = [], selectedStatus = 'pending')
     totalItems += row.totalItems
     if (row.comentarios) commentsCount += 1
     incrementLocation(byLocation, row.ubicacion, 1, row.totalItems)
+    incrementLocation(byDeliveryLocation, row.lugarEntrega, 1, row.totalItems)
     incrementCounter(byService, row.servicio, row.totalItems)
 
     if (!locationMenus.has(row.ubicacion)) locationMenus.set(row.ubicacion, new Map())
@@ -524,6 +536,8 @@ export const buildDailyOrdersSummary = (orders = [], selectedStatus = 'pending')
     commentsCount,
     byLocation: [...byLocation.entries()].map(([label, value]) => ({ label, ...value }))
       .sort((a, b) => b.orders - a.orders || a.label.localeCompare(b.label)),
+    byDeliveryLocation: [...byDeliveryLocation.entries()].map(([label, value]) => ({ label, ...value }))
+      .sort((a, b) => b.items - a.items || a.label.localeCompare(b.label)),
     byMenu: [...byMenu.entries()].map(([label, quantity]) => ({ label, quantity }))
       .sort(sortByQuantityAndLabel),
     byLocationMenu: buildLocationMenuRows(locationMenus, byLocation),
@@ -585,6 +599,15 @@ export const formatDailyOrdersOperationalText = (orders = [], selectedStatus = '
       lines.push(`- ${row.label}: ${plural(row.orders, 'pedido', 'pedidos')} / ${plural(row.items, 'ítem', 'ítems')}`)
     })
     lines.push(`- Total general: ${plural(summary.totalOrders, 'pedido', 'pedidos')} / ${plural(summary.totalItems, 'ítem', 'ítems')}`)
+  } else {
+    lines.push('- Sin pedidos')
+  }
+
+  lines.push('', '*TOTALES POR LUGAR DE ENTREGA*', '')
+  if (summary.byDeliveryLocation.length) {
+    summary.byDeliveryLocation.forEach((row) => {
+      lines.push(`- ${row.label}: ${plural(row.orders, 'pedido', 'pedidos')} / ${plural(row.items, 'ítem', 'ítems')}`)
+    })
   } else {
     lines.push('- Sin pedidos')
   }

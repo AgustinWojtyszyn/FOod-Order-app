@@ -68,7 +68,10 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
     companyOptionsSlug,
     isGenneia,
     hasGenneiaRules,
-    locations
+    locations,
+    authorizedLocationsLoading,
+    requiresAuthorizedLocations,
+    deliveryLocationsByLocation
   } = useOrderCompany()
 
   const { isGenneiaPostreDay } = useGenneiaPostreDay({
@@ -318,7 +321,8 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
     setSuccess,
     navigate,
     rawCompanySlug,
-    selectedDinnerDate
+    selectedDinnerDate,
+    deliveryLocationsByLocation
   })
 
   const toggleLunchTurn = useCallback(() => {
@@ -335,7 +339,18 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
 
   return {
     success,
-    company: { companyConfig, isGenneia, hasGenneiaRules, locations, rawCompanySlug, companySlugParam, companyOptionsSlug },
+    company: {
+      companyConfig,
+      isGenneia,
+      hasGenneiaRules,
+      locations,
+      rawCompanySlug,
+      companySlugParam,
+      companyOptionsSlug,
+      authorizedLocationsLoading,
+      requiresAuthorizedLocations,
+      deliveryLocationsByLocation
+    },
     form: { formData, handleFormChange, hasOrderToday },
     turns: { selectedTurns, toggleLunchTurn, toggleDinnerTurn, dinnerEnabled, dinnerMenuEnabled },
     lunch: {

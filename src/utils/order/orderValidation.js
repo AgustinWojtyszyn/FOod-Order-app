@@ -123,7 +123,8 @@ const validateOrderSubmission = ({
   _calculateTotalDinner,
   companyConfig,
   isOutsideWindow,
-  selectedDinnerDate
+  selectedDinnerDate,
+  deliveryLocationsByLocation
 }) => {
   if (!user?.id) {
     return { error: 'No se pudo validar el usuario. Intenta nuevamente.' }
@@ -142,6 +143,10 @@ const validateOrderSubmission = ({
 
   if (!formData.location) {
     return { error: 'Por favor selecciona un lugar de trabajo' }
+  }
+
+  if (companyConfig?.requiresAuthorizedLocations && !deliveryLocationsByLocation?.has?.(formData.location)) {
+    return { error: 'No tenés una locación autorizada para pedir en esta empresa.' }
   }
 
   const customerName = resolveCustomerName({ formData, user })
@@ -312,6 +317,7 @@ const validateOrderSubmission = ({
   const confirmationData = {
     company: companyConfig?.name || '',
     location: formData.location,
+    deliveryLocation: deliveryLocationsByLocation?.get?.(formData.location) || formData.location,
     name: customerName,
     email: formData.email || user?.email || '',
     phone: formData.phone || '',

@@ -1,6 +1,9 @@
 import { User } from 'lucide-react'
 
-const EditOrderPersonalInfoSection = ({ formData, locations, onChange }) => {
+const EditOrderPersonalInfoSection = ({ formData, locations, deliveryLocation, onChange }) => {
+  const showDeliveryLocation = Boolean(formData.location && deliveryLocation)
+  const deliveryDiffers = showDeliveryLocation && deliveryLocation !== formData.location
+
   return (
     <div className="card bg-white/95 backdrop-blur-sm shadow-xl border-2 border-white/20">
       <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
@@ -29,6 +32,15 @@ const EditOrderPersonalInfoSection = ({ formData, locations, onChange }) => {
               <option key={location} value={location}>{location}</option>
             ))}
           </select>
+          {showDeliveryLocation && (
+            <div className={`mt-3 rounded-lg border px-3 py-2 text-sm ${
+              deliveryDiffers
+                ? 'border-blue-200 bg-blue-50 text-blue-900'
+                : 'border-gray-200 bg-gray-50 text-gray-700'
+            }`}>
+              <span className="font-bold">Entrega en:</span> {deliveryLocation}
+            </div>
+          )}
         </div>
 
         <div>

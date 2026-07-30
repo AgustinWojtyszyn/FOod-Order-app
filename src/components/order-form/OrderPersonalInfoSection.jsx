@@ -1,6 +1,19 @@
 import { User } from 'lucide-react'
 
-const OrderPersonalInfoSection = ({ formData, locations, onChange }) => (
+const OrderPersonalInfoSection = ({
+  formData,
+  locations,
+  deliveryLocation,
+  locationsLoading = false,
+  requiresAuthorizedLocations = false,
+  onChange
+}) => {
+  const hasSingleLocation = locations.length === 1
+  const hasNoAuthorizedLocations = requiresAuthorizedLocations && !locationsLoading && locations.length === 0
+  const showDeliveryLocation = Boolean(formData.location && deliveryLocation)
+  const deliveryDiffers = showDeliveryLocation && deliveryLocation !== formData.location
+
+  return (
   <div className="card bg-white/95 backdrop-blur-sm shadow-xl border-2 border-white/20">
     <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
       <div className="bg-linear-to-r from-primary-600 to-primary-700 text-white p-2 sm:p-3 rounded-xl">
@@ -11,22 +24,49 @@ const OrderPersonalInfoSection = ({ formData, locations, onChange }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
       <div>
         <label htmlFor="location" className="block text-sm font-bold text-gray-700 mb-2">
-          Lugar de trabajo *
+          Locación solicitante *
         </label>
-        <select
-          id="location"
-          name="location"
-          value={formData.location}
-          onChange={onChange}
-          className="input-field"
-          required
-          autoComplete="organization"
-        >
-          <option value="">Seleccionar lugar</option>
-          {locations.map(location => (
-            <option key={location} value={location}>{location}</option>
-          ))}
-        </select>
+        {hasSingleLocation ? (
+          <input
+            id="location"
+            type="text"
+            name="location"
+            value={formData.location || locations[0]}
+            className="input-field bg-gray-100 text-gray-700"
+            readOnly
+            autoComplete="organization"
+          />
+        ) : (
+          <select
+            id="location"
+            name="location"
+            value={formData.location}
+            onChange={onChange}
+            className="input-field"
+            required
+            disabled={locationsLoading || hasNoAuthorizedLocations}
+            autoComplete="organization"
+          >
+            <option value="">{locationsLoading ? 'Cargando locaciones...' : 'Seleccionar locación'}</option>
+            {locations.map(location => (
+              <option key={location} value={location}>{location}</option>
+            ))}
+          </select>
+        )}
+        {hasNoAuthorizedLocations && (
+          <p className="mt-2 text-sm font-semibold text-red-700">
+            No tenés locaciones autorizadas para esta empresa.
+          </p>
+        )}
+        {showDeliveryLocation && (
+          <div className={`mt-3 rounded-lg border px-3 py-2 text-sm ${
+            deliveryDiffers
+              ? 'border-blue-200 bg-blue-50 text-blue-900'
+              : 'border-gray-200 bg-gray-50 text-gray-700'
+          }`}>
+            <span className="font-bold">Entrega en:</span> {deliveryLocation}
+          </div>
+        )}
       </div>
       <div>
         <label htmlFor="name" className="block text-sm font-bold text-gray-700 mb-2">
@@ -74,6 +114,7 @@ const OrderPersonalInfoSection = ({ formData, locations, onChange }) => (
       </div>
     </div>
   </div>
-)
+  )
+}
 
 export default OrderPersonalInfoSection

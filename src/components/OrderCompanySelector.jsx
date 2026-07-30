@@ -112,7 +112,7 @@ const OrderCompanySelector = ({ user, loading }) => {
 
                 <div className="flex items-center justify-between pt-2">
                   <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                    {company.locations.join(' • ')}
+                    {company.requiresAuthorizedLocations ? 'Locaciones autorizadas' : company.locations.join(' • ')}
                   </div>
                   <div className="inline-flex items-center gap-2 bg-[#0b1f3a] text-white font-bold text-base px-3 py-1.5 rounded-full shadow-md">
                     Continuar

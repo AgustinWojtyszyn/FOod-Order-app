@@ -27,7 +27,7 @@ export const useOrderFormEffects = ({
   }, [dinnerMenuSpecial, setDinnerSpecialChoice])
 
   useEffect(() => {
-    const defaultLocation = (locations || [])[0] || ''
+    const defaultLocation = (locations || []).length === 1 ? locations[0] : ''
     setFormData(prev => {
       if (!prev.location || !(locations || []).includes(prev.location)) {
         return { ...prev, location: defaultLocation }
@@ -46,4 +46,3 @@ export const useOrderFormEffects = ({
     }
   }, [playSuccess, success])
 }
-

@@ -139,6 +139,10 @@ const buildWorkbook = async ({
   summary.byLocation.forEach((row) => {
     summarySheet.addRow({ Concepto: row.label, Valor: `${row.orders} pedidos / ${row.items} ítems` })
   })
+  summarySheet.addRow({ Concepto: 'Totales por lugar de entrega', Valor: '' })
+  ;(summary.byDeliveryLocation || []).forEach((row) => {
+    summarySheet.addRow({ Concepto: row.label, Valor: `${row.orders} pedidos / ${row.items} ítems` })
+  })
   summarySheet.addRow({ Concepto: 'Totales por menú / opción', Valor: '' })
   summary.byMenuOption.forEach((row) => {
     summarySheet.addRow({ Concepto: row.label, Valor: row.quantity })
@@ -157,7 +161,9 @@ const buildWorkbook = async ({
   const details = workbook.addWorksheet('Pedidos Detallados')
   details.columns = [
     { header: 'Cliente', key: 'cliente', width: 24 },
+    { header: 'Organización', key: 'organizacion', width: 20 },
     { header: 'Ubicación / empresa', key: 'ubicacion', width: 28 },
+    { header: 'Lugar de entrega', key: 'lugarEntrega', width: 28 },
     { header: 'Fecha de entrega', key: 'fechaEntrega', width: 18 },
     { header: 'Turno / servicio', key: 'turno', width: 16 },
     { header: 'Menú elegido', key: 'menu', width: 36 },
@@ -171,7 +177,9 @@ const buildWorkbook = async ({
   if (isTest) {
     details.addRow({
       cliente: 'PRUEBA - NO USAR PARA PRODUCCIÓN',
+      organizacion: '',
       ubicacion: '',
+      lugarEntrega: '',
       fechaEntrega: formatDateEs(reportDate),
       turno: '',
       menu: '',
@@ -186,7 +194,9 @@ const buildWorkbook = async ({
   orders.forEach((order) => {
     details.addRow({
       cliente: order.customer_name || order.user_name || 'Sin nombre',
+      organizacion: order.organization || order.company_name || order.company || '',
       ubicacion: order.location || order.company_name || order.company || 'Sin ubicación / empresa',
+      lugarEntrega: order.delivery_location || order.location || order.company_name || order.company || 'Sin ubicación / empresa',
       fechaEntrega: formatDateEs(String(order.delivery_date || reportDate)),
       turno: getServiceLabel(order.service),
       menu: getMenuNames(order),

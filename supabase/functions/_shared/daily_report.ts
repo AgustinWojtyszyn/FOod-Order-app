@@ -44,6 +44,8 @@ export type NormalizedOrder = {
   user_email?: string | null
   customer_phone?: string | null
   location?: string | null
+  delivery_location?: string | null
+  organization?: string | null
   company?: string | null
   company_name?: string | null
   delivery_date?: string | null
@@ -71,6 +73,7 @@ export type DailySummary = {
   totalOrders: number
   totalItems: number
   byLocation: Array<{ label: string; orders: number; items: number }>
+  byDeliveryLocation: Array<{ label: string; orders: number; items: number }>
   byMenuOption: Array<{ label: string; quantity: number }>
   byLocationMenu: Array<{
     label: string
@@ -261,6 +264,9 @@ const plural = (count: number, singular: string, pluralText: string) =>
 const getLocationLabel = (order: NormalizedOrder) =>
   String(order.location || order.company_name || order.company || 'Sin ubicación / empresa').trim() || 'Sin ubicación / empresa'
 
+const getDeliveryLocationLabel = (order: NormalizedOrder) =>
+  String(order.delivery_location || getLocationLabel(order)).trim() || 'Sin ubicación / empresa'
+
 const getMenuLabel = (item: Record<string, unknown>) => {
   const name = String(item.name || item.title || item.menu || 'Sin menú').trim()
   const option = String(item.option || item.selected_option || item.choice || '').trim()
@@ -312,6 +318,7 @@ const getAdditionalLabels = (order: NormalizedOrder) => {
 
 export const buildDailySummary = (orders: NormalizedOrder[], reportDate: string): DailySummary => {
   const byLocation = new Map<string, { orders: number; items: number }>()
+  const byDeliveryLocation = new Map<string, { orders: number; items: number }>()
   const byMenuOption = new Map<string, number>()
   const commentsByCustomerAndText = new Map<string, { customer: string; comment: string; count: number }>()
   const menuByLocation = new Map<string, Map<string, number>>()
@@ -326,10 +333,16 @@ export const buildDailySummary = (orders: NormalizedOrder[], reportDate: string)
     totalItems += items
 
     const location = getLocationLabel(order)
+    const deliveryLocation = getDeliveryLocationLabel(order)
     const locationRow = byLocation.get(location) || { orders: 0, items: 0 }
     locationRow.orders += 1
     locationRow.items += items
     byLocation.set(location, locationRow)
+
+    const deliveryRow = byDeliveryLocation.get(deliveryLocation) || { orders: 0, items: 0 }
+    deliveryRow.orders += 1
+    deliveryRow.items += items
+    byDeliveryLocation.set(deliveryLocation, deliveryRow)
 
     if (!menuByLocation.has(location)) menuByLocation.set(location, new Map())
     const scopedMenus = menuByLocation.get(location)!
@@ -401,6 +414,9 @@ export const buildDailySummary = (orders: NormalizedOrder[], reportDate: string)
   const sortedLocations = [...byLocation.entries()]
     .map(([label, value]) => ({ label, ...value }))
     .sort((a, b) => b.orders - a.orders || a.label.localeCompare(b.label))
+  const sortedDeliveryLocations = [...byDeliveryLocation.entries()]
+    .map(([label, value]) => ({ label, ...value }))
+    .sort((a, b) => b.items - a.items || a.label.localeCompare(b.label))
 
   return {
     reportDate,
@@ -408,6 +424,7 @@ export const buildDailySummary = (orders: NormalizedOrder[], reportDate: string)
     totalOrders: orders.length,
     totalItems,
     byLocation: sortedLocations,
+    byDeliveryLocation: sortedDeliveryLocations,
     byMenuOption: [...byMenuOption.entries()]
       .map(([label, quantity]) => ({ label, quantity }))
       .sort(sortQuantityRows),
@@ -483,6 +500,20 @@ const renderLocationRows = (summary: DailySummary) => {
       <td align="right" style="${cellStyle}font-weight:700;text-align:right;background:#f9fafb;">${summary.totalOrders}</td>
       <td align="right" style="${cellStyle}font-weight:700;text-align:right;background:#f9fafb;">${summary.totalItems}</td>
     </tr>`
+}
+
+const renderDeliveryLocationRows = (summary: DailySummary) => {
+  if (!summary.byDeliveryLocation.length) {
+    return `<tr><td colspan="3" style="${cellStyle}color:#6b7280;">Sin lugares de entrega para listar.</td></tr>`
+  }
+
+  return summary.byDeliveryLocation.map((row) => `
+    <tr>
+      <td style="${cellStyle}">${escapeHtml(row.label)}</td>
+      <td align="right" style="${cellStyle}text-align:right;">${row.orders}</td>
+      <td align="right" style="${cellStyle}text-align:right;">${row.items}</td>
+    </tr>
+  `).join('')
 }
 
 const renderLocationMenuSections = (summary: DailySummary) =>
@@ -619,6 +650,19 @@ export const buildEmailHtml = (
             </tr>
             <tr>
               <td style="padding:0 28px 24px 28px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+                <h2 style="margin:0 0 12px 0;font-size:18px;line-height:24px;color:#111827;">Totales por lugar de entrega</h2>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;">
+                  <tr>
+                    <th align="left" style="${headerCellStyle}">Lugar de entrega</th>
+                    <th align="right" style="${headerCellStyle}text-align:right;">Pedidos</th>
+                    <th align="right" style="${headerCellStyle}text-align:right;">Ítems</th>
+                  </tr>
+                  ${renderDeliveryLocationRows(summary)}
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 28px 24px 28px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#111827;">
                 <h2 style="margin:0 0 12px 0;font-size:18px;line-height:24px;color:#111827;">Detalle por ubicación / empresa</h2>
                 ${renderLocationMenuSections(summary)}
               </td>
@@ -669,6 +713,11 @@ export const buildEmailText = (summary: DailySummary, isTest = false) => [
         `- Total general: ${plural(summary.totalOrders, 'pedido', 'pedidos')} / ${plural(summary.totalItems, 'ítem', 'ítems')}`
       ]
     : ['- Sin ubicaciones para listar.']),
+  '',
+  'Totales por lugar de entrega',
+  ...(summary.byDeliveryLocation.length
+    ? summary.byDeliveryLocation.map((row) => `- ${row.label}: ${plural(row.orders, 'pedido', 'pedidos')} / ${plural(row.items, 'ítem', 'ítems')}`)
+    : ['- Sin lugares de entrega para listar.']),
   '',
   'Detalle por ubicación / empresa',
   ...(summary.byLocationMenu.length
