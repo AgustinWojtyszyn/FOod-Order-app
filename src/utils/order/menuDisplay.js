@@ -1,5 +1,6 @@
 const normalizeText = (value = '') => (value || '').toString().trim()
 const normalizeSlotTitle = (value = '') => normalizeText(value).toLowerCase()
+const HIDDEN_ORDER_MENU_SLOT_INDEX = 4
 
 const getMenuLabelByIndex = (index = 0) => (index === 0 ? 'Menú principal' : `Opción ${index}`)
 
@@ -52,11 +53,32 @@ const withMenuSlotIndex = (items = []) => {
 
 const isMainMenuSlot = (item = {}) => (Number.isFinite(item?.slotIndex) ? item.slotIndex === 0 : item?.isMainMenu === true)
 
+const getMenuSlotIndex = (item = {}, fallbackIndex = null) => {
+  if (Number.isFinite(item?.slotIndex)) return item.slotIndex
+  const inferred = getSlotIndexFromTitle(item?.name)
+  if (Number.isFinite(inferred)) return inferred
+  return Number.isFinite(fallbackIndex) ? fallbackIndex : null
+}
+
+const isHiddenOrderMenuSlot = (item = {}, fallbackIndex = null) =>
+  getMenuSlotIndex(item, fallbackIndex) === HIDDEN_ORDER_MENU_SLOT_INDEX
+
+const filterOrderableMenuItems = (items = []) =>
+  (items || []).filter((item, index) => !isHiddenOrderMenuSlot(item, index))
+
+const hasHiddenOrderMenuSelection = (items = []) =>
+  (items || []).some((item, index) => isHiddenOrderMenuSlot(item, index))
+
 export {
+  HIDDEN_ORDER_MENU_SLOT_INDEX,
   getMenuLabelByIndex,
   getMenuDish,
   getMenuDisplay,
+  getMenuSlotIndex,
   getSlotIndexFromTitle,
+  filterOrderableMenuItems,
+  hasHiddenOrderMenuSelection,
+  isHiddenOrderMenuSlot,
   withMenuSlotIndex,
   isMainMenuSlot
 }

@@ -1,5 +1,6 @@
 import { resolveCustomerName } from '../order/orderCustomerName'
 import { normalizeOrderItemsForService, normalizeOrderPayloadForService } from '../order/orderItemNormalization'
+import { hasHiddenOrderMenuSelection } from '../order/menuDisplay'
 
 export const buildEditOrderPayload = ({
   formData,
@@ -7,7 +8,8 @@ export const buildEditOrderPayload = ({
   service,
   selectedItemsList,
   customOptions,
-  customResponses
+  customResponses,
+  originalOrder
 }) => {
   const isEmptyResponse = (value) => {
     if (value === null || value === undefined) return true
@@ -34,16 +36,21 @@ export const buildEditOrderPayload = ({
 
   const userName = resolveCustomerName({ formData, user })
 
-  const itemsPayload = (normalizedService === 'dinner' && hasDinnerOverrideChoice && (selectedItemsList || []).length === 0)
+  const originalItems = Array.isArray(originalOrder?.items) ? originalOrder.items : []
+  const itemsForPayload = (selectedItemsList || []).length === 0 && hasHiddenOrderMenuSelection(originalItems)
+    ? originalItems
+    : (selectedItemsList || [])
+
+  const itemsPayload = (normalizedService === 'dinner' && hasDinnerOverrideChoice && itemsForPayload.length === 0)
     ? [{ id: 'dinner-override', name: `Cena: ${dinnerOverrideChoice}`, quantity: 1, isDinnerOverride: true }]
-    : normalizeOrderItemsForService(normalizedService, selectedItemsList || []).map(item => ({
+    : normalizeOrderItemsForService(normalizedService, itemsForPayload).map(item => ({
         id: item.id,
         name: item.name,
         quantity: 1,
         slotIndex: Number.isFinite(item?.slotIndex) ? item.slotIndex : undefined
       }))
 
-  const customResponsesPayload = (normalizedService === 'dinner' && hasDinnerOverrideChoice && (selectedItemsList || []).length === 0)
+  const customResponsesPayload = (normalizedService === 'dinner' && hasDinnerOverrideChoice && itemsForPayload.length === 0)
     ? [{
         id: 'dinner-special',
         title: (customOptions || []).find(opt => opt?.id === 'dinner-special')?.title || 'Opción de cena',

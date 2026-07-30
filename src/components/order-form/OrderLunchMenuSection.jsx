@@ -1,5 +1,5 @@
 import { CheckCircle, ChefHat } from 'lucide-react'
-import { getMenuDisplay } from '../../utils/order/menuDisplay'
+import { filterOrderableMenuItems, getMenuDisplay } from '../../utils/order/menuDisplay'
 
 const OrderLunchMenuSection = ({ items, selectedItems, onToggleItem }) => (
   <div className="card bg-white/95 backdrop-blur-sm shadow-xl border-2 border-white/20">
@@ -16,7 +16,7 @@ const OrderLunchMenuSection = ({ items, selectedItems, onToggleItem }) => (
     </div>
 
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {items.map((item, index) => {
+      {filterOrderableMenuItems(items).map((item, index) => {
         const isSelected = selectedItems[item.id] === true
         const { label, dish } = getMenuDisplay(item, Number.isFinite(item?.slotIndex) ? item.slotIndex : index)
         return (

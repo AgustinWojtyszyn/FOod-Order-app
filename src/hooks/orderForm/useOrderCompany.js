@@ -12,6 +12,7 @@ export const useOrderCompany = () => {
   const [activeCompanySlug, setActiveCompanySlug] = useState('')
   const [authorizedLocationRows, setAuthorizedLocationRows] = useState([])
   const [authorizedLocationsLoading, setAuthorizedLocationsLoading] = useState(false)
+  const [authorizedLocationsError, setAuthorizedLocationsError] = useState(null)
 
   const recommendedCompany = typeof window !== 'undefined'
     ? window.localStorage.getItem('lastCompany')
@@ -90,12 +91,24 @@ export const useOrderCompany = () => {
       if (!requiresAuthorizedLocations) {
         setAuthorizedLocationRows([])
         setAuthorizedLocationsLoading(false)
+        setAuthorizedLocationsError(null)
         return
       }
       setAuthorizedLocationsLoading(true)
+      setAuthorizedLocationsError(null)
       const { data, error } = await db.getUserOrderLocations({ companySlug: companyConfig?.slug })
       if (!mounted) return
-      setAuthorizedLocationRows(error ? [] : (Array.isArray(data) ? data : []))
+      if (error) {
+        console.error('[EPSE locations] Error loading authorized locations from /rest/v1/rpc/get_user_order_locations', {
+          companySlug: companyConfig?.slug,
+          error
+        })
+        setAuthorizedLocationRows([])
+        setAuthorizedLocationsError(error)
+      } else {
+        setAuthorizedLocationRows(Array.isArray(data) ? data : [])
+        setAuthorizedLocationsError(null)
+      }
       setAuthorizedLocationsLoading(false)
     }
     loadAuthorizedLocations()
@@ -115,6 +128,7 @@ export const useOrderCompany = () => {
     locations,
     authorizedLocationRows,
     authorizedLocationsLoading,
+    authorizedLocationsError,
     requiresAuthorizedLocations,
     deliveryLocationsByLocation
   }

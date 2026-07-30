@@ -30,6 +30,9 @@ export const createUsersService = ({
       const { data, error } = await supabase.rpc('get_user_order_locations', {
         p_company_slug: normalizedSlug || null
       })
+      if (error) {
+        return { data: null, error }
+      }
       const rows = Array.isArray(data) ? data : []
       return { data: rows, error }
     },

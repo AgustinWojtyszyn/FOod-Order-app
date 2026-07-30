@@ -3,6 +3,7 @@ import { buildIdempotencyStorageKey, generateIdempotencyKey } from './orderIdemp
 import { buildOrderPayload } from './orderPayload'
 import { hasDinnerOverrideInResponses } from './orderBusinessRules'
 import { normalizeOrderItemsForService } from './orderItemNormalization'
+import { hasHiddenOrderMenuSelection } from './menuDisplay'
 
 const ACTIVE_ORDER_STATUSES = new Set(['pending'])
 const DUPLICATE_ORDER_MESSAGE = 'Ya tenés un pedido registrado para esta fecha y servicio.'
@@ -59,6 +60,14 @@ const submitOrders = async ({
     const rawItemsForService = isDinner ? selectedItemsListDinner : selectedItemsList
     const itemsForService = normalizeOrderItemsForService(service, rawItemsForService)
     const responsesForService = isDinner ? customResponsesDinnerArray : customResponsesArray
+
+    if (hasHiddenOrderMenuSelection(itemsForService)) {
+      return {
+        ok: false,
+        errorMessage: 'Esa opción de menú no está disponible para pedidos.',
+        forceLunchOnly: false
+      }
+    }
 
     if ((rawItemsForService || []).length > 1) {
       return {

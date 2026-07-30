@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { db } from '../supabaseClient'
 import { sortMenuItems } from '../utils/order/orderMenuHelpers'
-import { withMenuSlotIndex } from '../utils/order/menuDisplay'
+import { filterOrderableMenuItems, withMenuSlotIndex } from '../utils/order/menuDisplay'
 import { DINNER_FALLBACK_WHITELIST } from '../constants/dinnerWhitelist'
 import { buildSuggestionSummary, buildOptionsSummary } from '../utils/order/orderFormatters'
 import { hasMainMenuSelected } from '../utils/order/orderSelectionHelpers'
@@ -91,11 +91,11 @@ const useOrderBootstrap = ({
 
       if (error) {
         console.error('Error fetching menu:', error)
-        setMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS)))
+        setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS))))
         return
       }
 
-      setMenuItems(withMenuSlotIndex(sortMenuItems(data || [])))
+      setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(data || []))))
     } catch (err) {
       console.error('Error:', err)
     }
@@ -176,7 +176,7 @@ const useOrderBootstrap = ({
         return
       }
 
-      const normalizedLunchMenu = withMenuSlotIndex(sortMenuItems(lunchMenuData || []))
+      const normalizedLunchMenu = filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(lunchMenuData || [])))
       setDinnerMenuItems(
         normalizedLunchMenu.map((item, index) => ({
           ...item,

@@ -70,6 +70,7 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
     hasGenneiaRules,
     locations,
     authorizedLocationsLoading,
+    authorizedLocationsError,
     requiresAuthorizedLocations,
     deliveryLocationsByLocation
   } = useOrderCompany()
@@ -348,6 +349,7 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
       companySlugParam,
       companyOptionsSlug,
       authorizedLocationsLoading,
+      authorizedLocationsError,
       requiresAuthorizedLocations,
       deliveryLocationsByLocation
     },

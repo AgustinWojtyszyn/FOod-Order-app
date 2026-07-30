@@ -5,7 +5,7 @@ import { EDIT_WINDOW_MINUTES } from '../../constants/orderRules'
 import { notifyInfo } from '../../utils/notice'
 import { getTomorrowISOInTimeZone } from '../../utils/dateUtils'
 import { sortMenuItems } from '../../utils/order/orderMenuHelpers'
-import { withMenuSlotIndex } from '../../utils/order/menuDisplay'
+import { filterOrderableMenuItems, withMenuSlotIndex } from '../../utils/order/menuDisplay'
 import { mapOrderToEditForm } from '../../utils/orderEdit/mapOrderToEditForm'
 
 const DEFAULT_MENU_ITEMS = [
@@ -39,11 +39,11 @@ export const useEditOrderBootstrap = ({ order, user, navigate }) => {
 
       if (error) {
         console.error('Error fetching menu:', error)
-        setMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS)))
+        setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS))))
         return
       }
 
-      setMenuItems(withMenuSlotIndex(sortMenuItems(data || [])))
+      setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(data || []))))
     } catch (err) {
       console.error('Error:', err)
     }

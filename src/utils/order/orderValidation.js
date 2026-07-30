@@ -2,6 +2,7 @@ import { getTomorrowISOInTimeZone } from '../dateUtils'
 import { resolveCustomerName } from './orderCustomerName'
 import { canChooseCustomSide } from './orderCustomSideRules'
 import { hasGenneiaOptionRules } from './companySpecialRules'
+import { hasHiddenOrderMenuSelection } from './menuDisplay'
 
 const isCustomSideOption = (opt) => (opt?.title || '').toLowerCase().includes('guarn')
 const SINGLE_MENU_MESSAGE = 'Solo podés seleccionar 1 comida principal por persona para almuerzo o cena.'
@@ -169,6 +170,10 @@ const validateOrderSubmission = ({
     return { error: 'Selecciona al menos un plato para almuerzo.' }
   }
 
+  if (lunchSelected && hasHiddenOrderMenuSelection(selectedItemsList)) {
+    return { error: 'Esa opción de menú no está disponible para pedidos.' }
+  }
+
   if (lunchSelected && selectedItemsList.length > 1) {
     return { error: SINGLE_MENU_MESSAGE }
   }
@@ -177,6 +182,10 @@ const validateOrderSubmission = ({
 
   if (dinnerSelected && selectedItemsListDinner.length === 0 && !dinnerOverrideChoice) {
     return { error: 'Selecciona al menos un plato para cena o una opción de cena.' }
+  }
+
+  if (dinnerSelected && hasHiddenOrderMenuSelection(selectedItemsListDinner)) {
+    return { error: 'Esa opción de menú no está disponible para pedidos.' }
   }
 
   if (dinnerSelected && selectedItemsListDinner.length > 1) {

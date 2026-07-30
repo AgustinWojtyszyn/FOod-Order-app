@@ -34,7 +34,8 @@ export const useEditOrderSubmit = ({
       selectedItemsList,
       service: order?.service,
       customOptions,
-      customResponses
+      customResponses,
+      originalOrder: order
     })
 
     if (!validation.ok) {
@@ -50,7 +51,8 @@ export const useEditOrderSubmit = ({
         service: order?.service,
         selectedItemsList,
         customOptions,
-        customResponses
+        customResponses,
+        originalOrder: order
       })
 
       const { error } = await ordersService.updateOrder(order.id, orderData)

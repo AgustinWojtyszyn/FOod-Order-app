@@ -5,11 +5,13 @@ const OrderPersonalInfoSection = ({
   locations,
   deliveryLocation,
   locationsLoading = false,
+  locationsError = null,
   requiresAuthorizedLocations = false,
   onChange
 }) => {
   const hasSingleLocation = locations.length === 1
-  const hasNoAuthorizedLocations = requiresAuthorizedLocations && !locationsLoading && locations.length === 0
+  const hasLocationsError = requiresAuthorizedLocations && !locationsLoading && Boolean(locationsError)
+  const hasNoAuthorizedLocations = requiresAuthorizedLocations && !locationsLoading && !hasLocationsError && locations.length === 0
   const showDeliveryLocation = Boolean(formData.location && deliveryLocation)
   const deliveryDiffers = showDeliveryLocation && deliveryLocation !== formData.location
 
@@ -44,7 +46,7 @@ const OrderPersonalInfoSection = ({
             onChange={onChange}
             className="input-field"
             required
-            disabled={locationsLoading || hasNoAuthorizedLocations}
+            disabled={locationsLoading || hasNoAuthorizedLocations || hasLocationsError}
             autoComplete="organization"
           >
             <option value="">{locationsLoading ? 'Cargando locaciones...' : 'Seleccionar locación'}</option>
@@ -56,6 +58,11 @@ const OrderPersonalInfoSection = ({
         {hasNoAuthorizedLocations && (
           <p className="mt-2 text-sm font-semibold text-red-700">
             No tenés locaciones autorizadas para esta empresa.
+          </p>
+        )}
+        {hasLocationsError && (
+          <p className="mt-2 text-sm font-semibold text-red-700">
+            No pudimos cargar las locaciones de EPSE. Intentá nuevamente o comunicate con administración.
           </p>
         )}
         {showDeliveryLocation && (

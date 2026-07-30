@@ -1,10 +1,13 @@
+import { hasHiddenOrderMenuSelection } from '../order/menuDisplay'
+
 export const validateEditOrderForm = ({
   user,
   formData,
   selectedItemsList,
   service,
   customOptions,
-  customResponses
+  customResponses,
+  originalOrder
 }) => {
   if (!user?.id) {
     return { ok: false, error: 'No se pudo validar el usuario. Intenta nuevamente.' }
@@ -20,7 +23,11 @@ export const validateEditOrderForm = ({
     && dinnerOverrideChoice !== undefined
     && (typeof dinnerOverrideChoice !== 'string' || dinnerOverrideChoice.trim() !== '')
 
+  const originalItems = Array.isArray(originalOrder?.items) ? originalOrder.items : []
+  const preservesHiddenHistoricalItem = selectedItemsList?.length === 0 && hasHiddenOrderMenuSelection(originalItems)
+
   if (!selectedItemsList || selectedItemsList.length === 0) {
+    if (preservesHiddenHistoricalItem) return { ok: true, error: null }
     if (normalizedService === 'dinner') {
       if (hasDinnerOverrideChoice) return { ok: true, error: null }
       return { ok: false, error: 'Selecciona al menos un plato para cena o una opción de cena.' }
@@ -30,6 +37,10 @@ export const validateEditOrderForm = ({
 
   if ((normalizedService === 'lunch' || normalizedService === 'dinner') && selectedItemsList.length > 1) {
     return { ok: false, error: 'Solo podés seleccionar 1 comida principal por persona para almuerzo o cena.' }
+  }
+
+  if (hasHiddenOrderMenuSelection(selectedItemsList)) {
+    return { ok: false, error: 'Esa opción de menú no está disponible para pedidos.' }
   }
 
   // Validar opciones requeridas (solo las que están activas)

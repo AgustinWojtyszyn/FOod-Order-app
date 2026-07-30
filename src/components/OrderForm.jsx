@@ -65,6 +65,7 @@ const OrderForm = ({ user, loading }) => {
               locations={controller.company.locations}
               deliveryLocation={controller.company.deliveryLocationsByLocation.get(controller.form.formData.location) || controller.form.formData.location}
               locationsLoading={controller.company.authorizedLocationsLoading}
+              locationsError={controller.company.authorizedLocationsError}
               requiresAuthorizedLocations={controller.company.requiresAuthorizedLocations}
               onChange={controller.form.handleFormChange}
             />
