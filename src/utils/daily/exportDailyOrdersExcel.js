@@ -4,6 +4,7 @@ import logoUrl from '../../assets/servifood logo.jpg'
 import { getCompanyByLocationOrSlug } from '../../constants/companyConfig'
 import { downloadWorkbook, filterOrdersByCompany } from './dailyOrderCalculations'
 import {
+  extractCustomResponses,
   extractOrderItems,
   formatDateOnly,
   getOrderLocation,
@@ -12,20 +13,22 @@ import {
 import { notifyError, notifyInfo, notifySuccess } from '../notice'
 import { getUserFriendlyErrorMessage } from '../index'
 
-const REMITO_COLUMNS = [
-  { header: 'Cantidad', key: 'cantidad', width: 12 },
-  { header: 'Producto / detalle', key: 'producto', width: 44 },
-  { header: 'Observaciones', key: 'observaciones', width: 22 }
-]
-const MIN_REMITO_DETAIL_ROWS = 16
+const DETAIL_ROWS_PER_COPY = 13
 
 const HEADER_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111827' } }
 const LIGHT_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
+const WHITE_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
 const BORDER = {
-  top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
-  left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
-  bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
-  right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+  top: { style: 'thin', color: { argb: 'FF000000' } },
+  left: { style: 'thin', color: { argb: 'FF000000' } },
+  bottom: { style: 'thin', color: { argb: 'FF000000' } },
+  right: { style: 'thin', color: { argb: 'FF000000' } }
+}
+const THICK_BORDER = {
+  top: { style: 'medium', color: { argb: 'FF000000' } },
+  left: { style: 'medium', color: { argb: 'FF000000' } },
+  bottom: { style: 'medium', color: { argb: 'FF000000' } },
+  right: { style: 'medium', color: { argb: 'FF000000' } }
 }
 
 const INVALID_SHEET_CHARS = new Set(['[', ']', '*', '?', ':', '/', '\\', "'"])
@@ -108,18 +111,37 @@ const buildCompanyGroups = (orders = []) => {
   return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
+const incrementSummary = (map, label, quantity = 1) => {
+  const safeLabel = normalizeText(label)
+  if (!safeLabel) return
+  map.set(safeLabel, (map.get(safeLabel) || 0) + quantity)
+}
+
 const summarizeProducts = (orders = []) => {
   const totals = new Map()
   orders.forEach((order) => {
     const items = extractOrderItems(order)
     if (!items.length) {
-      totals.set('Sin menú / opción', (totals.get('Sin menú / opción') || 0) + 1)
-      return
+      incrementSummary(totals, 'Sin menú / opción', 1)
+    } else {
+      items.forEach((item) => {
+        incrementSummary(totals, item.label || 'Sin menú / opción', item.quantity)
+      })
     }
-    items.forEach((item) => {
-      const label = normalizeText(item.label) || 'Sin menú / opción'
-      totals.set(label, (totals.get(label) || 0) + item.quantity)
-    })
+
+    const custom = extractCustomResponses(order)
+    if (custom.side) incrementSummary(totals, `Guarnición: ${custom.side}`, 1)
+    if (custom.beverage) incrementSummary(totals, `Bebida: ${custom.beverage}`, 1)
+    if (custom.additional) {
+      custom.additional
+        .split('|')
+        .map(normalizeText)
+        .filter(Boolean)
+        .forEach((label) => incrementSummary(totals, label, 1))
+    }
+    if (normalizeText(order.comments)) {
+      incrementSummary(totals, `Observación: ${normalizeText(order.comments)}`, 1)
+    }
   })
   return [...totals.entries()]
     .map(([producto, cantidad]) => ({ producto, cantidad }))
@@ -129,26 +151,10 @@ const summarizeProducts = (orders = []) => {
 const getTotalItems = (orders = []) =>
   orders.reduce((sum, order) => sum + getOrderTotalItems(order), 0)
 
-const addLogo = async (workbook, worksheet) => {
-  try {
-    const response = await fetch(logoUrl)
-    const buffer = await response.arrayBuffer()
-    const imageId = workbook.addImage({ buffer, extension: 'jpeg' })
-    worksheet.addImage(imageId, {
-      tl: { col: 0.15, row: 0.25 },
-      ext: { width: 58, height: 58 }
-    })
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('No se pudo agregar el logo al Excel:', error)
-    }
-  }
-}
-
-const configurePrintPage = (worksheet, printArea = 'A1:C34') => {
+const configurePrintPage = (worksheet, printArea = 'A1:I35') => {
   worksheet.pageSetup = {
     paperSize: 9,
-    orientation: 'portrait',
+    orientation: 'landscape',
     fitToPage: true,
     fitToWidth: 1,
     fitToHeight: 1,
@@ -157,10 +163,10 @@ const configurePrintPage = (worksheet, printArea = 'A1:C34') => {
     printTitlesRow: '',
     printTitlesColumn: '',
     margins: {
-      left: 0.25,
-      right: 0.25,
-      top: 0.25,
-      bottom: 0.25,
+      left: 0.18,
+      right: 0.18,
+      top: 0.18,
+      bottom: 0.18,
       header: 0.12,
       footer: 0.12
     },
@@ -170,110 +176,188 @@ const configurePrintPage = (worksheet, printArea = 'A1:C34') => {
   worksheet.views = [{ showGridLines: false }]
 }
 
-const styleCellRange = (worksheet, fromRow, toRow, fromCol = 1, toCol = 3) => {
+const applyOuterBorder = (worksheet, fromRow, toRow, fromCol, toCol) => {
   for (let rowNumber = fromRow; rowNumber <= toRow; rowNumber += 1) {
-    const row = worksheet.getRow(rowNumber)
     for (let colNumber = fromCol; colNumber <= toCol; colNumber += 1) {
-      const cell = row.getCell(colNumber)
-      cell.border = BORDER
-      cell.alignment = { vertical: 'middle', wrapText: true }
+      const cell = worksheet.getCell(rowNumber, colNumber)
+      cell.border = {
+        top: rowNumber === fromRow ? THICK_BORDER.top : (cell.border?.top || BORDER.top),
+        left: colNumber === fromCol ? THICK_BORDER.left : (cell.border?.left || BORDER.left),
+        bottom: rowNumber === toRow ? THICK_BORDER.bottom : (cell.border?.bottom || BORDER.bottom),
+        right: colNumber === toCol ? THICK_BORDER.right : (cell.border?.right || BORDER.right)
+      }
     }
   }
 }
 
+const addLogoAt = async (workbook, worksheet, startCol) => {
+  try {
+    const response = await fetch(logoUrl)
+    const buffer = await response.arrayBuffer()
+    const imageId = workbook.addImage({ buffer, extension: 'jpeg' })
+    worksheet.addImage(imageId, {
+      tl: { col: startCol - 0.85, row: 0.35 },
+      ext: { width: 58, height: 58 }
+    })
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('No se pudo agregar el logo al Excel:', error)
+    }
+  }
+}
+
+const copyCell = (worksheet, row, col, value, options = {}) => {
+  const cell = worksheet.getCell(row, col)
+  cell.value = value
+  cell.font = options.font || { size: 8, color: { argb: 'FF000000' } }
+  cell.alignment = options.alignment || { vertical: 'middle', horizontal: 'center', wrapText: true }
+  cell.fill = options.fill || WHITE_FILL
+  cell.border = options.border || BORDER
+  return cell
+}
+
+const mergeAndSet = (worksheet, fromRow, fromCol, toRow, toCol, value, options = {}) => {
+  worksheet.mergeCells(fromRow, fromCol, toRow, toCol)
+  return copyCell(worksheet, fromRow, fromCol, value, options)
+}
+
+const addInstitutionalBlock = (worksheet, startCol) => {
+  const lines = [
+    'Servi Food S.A.',
+    'Saturnino Sarassa 345 Este.',
+    'C.P. 5400 - Ciudad.',
+    'San Juan - Argentina.',
+    'Teléfonos.',
+    'IVA Responsable Inscripto.',
+    'CUIT.'
+  ]
+  mergeAndSet(worksheet, 1, startCol + 1, 4, startCol + 2, lines.join('\n'), {
+    font: { size: 7, bold: true },
+    alignment: { vertical: 'middle', horizontal: 'center', wrapText: true }
+  })
+}
+
+const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabel) => {
+  const endCol = startCol + 3
+  await addLogoAt(workbook, worksheet, startCol)
+
+  mergeAndSet(worksheet, 1, startCol, 4, startCol, '', { border: BORDER })
+  addInstitutionalBlock(worksheet, startCol)
+  copyCell(worksheet, 1, endCol, 'X', {
+    font: { size: 20, bold: true },
+    alignment: { vertical: 'middle', horizontal: 'center' }
+  })
+  mergeAndSet(worksheet, 2, endCol, 3, endCol, 'REMITO', {
+    font: { size: 13, bold: true },
+    alignment: { vertical: 'middle', horizontal: 'center' }
+  })
+  copyCell(worksheet, 4, endCol, copyLabel, {
+    font: { size: 8, bold: true },
+    fill: LIGHT_FILL,
+    alignment: { vertical: 'middle', horizontal: 'center' }
+  })
+
+  mergeAndSet(worksheet, 5, startCol, 5, startCol + 1, `N° ${remito.remitoNumber}`, {
+    font: { size: 10, bold: true },
+    alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
+  })
+  mergeAndSet(worksheet, 5, startCol + 2, 5, endCol, `Fecha: ${formatDateOnly(remito.deliveryDate)}`, {
+    font: { size: 9, bold: true },
+    alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
+  })
+  mergeAndSet(worksheet, 6, startCol, 6, endCol, `Empresa destinataria: ${remito.companyDisplayName}`, {
+    font: { size: 9, bold: true },
+    alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
+  })
+  mergeAndSet(worksheet, 7, startCol, 7, endCol, 'Documento no válido como factura', {
+    font: { size: 8, italic: true },
+    alignment: { vertical: 'middle', horizontal: 'center', wrapText: true }
+  })
+
+  copyCell(worksheet, 9, startCol, 'CANT.', {
+    font: { size: 8, bold: true, color: { argb: 'FFFFFFFF' } },
+    fill: HEADER_FILL
+  })
+  mergeAndSet(worksheet, 9, startCol + 1, 9, endCol, 'DETALLE', {
+    font: { size: 8, bold: true, color: { argb: 'FFFFFFFF' } },
+    fill: HEADER_FILL
+  })
+
+  const detailRows = remito.products.slice(0, DETAIL_ROWS_PER_COPY)
+  for (let index = 0; index < DETAIL_ROWS_PER_COPY; index += 1) {
+    const rowNumber = 10 + index
+    const product = detailRows[index]
+    copyCell(worksheet, rowNumber, startCol, product?.cantidad || '', {
+      font: { size: 8 },
+      alignment: { vertical: 'middle', horizontal: 'center' }
+    })
+    mergeAndSet(worksheet, rowNumber, startCol + 1, rowNumber, endCol, product?.producto || '', {
+      font: { size: 8 },
+      alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
+    })
+    worksheet.getRow(rowNumber).height = 18
+  }
+
+  copyCell(worksheet, 23, startCol, remito.totalItems, {
+    font: { size: 8, bold: true },
+    fill: LIGHT_FILL
+  })
+  mergeAndSet(worksheet, 23, startCol + 1, 23, endCol, 'TOTAL MENÚ', {
+    font: { size: 8, bold: true },
+    fill: LIGHT_FILL,
+    alignment: { vertical: 'middle', horizontal: 'left' }
+  })
+
+  mergeAndSet(worksheet, 25, startCol, 27, endCol, 'DEVOLUCIONES', {
+    font: { size: 8, bold: true },
+    alignment: { vertical: 'top', horizontal: 'left', wrapText: true }
+  })
+  mergeAndSet(worksheet, 28, startCol, 29, endCol, 'CONTROL DE CALIDAD / CANTIDAD:    CONFORME  □      NO CONFORME  □', {
+    font: { size: 8, bold: true },
+    alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
+  })
+  mergeAndSet(worksheet, 31, startCol, 33, startCol + 1, 'FIRMA RESPONSABLE', {
+    font: { size: 8, bold: true },
+    alignment: { vertical: 'bottom', horizontal: 'center' }
+  })
+  mergeAndSet(worksheet, 31, startCol + 2, 33, endCol, 'FIRMA TRANSPORTE', {
+    font: { size: 8, bold: true },
+    alignment: { vertical: 'bottom', horizontal: 'center' }
+  })
+
+  applyOuterBorder(worksheet, 1, 33, startCol, endCol)
+}
+
 const addRemitoSheet = async (workbook, remito, sheetName) => {
   const worksheet = workbook.addWorksheet(sheetName)
-  worksheet.columns = REMITO_COLUMNS
-  worksheet.getColumn(1).width = 12
-  worksheet.getColumn(2).width = 44
-  worksheet.getColumn(3).width = 22
-
-  await addLogo(workbook, worksheet)
-
-  worksheet.mergeCells('A1:C2')
-  worksheet.getCell('A1').value = ''
-  worksheet.getRow(1).height = 24
-  worksheet.getRow(2).height = 24
-
-  worksheet.mergeCells('A3:C3')
-  worksheet.getCell('A3').value = 'REMITO'
-  worksheet.getCell('A3').font = { bold: true, size: 18, color: { argb: 'FF111827' } }
-  worksheet.getCell('A3').alignment = { horizontal: 'center', vertical: 'middle' }
-  worksheet.getRow(3).height = 26
-
-  worksheet.getCell('A4').value = 'Número'
-  worksheet.mergeCells('B4:C4')
-  worksheet.getCell('B4').value = remito.remitoNumber
-  worksheet.getCell('A5').value = 'Fecha'
-  worksheet.mergeCells('B5:C5')
-  worksheet.getCell('B5').value = formatDateOnly(remito.deliveryDate)
-  worksheet.getCell('A6').value = 'Empresa destinataria'
-  worksheet.mergeCells('B6:C6')
-  worksheet.getCell('B6').value = remito.companyDisplayName
-  worksheet.getCell('A7').value = 'Cantidad total'
-  worksheet.mergeCells('B7:C7')
-  worksheet.getCell('B7').value = remito.totalItems
-
-  ;[4, 5, 6, 7].forEach((rowNumber) => {
-    worksheet.getCell(`A${rowNumber}`).font = { bold: true, color: { argb: 'FF374151' } }
-    worksheet.getCell(`A${rowNumber}`).fill = LIGHT_FILL
-    worksheet.getCell(`B${rowNumber}`).font = {
-      bold: rowNumber === 4,
-      size: rowNumber === 4 ? 14 : 11,
-      color: { argb: 'FF111827' }
-    }
-  })
-  styleCellRange(worksheet, 4, 7)
-
-  worksheet.addRow([])
-  const headerRow = worksheet.addRow(REMITO_COLUMNS.map((column) => column.header))
-  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } }
-  headerRow.fill = HEADER_FILL
-  headerRow.alignment = { horizontal: 'center', vertical: 'middle' }
-
-  const detailStartRow = worksheet.rowCount + 1
-  remito.products.forEach((product) => {
-    worksheet.addRow({
-      cantidad: product.cantidad,
-      producto: product.producto,
-      observaciones: ''
-    })
-  })
-
-  const blankRows = Math.max(MIN_REMITO_DETAIL_ROWS - remito.products.length, 0)
-  for (let index = 0; index < blankRows; index += 1) {
-    worksheet.addRow({ cantidad: '', producto: '', observaciones: '' })
+  worksheet.columns = [
+    { key: 'originalCantidad', width: 8 },
+    { key: 'originalDetalleA', width: 15 },
+    { key: 'originalDetalleB', width: 15 },
+    { key: 'originalDetalleC', width: 13 },
+    { key: 'spacer', width: 2 },
+    { key: 'duplicadoCantidad', width: 8 },
+    { key: 'duplicadoDetalleA', width: 15 },
+    { key: 'duplicadoDetalleB', width: 15 },
+    { key: 'duplicadoDetalleC', width: 13 }
+  ]
+  worksheet.properties.showGridLines = false
+  worksheet.views = [{ showGridLines: false }]
+  for (let rowNumber = 1; rowNumber <= 35; rowNumber += 1) {
+    worksheet.getRow(rowNumber).height = rowNumber <= 7 ? 17 : 18
   }
 
-  for (let rowNumber = detailStartRow; rowNumber <= worksheet.rowCount; rowNumber += 1) {
-    worksheet.getRow(rowNumber).height = 22
-  }
+  await addCopySheetBlock(workbook, worksheet, remito, 1, 'ORIGINAL')
+  await addCopySheetBlock(workbook, worksheet, remito, 6, 'DUPLICADO')
 
-  const totalRow = worksheet.addRow({ cantidad: remito.totalItems, producto: 'Total', observaciones: '' })
-  totalRow.font = { bold: true, color: { argb: 'FF111827' } }
-  totalRow.fill = LIGHT_FILL
-
-  worksheet.addRow([])
-  const signatureRowNumber = worksheet.rowCount + 1
-  worksheet.mergeCells(`A${signatureRowNumber}:B${signatureRowNumber}`)
-  worksheet.getCell(`A${signatureRowNumber}`).value = 'Recibí conforme: ______________________________'
-  worksheet.getCell(`C${signatureRowNumber}`).value = 'Aclaración: __________________'
-  worksheet.getRow(signatureRowNumber).height = 24
-  styleCellRange(worksheet, signatureRowNumber, signatureRowNumber)
-
-  const returnRowNumber = Math.max(worksheet.rowCount + 2, 34)
-  worksheet.getCell(`A${returnRowNumber}`).value = {
+  worksheet.getCell('A35').value = {
     text: 'Volver al índice',
     hyperlink: "#'Índice'!A1"
   }
-  worksheet.getCell(`A${returnRowNumber}`).font = { color: { argb: 'FF2563EB' }, underline: true, size: 9 }
-  worksheet.getCell(`A${returnRowNumber}`).alignment = { vertical: 'middle' }
+  worksheet.getCell('A35').font = { color: { argb: 'FF2563EB' }, underline: true, size: 8 }
+  worksheet.getCell('A35').alignment = { vertical: 'middle', horizontal: 'left' }
 
-  styleCellRange(worksheet, 9, worksheet.rowCount)
-  worksheet.getColumn(1).alignment = { horizontal: 'center', vertical: 'middle' }
-  worksheet.getColumn(2).alignment = { vertical: 'middle', wrapText: true }
-  worksheet.getColumn(3).alignment = { vertical: 'middle', wrapText: true }
-  configurePrintPage(worksheet, `A1:C${returnRowNumber}`)
+  configurePrintPage(worksheet, 'A1:I33')
   return worksheet
 }
 

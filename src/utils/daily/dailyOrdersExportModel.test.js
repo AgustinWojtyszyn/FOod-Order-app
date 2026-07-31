@@ -139,7 +139,9 @@ describe('daily orders export model', () => {
 
     expect(Object.keys(rows[0])).toEqual([
       'Cliente',
+      'Organización',
       'Ubicación / empresa',
+      'Lugar de entrega',
       'Fecha de entrega',
       'Turno / servicio',
       'Menú elegido',
