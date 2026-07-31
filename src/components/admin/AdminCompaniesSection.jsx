@@ -1,9 +1,13 @@
-import { Building2, Trash2, UserPlus } from 'lucide-react'
+import { AlertTriangle, Building2, Save, Trash2, UserPlus } from 'lucide-react'
 
 const AdminCompaniesSection = ({
   companies,
+  draftStartNumbers,
   adminEmailDrafts,
   companiesLoading,
+  savingCompanySlug,
+  onCompanyStartNumberChange,
+  onSaveCompanyStartNumber,
   onAdminEmailChange,
   onAssignCompanyAdmin,
   onRemoveCompanyAdmin
@@ -12,7 +16,7 @@ const AdminCompaniesSection = ({
     <div className="mb-4 sm:mb-6">
       <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Empresas y notas de pedido</h2>
       <p className="mt-1 text-sm text-gray-600">
-        La numeración arranca siempre en 0 y aumenta con los pedidos acumulados de cada empresa.
+        Configurá el rango base de cada empresa: 10000, 20000, 30000 y así sucesivamente.
       </p>
     </div>
 
@@ -22,19 +26,25 @@ const AdminCompaniesSection = ({
       </div>
     ) : (
       <div className="overflow-x-auto">
-        <table className="min-w-[900px] divide-y divide-gray-200 text-sm">
+        <table className="min-w-[980px] divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-3 py-3 text-left font-bold text-gray-700">Empresa</th>
-              <th className="px-3 py-3 text-left font-bold text-gray-700">Inicio fijo</th>
-              <th className="px-3 py-3 text-left font-bold text-gray-700">Acumulado actual</th>
-              <th className="px-3 py-3 text-left font-bold text-gray-700">Notas generadas</th>
+              <th className="px-3 py-3 text-left font-bold text-gray-700">Número inicial de nota</th>
+              <th className="px-3 py-3 text-left font-bold text-gray-700">Próximo número</th>
+              <th className="px-3 py-3 text-left font-bold text-gray-700">Emitidas</th>
               <th className="px-3 py-3 text-left font-bold text-gray-700">Administradores de la empresa</th>
+              <th className="px-3 py-3 text-right font-bold text-gray-700">Acción</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
             {(companies || []).map((company) => {
               const issuedCount = Number(company.issued_count || 0)
+              const saving = savingCompanySlug === company.slug
+              const currentValue = company.remito_start_number == null ? '' : String(company.remito_start_number)
+              const draftValue = draftStartNumbers?.[company.slug] ?? currentValue
+              const changed = draftValue !== currentValue
+              const blockedChange = issuedCount > 0 && changed
 
               return (
                 <tr key={company.slug}>
@@ -45,11 +55,25 @@ const AdminCompaniesSection = ({
                     </div>
                     <p className="mt-1 text-xs text-gray-500">{company.slug}</p>
                   </td>
-                  <td className="px-3 py-3 font-semibold text-gray-700">
-                    0
+                  <td className="px-3 py-3">
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={draftValue}
+                      onChange={(event) => onCompanyStartNumberChange(company.slug, event.target.value)}
+                      className="w-44 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                      placeholder="Ej: 10000"
+                    />
+                    {blockedChange && (
+                      <p className="mt-2 flex items-center gap-1 text-xs font-semibold text-amber-700">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        Ya existen notas de pedido emitidas. No se puede modificar libremente.
+                      </p>
+                    )}
                   </td>
                   <td className="px-3 py-3 font-semibold text-gray-700">
-                    {company.next_remito_number ?? 0}
+                    {company.next_remito_number ?? '-'}
                   </td>
                   <td className="px-3 py-3 text-gray-700">
                     <span className="font-semibold">{issuedCount}</span>
@@ -101,6 +125,17 @@ const AdminCompaniesSection = ({
                         </button>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => onSaveCompanyStartNumber(company.slug)}
+                      disabled={saving || !changed || blockedChange}
+                      className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-sm font-bold text-white shadow-sm hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Save className="mr-2 h-4 w-4" />
+                      {saving ? 'Guardando...' : 'Guardar'}
+                    </button>
                   </td>
                 </tr>
               )

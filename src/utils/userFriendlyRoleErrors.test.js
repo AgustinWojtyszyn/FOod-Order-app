@@ -16,10 +16,13 @@ describe('role update friendly errors', () => {
 
   it('transforma errores de numeracion de nota de pedido', () => {
     expect(getUserFriendlyErrorMessage(new Error('remito_start_number_required'))).toBe(
-      'La numeración de nota de pedido debe estar inicializada en 0 para la empresa.'
+      'La empresa no tiene configurado el número inicial de nota de pedido.'
     )
-    expect(getUserFriendlyErrorMessage(new Error('remito_start_number_must_be_zero'))).toBe(
-      'El número inicial de nota de pedido es fijo y debe ser 0.'
+    expect(getUserFriendlyErrorMessage(new Error('remito_start_number_must_be_positive'))).toBe(
+      'El número inicial de nota de pedido debe ser un entero positivo.'
+    )
+    expect(getUserFriendlyErrorMessage(new Error('company_remito_range_exhausted'))).toBe(
+      'La empresa agotó su rango de numeración de notas de pedido.'
     )
     expect(getUserFriendlyErrorMessage(new Error('Could not find the function public.issue_company_remito'))).toBe(
       'Falta aplicar el SQL de numeración de notas de pedido en la base de datos.'

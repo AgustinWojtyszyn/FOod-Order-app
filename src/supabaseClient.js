@@ -222,13 +222,12 @@ export const db = {
     return { data, error }
   },
 
-  issueCompanyRemito: async ({ companySlug, companyName, deliveryDate, orderIds, increment }) => {
+  issueCompanyRemito: async ({ companySlug, companyName, deliveryDate, orderIds }) => {
     const { data, error } = await supabase.rpc('issue_company_remito', {
       p_company_slug: companySlug,
       p_company_name: companyName,
       p_delivery_date: deliveryDate,
-      p_order_ids: Array.isArray(orderIds) ? orderIds : [],
-      p_increment: Number.isFinite(Number(increment)) ? Number(increment) : 0
+      p_order_ids: Array.isArray(orderIds) ? orderIds : []
     })
     return { data: Array.isArray(data) ? data[0] : data, error }
   },

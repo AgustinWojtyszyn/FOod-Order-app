@@ -507,13 +507,11 @@ export async function exportDailyOrdersExcel({
     const remitos = []
 
     for (const group of groups) {
-      const totalItems = getTotalItems(group.orders)
       const { data, error } = await db.issueCompanyRemito({
         companySlug: group.slug,
         companyName: group.name,
         deliveryDate,
-        orderIds: getOrderIds(group.orders),
-        increment: totalItems
+        orderIds: getOrderIds(group.orders)
       })
 
       if (error) {
@@ -533,7 +531,7 @@ export async function exportDailyOrdersExcel({
         companyDisplayName: group.displayName,
         remitoNumber: data.remito_number,
         deliveryDate,
-        totalItems,
+        totalItems: getTotalItems(group.orders),
         products,
         sheetName,
         reused: !!data.reused

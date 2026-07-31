@@ -323,18 +323,19 @@ export const getUserFriendlyErrorMessage = (error, fallback = 'No pudimos comple
   }
 
   if (normalized.includes('remito_start_number_required')) {
-    return 'La numeración de nota de pedido debe estar inicializada en 0 para la empresa.'
+    return 'La empresa no tiene configurado el número inicial de nota de pedido.'
   }
 
-  if (
-    normalized.includes('remito_start_number_must_be_positive') ||
-    normalized.includes('remito_start_number_must_be_zero')
-  ) {
-    return 'El número inicial de nota de pedido es fijo y debe ser 0.'
+  if (normalized.includes('remito_start_number_must_be_positive')) {
+    return 'El número inicial de nota de pedido debe ser un entero positivo.'
   }
 
   if (normalized.includes('company_has_issued_remitos')) {
     return 'La empresa ya emitió notas de pedido. El número inicial no puede modificarse libremente.'
+  }
+
+  if (normalized.includes('company_remito_range_exhausted')) {
+    return 'La empresa agotó su rango de numeración de notas de pedido.'
   }
 
   if (normalized.includes('company_required') || normalized.includes('company_not_found')) {
