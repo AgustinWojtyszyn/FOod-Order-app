@@ -322,6 +322,32 @@ export const getUserFriendlyErrorMessage = (error, fallback = 'No pudimos comple
     return 'No tenés permisos para realizar esta acción. Si creés que es un error, contactá a un administrador.'
   }
 
+  if (normalized.includes('remito_start_number_required')) {
+    return 'La numeración de nota de pedido debe estar inicializada en 0 para la empresa.'
+  }
+
+  if (
+    normalized.includes('remito_start_number_must_be_positive') ||
+    normalized.includes('remito_start_number_must_be_zero')
+  ) {
+    return 'El número inicial de nota de pedido es fijo y debe ser 0.'
+  }
+
+  if (normalized.includes('company_has_issued_remitos')) {
+    return 'La empresa ya emitió notas de pedido. El número inicial no puede modificarse libremente.'
+  }
+
+  if (normalized.includes('company_required') || normalized.includes('company_not_found')) {
+    return 'No pudimos identificar la empresa para emitir la nota de pedido.'
+  }
+
+  if (
+    normalized.includes('could not find the function') ||
+    normalized.includes('schema cache')
+  ) {
+    return 'Falta aplicar el SQL de numeración de notas de pedido en la base de datos.'
+  }
+
   if (normalized.includes('invalid_role')) {
     return 'El rol seleccionado no es válido.'
   }

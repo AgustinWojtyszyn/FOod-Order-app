@@ -507,18 +507,20 @@ export async function exportDailyOrdersExcel({
     const remitos = []
 
     for (const group of groups) {
+      const totalItems = getTotalItems(group.orders)
       const { data, error } = await db.issueCompanyRemito({
         companySlug: group.slug,
         companyName: group.name,
         deliveryDate,
-        orderIds: getOrderIds(group.orders)
+        orderIds: getOrderIds(group.orders),
+        increment: totalItems
       })
 
       if (error) {
         console.error('Error al emitir nota de pedido:', error)
         notifyError(getUserFriendlyErrorMessage(
           error,
-          'No pudimos emitir la nota de pedido. Verificá que la empresa tenga número inicial configurado.'
+          `No pudimos emitir la nota de pedido para ${group.displayName}. Verificá que la empresa tenga número inicial configurado.`
         ))
         return
       }
@@ -531,7 +533,7 @@ export async function exportDailyOrdersExcel({
         companyDisplayName: group.displayName,
         remitoNumber: data.remito_number,
         deliveryDate,
-        totalItems: getTotalItems(group.orders),
+        totalItems,
         products,
         sheetName,
         reused: !!data.reused

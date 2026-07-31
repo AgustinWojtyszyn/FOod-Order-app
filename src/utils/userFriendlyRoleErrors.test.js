@@ -13,4 +13,16 @@ describe('role update friendly errors', () => {
     expect(getUserFriendlyErrorMessage(new Error('user_not_found'))).toBe('No encontramos el usuario indicado. Actualizá la pantalla e intentá nuevamente.')
     expect(getUserFriendlyErrorMessage(new Error('last_admin'))).toBe('No se puede quitar el rol al último administrador.')
   })
+
+  it('transforma errores de numeracion de nota de pedido', () => {
+    expect(getUserFriendlyErrorMessage(new Error('remito_start_number_required'))).toBe(
+      'La numeración de nota de pedido debe estar inicializada en 0 para la empresa.'
+    )
+    expect(getUserFriendlyErrorMessage(new Error('remito_start_number_must_be_zero'))).toBe(
+      'El número inicial de nota de pedido es fijo y debe ser 0.'
+    )
+    expect(getUserFriendlyErrorMessage(new Error('Could not find the function public.issue_company_remito'))).toBe(
+      'Falta aplicar el SQL de numeración de notas de pedido en la base de datos.'
+    )
+  })
 })

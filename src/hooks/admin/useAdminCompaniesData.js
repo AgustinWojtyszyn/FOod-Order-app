@@ -9,8 +9,8 @@ const getDefaultCompanyRows = () =>
   ALL_COMPANY_LIST.map((company) => ({
     slug: company.slug,
     name: company.name,
-    remito_start_number: null,
-    next_remito_number: null,
+    remito_start_number: 0,
+    next_remito_number: 0,
     issued_count: 0,
     last_remito_number: null
   }))
@@ -49,7 +49,7 @@ const useAdminCompaniesData = ({ enabled = true } = {}) => {
         admins: assignments.filter((assignment) => assignment.company_slug === row.slug)
       })))
       setDraftStartNumbers(Object.fromEntries(
-        rows.map((row) => [row.slug, row.remito_start_number == null ? '' : String(row.remito_start_number)])
+        rows.map((row) => [row.slug, '0'])
       ))
     } catch (err) {
       console.error('Error fetching company remito config:', err)
@@ -84,7 +84,7 @@ const useAdminCompaniesData = ({ enabled = true } = {}) => {
 
     const nextValue = normalizeNumberInput(draftStartNumbers[companySlug])
     if (nextValue == null) {
-      notifyWarning('El número inicial de nota de pedido debe ser un entero positivo.')
+      notifyWarning('El número inicial de nota de pedido es fijo y siempre empieza en 0.')
       return
     }
 
