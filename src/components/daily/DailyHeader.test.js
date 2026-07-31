@@ -35,6 +35,7 @@ const baseProps = {
   locations: [],
   exportableOrdersCount: 0,
   onExportExcel: () => {},
+  onGenerateNotaPedido: () => {},
   onShareWhatsApp: () => {},
   refreshing: false,
   onRefresh: () => {},

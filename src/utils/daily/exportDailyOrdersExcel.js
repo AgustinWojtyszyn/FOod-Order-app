@@ -13,7 +13,7 @@ import {
 import { notifyError, notifyInfo, notifySuccess } from '../notice'
 import { getUserFriendlyErrorMessage } from '../index'
 
-const DETAIL_ROWS_PER_COPY = 13
+const DETAIL_ROWS_PER_COPY = 16
 
 const HEADER_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111827' } }
 const LIGHT_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
@@ -151,7 +151,7 @@ const summarizeProducts = (orders = []) => {
 const getTotalItems = (orders = []) =>
   orders.reduce((sum, order) => sum + getOrderTotalItems(order), 0)
 
-const configurePrintPage = (worksheet, printArea = 'A1:I35') => {
+const configurePrintPage = (worksheet, printArea = 'A1:M33') => {
   worksheet.pageSetup = {
     paperSize: 9,
     orientation: 'landscape',
@@ -163,10 +163,10 @@ const configurePrintPage = (worksheet, printArea = 'A1:I35') => {
     printTitlesRow: '',
     printTitlesColumn: '',
     margins: {
-      left: 0.18,
-      right: 0.18,
-      top: 0.18,
-      bottom: 0.18,
+      left: 0.25,
+      right: 0.25,
+      top: 0.35,
+      bottom: 0.35,
       header: 0.12,
       footer: 0.12
     },
@@ -237,55 +237,81 @@ const addInstitutionalBlock = (worksheet, startCol) => {
   })
 }
 
+const getPrintableDetailRows = (products = []) => {
+  if (products.length <= DETAIL_ROWS_PER_COPY) return products
+
+  const visibleRows = products.slice(0, DETAIL_ROWS_PER_COPY - 1)
+  const remainingRows = products.slice(DETAIL_ROWS_PER_COPY - 1)
+  const remainingQuantity = remainingRows.reduce((sum, product) => sum + Number(product?.cantidad || 0), 0)
+  const remainingLabels = remainingRows.map((product) => product.producto).filter(Boolean).join(', ')
+  return [
+    ...visibleRows,
+    {
+      cantidad: remainingQuantity || '',
+      producto: `Otros conceptos (${remainingRows.length}): ${remainingLabels}`
+    }
+  ]
+}
+
 const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabel) => {
-  const endCol = startCol + 3
+  const endCol = startCol + 5
+  const xCol = startCol + 3
+  const titleStartCol = startCol + 4
   await addLogoAt(workbook, worksheet, startCol)
 
   mergeAndSet(worksheet, 1, startCol, 4, startCol, '', { border: BORDER })
   addInstitutionalBlock(worksheet, startCol)
-  copyCell(worksheet, 1, endCol, 'X', {
+  copyCell(worksheet, 1, xCol, 'X', {
     font: { size: 20, bold: true },
     alignment: { vertical: 'middle', horizontal: 'center' }
   })
-  mergeAndSet(worksheet, 2, endCol, 3, endCol, 'REMITO', {
-    font: { size: 13, bold: true },
-    alignment: { vertical: 'middle', horizontal: 'center' }
-  })
-  copyCell(worksheet, 4, endCol, copyLabel, {
+  mergeAndSet(worksheet, 1, titleStartCol, 1, endCol, copyLabel, {
     font: { size: 8, bold: true },
     fill: LIGHT_FILL,
     alignment: { vertical: 'middle', horizontal: 'center' }
   })
-
-  mergeAndSet(worksheet, 5, startCol, 5, startCol + 1, `N° ${remito.remitoNumber}`, {
+  mergeAndSet(worksheet, 2, titleStartCol, 3, endCol, 'NOTA DE PEDIDO', {
+    font: { size: 12, bold: true },
+    alignment: { vertical: 'middle', horizontal: 'center' }
+  })
+  mergeAndSet(worksheet, 4, titleStartCol, 4, endCol, `N° ${remito.remitoNumber}`, {
     font: { size: 10, bold: true },
-    alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
+    alignment: { vertical: 'middle', horizontal: 'center' }
   })
-  mergeAndSet(worksheet, 5, startCol + 2, 5, endCol, `Fecha: ${formatDateOnly(remito.deliveryDate)}`, {
+
+  mergeAndSet(worksheet, 5, startCol, 5, startCol + 2, `Fecha: ${formatDateOnly(remito.deliveryDate)}`, {
     font: { size: 9, bold: true },
     alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
   })
-  mergeAndSet(worksheet, 6, startCol, 6, endCol, `Empresa destinataria: ${remito.companyDisplayName}`, {
+  mergeAndSet(worksheet, 5, xCol, 5, endCol, `Empresa: ${remito.companyDisplayName}`, {
     font: { size: 9, bold: true },
     alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
   })
-  mergeAndSet(worksheet, 7, startCol, 7, endCol, 'Documento no válido como factura', {
+  mergeAndSet(worksheet, 6, startCol, 6, endCol, 'Documento no válido como factura', {
     font: { size: 8, italic: true },
     alignment: { vertical: 'middle', horizontal: 'center', wrapText: true }
   })
+  mergeAndSet(worksheet, 7, startCol, 7, startCol + 2, 'I.V.A. RESPONSABLE INSCRIPTO', {
+    font: { size: 7, bold: true },
+    alignment: { vertical: 'middle', horizontal: 'center', wrapText: true }
+  })
+  mergeAndSet(worksheet, 7, xCol, 7, endCol, 'C.U.I.T. N°: 30-71000228-9', {
+    font: { size: 7, bold: true },
+    alignment: { vertical: 'middle', horizontal: 'center', wrapText: true }
+  })
 
-  copyCell(worksheet, 9, startCol, 'CANT.', {
+  copyCell(worksheet, 8, startCol, 'CANT.', {
     font: { size: 8, bold: true, color: { argb: 'FFFFFFFF' } },
     fill: HEADER_FILL
   })
-  mergeAndSet(worksheet, 9, startCol + 1, 9, endCol, 'DETALLE', {
+  mergeAndSet(worksheet, 8, startCol + 1, 8, endCol, 'DETALLE', {
     font: { size: 8, bold: true, color: { argb: 'FFFFFFFF' } },
     fill: HEADER_FILL
   })
 
-  const detailRows = remito.products.slice(0, DETAIL_ROWS_PER_COPY)
+  const detailRows = getPrintableDetailRows(remito.products)
   for (let index = 0; index < DETAIL_ROWS_PER_COPY; index += 1) {
-    const rowNumber = 10 + index
+    const rowNumber = 9 + index
     const product = detailRows[index]
     copyCell(worksheet, rowNumber, startCol, product?.cantidad || '', {
       font: { size: 8 },
@@ -295,32 +321,32 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
       font: { size: 8 },
       alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
     })
-    worksheet.getRow(rowNumber).height = 18
+    worksheet.getRow(rowNumber).height = 15.5
   }
 
-  copyCell(worksheet, 23, startCol, remito.totalItems, {
+  copyCell(worksheet, 25, startCol, remito.totalItems, {
     font: { size: 8, bold: true },
     fill: LIGHT_FILL
   })
-  mergeAndSet(worksheet, 23, startCol + 1, 23, endCol, 'TOTAL MENÚ', {
+  mergeAndSet(worksheet, 25, startCol + 1, 25, endCol, 'TOTAL MENÚ', {
     font: { size: 8, bold: true },
     fill: LIGHT_FILL,
     alignment: { vertical: 'middle', horizontal: 'left' }
   })
 
-  mergeAndSet(worksheet, 25, startCol, 27, endCol, 'DEVOLUCIONES', {
+  mergeAndSet(worksheet, 27, startCol, 29, endCol, 'DEVOLUCIONES', {
     font: { size: 8, bold: true },
     alignment: { vertical: 'top', horizontal: 'left', wrapText: true }
   })
-  mergeAndSet(worksheet, 28, startCol, 29, endCol, 'CONTROL DE CALIDAD / CANTIDAD:    CONFORME  □      NO CONFORME  □', {
+  mergeAndSet(worksheet, 30, startCol, 30, endCol, 'CONTROL DE CALIDAD / CANTIDAD:    CONFORME  □      NO CONFORME  □', {
     font: { size: 8, bold: true },
     alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
   })
-  mergeAndSet(worksheet, 31, startCol, 33, startCol + 1, 'FIRMA RESPONSABLE', {
+  mergeAndSet(worksheet, 32, startCol, 33, startCol + 2, 'FIRMA RESPONSABLE', {
     font: { size: 8, bold: true },
     alignment: { vertical: 'bottom', horizontal: 'center' }
   })
-  mergeAndSet(worksheet, 31, startCol + 2, 33, endCol, 'FIRMA TRANSPORTE', {
+  mergeAndSet(worksheet, 32, xCol, 33, endCol, 'FIRMA TRANSPORTE', {
     font: { size: 8, bold: true },
     alignment: { vertical: 'bottom', horizontal: 'center' }
   })
@@ -331,24 +357,28 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
 const addRemitoSheet = async (workbook, remito, sheetName) => {
   const worksheet = workbook.addWorksheet(sheetName)
   worksheet.columns = [
-    { key: 'originalCantidad', width: 8 },
-    { key: 'originalDetalleA', width: 15 },
-    { key: 'originalDetalleB', width: 15 },
-    { key: 'originalDetalleC', width: 13 },
-    { key: 'spacer', width: 2 },
-    { key: 'duplicadoCantidad', width: 8 },
-    { key: 'duplicadoDetalleA', width: 15 },
-    { key: 'duplicadoDetalleB', width: 15 },
-    { key: 'duplicadoDetalleC', width: 13 }
+    { key: 'margin', width: 1.6 },
+    { key: 'originalCantidad', width: 7.5 },
+    { key: 'originalDetalleA', width: 10 },
+    { key: 'originalDetalleB', width: 10 },
+    { key: 'originalDetalleC', width: 10 },
+    { key: 'originalDetalleD', width: 11 },
+    { key: 'originalDetalleE', width: 11 },
+    { key: 'duplicadoCantidad', width: 7.5 },
+    { key: 'duplicadoDetalleA', width: 10 },
+    { key: 'duplicadoDetalleB', width: 10 },
+    { key: 'duplicadoDetalleC', width: 10 },
+    { key: 'duplicadoDetalleD', width: 11 },
+    { key: 'duplicadoDetalleE', width: 11 }
   ]
   worksheet.properties.showGridLines = false
   worksheet.views = [{ showGridLines: false }]
   for (let rowNumber = 1; rowNumber <= 35; rowNumber += 1) {
-    worksheet.getRow(rowNumber).height = rowNumber <= 7 ? 17 : 18
+    worksheet.getRow(rowNumber).height = rowNumber <= 7 ? 16 : 15.5
   }
 
-  await addCopySheetBlock(workbook, worksheet, remito, 1, 'ORIGINAL')
-  await addCopySheetBlock(workbook, worksheet, remito, 6, 'DUPLICADO')
+  await addCopySheetBlock(workbook, worksheet, remito, 2, 'ORIGINAL')
+  await addCopySheetBlock(workbook, worksheet, remito, 8, 'DUPLICADO')
 
   worksheet.getCell('A35').value = {
     text: 'Volver al índice',
@@ -357,7 +387,7 @@ const addRemitoSheet = async (workbook, remito, sheetName) => {
   worksheet.getCell('A35').font = { color: { argb: 'FF2563EB' }, underline: true, size: 8 }
   worksheet.getCell('A35').alignment = { vertical: 'middle', horizontal: 'left' }
 
-  configurePrintPage(worksheet, 'A1:I33')
+  configurePrintPage(worksheet, 'A1:M33')
   return worksheet
 }
 
@@ -365,7 +395,7 @@ const addIndexSheet = (workbook, remitos) => {
   const worksheet = workbook.addWorksheet('Índice', { properties: { tabColor: { argb: 'FF111827' } } })
   worksheet.columns = [
     { header: 'Empresa', key: 'empresa', width: 34 },
-    { header: 'Número de remito', key: 'numero', width: 18 },
+    { header: 'Número de nota', key: 'numero', width: 18 },
     { header: 'Fecha', key: 'fecha', width: 14 },
     { header: 'Cantidad total', key: 'cantidad', width: 16 },
     { header: 'Enlace', key: 'enlace', width: 18 }
@@ -374,7 +404,7 @@ const addIndexSheet = (workbook, remitos) => {
   worksheet.properties.showGridLines = false
 
   worksheet.mergeCells('A1:E1')
-  worksheet.getCell('A1').value = 'Índice de remitos'
+  worksheet.getCell('A1').value = 'Índice de notas de pedido'
   worksheet.getCell('A1').font = { bold: true, size: 16, color: { argb: 'FF111827' } }
   worksheet.getCell('A1').alignment = { vertical: 'middle' }
 
@@ -387,13 +417,13 @@ const addIndexSheet = (workbook, remitos) => {
   }
   worksheet.getCell('B3').value = remitos[0]?.companyDisplayName || ''
   worksheet.getCell('C3').value = {
-    formula: `HYPERLINK("#'"&VLOOKUP(B3,$H$2:$I$${remitos.length + 1},2,FALSE)&"'!A1","Ir al remito")`,
-    result: 'Ir al remito'
+    formula: `HYPERLINK("#'"&VLOOKUP(B3,$H$2:$I$${remitos.length + 1},2,FALSE)&"'!A1","Ir a la nota")`,
+    result: 'Ir a la nota'
   }
   worksheet.getCell('C3').font = { color: { argb: 'FF2563EB' }, underline: true, bold: true }
 
   const headerRow = worksheet.getRow(5)
-  ;['Empresa', 'Número de remito', 'Fecha', 'Cantidad total', 'Enlace directo'].forEach((header, index) => {
+  ;['Empresa', 'Número de nota', 'Fecha', 'Cantidad total', 'Enlace directo'].forEach((header, index) => {
     const cell = headerRow.getCell(index + 1)
     cell.value = header
     cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }
@@ -410,7 +440,7 @@ const addIndexSheet = (workbook, remitos) => {
     row.getCell(3).value = formatDateOnly(remito.deliveryDate)
     row.getCell(4).value = remito.totalItems
     row.getCell(5).value = {
-      text: 'Ir al remito',
+      text: 'Ir a la nota',
       hyperlink: `#'${remito.sheetName}'!A1`
     }
     row.getCell(5).font = { color: { argb: 'FF2563EB' }, underline: true }
@@ -433,9 +463,9 @@ const buildFileName = (remitos, deliveryDate) => {
   const dateForFile = formatDateForFile(deliveryDate)
   if (remitos.length === 1) {
     const companyPart = sanitizeFileName(slugify(remitos[0].companyName).toUpperCase())
-    return `Remito_${companyPart}_${remitos[0].remitoNumber}_${dateForFile}.xlsx`
+    return `Nota_de_Pedido_${companyPart}_${remitos[0].remitoNumber}_${dateForFile}.xlsx`
   }
-  return `Remitos_Empresas_${dateForFile}.xlsx`
+  return `Notas_de_Pedido_Empresas_${dateForFile}.xlsx`
 }
 
 export async function exportDailyOrdersExcel({
@@ -485,10 +515,10 @@ export async function exportDailyOrdersExcel({
       })
 
       if (error) {
-        console.error('Error al emitir remito:', error)
+        console.error('Error al emitir nota de pedido:', error)
         notifyError(getUserFriendlyErrorMessage(
           error,
-          'No pudimos emitir el remito. Verificá que la empresa tenga número inicial configurado.'
+          'No pudimos emitir la nota de pedido. Verificá que la empresa tenga número inicial configurado.'
         ))
         return
       }

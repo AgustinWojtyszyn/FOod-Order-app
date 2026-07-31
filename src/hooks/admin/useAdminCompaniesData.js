@@ -34,7 +34,7 @@ const useAdminCompaniesData = ({ enabled = true } = {}) => {
       const { data, error } = await db.getCompaniesRemitoConfig()
       if (error) {
         console.error('Error fetching company remito config:', error)
-        notifyError(getUserFriendlyErrorMessage(error, 'No pudimos cargar la numeración de remitos.'))
+        notifyError(getUserFriendlyErrorMessage(error, 'No pudimos cargar la numeración de notas de pedido.'))
         return
       }
 
@@ -53,7 +53,7 @@ const useAdminCompaniesData = ({ enabled = true } = {}) => {
       ))
     } catch (err) {
       console.error('Error fetching company remito config:', err)
-      notifyError(getUserFriendlyErrorMessage(err, 'No pudimos cargar la numeración de remitos.'))
+      notifyError(getUserFriendlyErrorMessage(err, 'No pudimos cargar la numeración de notas de pedido.'))
     } finally {
       setCompaniesLoading(false)
     }
@@ -84,7 +84,7 @@ const useAdminCompaniesData = ({ enabled = true } = {}) => {
 
     const nextValue = normalizeNumberInput(draftStartNumbers[companySlug])
     if (nextValue == null) {
-      notifyWarning('El número inicial de remito debe ser un entero positivo.')
+      notifyWarning('El número inicial de nota de pedido debe ser un entero positivo.')
       return
     }
 
@@ -95,7 +95,7 @@ const useAdminCompaniesData = ({ enabled = true } = {}) => {
     }
 
     if (Number(company.issued_count || 0) > 0 && nextValue !== Number(company.remito_start_number)) {
-      notifyWarning('Esta empresa ya emitió remitos. El número inicial no puede modificarse libremente.')
+      notifyWarning('Esta empresa ya emitió notas de pedido. El número inicial no puede modificarse libremente.')
       return
     }
 
@@ -107,14 +107,14 @@ const useAdminCompaniesData = ({ enabled = true } = {}) => {
       })
       if (error) {
         console.error('Error saving company remito start:', error)
-        notifyError(getUserFriendlyErrorMessage(error, 'No pudimos guardar el número inicial de remito.'))
+        notifyError(getUserFriendlyErrorMessage(error, 'No pudimos guardar el número inicial de nota de pedido.'))
         return
       }
       await refreshCompanies()
-      notifySuccess('Número inicial de remito guardado.')
+      notifySuccess('Número inicial de nota de pedido guardado.')
     } catch (err) {
       console.error('Error saving company remito start:', err)
-      notifyError(getUserFriendlyErrorMessage(err, 'No pudimos guardar el número inicial de remito.'))
+      notifyError(getUserFriendlyErrorMessage(err, 'No pudimos guardar el número inicial de nota de pedido.'))
     } finally {
       setSavingCompanySlug(null)
     }

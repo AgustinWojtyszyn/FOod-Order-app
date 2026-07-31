@@ -13,6 +13,7 @@ const DailyHeader = ({
   locations,
   exportableOrdersCount,
   onExportExcel,
+  onGenerateNotaPedido,
   onShareWhatsApp,
   refreshing,
   onRefresh,
@@ -104,6 +105,7 @@ const DailyHeader = ({
             locations={locations}
             exportableOrdersCount={exportableOrdersCount}
             onExportExcel={onExportExcel}
+            onGenerateNotaPedido={onGenerateNotaPedido}
             onShareWhatsApp={onShareWhatsApp}
             refreshing={refreshing}
             onRefresh={onRefresh}

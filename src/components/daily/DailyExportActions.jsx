@@ -1,4 +1,4 @@
-import { Archive as ArchiveIcon, Printer, RefreshCw } from 'lucide-react'
+import { Archive as ArchiveIcon, FileText, Printer, RefreshCw } from 'lucide-react'
 import excelLogo from '../../assets/logoexcel.png'
 import whatsappLogo from '../../assets/whatsapp.png'
 
@@ -8,6 +8,7 @@ const DailyExportActions = ({
   locations,
   exportableOrdersCount,
   onExportExcel,
+  onGenerateNotaPedido,
   onShareWhatsApp,
   refreshing,
   onRefresh,
@@ -45,6 +46,19 @@ const DailyExportActions = ({
       >
         <img src={excelLogo} alt="" className="mr-2 h-5 w-5" aria-hidden="true" />
         Exportar Excel
+        <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
+          {exportableOrdersCount}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        onClick={onGenerateNotaPedido || onExportExcel}
+        disabled={exportableOrdersCount === 0}
+        className="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-slate-500/25 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+      >
+        <FileText className="mr-2 h-4 w-4" />
+        Generar nota de pedido
         <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
           {exportableOrdersCount}
         </span>

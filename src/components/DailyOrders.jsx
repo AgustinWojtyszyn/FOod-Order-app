@@ -177,6 +177,7 @@ const DailyOrders = ({ user, loading }) => {
           locations={locations}
           exportableOrdersCount={exportableOrdersCount}
           onExportExcel={exportToExcel}
+          onGenerateNotaPedido={exportToExcel}
           onShareWhatsApp={shareViaWhatsApp}
           refreshing={refreshing}
           onRefresh={handleRefresh}

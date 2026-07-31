@@ -14,9 +14,9 @@ const AdminCompaniesSection = ({
 }) => (
   <div className="card bg-white/95 backdrop-blur-sm shadow-xl border-2 border-white/20">
     <div className="mb-4 sm:mb-6">
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Empresas y remitos</h2>
+      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Empresas y notas de pedido</h2>
       <p className="mt-1 text-sm text-gray-600">
-        Configurá el número inicial de remito antes de emitir el primero para cada empresa.
+        Configurá el número inicial de nota de pedido antes de emitir la primera para cada empresa.
       </p>
     </div>
 
@@ -30,7 +30,7 @@ const AdminCompaniesSection = ({
           <thead className="bg-gray-50">
             <tr>
               <th className="px-3 py-3 text-left font-bold text-gray-700">Empresa</th>
-              <th className="px-3 py-3 text-left font-bold text-gray-700">Número inicial de remito</th>
+              <th className="px-3 py-3 text-left font-bold text-gray-700">Número inicial de nota</th>
               <th className="px-3 py-3 text-left font-bold text-gray-700">Próximo número</th>
               <th className="px-3 py-3 text-left font-bold text-gray-700">Emitidos</th>
               <th className="px-3 py-3 text-left font-bold text-gray-700">Administradores de la empresa</th>
@@ -68,7 +68,7 @@ const AdminCompaniesSection = ({
                     {blockedChange && (
                       <p className="mt-2 flex items-center gap-1 text-xs font-semibold text-amber-700">
                         <AlertTriangle className="h-3.5 w-3.5" />
-                        Ya existen remitos emitidos. No se puede modificar libremente.
+                        Ya existen notas de pedido emitidas. No se puede modificar libremente.
                       </p>
                     )}
                   </td>
