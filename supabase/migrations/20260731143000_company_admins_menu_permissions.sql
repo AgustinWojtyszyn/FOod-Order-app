@@ -33,6 +33,9 @@ create index if not exists company_admins_user_id_idx
 
 alter table public.company_admins enable row level security;
 
+grant select on public.company_admins to authenticated;
+grant insert, update, delete on public.menu_items, public.dinner_menu_by_date to authenticated;
+
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -300,12 +303,7 @@ for select
 to authenticated
 using (
   public.is_admin()
-  or exists (
-    select 1
-    from public.company_admins ca
-    where ca.company_id = companies.id
-      and ca.user_id = auth.uid()
-  )
+  or public.is_company_admin(companies.slug)
 );
 
 drop policy if exists menu_items_select_all_auth on public.menu_items;

@@ -64,7 +64,7 @@ const AccessDeniedScreen = ({ variant = 'denied' }) => {
 }
 
 export default function RequireAdmin({ children }) {
-  const { user, loading, permissionLoading, canAccessAdminPanel, permissionError } = useAuthContext()
+  const { user, loading, permissionLoading, isAdmin, isCompanyAdmin, canAccessAdminPanel, permissionError } = useAuthContext()
   const location = useLocation()
   const [validationTimedOut, setValidationTimedOut] = useState(false)
   const isValidating = loading || permissionLoading
@@ -100,6 +100,10 @@ export default function RequireAdmin({ children }) {
   }
 
   if (!canAccessAdminPanel) {
+    return <AccessDeniedScreen />
+  }
+
+  if (!isAdmin && isCompanyAdmin && location.pathname !== '/admin') {
     return <AccessDeniedScreen />
   }
 

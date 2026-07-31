@@ -16,11 +16,12 @@ import AdminCafeteriaSection from './admin/AdminCafeteriaSection'
 import { useAdminPanelController } from '../hooks/admin/useAdminPanelController'
 
 const AdminPanel = () => {
-  const { isAdmin, user, refreshSession, loading } = useAuthContext()
+  const { isAdmin, isCompanyAdmin, adminCompanies, user, refreshSession, loading } = useAuthContext()
   const {
     activeTab,
     setActiveTab,
     canExportCafeteria,
+    canManageGlobalAdmin,
     mergedLoading,
     usersSection,
     menuSection,
@@ -32,6 +33,8 @@ const AdminPanel = () => {
   } = useAdminPanelController({
     user,
     isAdmin,
+    isCompanyAdmin,
+    adminCompanies,
     refreshSession
   })
 
@@ -44,7 +47,7 @@ const AdminPanel = () => {
   }, [])
 
   // Verificación de admin
-  if (!isAdmin && !loading) {
+  if (!isAdmin && !isCompanyAdmin && !loading) {
     return (
       <RequireUser user={user} loading={loading}>
         <div className="p-6 max-w-2xl mx-auto">
@@ -84,7 +87,12 @@ const AdminPanel = () => {
       <AdminHeader />
 
       {/* Tabs - Scroll horizontal completo en mobile */}
-      <AdminTabs activeTab={activeTab} onChange={setActiveTab} showCafeteria={canExportCafeteria} />
+      <AdminTabs
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        showCafeteria={canExportCafeteria}
+        canManageGlobalAdmin={canManageGlobalAdmin}
+      />
 
       {mergedLoading && (
         <LoadingState
@@ -95,7 +103,7 @@ const AdminPanel = () => {
       )}
 
       {/* Users Tab */}
-      {!mergedLoading && activeTab === 'users' && (
+      {!mergedLoading && canManageGlobalAdmin && activeTab === 'users' && (
         <AdminUsersSection {...usersSection} />
       )}
 
@@ -104,7 +112,7 @@ const AdminPanel = () => {
         <AdminMenuSection {...menuSection} />
       )}
 
-      {!mergedLoading && activeTab === 'cafeteria' && canExportCafeteria && (
+      {!mergedLoading && canManageGlobalAdmin && activeTab === 'cafeteria' && canExportCafeteria && (
         <AdminCafeteriaSection {...cafeteriaSection} />
       )}
 
@@ -114,16 +122,16 @@ const AdminPanel = () => {
       )}
 
       {/* Custom Options Tab */}
-      {!mergedLoading && activeTab === 'options' && (
+      {!mergedLoading && canManageGlobalAdmin && activeTab === 'options' && (
         <AdminOptionsSection {...optionsSection} />
       )}
 
-      {!mergedLoading && activeTab === 'companies' && (
+      {!mergedLoading && canManageGlobalAdmin && activeTab === 'companies' && (
         <AdminCompaniesSection {...companiesSection} />
       )}
 
       {/* Cleanup Tab */}
-      {!mergedLoading && activeTab === 'cleanup' && (
+      {!mergedLoading && canManageGlobalAdmin && activeTab === 'cleanup' && (
         <AdminCleanupSection {...cleanupSection} />
       )}
     </div>

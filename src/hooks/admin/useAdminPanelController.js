@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Sound } from '../../utils/Sound'
 import { getTomorrowISOInTimeZone } from '../../utils/dateUtils'
 import { notifySuccess } from '../../utils/notice'
@@ -22,11 +22,26 @@ import { useAdminCleanupActions } from './useAdminCleanupActions'
 const useAdminPanelController = ({
   user,
   isAdmin,
+  isCompanyAdmin = false,
+  adminCompanies = [],
   refreshSession
 }) => {
   const tomorrowISO = getTomorrowISOInTimeZone()
   const initialSelectedDates = [tomorrowISO]
   const canExportCafeteria = isAdmin
+  const canManageGlobalAdmin = isAdmin
+  const companyOptions = useMemo(() => {
+    const list = Array.isArray(adminCompanies) ? adminCompanies : []
+    if (isAdmin) {
+      return [
+        { slug: 'global', name: 'General' },
+        ...list.filter((company) => company?.slug && company.slug !== 'global')
+      ]
+    }
+    return list.filter((company) => company?.slug && company.slug !== 'global')
+  }, [adminCompanies, isAdmin])
+  const firstCompanySlug = companyOptions[0]?.slug || 'global'
+  const [selectedMenuCompanySlug, setSelectedMenuCompanySlug] = useState(firstCompanySlug)
 
   const {
     activeTab,
@@ -34,6 +49,12 @@ const useAdminPanelController = ({
     menuWeekBaseDate,
     setMenuWeekBaseDate
   } = useAdminPanelUI()
+
+  useEffect(() => {
+    if (!companyOptions.some((company) => company.slug === selectedMenuCompanySlug)) {
+      setSelectedMenuCompanySlug(firstCompanySlug)
+    }
+  }, [companyOptions, firstCompanySlug, selectedMenuCompanySlug])
 
   const { users, usersLoading, usersError, refreshUsers } = useAdminUsersData()
 
@@ -65,7 +86,8 @@ const useAdminPanelController = ({
     setDraftItemsForDate,
     initialSelectedDates,
     userId: user?.id || null,
-    weekBaseDate: menuWeekBaseDate
+    weekBaseDate: menuWeekBaseDate,
+    companySlug: selectedMenuCompanySlug
   })
 
   const {
@@ -81,7 +103,8 @@ const useAdminPanelController = ({
     setDraftItemsForDate,
     setEditingForDate,
     setSavingForDate,
-    fetchMenuForDate
+    fetchMenuForDate,
+    companySlug: selectedMenuCompanySlug
   })
 
   const optionsEnabled = !!user?.id && isAdmin
@@ -131,10 +154,14 @@ const useAdminPanelController = ({
   const {
     companies,
     draftStartNumbers,
+    adminEmailDrafts,
     companiesLoading,
     savingCompanySlug,
     onCompanyStartNumberChange,
     onSaveCompanyStartNumber,
+    onAdminEmailChange,
+    onAssignCompanyAdmin,
+    onRemoveCompanyAdmin,
     onRefreshCompanies
   } = useAdminCompaniesData({ enabled: optionsEnabled })
 
@@ -150,7 +177,10 @@ const useAdminPanelController = ({
     updateDinnerMenuOption,
     addDinnerMenuOption,
     removeDinnerMenuOption
-  } = useAdminDinnerMenuData({ active: activeTab === 'dinner-option' })
+  } = useAdminDinnerMenuData({
+    active: activeTab === 'dinner-option',
+    defaultCompanySlug: isAdmin ? '' : firstCompanySlug
+  })
 
   const { dinnerDateSaving, saveDinnerMenuDate } = useAdminDinnerMenuActions({ dinnerMenusByDate })
 
@@ -215,20 +245,25 @@ const useAdminPanelController = ({
   }, [isAdmin, user, refreshUsers])
 
   useEffect(() => {
-    if (activeTab === 'cafeteria' && !canExportCafeteria) {
-      setActiveTab('users')
+    const globalOnlyTabs = ['users', 'options', 'companies', 'cleanup', 'cafeteria']
+    if (globalOnlyTabs.includes(activeTab) && !canManageGlobalAdmin) {
+      setActiveTab('menu')
+      return
     }
-  }, [activeTab, canExportCafeteria, setActiveTab])
+    if (activeTab === 'cafeteria' && !canExportCafeteria) {
+      setActiveTab('menu')
+    }
+  }, [activeTab, canExportCafeteria, canManageGlobalAdmin, setActiveTab])
 
   useEffect(() => {
-    if (!user?.id || !isAdmin) return
+    if (!user?.id || (!isAdmin && !isCompanyAdmin)) return
     if (!Array.isArray(menuVisibleDates) || menuVisibleDates.length === 0) return
     menuVisibleDates.forEach(date => {
       if (!Object.prototype.hasOwnProperty.call(menuItemsByDate, date) && !loadingMenuByDate[date]) {
         fetchMenuForDate(date)
       }
     })
-  }, [menuVisibleDates, isAdmin, user, menuItemsByDate, loadingMenuByDate, fetchMenuForDate])
+  }, [menuVisibleDates, isAdmin, isCompanyAdmin, user, menuItemsByDate, loadingMenuByDate, fetchMenuForDate])
 
   const handleToggleMenuDate = (menuDate) => {
     if (!menuDate) return
@@ -262,6 +297,7 @@ const useAdminPanelController = ({
     activeTab,
     setActiveTab,
     canExportCafeteria,
+    canManageGlobalAdmin,
     mergedLoading,
     usersSection: {
       searchTerm,
@@ -315,7 +351,13 @@ const useAdminPanelController = ({
       onMenuItemChange: handleMenuItemChange,
       onAddMenuItem: addMenuItem,
       onRemoveMenuItem: removeMenuItem,
-      onPrimeSuccess: () => Sound.primeSuccess()
+      onPrimeSuccess: () => Sound.primeSuccess(),
+      companyOptions,
+      selectedCompanySlug: selectedMenuCompanySlug,
+      onCompanyChange: (companySlug) => {
+        setSelectedMenuCompanySlug(companySlug)
+        selectedDates.forEach((date) => clearMenuDate(date))
+      }
     },
     cafeteriaSection: {
       adminName: user?.user_metadata?.full_name || user?.email || ''
@@ -334,7 +376,9 @@ const useAdminPanelController = ({
       onAddOptionChoice: addDinnerMenuOption,
       onRemoveOptionChoice: removeDinnerMenuOption,
       onSaveDate: saveDinnerMenuDate,
-      savingMap: dinnerDateSaving
+      savingMap: dinnerDateSaving,
+      companyOptions: companyOptions.filter((company) => company.slug !== 'global'),
+      canUseGlobalCompany: isAdmin
     },
     optionsSection: {
       editingOptions,
@@ -365,10 +409,14 @@ const useAdminPanelController = ({
     companiesSection: {
       companies,
       draftStartNumbers,
+      adminEmailDrafts,
       companiesLoading,
       savingCompanySlug,
       onCompanyStartNumberChange,
-      onSaveCompanyStartNumber
+      onSaveCompanyStartNumber,
+      onAdminEmailChange,
+      onAssignCompanyAdmin,
+      onRemoveCompanyAdmin
     },
     cleanupSection: {
       archivingPending,
