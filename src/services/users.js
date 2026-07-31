@@ -117,6 +117,16 @@ class UsersService {
     }
   }
 
+  async getAdminAccessContext() {
+    try {
+      const { data, error } = await supabase.rpc('get_admin_access_context')
+      if (error) throw error
+      return { data, error: null }
+    } catch (error) {
+      return { data: null, error: handleError(error, 'getAdminAccessContext') }
+    }
+  }
+
   // Actualizar rol de usuario
   async updateUserRole(userId, role) {
     try {

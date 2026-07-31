@@ -70,7 +70,7 @@ const DailyOrders = ({ user, loading }) => {
   const exportToExcel = async () => {
     await exportDailyOrdersExcel({
       sortedOrders: manualExportOrders,
-      exportCompany: 'all',
+      exportCompany,
       selectedLocation,
       selectedStatus,
       stats

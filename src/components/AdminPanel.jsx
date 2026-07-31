@@ -10,6 +10,7 @@ import AdminUsersSection from './admin/AdminUsersSection'
 import AdminMenuSection from './admin/AdminMenuSection'
 import AdminOptionsSection from './admin/AdminOptionsSection'
 import AdminDinnerOptionSection from './admin/AdminDinnerOptionSection'
+import AdminCompaniesSection from './admin/AdminCompaniesSection'
 import AdminCleanupSection from './admin/AdminCleanupSection'
 import AdminCafeteriaSection from './admin/AdminCafeteriaSection'
 import { useAdminPanelController } from '../hooks/admin/useAdminPanelController'
@@ -26,6 +27,7 @@ const AdminPanel = () => {
     cafeteriaSection,
     dinnerSection,
     optionsSection,
+    companiesSection,
     cleanupSection
   } = useAdminPanelController({
     user,
@@ -114,6 +116,10 @@ const AdminPanel = () => {
       {/* Custom Options Tab */}
       {!mergedLoading && activeTab === 'options' && (
         <AdminOptionsSection {...optionsSection} />
+      )}
+
+      {!mergedLoading && activeTab === 'companies' && (
+        <AdminCompaniesSection {...companiesSection} />
       )}
 
       {/* Cleanup Tab */}

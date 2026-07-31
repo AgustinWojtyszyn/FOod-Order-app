@@ -44,9 +44,11 @@ const useAdminMenuData = ({
   setDraftItemsForDate,
   initialSelectedDates = EMPTY_SELECTED_DATES,
   userId,
-  weekBaseDate
+  weekBaseDate,
+  companySlug = 'global'
 }) => {
-  const storageKey = userId ? `admin_menu_selected_dates:${userId}` : 'admin_menu_selected_dates'
+  const normalizedCompanySlug = (companySlug || 'global').toString().trim().toLowerCase() || 'global'
+  const storageKey = userId ? `admin_menu_selected_dates:${userId}:${normalizedCompanySlug}` : `admin_menu_selected_dates:${normalizedCompanySlug}`
 
   const readStoredSelectedDates = useCallback(() => {
     if (typeof window === 'undefined') return initialSelectedDates
@@ -106,7 +108,7 @@ const useAdminMenuData = ({
   const fetchMenuForDate = async (menuDate) => {
     setLoadingForDate(menuDate, true)
     try {
-      const { data, error } = await db.getMenuItemsByDate(menuDate)
+      const { data, error } = await db.getMenuItemsByDate(menuDate, normalizedCompanySlug)
       if (error) {
         console.error('Error fetching menu:', error)
         setMenuItemsForDate(menuDate, [])
@@ -209,7 +211,8 @@ const useAdminMenuData = ({
       try {
         const { data, error } = await db.getMenuDatesByRange({
           start: weekRange.startISO,
-          end: weekRange.endISO
+          end: weekRange.endISO,
+          companySlug: normalizedCompanySlug
         })
         if (error) {
           console.error('Error fetching menu dates:', error)
@@ -226,7 +229,7 @@ const useAdminMenuData = ({
       }
     }
     loadDatesWithMenu()
-  }, [weekRange.startISO, weekRange.endISO])
+  }, [weekRange.startISO, weekRange.endISO, normalizedCompanySlug])
 
   useEffect(() => {
     const next = readStoredSelectedDates()

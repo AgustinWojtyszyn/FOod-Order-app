@@ -105,3 +105,20 @@ export const COMPANY_LIST = getVisibleCompanyList()
 export const ALL_COMPANY_LOCATIONS = ALL_COMPANY_LIST.flatMap((company) => company.locations || [])
 
 export const COMPANY_LOCATIONS = COMPANY_LIST.flatMap((company) => company.locations || [])
+
+const normalizeCompanyLookupText = (value = '') =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+export const getCompanyByLocationOrSlug = (value = '') => {
+  const target = normalizeCompanyLookupText(value)
+  if (!target) return null
+  return ALL_COMPANY_LIST.find((company) => {
+    if (normalizeCompanyLookupText(company.slug) === target) return true
+    if (normalizeCompanyLookupText(company.name) === target) return true
+    return (company.locations || []).some((location) => normalizeCompanyLookupText(location) === target)
+  }) || null
+}

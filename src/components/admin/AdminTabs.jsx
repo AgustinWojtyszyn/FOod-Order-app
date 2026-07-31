@@ -1,4 +1,4 @@
-import { ChefHat, Settings, Users, MoonStar, Coffee } from 'lucide-react'
+import { Building2, ChefHat, Settings, Users, MoonStar, Coffee } from 'lucide-react'
 
 const AdminTabs = ({ activeTab, onChange, showCafeteria = false }) => (
   <div className="border-b-2 border-white/30 w-full" style={{ overflowX: 'auto', minWidth: 0 }}>
@@ -47,6 +47,17 @@ const AdminTabs = ({ activeTab, onChange, showCafeteria = false }) => (
         >
           <Settings className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
           <span>Opciones</span>
+        </button>
+        <button
+          onClick={() => onChange('companies')}
+          className={`py-3 px-3 sm:px-4 border-b-4 font-bold text-xs sm:text-sm transition-colors whitespace-nowrap flex items-center gap-1 sm:gap-2 ${
+            activeTab === 'companies'
+              ? 'border-secondary-500 text-white drop-shadow'
+              : 'border-transparent text-white/70 hover:text-white hover:border-white/50'
+          }`}
+        >
+          <Building2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+          <span>Empresas</span>
         </button>
         {showCafeteria && (
           <button

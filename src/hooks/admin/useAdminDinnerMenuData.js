@@ -25,14 +25,14 @@ const getWeekDates = (baseDate) => {
   })
 }
 
-const createDefaultDinnerMenu = (dateISO) => ({
+const createDefaultDinnerMenu = (dateISO, companySlug = '') => ({
   delivery_date: dateISO,
-  company: '',
+  company: companySlug || '',
   title: 'Menú de cena',
   options: ['']
 })
 
-const useAdminDinnerMenuData = ({ active = false } = {}) => {
+const useAdminDinnerMenuData = ({ active = false, defaultCompanySlug = '' } = {}) => {
   const [dinnerWeekBaseDate, setDinnerWeekBaseDate] = useState(() => {
     const now = new Date()
     const base = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -123,12 +123,12 @@ const useAdminDinnerMenuData = ({ active = false } = {}) => {
     }
     setDinnerMenusByDate(prev => ({
       ...prev,
-      [dateISO]: prev[dateISO] || createDefaultDinnerMenu(dateISO)
+        [dateISO]: prev[dateISO] || createDefaultDinnerMenu(dateISO, defaultCompanySlug)
     }))
     if (!dinnerLoadedDates.includes(dateISO)) {
-      await loadDinnerMenuForDate(dateISO)
+      await loadDinnerMenuForDate(dateISO, defaultCompanySlug || null)
     }
-  }, [dinnerSelectedDates, dinnerLoadedDates, loadDinnerMenuForDate])
+  }, [dinnerSelectedDates, dinnerLoadedDates, loadDinnerMenuForDate, defaultCompanySlug])
 
   const updateDinnerMenuField = useCallback(async (dateISO, field, value) => {
     setDinnerMenusByDate(prev => ({

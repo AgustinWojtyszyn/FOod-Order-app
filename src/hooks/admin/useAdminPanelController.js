@@ -13,6 +13,7 @@ import { useAdminMenuData } from './useAdminMenuData'
 import { useAdminMenuActions } from './useAdminMenuActions'
 import { useAdminOptionsData } from './useAdminOptionsData'
 import { useAdminOptionActions } from './useAdminOptionActions'
+import { useAdminCompaniesData } from './useAdminCompaniesData'
 import { useAdminDinnerMenuData } from './useAdminDinnerMenuData'
 import { useAdminDinnerMenuActions } from './useAdminDinnerMenuActions'
 import { useAdminCleanupData } from './useAdminCleanupData'
@@ -128,6 +129,16 @@ const useAdminPanelController = ({
   })
 
   const {
+    companies,
+    draftStartNumbers,
+    companiesLoading,
+    savingCompanySlug,
+    onCompanyStartNumberChange,
+    onSaveCompanyStartNumber,
+    onRefreshCompanies
+  } = useAdminCompaniesData({ enabled: optionsEnabled })
+
+  const {
     dinnerWeekBaseDate,
     setDinnerWeekBaseDate,
     dinnerSelectedDates,
@@ -152,6 +163,7 @@ const useAdminPanelController = ({
   const refreshAdminData = async () => {
     await refreshUsers()
     await refreshOptions()
+    await onRefreshCompanies()
   }
 
   const {
@@ -244,7 +256,7 @@ const useAdminPanelController = ({
     notifySuccess('Menús guardados correctamente')
   }
 
-  const mergedLoading = optionsLoading || usersLoading
+  const mergedLoading = optionsLoading || usersLoading || companiesLoading
 
   return {
     activeTab,
@@ -349,6 +361,14 @@ const useAdminPanelController = ({
       onRemoveOptionChoice: handleRemoveOptionChoice,
       onSaveOption: handleSaveOption,
       onCancelOption: cancelOptionEdit
+    },
+    companiesSection: {
+      companies,
+      draftStartNumbers,
+      companiesLoading,
+      savingCompanySlug,
+      onCompanyStartNumberChange,
+      onSaveCompanyStartNumber
     },
     cleanupSection: {
       archivingPending,

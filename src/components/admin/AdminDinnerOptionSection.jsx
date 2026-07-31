@@ -1,5 +1,4 @@
 import { Plus, Save, Calendar, CheckCircle } from 'lucide-react'
-import { ALL_COMPANY_LIST as COMPANY_LIST } from '../../constants/companyConfig'
 
 const AdminDinnerOptionSection = ({
   weekBaseDate,
@@ -15,7 +14,9 @@ const AdminDinnerOptionSection = ({
   onAddOptionChoice,
   onRemoveOptionChoice,
   onSaveDate,
-  savingMap = {}
+  savingMap = {},
+  companyOptions = [],
+  canUseGlobalCompany = false
 }) => {
   const orderedDates = Array.isArray(visibleDates) ? [...visibleDates].sort() : []
   const selectedSet = new Set(selectedDates || [])
@@ -209,8 +210,8 @@ const AdminDinnerOptionSection = ({
                   onChange={(e) => onFieldChange(dateISO, 'company', e.target.value)}
                   className="input-field w-full bg-white text-gray-900 text-sm sm:text-base"
                 >
-                  <option value="">Visible para todas las empresas</option>
-                  {COMPANY_LIST.map(company => (
+                  {canUseGlobalCompany && <option value="">Visible para todas las empresas</option>}
+                  {companyOptions.map(company => (
                     <option key={company.slug} value={company.slug}>
                       Solo {company.name}
                     </option>

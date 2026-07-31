@@ -9,11 +9,14 @@ export const createMenuService = ({
   }
 
   // Menú (por día)
-  const getMenuDatesByRange = async ({ start, end }) => {
+  const normalizeCompanySlug = (value) => (value || 'global').toString().trim().toLowerCase() || 'global'
+
+  const getMenuDatesByRange = async ({ start, end, companySlug = 'global' }) => {
     if (!start || !end) return { data: [], error: null }
     const { data, error } = await supabase
       .from('menu_items')
       .select('menu_date')
+      .eq('company_slug', normalizeCompanySlug(companySlug))
       .gte('menu_date', start)
       .lte('menu_date', end)
       .order('menu_date', { ascending: true })
@@ -30,15 +33,17 @@ export const createMenuService = ({
     return { data: unique, error: null }
   }
 
-  const getMenuItemsByDate = async (menuDate) => {
-    const cacheKey = `menu-items:${menuDate}`
+  const getMenuItemsByDate = async (menuDate, companySlug = 'global') => {
+    const normalizedCompanySlug = normalizeCompanySlug(companySlug)
+    const cacheKey = `menu-items:${normalizedCompanySlug}:${menuDate}`
     const cached = cache?.get?.(cacheKey)
     if (cached) return { data: cached, error: null }
 
     const { data, error } = await supabase
       .from('menu_items')
-      .select('id, name, description, created_at, menu_date')
+      .select('id, name, description, created_at, menu_date, company_slug')
       .eq('menu_date', menuDate)
+      .eq('company_slug', normalizedCompanySlug)
       .order('created_at', { ascending: false })
 
     if (!error && data && cache?.set) {
@@ -48,8 +53,9 @@ export const createMenuService = ({
     return { data, error }
   }
 
-  const updateMenuItemsByDate = async (menuDate, menuItems, requestId = null) => {
+  const updateMenuItemsByDate = async (menuDate, menuItems, requestId = null, companySlug = 'global') => {
     try {
+      const normalizedCompanySlug = normalizeCompanySlug(companySlug)
       invalidateCache() // Limpiar cache al actualizar menú
 
       // Obtener items existentes (solo del día)
@@ -57,6 +63,7 @@ export const createMenuService = ({
         .from('menu_items')
         .select('id')
         .eq('menu_date', menuDate)
+        .eq('company_slug', normalizedCompanySlug)
 
       if (fetchError) {
         console.error('Error fetching existing items:', fetchError)
@@ -75,6 +82,7 @@ export const createMenuService = ({
           .from('menu_items')
           .delete()
           .eq('menu_date', menuDate)
+          .eq('company_slug', normalizedCompanySlug)
           .in('id', itemsToDelete)
 
         if (deleteError) {
@@ -93,6 +101,7 @@ export const createMenuService = ({
           })
           .eq('id', item.id)
           .eq('menu_date', menuDate)
+          .eq('company_slug', normalizedCompanySlug)
 
         if (updateError) {
           console.error('Error updating item:', updateError)
@@ -107,7 +116,8 @@ export const createMenuService = ({
           .insert(itemsToInsert.map(item => ({
             name: item.name,
             description: item.description,
-            menu_date: menuDate
+            menu_date: menuDate,
+            company_slug: normalizedCompanySlug
           })))
 
         if (insertError) {
@@ -119,8 +129,9 @@ export const createMenuService = ({
       // Obtener todos los items actualizados (solo del día)
       const { data, error } = await supabase
         .from('menu_items')
-        .select('id, name, description, created_at, menu_date')
+        .select('id, name, description, created_at, menu_date, company_slug')
         .eq('menu_date', menuDate)
+        .eq('company_slug', normalizedCompanySlug)
         .order('created_at', { ascending: true })
 
       if (!error && typeof logAudit === 'function') {
@@ -137,6 +148,7 @@ export const createMenuService = ({
           metadata: {
             summary,
             menu_date: menuDate,
+            company_slug: normalizedCompanySlug,
             items: (menuItems || []).map(({ id, name }) => ({ id, name }))
           },
           request_id: requestId

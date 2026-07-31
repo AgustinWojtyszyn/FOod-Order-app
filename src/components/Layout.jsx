@@ -16,7 +16,7 @@ const Layout = ({ children, user, loading }) => {
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [adminTutorialOpen, setAdminTutorialOpen] = useState(false)
   const [externalLocks, setExternalLocks] = useState(0)
-  const { isAdmin } = useAuthContext()
+  const { isAdmin, canAccessAdminPanel } = useAuthContext()
   const navigate = useNavigate()
   const location = useLocation()
   // Helpers de diagnóstico disponibles solo en dev o con flag explícito.
@@ -129,6 +129,8 @@ const Layout = ({ children, user, loading }) => {
     menuItems.push({ name: 'Panel Mensual', path: '/monthly-panel', icon: Calendar })
     menuItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
     menuItems.push({ name: 'Auditoría', path: '/auditoria', icon: ClipboardList })
+  } else if (canAccessAdminPanel) {
+    menuItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
   }
 
   // Add Profile option for all users

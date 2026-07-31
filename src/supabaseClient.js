@@ -209,6 +209,55 @@ export const db = {
   ...usersService,
   ...analyticsService,
 
+  getCompaniesRemitoConfig: async () => {
+    const { data, error } = await supabase.rpc('get_companies_remito_config')
+    return { data, error }
+  },
+
+  updateCompanyRemitoStart: async ({ companySlug, remitoStartNumber }) => {
+    const { data, error } = await supabase.rpc('update_company_remito_start', {
+      p_company_slug: companySlug,
+      p_remito_start_number: remitoStartNumber
+    })
+    return { data, error }
+  },
+
+  issueCompanyRemito: async ({ companySlug, companyName, deliveryDate, orderIds }) => {
+    const { data, error } = await supabase.rpc('issue_company_remito', {
+      p_company_slug: companySlug,
+      p_company_name: companyName,
+      p_delivery_date: deliveryDate,
+      p_order_ids: Array.isArray(orderIds) ? orderIds : []
+    })
+    return { data: Array.isArray(data) ? data[0] : data, error }
+  },
+
+  getAdminAccessContext: async () => {
+    const { data, error } = await supabase.rpc('get_admin_access_context')
+    return { data, error }
+  },
+
+  getCompanyAdminAssignments: async () => {
+    const { data, error } = await supabase.rpc('get_company_admin_assignments')
+    return { data, error }
+  },
+
+  assignCompanyAdminByEmail: async ({ companySlug, email }) => {
+    const { data, error } = await supabase.rpc('assign_company_admin_by_email', {
+      p_company_slug: companySlug,
+      p_email: email
+    })
+    return { data, error }
+  },
+
+  removeCompanyAdmin: async ({ companySlug, userId }) => {
+    const { data, error } = await supabase.rpc('remove_company_admin', {
+      p_company_slug: companySlug,
+      p_user_id: userId
+    })
+    return { data, error }
+  },
+
     
   // Cafeteria orders (admin only via RLS)
   getCafeteriaOrders: async ({ deliveryDate = null, statuses = null, userId = null, adminEmail = null } = {}) => {

@@ -13,7 +13,8 @@ const useAdminMenuActions = ({
   setDraftItemsForDate,
   setEditingForDate,
   setSavingForDate,
-  fetchMenuForDate
+  fetchMenuForDate,
+  companySlug = 'global'
 }) => {
   const normalizeForComparison = (items = []) =>
     items.map(item => ({
@@ -41,7 +42,7 @@ const useAdminMenuActions = ({
       const prevDate = getPreviousDateISO(menuDate)
       let prevItems = menuItemsByDate[prevDate]
       if (!prevItems) {
-        const { data: prevData, error: prevError } = await db.getMenuItemsByDate(prevDate)
+        const { data: prevData, error: prevError } = await db.getMenuItemsByDate(prevDate, companySlug)
         if (prevError) {
           console.error('Error fetching previous menu:', prevError)
         } else {
@@ -64,7 +65,7 @@ const useAdminMenuActions = ({
       setSavingForDate(menuDate, true)
       const requestId = crypto.randomUUID?.() || Math.random().toString(36).slice(2)
       console.debug('[menu][save] request_id', requestId, 'items', validItems.length, 'menu_date', menuDate)
-      const { error } = await db.updateMenuItemsByDate(menuDate, validItems, requestId)
+      const { error } = await db.updateMenuItemsByDate(menuDate, validItems, requestId, companySlug)
 
       if (error) {
         console.error('Error updating menu:', error)

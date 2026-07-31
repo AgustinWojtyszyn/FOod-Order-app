@@ -31,7 +31,10 @@ const AdminMenuSection = ({
   onMenuItemChange,
   onAddMenuItem,
   onRemoveMenuItem,
-  onPrimeSuccess
+  onPrimeSuccess,
+  companyOptions = [],
+  selectedCompanySlug = 'global',
+  onCompanyChange
 }) => {
   const orderedDates = useMemo(() => {
     const list = Array.isArray(visibleDates) ? [...visibleDates] : []
@@ -68,6 +71,24 @@ const AdminMenuSection = ({
         </div>
 
         <div className="flex flex-col gap-3">
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <label htmlFor="menu-company" className="block text-xs font-bold uppercase tracking-wide text-gray-600">
+              Empresa del menú
+            </label>
+            <select
+              id="menu-company"
+              value={selectedCompanySlug}
+              onChange={(event) => onCompanyChange?.(event.target.value)}
+              className="mt-2 input-field w-full bg-white text-gray-900 sm:max-w-sm"
+            >
+              {companyOptions.map((company) => (
+                <option key={company.slug} value={company.slug}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex-1 bg-gray-900 text-white rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
             <div>
               <p className="text-xs uppercase tracking-wide text-white/70">Resumen de selección</p>

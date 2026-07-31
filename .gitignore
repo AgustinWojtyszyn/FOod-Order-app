@@ -26,6 +26,8 @@ dist-ssr
 !supabase/migrations/20260722100000_ensure_cafeteria_orders_delivery_date.sql
 !supabase/migrations/20260722101000_ensure_cafeteria_admin_access.sql
 !supabase/migrations/20260729104457_secure_user_role_updates.sql
+!supabase/migrations/20260731120000_company_remito_numbering.sql
+!supabase/migrations/20260731143000_company_admins_menu_permissions.sql
 # Python
 __pycache__/
 *.pyc

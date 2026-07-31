@@ -25,6 +25,8 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true)
   const [permissionLoading, setPermissionLoading] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isCompanyAdmin, setIsCompanyAdmin] = useState(false)
+  const [adminCompanies, setAdminCompanies] = useState([])
   const [permissionError, setPermissionError] = useState(null)
   const roleRequestIdRef = useRef(0)
   const mountedRef = useRef(true)
@@ -43,6 +45,8 @@ export const useAuth = () => {
     setPermissionLoading(true)
     setPermissionError(null)
     setIsAdmin(false)
+    setIsCompanyAdmin(false)
+    setAdminCompanies([])
 
     try {
       if (import.meta.env.DEV) {
@@ -50,6 +54,7 @@ export const useAuth = () => {
       }
       let roleFromDb = null
       let roleError = null
+      let accessContext = null
 
       if (authUser?.id) {
         try {
@@ -66,10 +71,25 @@ export const useAuth = () => {
             console.warn('[Auth][role-debug] error fetching role from db', err)
           }
         }
+
+        try {
+          const { data, error } = await withTimeout(
+            usersService.getAdminAccessContext(),
+            ROLE_VALIDATION_TIMEOUT_MS,
+            createPermissionTimeoutError
+          )
+          if (!error) accessContext = data || null
+        } catch (err) {
+          if (import.meta.env.DEV) {
+            console.warn('[Auth][role-debug] error fetching admin access context', err)
+          }
+        }
       }
 
       const normalizedRole = roleFromDb || null
-      const isAdminRole = normalizedRole === 'admin'
+      const contextCompanies = Array.isArray(accessContext?.companies) ? accessContext.companies : []
+      const isAdminRole = normalizedRole === 'admin' || accessContext?.is_global_admin === true
+      const isCompanyAdminRole = !isAdminRole && (accessContext?.is_company_admin === true || contextCompanies.length > 0)
 
       logRoleDebug('raw user metadata', {
         id: authUser?.id,
@@ -83,10 +103,14 @@ export const useAuth = () => {
 
       setUser((prev) => (prev ? { ...prev, ...authUser, role: normalizedRole } : { ...authUser, role: normalizedRole }))
       setIsAdmin(isAdminRole)
+      setIsCompanyAdmin(isCompanyAdminRole)
+      setAdminCompanies(contextCompanies)
       setPermissionError(roleError)
 
       logRoleDebug('computed flags', {
         isAdmin: isAdminRole,
+        isCompanyAdmin: isCompanyAdminRole,
+        adminCompanies: contextCompanies,
         permissionError: roleError
       })
     } catch (error) {
@@ -94,6 +118,8 @@ export const useAuth = () => {
       if (!mountedRef.current || roleRequestIdRef.current !== requestId) return
       setUser((prev) => prev || authUser)
       setIsAdmin(false)
+      setIsCompanyAdmin(false)
+      setAdminCompanies([])
       setPermissionError(error)
     } finally {
       if (mountedRef.current && roleRequestIdRef.current === requestId) {
@@ -131,10 +157,12 @@ export const useAuth = () => {
           }
 
           if (!currentUser) {
-            roleRequestIdRef.current += 1
-            setUser(null)
-            setIsAdmin(false)
-            setPermissionError(userError || null)
+          roleRequestIdRef.current += 1
+          setUser(null)
+          setIsAdmin(false)
+          setIsCompanyAdmin(false)
+          setAdminCompanies([])
+          setPermissionError(userError || null)
             setPermissionLoading(false)
             setLoading(false)
             return
@@ -147,6 +175,8 @@ export const useAuth = () => {
           roleRequestIdRef.current += 1
           setUser(null)
           setIsAdmin(false)
+          setIsCompanyAdmin(false)
+          setAdminCompanies([])
           setPermissionError(null)
           setPermissionLoading(false)
           setLoading(false)
@@ -156,6 +186,8 @@ export const useAuth = () => {
         roleRequestIdRef.current += 1
         setUser(null)
         setIsAdmin(false)
+        setIsCompanyAdmin(false)
+        setAdminCompanies([])
         setPermissionError(error)
         setPermissionLoading(false)
         setLoading(false)
@@ -177,6 +209,8 @@ export const useAuth = () => {
         roleRequestIdRef.current += 1
         setUser(null)
         setIsAdmin(false)
+        setIsCompanyAdmin(false)
+        setAdminCompanies([])
         setPermissionError(null)
         setPermissionLoading(false)
         setLoading(false)
@@ -308,9 +342,9 @@ export const useAuth = () => {
 
   useEffect(() => {
     if (import.meta.env.DEV) {
-      console.log('[Auth] state', { user, loading, permissionLoading, isAdmin, permissionError })
+      console.log('[Auth] state', { user, loading, permissionLoading, isAdmin, isCompanyAdmin, adminCompanies, permissionError })
     }
-  }, [user, loading, permissionLoading, isAdmin, permissionError])
+  }, [user, loading, permissionLoading, isAdmin, isCompanyAdmin, adminCompanies, permissionError])
 
   return {
     // Estado
@@ -318,6 +352,9 @@ export const useAuth = () => {
     loading,
     permissionLoading,
     isAdmin,
+    isCompanyAdmin,
+    canAccessAdminPanel: isAdmin || isCompanyAdmin,
+    adminCompanies,
     permissionError,
     isAuthenticated: !!user,
 
