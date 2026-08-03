@@ -338,6 +338,14 @@ export const getUserFriendlyErrorMessage = (error, fallback = 'No pudimos comple
     return 'La empresa agotó su rango de numeración de notas de pedido.'
   }
 
+  if (normalized.includes('remito_start_number_out_of_range')) {
+    return 'El número inicial no corresponde al rango asignado para esta empresa.'
+  }
+
+  if (normalized.includes('company_remito_numbering_excluded')) {
+    return 'Esta empresa no genera notas de pedido numeradas.'
+  }
+
   if (normalized.includes('company_required') || normalized.includes('company_not_found')) {
     return 'No pudimos identificar la empresa para emitir la nota de pedido.'
   }

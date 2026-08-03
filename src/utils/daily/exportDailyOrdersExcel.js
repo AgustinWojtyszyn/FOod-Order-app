@@ -33,6 +33,7 @@ const THICK_BORDER = {
 
 const INVALID_SHEET_CHARS = new Set(['[', ']', '*', '?', ':', '/', '\\', "'"])
 const INVALID_FILE_CHARS = new Set(['<', '>', ':', '"', '/', '\\', '|', '?', '*'])
+const EXCLUDED_REMITO_COMPANY_SLUGS = new Set(['administracion_servifood'])
 
 const normalizeText = (value) => String(value ?? '').trim()
 
@@ -99,10 +100,14 @@ const resolveCompanyForOrder = (order = {}) => {
   }
 }
 
+const isRemitoEligibleCompany = (company = {}) =>
+  company?.slug && !EXCLUDED_REMITO_COMPANY_SLUGS.has(company.slug)
+
 const buildCompanyGroups = (orders = []) => {
   const groups = new Map()
   orders.forEach((order) => {
     const company = resolveCompanyForOrder(order)
+    if (!isRemitoEligibleCompany(company)) return
     if (!groups.has(company.slug)) {
       groups.set(company.slug, { ...company, orders: [] })
     }
@@ -110,6 +115,9 @@ const buildCompanyGroups = (orders = []) => {
   })
   return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
+
+const getIndexCompanyLabel = (remito = {}) =>
+  `${remito.companyDisplayName || remito.companyName || 'Empresa'} - N° ${remito.remitoNumber}`
 
 const incrementSummary = (map, label, quantity = 1) => {
   const safeLabel = normalizeText(label)
@@ -415,7 +423,7 @@ const addIndexSheet = (workbook, remitos) => {
     allowBlank: false,
     formulae: [`$H$2:$H$${remitos.length + 1}`]
   }
-  worksheet.getCell('B3').value = remitos[0]?.companyDisplayName || ''
+  worksheet.getCell('B3').value = remitos[0] ? getIndexCompanyLabel(remitos[0]) : ''
   worksheet.getCell('C3').value = {
     formula: `HYPERLINK("#'"&VLOOKUP(B3,$H$2:$I$${remitos.length + 1},2,FALSE)&"'!A1","Ir a la nota")`,
     result: 'Ir a la nota'
@@ -449,7 +457,7 @@ const addIndexSheet = (workbook, remitos) => {
       cell.alignment = { vertical: 'middle', wrapText: true }
     })
 
-    worksheet.getCell(`H${index + 2}`).value = remito.companyDisplayName
+    worksheet.getCell(`H${index + 2}`).value = getIndexCompanyLabel(remito)
     worksheet.getCell(`I${index + 2}`).value = remito.sheetName
   })
 
@@ -503,6 +511,10 @@ export async function exportDailyOrdersExcel({
   try {
     const deliveryDate = getDeliveryDate(ordersToExport)
     const groups = buildCompanyGroups(ordersToExport)
+    if (groups.length === 0) {
+      notifyInfo('No hay empresas con remitos para exportar. Administración ServiFood no genera notas de pedido.')
+      return
+    }
     const usedSheetNames = new Set(['índice'])
     const remitos = []
 

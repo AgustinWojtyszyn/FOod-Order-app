@@ -6,14 +6,17 @@ import { getUserFriendlyErrorMessage } from '../../utils'
 import { confirmAction } from '../../utils/confirm'
 
 const getDefaultCompanyRows = () =>
-  ALL_COMPANY_LIST.map((company) => ({
-    slug: company.slug,
-    name: company.name,
-    remito_start_number: null,
-    next_remito_number: null,
-    issued_count: 0,
-    last_remito_number: null
-  }))
+  ALL_COMPANY_LIST
+    .filter((company) => !company.adminOnly)
+    .map((company) => ({
+      slug: company.slug,
+      name: company.name,
+      remito_start_number: null,
+      remito_end_number: null,
+      next_remito_number: null,
+      issued_count: 0,
+      last_remito_number: null
+    }))
 
 const normalizeNumberInput = (value) => {
   const numberValue = Number(value)
