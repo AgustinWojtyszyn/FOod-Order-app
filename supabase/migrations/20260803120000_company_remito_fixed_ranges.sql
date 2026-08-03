@@ -317,7 +317,7 @@ begin
   select *
   into v_company
   from public.companies
-  where slug = v_slug
+  where companies.slug = v_slug
   for update;
 
   if not found then
@@ -457,14 +457,14 @@ begin
   select *
   into v_company
   from public.companies
-  where slug = v_slug
+  where companies.slug = v_slug
   for update;
 
   select *
   into v_existing
   from public.company_remitos
-  where company_id = v_company.id
-    and delivery_date = p_delivery_date;
+  where company_remitos.company_id = v_company.id
+    and company_remitos.delivery_date = p_delivery_date;
 
   if found then
     return query
@@ -519,7 +519,7 @@ begin
   set remito_start_number = v_range_start,
       remito_end_number = v_range_end,
       next_remito_number = v_number + 1
-  where id = v_company.id;
+  where companies.id = v_company.id;
 
   return query
   select
