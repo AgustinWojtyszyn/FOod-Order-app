@@ -32,16 +32,31 @@ const AdminMenuDateEditorCard = ({
         </div>
         <div className="sm:ml-auto flex flex-col sm:flex-row gap-2">
           {!editingMenu ? (
-            <button
-              onClick={() => onEditMenu(menuDate)}
-              className="btn-primary flex items-center justify-center text-sm sm:text-base px-4 py-2.5"
-            >
-              <Edit3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-              Editar Menú
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => onEditMenu(menuDate)}
+                className="btn-primary flex items-center justify-center text-sm sm:text-base px-4 py-2.5"
+              >
+                <Edit3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                Editar Menú
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onEditMenu(menuDate)
+                  onAddMenuItem(menuDate)
+                }}
+                className="btn-secondary flex items-center justify-center text-sm sm:text-base px-4 py-2.5"
+              >
+                <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                Agregar plato
+              </button>
+            </>
           ) : (
             <>
               <button
+                type="button"
                 onPointerDown={() => {
                   if (!savingMenu) onPrimeSuccess()
                 }}
@@ -53,6 +68,7 @@ const AdminMenuDateEditorCard = ({
                 Guardar
               </button>
               <button
+                type="button"
                 onClick={() => onCancelMenu(menuDate)}
                 className="btn-secondary flex items-center justify-center text-sm sm:text-base px-4 py-2.5"
               >
@@ -118,6 +134,7 @@ const AdminMenuDateEditorCard = ({
                     {index + 1}
                   </div>
                   <button
+                    type="button"
                     onClick={() => onRemoveMenuItem(menuDate, index)}
                     className="ml-auto p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors shrink-0"
                     title="Eliminar plato"
@@ -153,6 +170,7 @@ const AdminMenuDateEditorCard = ({
           })}
 
           <button
+            type="button"
             onClick={() => onAddMenuItem(menuDate)}
             className="w-full flex items-center justify-center gap-2 p-4 rounded-xl bg-gray-900 text-white hover:bg-gray-800 transition-all font-semibold text-sm shadow-sm"
           >
