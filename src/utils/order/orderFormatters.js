@@ -4,7 +4,10 @@ export const buildOrderItemLabel = (item = {}) => {
   if (item?.isDinnerOverride) {
     return (item?.name || '').toString().trim() || 'Cena'
   }
-  const { label, dish } = getMenuDisplay(item, item?.slotIndex ?? 0)
+  const persistedItem = { ...item }
+  delete persistedItem.displayName
+  delete persistedItem.displaySlotIndex
+  const { label, dish } = getMenuDisplay(persistedItem, item?.slotIndex ?? 0)
   if (!label && !dish) return 'Item'
   if (!dish) return label
   return `${label} - ${dish}`

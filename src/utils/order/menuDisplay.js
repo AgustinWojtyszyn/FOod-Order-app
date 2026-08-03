@@ -28,7 +28,7 @@ const getMenuDish = (item = {}, labelUsesTitle = false) => {
 }
 
 const getMenuDisplay = (item = {}, index = 0) => {
-  const title = normalizeText(item?.name)
+  const title = normalizeText(item?.displayName || item?.name)
   const inferredSlot = getSlotIndexFromTitle(title)
   const slotIndex = Number.isFinite(item?.slotIndex)
     ? item.slotIndex
@@ -67,8 +67,28 @@ const isHiddenOrderMenuSlot = (item = {}, companySlug = '') =>
   normalizeCompanySlug(companySlug) === HIDDEN_ORDER_MENU_COMPANY_SLUG &&
   getMenuSlotIndex(item) === HIDDEN_ORDER_MENU_SLOT_INDEX
 
+const withCompanyMenuDisplay = (item = {}, companySlug = '') => {
+  if (normalizeCompanySlug(companySlug) !== HIDDEN_ORDER_MENU_COMPANY_SLUG) return item
+  const slotIndex = getMenuSlotIndex(item)
+  if (!Number.isFinite(slotIndex) || slotIndex <= HIDDEN_ORDER_MENU_SLOT_INDEX) return item
+
+  const displaySlotIndex = slotIndex - 1
+  const name = normalizeText(item?.name)
+  const displayName = name
+    ? name.replace(/opci[oó]n\s*0?[1-6]\b/i, `Opción ${displaySlotIndex}`)
+    : getMenuLabelByIndex(displaySlotIndex)
+
+  return {
+    ...item,
+    displayName,
+    displaySlotIndex
+  }
+}
+
 const filterOrderableMenuItems = (items = [], companySlug = '') =>
-  (items || []).filter((item) => !isHiddenOrderMenuSlot(item, companySlug))
+  (items || [])
+    .filter((item) => !isHiddenOrderMenuSlot(item, companySlug))
+    .map((item) => withCompanyMenuDisplay(item, companySlug))
 
 const hasHiddenOrderMenuSelection = (items = [], companySlug = '') =>
   (items || []).some((item) => isHiddenOrderMenuSlot(item, companySlug))
