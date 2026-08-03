@@ -1,6 +1,30 @@
 alter table public.companies
   add column if not exists remito_end_number integer;
 
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.company_remitos'::regclass
+      and conname = 'company_remitos_company_number_unique'
+  ) then
+    alter table public.company_remitos
+      add constraint company_remitos_company_number_unique unique (company_id, remito_number);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.company_remitos'::regclass
+      and conname = 'company_remitos_company_date_unique'
+  ) then
+    alter table public.company_remitos
+      add constraint company_remitos_company_date_unique unique (company_id, delivery_date);
+  end if;
+end;
+$$;
+
 alter table public.companies
   drop constraint if exists companies_remito_start_zero;
 
@@ -390,6 +414,7 @@ declare
   v_name text;
   v_range_start integer;
   v_range_end integer;
+  v_last_number integer;
   v_number integer;
 begin
   if auth.uid() is null then
@@ -479,20 +504,24 @@ begin
     return;
   end if;
 
-  if v_company.next_remito_number is null
-     or v_company.next_remito_number < v_range_start
-     or v_company.next_remito_number > v_range_end + 1 then
-    select least(
-      v_range_end + 1,
-      coalesce(max(cr.remito_number) + 1, v_range_start)
+  select max(cr.remito_number)
+  into v_last_number
+  from public.company_remitos cr
+  where cr.company_id = v_company.id
+    and cr.remito_number between v_range_start and v_range_end;
+
+  v_number := least(
+    v_range_end + 1,
+    greatest(
+      case
+        when v_company.next_remito_number between v_range_start and v_range_end + 1
+          then v_company.next_remito_number
+        else v_range_start
+      end,
+      coalesce(v_last_number + 1, v_range_start),
+      v_range_start
     )
-    into v_number
-    from public.company_remitos cr
-    where cr.company_id = v_company.id
-      and cr.remito_number between v_range_start and v_range_end;
-  else
-    v_number := v_company.next_remito_number;
-  end if;
+  );
 
   if v_number > v_range_end then
     raise exception 'company_remito_range_exhausted';

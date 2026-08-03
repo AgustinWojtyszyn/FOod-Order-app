@@ -34,6 +34,15 @@ const THICK_BORDER = {
 const INVALID_SHEET_CHARS = new Set(['[', ']', '*', '?', ':', '/', '\\', "'"])
 const INVALID_FILE_CHARS = new Set(['<', '>', ':', '"', '/', '\\', '|', '?', '*'])
 const EXCLUDED_REMITO_COMPANY_SLUGS = new Set(['administracion_servifood'])
+const REMITO_NUMBER_RANGES = {
+  ccp: [10000, 19999],
+  distro_cuyo: [20000, 29999],
+  epse: [30000, 39999],
+  genneia: [40000, 49999],
+  laja: [50000, 59999],
+  losberros: [60000, 69999],
+  padrebueno: [70000, 79999]
+}
 
 const normalizeText = (value) => String(value ?? '').trim()
 
@@ -134,6 +143,12 @@ const buildCompanyGroups = (orders = []) => {
 
 const getIndexCompanyLabel = (remito = {}) =>
   `${remito.companyDisplayName || remito.companyName || 'Empresa'} - N° ${remito.remitoNumber}`
+
+const isRemitoNumberInCompanyRange = (companySlug, remitoNumber) => {
+  const range = REMITO_NUMBER_RANGES[companySlug]
+  if (!range) return false
+  return remitoNumber >= range[0] && remitoNumber <= range[1]
+}
 
 const getRemitoIssueFallbackMessage = (companyName, error) => {
   const raw = [
@@ -562,13 +577,21 @@ export async function exportDailyOrderNotesExcel({
         return
       }
 
+      const issuedSlug = data?.company_slug || group.slug
+      const issuedName = data?.company_name || group.name
+      const issuedNumber = Number(data?.remito_number)
+      if (!isRemitoNumberInCompanyRange(issuedSlug, issuedNumber)) {
+        notifyError(`La nota de pedido para ${group.displayName} recibió un número fuera del rango de su empresa.`)
+        return
+      }
+
       const products = summarizeProducts(group.orders)
-      const sheetName = buildUniqueSheetName(`${group.name} ${data.remito_number}`, usedSheetNames)
+      const sheetName = buildUniqueSheetName(`${issuedName} ${issuedNumber}`, usedSheetNames)
       remitos.push({
-        companySlug: group.slug,
-        companyName: group.name,
+        companySlug: issuedSlug,
+        companyName: issuedName,
         companyDisplayName: group.displayName,
-        remitoNumber: data.remito_number,
+        remitoNumber: issuedNumber,
         deliveryDate,
         totalItems: getTotalItems(group.orders),
         products,
