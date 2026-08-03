@@ -1,6 +1,40 @@
 alter table public.companies
   add column if not exists remito_end_number integer;
 
+alter table public.companies
+  drop constraint if exists companies_remito_start_zero;
+
+alter table public.companies
+  drop constraint if exists companies_next_remito_zero;
+
+do $$
+declare
+  v_constraint record;
+begin
+  for v_constraint in
+    select conname
+    from pg_constraint
+    where conrelid = 'public.companies'::regclass
+      and contype = 'c'
+      and (
+        pg_get_constraintdef(oid) ilike '%remito_start_number%'
+        or pg_get_constraintdef(oid) ilike '%next_remito_number%'
+        or pg_get_constraintdef(oid) ilike '%remito_end_number%'
+      )
+      and conname not in (
+        'companies_remito_start_positive',
+        'companies_next_remito_positive',
+        'companies_next_after_start',
+        'companies_remito_end_positive',
+        'companies_remito_start_before_end',
+        'companies_next_within_remito_range'
+      )
+  loop
+    execute format('alter table public.companies drop constraint if exists %I', v_constraint.conname);
+  end loop;
+end;
+$$;
+
 do $$
 begin
   if not exists (
@@ -84,19 +118,24 @@ as $$
   from normalized;
 $$;
 
-insert into public.companies (slug, name, remito_start_number, remito_end_number)
+insert into public.companies (slug, name, remito_start_number, remito_end_number, next_remito_number)
 values
-  ('ccp', 'CCP', 10000, 19999),
-  ('distro_cuyo', 'DistroCuyo', 20000, 29999),
-  ('epse', 'EPSE', 30000, 39999),
-  ('genneia', 'Genneia', 40000, 49999),
-  ('laja', 'La Laja', 50000, 59999),
-  ('losberros', 'Los Berros', 60000, 69999),
-  ('padrebueno', 'Padre Bueno', 70000, 79999)
+  ('ccp', 'CCP', 10000, 19999, 10000),
+  ('distro_cuyo', 'DistroCuyo', 20000, 29999, 20000),
+  ('epse', 'EPSE', 30000, 39999, 30000),
+  ('genneia', 'Genneia', 40000, 49999, 40000),
+  ('laja', 'La Laja', 50000, 59999, 50000),
+  ('losberros', 'Los Berros', 60000, 69999, 60000),
+  ('padrebueno', 'Padre Bueno', 70000, 79999, 70000)
 on conflict (slug) do update
 set name = excluded.name,
     remito_start_number = excluded.remito_start_number,
     remito_end_number = excluded.remito_end_number,
+    next_remito_number = case
+      when public.companies.next_remito_number between excluded.remito_start_number and excluded.remito_end_number + 1
+        then public.companies.next_remito_number
+      else excluded.next_remito_number
+    end,
     updated_at = now();
 
 insert into public.companies (slug, name, remito_start_number, remito_end_number, next_remito_number)
@@ -408,6 +447,11 @@ begin
   set name = coalesce(nullif(trim(excluded.name), ''), public.companies.name),
       remito_start_number = v_range_start,
       remito_end_number = v_range_end,
+      next_remito_number = case
+        when public.companies.next_remito_number between v_range_start and v_range_end + 1
+          then public.companies.next_remito_number
+        else v_range_start
+      end,
       updated_at = now();
 
   select *

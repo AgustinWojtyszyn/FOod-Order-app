@@ -119,6 +119,17 @@ const buildCompanyGroups = (orders = []) => {
 const getIndexCompanyLabel = (remito = {}) =>
   `${remito.companyDisplayName || remito.companyName || 'Empresa'} - N° ${remito.remitoNumber}`
 
+const getRemitoIssueFallbackMessage = (companyName, error) => {
+  const raw = [
+    error?.message,
+    error?.details,
+    error?.hint,
+    error?.code
+  ].map((value) => normalizeText(value)).filter(Boolean).join(' | ')
+  const suffix = raw ? ` Detalle técnico: ${raw}` : ''
+  return `No pudimos emitir la nota de pedido para ${companyName}. Verificá que la empresa tenga número inicial configurado.${suffix}`
+}
+
 const incrementSummary = (map, label, quantity = 1) => {
   const safeLabel = normalizeText(label)
   if (!safeLabel) return
@@ -530,7 +541,7 @@ export async function exportDailyOrdersExcel({
         console.error('Error al emitir nota de pedido:', error)
         notifyError(getUserFriendlyErrorMessage(
           error,
-          `No pudimos emitir la nota de pedido para ${group.displayName}. Verificá que la empresa tenga número inicial configurado.`
+          getRemitoIssueFallbackMessage(group.displayName, error)
         ))
         return
       }
