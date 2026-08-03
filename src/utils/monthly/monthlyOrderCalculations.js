@@ -2,6 +2,7 @@ import { formatDateDMY, normalizeLabel, toDisplayString } from './monthlyOrderFo
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
 
 const UNSPECIFIED_BEVERAGE_LABEL = 'Bebida sin especificar'
+const GENNEIA_DINNER_BEVERAGE_FIX_DATE = '2026-08-03'
 
 const incrementCount = (map, key, delta = 1) => {
   map[key] = (map[key] || 0) + delta
@@ -54,6 +55,16 @@ const isDinnerQuestion = (resp = {}) => {
 
 const isGenneiaDinnerOrder = (order = {}, service = getService(order)) =>
   service === 'dinner' && normalizeLabel(order?.location || order?.company || order?.company_name || '').includes('genneia')
+
+const isLegacyOrderBeforeBeverageFix = (order = {}) => {
+  const createdDate = String(order?.created_at || '').slice(0, 10)
+  if (createdDate) return createdDate < GENNEIA_DINNER_BEVERAGE_FIX_DATE
+  const deliveryDate = String(order?.delivery_date || '').slice(0, 10)
+  return Boolean(deliveryDate && deliveryDate < GENNEIA_DINNER_BEVERAGE_FIX_DATE)
+}
+
+const isLegacyGenneiaDinnerOrder = (order = {}, service = getService(order)) =>
+  isGenneiaDinnerOrder(order, service) && isLegacyOrderBeforeBeverageFix(order)
 
 const hasBeverageResponse = (responses = []) =>
   (responses || []).some(resp => isBeverageQuestion(resp) && getResponseValues(resp).length > 0)
@@ -340,7 +351,7 @@ export const buildDailyBreakdownFromOrdersByDay = (dates = [], byDay = {}) => {
         })
         if (isDessertQuestion(cr)) addResponseValues(cr, value => addBucketItem(value, sideBuckets, 'postre'))
       })
-      if (isGenneiaDinnerOrder(o, service) && !countedBeverage) {
+      if (isLegacyGenneiaDinnerOrder(o, service) && !countedBeverage) {
         addBucketItem(UNSPECIFIED_BEVERAGE_LABEL, sideBuckets, 'bebida', orderQty)
       }
     })
@@ -646,7 +657,7 @@ export const createMonthlyExportModel = (orders = [], dates = []) => {
           unclassifiedResponses.push(createManualReview(order, `Respuesta de cena no clasificada: ${toDisplayString(resp?.title || resp?.label || resp?.question || resp?.name) || 'Sin título'}.`))
         }
       })
-      if (isGenneiaDinnerOrder(order, service) && !countedDinnerBeverage && !hasBeverageResponse(normalized.normalizedCustomResponses)) {
+      if (isLegacyGenneiaDinnerOrder(order, service) && !countedDinnerBeverage && !hasBeverageResponse(normalized.normalizedCustomResponses)) {
         addMealBucketItem(UNSPECIFIED_BEVERAGE_LABEL, totals.mealBuckets, service, 'bebida', orderQty)
         groups.forEach(group => addMealBucketItem(UNSPECIFIED_BEVERAGE_LABEL, group.mealBuckets, service, 'bebida', orderQty))
       }

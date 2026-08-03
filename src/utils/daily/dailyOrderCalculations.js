@@ -4,6 +4,7 @@ import { getSideSummaryForOrder } from './dailyOrderSideAssociations'
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
 
 const UNSPECIFIED_BEVERAGE_LABEL = 'Bebida sin especificar'
+const GENNEIA_DINNER_BEVERAGE_FIX_DATE = '2026-08-03'
 
 const normalizeText = (value = '') =>
   String(value || '')
@@ -15,6 +16,16 @@ const normalizeText = (value = '') =>
 const isGenneiaDinnerOrder = (order = {}) =>
   String(order?.service || 'lunch').toLowerCase() === 'dinner' &&
   normalizeText(order?.location || order?.company || order?.company_name || '').includes('genneia')
+
+const isLegacyOrderBeforeBeverageFix = (order = {}) => {
+  const createdDate = String(order?.created_at || '').slice(0, 10)
+  if (createdDate) return createdDate < GENNEIA_DINNER_BEVERAGE_FIX_DATE
+  const deliveryDate = String(order?.delivery_date || '').slice(0, 10)
+  return Boolean(deliveryDate && deliveryDate < GENNEIA_DINNER_BEVERAGE_FIX_DATE)
+}
+
+const isLegacyGenneiaDinnerOrder = (order = {}) =>
+  isGenneiaDinnerOrder(order) && isLegacyOrderBeforeBeverageFix(order)
 
 const getNormalizedOrderItemTotal = (order = {}) => {
   const { normalizedItems } = normalizeOrderForReadOnly(order)
@@ -123,7 +134,7 @@ export const getOrderBeverageLabels = (order = {}) => {
     }
   })
   const unique = [...new Set(labels.map(label => label.trim()))].filter(Boolean)
-  if (unique.length === 0 && isGenneiaDinnerOrder(order)) return [UNSPECIFIED_BEVERAGE_LABEL]
+  if (unique.length === 0 && isLegacyGenneiaDinnerOrder(order)) return [UNSPECIFIED_BEVERAGE_LABEL]
   return unique
 }
 

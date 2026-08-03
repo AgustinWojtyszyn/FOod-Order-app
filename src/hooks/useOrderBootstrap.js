@@ -39,6 +39,15 @@ const isBeverageDessertOrFruitOption = (option = {}) => {
 const hasBeverageDessertOrFruitOption = (options = []) =>
   (options || []).some(isBeverageDessertOrFruitOption)
 
+const normalizeOptionTitle = (value = '') =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[()]/g, '')
+    .replace(/\s+/g, ' ')
+
 const isBeverageOption = (option = {}) => {
   const text = [
     option.title,
@@ -52,11 +61,14 @@ const isBeverageOption = (option = {}) => {
     text.includes('jugo')
 }
 
+const isGenneiaBeverageOptionTitle = (option = {}) =>
+  normalizeOptionTitle(option.title) === 'bebidas solo genneia'
+
 const mergeMissingBeverageOptions = (options = [], fallbackOptions = []) => {
   if ((options || []).some(isBeverageOption)) return options
   const existingIds = new Set((options || []).map(option => option?.id).filter(Boolean))
   const additions = (fallbackOptions || [])
-    .filter(isBeverageOption)
+    .filter(isGenneiaBeverageOptionTitle)
     .filter(option => !existingIds.has(option?.id))
     .map(option => ({ ...option, id: `dinner-${option.id}` }))
   return [...options, ...additions]
