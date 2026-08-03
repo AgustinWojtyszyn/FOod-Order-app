@@ -22,6 +22,7 @@ import {
 import { getDailyOperationalStatus } from '../utils/daily/dailyCloseStatus'
 import { formatDeliveryDateLabel } from '../utils/daily/dailyOrderFormatters'
 import { exportDailyOrdersExcel } from '../utils/daily/exportDailyOrdersExcel'
+import { exportDailyOrderNotesExcel } from '../utils/daily/exportDailyOrderNotesExcel'
 import { exportDailyOrdersPdf } from '../utils/daily/exportDailyOrdersPdf'
 import { shareDailyOrdersWhatsApp } from '../utils/daily/shareDailyOrdersWhatsApp'
 
@@ -69,6 +70,16 @@ const DailyOrders = ({ user, loading }) => {
 
   const exportToExcel = async () => {
     await exportDailyOrdersExcel({
+      sortedOrders: manualExportOrders,
+      exportCompany,
+      selectedLocation,
+      selectedStatus,
+      stats
+    })
+  }
+
+  const generateNotaPedido = async () => {
+    await exportDailyOrderNotesExcel({
       sortedOrders: manualExportOrders,
       exportCompany,
       selectedLocation,
@@ -177,7 +188,7 @@ const DailyOrders = ({ user, loading }) => {
           locations={locations}
           exportableOrdersCount={exportableOrdersCount}
           onExportExcel={exportToExcel}
-          onGenerateNotaPedido={exportToExcel}
+          onGenerateNotaPedido={generateNotaPedido}
           onShareWhatsApp={shareViaWhatsApp}
           refreshing={refreshing}
           onRefresh={handleRefresh}
