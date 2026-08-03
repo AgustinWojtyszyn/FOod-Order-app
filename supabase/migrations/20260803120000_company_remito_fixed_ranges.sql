@@ -216,6 +216,87 @@ from ranges r
 left join issued i on i.slug = r.slug
 where c.slug = r.slug;
 
+with ranges(slug, range_start, range_end) as (
+  values
+    ('ccp', 10000, 19999),
+    ('distro_cuyo', 20000, 29999),
+    ('epse', 30000, 39999),
+    ('genneia', 40000, 49999),
+    ('laja', 50000, 59999),
+    ('losberros', 60000, 69999),
+    ('padrebueno', 70000, 79999)
+),
+valid_max as (
+  select
+    c.id as company_id,
+    r.range_start,
+    r.range_end,
+    coalesce(max(cr.remito_number), r.range_start - 1) as last_valid_number
+  from public.companies c
+  join ranges r on r.slug = c.slug
+  left join public.company_remitos cr
+    on cr.company_id = c.id
+   and cr.remito_number between r.range_start and r.range_end
+  group by c.id, r.range_start, r.range_end
+),
+legacy_out_of_range as (
+  select
+    cr.id,
+    vm.range_end,
+    vm.last_valid_number + row_number() over (
+      partition by cr.company_id
+      order by cr.delivery_date asc, cr.issued_at asc, cr.created_at asc, cr.id asc
+    ) as corrected_number
+  from public.company_remitos cr
+  join valid_max vm on vm.company_id = cr.company_id
+  where cr.remito_number < vm.range_start
+     or cr.remito_number > vm.range_end
+)
+update public.company_remitos cr
+set remito_number = legacy.corrected_number
+from legacy_out_of_range legacy
+where cr.id = legacy.id
+  and legacy.corrected_number <= legacy.range_end;
+
+with ranges(slug, range_start, range_end) as (
+  values
+    ('ccp', 10000, 19999),
+    ('distro_cuyo', 20000, 29999),
+    ('epse', 30000, 39999),
+    ('genneia', 40000, 49999),
+    ('laja', 50000, 59999),
+    ('losberros', 60000, 69999),
+    ('padrebueno', 70000, 79999)
+),
+issued as (
+  select
+    c.slug,
+    max(cr.remito_number) as last_remito_number
+  from public.companies c
+  join ranges r on r.slug = c.slug
+  left join public.company_remitos cr
+    on cr.company_id = c.id
+   and cr.remito_number between r.range_start and r.range_end
+  group by c.slug
+)
+update public.companies c
+set next_remito_number = least(
+      r.range_end + 1,
+      greatest(
+        case
+          when c.next_remito_number between r.range_start and r.range_end + 1
+            then c.next_remito_number
+          else r.range_start
+        end,
+        coalesce(i.last_remito_number + 1, r.range_start),
+        r.range_start
+      )
+    ),
+    updated_at = now()
+from ranges r
+left join issued i on i.slug = r.slug
+where c.slug = r.slug;
+
 drop function if exists public.update_company_remito_start(text, integer);
 drop function if exists public.get_companies_remito_config();
 
@@ -492,6 +573,48 @@ begin
     and company_remitos.delivery_date = p_delivery_date;
 
   if found then
+    if v_existing.remito_number < v_range_start or v_existing.remito_number > v_range_end then
+      select max(cr.remito_number)
+      into v_last_number
+      from public.company_remitos cr
+      where cr.company_id = v_company.id
+        and cr.remito_number between v_range_start and v_range_end;
+
+      v_number := least(
+        v_range_end + 1,
+        greatest(
+          case
+            when v_company.next_remito_number between v_range_start and v_range_end + 1
+              then v_company.next_remito_number
+            else v_range_start
+          end,
+          coalesce(v_last_number + 1, v_range_start),
+          v_range_start
+        )
+      );
+
+      if v_number > v_range_end then
+        raise exception 'company_remito_range_exhausted';
+      end if;
+
+      update public.company_remitos
+      set remito_number = v_number,
+          order_ids = case
+            when cardinality(coalesce(company_remitos.order_ids, array[]::uuid[])) = 0
+              then coalesce(p_order_ids, array[]::uuid[])
+            else company_remitos.order_ids
+          end
+      where company_remitos.id = v_existing.id
+      returning *
+      into v_existing;
+
+      update public.companies
+      set remito_start_number = v_range_start,
+          remito_end_number = v_range_end,
+          next_remito_number = v_number + 1
+      where companies.id = v_company.id;
+    end if;
+
     return query
     select
       v_existing.id,
