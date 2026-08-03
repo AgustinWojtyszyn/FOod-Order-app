@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Calendar, Minus, Save } from 'lucide-react'
+import { Calendar, Minus, Plus, Save } from 'lucide-react'
 import AdminMenuWeekDateCard from './menu/AdminMenuWeekDateCard'
 import AdminMenuDateEditorCard from './menu/AdminMenuDateEditorCard'
 import {
@@ -52,6 +52,16 @@ const AdminMenuSection = ({
   const selectedCount = orderedDates.length
   const loadedCount = orderedDates.filter((date) => (menuItemsByDate?.[date] || []).length > 0).length
   const isSavingAny = orderedDates.some((date) => Boolean(savingMenuByDate?.[date]))
+  const dateToAddMenu = useMemo(
+    () => weekDays.map(toISODate).find((date) => !selectedSet.has(date)) || null,
+    [selectedSet, weekDays]
+  )
+
+  const handleAddMenu = () => {
+    if (!dateToAddMenu) return
+    onToggleDate?.(dateToAddMenu)
+    onEditMenu?.(dateToAddMenu)
+  }
 
   return (
     <div className="card bg-white/95 backdrop-blur-sm shadow-xl border-2 border-white/20">
@@ -103,6 +113,15 @@ const AdminMenuSection = ({
               <span className="px-3 py-1 rounded-full bg-white/15 border border-white/20">
                 {formatMonthFull(startOfWeek)}
               </span>
+              <button
+                type="button"
+                onClick={handleAddMenu}
+                disabled={!dateToAddMenu}
+                className="inline-flex items-center justify-center rounded-lg bg-white px-3 py-1.5 font-bold text-gray-900 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                Agregar menú
+              </button>
             </div>
           </div>
 
@@ -181,8 +200,17 @@ const AdminMenuSection = ({
       </div>
 
       {orderedDates.length === 0 && (
-        <div className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-4">
-          Seleccioná al menos un día para editar su menú.
+        <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between">
+          <span>Seleccioná al menos un día para editar su menú.</span>
+          <button
+            type="button"
+            onClick={handleAddMenu}
+            disabled={!dateToAddMenu}
+            className="btn-primary inline-flex items-center justify-center px-4 py-2 text-sm"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Agregar menú
+          </button>
         </div>
       )}
 
