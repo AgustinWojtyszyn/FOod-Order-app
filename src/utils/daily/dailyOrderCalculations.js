@@ -3,6 +3,19 @@ import { normalizeDishName } from './dailyOrderFormatters'
 import { getSideSummaryForOrder } from './dailyOrderSideAssociations'
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
 
+const UNSPECIFIED_BEVERAGE_LABEL = 'Bebida sin especificar'
+
+const normalizeText = (value = '') =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+const isGenneiaDinnerOrder = (order = {}) =>
+  String(order?.service || 'lunch').toLowerCase() === 'dinner' &&
+  normalizeText(order?.location || order?.company || order?.company_name || '').includes('genneia')
+
 const getNormalizedOrderItemTotal = (order = {}) => {
   const { normalizedItems } = normalizeOrderForReadOnly(order)
   if (Array.isArray(normalizedItems)) {
@@ -87,6 +100,31 @@ export const getBeverageLabel = (customResponses) => {
   const unique = [...new Set(names.map(n => (n || '').trim()))].filter(Boolean)
   const joined = unique.slice(0, 3).join(', ')
   return unique.length > 3 ? `${joined} (+${unique.length - 3})` : joined || '—'
+}
+
+export const getOrderBeverageLabels = (order = {}) => {
+  const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
+  const customResponses = Array.isArray(normalizedCustomResponses) ? normalizedCustomResponses : []
+  const labels = []
+  customResponses.forEach(resp => {
+    const pushBeverage = (value) => {
+      if (!value) return
+      const label = String(value).trim()
+      if (!label || !isBeverage(label)) return
+      labels.push(label)
+    }
+    if (Array.isArray(resp?.response)) {
+      resp.response.forEach(pushBeverage)
+    } else {
+      pushBeverage(resp?.response)
+    }
+    if (Array.isArray(resp?.options)) {
+      resp.options.forEach(pushBeverage)
+    }
+  })
+  const unique = [...new Set(labels.map(label => label.trim()))].filter(Boolean)
+  if (unique.length === 0 && isGenneiaDinnerOrder(order)) return [UNSPECIFIED_BEVERAGE_LABEL]
+  return unique
 }
 
 export const summarizeOrderItems = (items = []) => {
@@ -204,22 +242,8 @@ export const buildOperationalSummary = (ordersList = []) => {
       sideCounts[side] = (sideCounts[side] || 0) + 1
     })
 
-    const customResponses = Array.isArray(normalizedCustomResponses) ? normalizedCustomResponses : []
-    customResponses.forEach(resp => {
-      const pushBeverage = (value) => {
-        if (!value) return
-        const label = String(value).trim()
-        if (!label || !isBeverage(label)) return
-        beverageCounts[label] = (beverageCounts[label] || 0) + 1
-      }
-      if (Array.isArray(resp?.response)) {
-        resp.response.forEach(pushBeverage)
-      } else {
-        pushBeverage(resp?.response)
-      }
-      if (Array.isArray(resp?.options)) {
-        resp.options.forEach(pushBeverage)
-      }
+    getOrderBeverageLabels(order).forEach(label => {
+      beverageCounts[label] = (beverageCounts[label] || 0) + 1
     })
   })
 

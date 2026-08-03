@@ -6,7 +6,9 @@ import { notifyInfo } from '../../utils/notice'
 import { getTomorrowISOInTimeZone } from '../../utils/dateUtils'
 import { sortMenuItems } from '../../utils/order/orderMenuHelpers'
 import { filterOrderableMenuItems, withMenuSlotIndex } from '../../utils/order/menuDisplay'
+import { mergeCompanyMenuItems, normalizeCompanySlug } from '../../utils/order/companyMenuMerge'
 import { mapOrderToEditForm } from '../../utils/orderEdit/mapOrderToEditForm'
+import { getCompanyByLocationOrSlug } from '../../constants/companyConfig'
 
 const DEFAULT_MENU_ITEMS = [
   { id: 1, name: 'Plato Principal 1', description: 'Delicioso plato principal' },
@@ -16,6 +18,12 @@ const DEFAULT_MENU_ITEMS = [
   { id: 5, name: 'Plato Principal 5', description: 'Plato de la casa' },
   { id: 6, name: 'Plato Principal 6', description: 'Plato recomendado' }
 ]
+
+const resolveOrderCompanySlug = (order = {}) => {
+  const company = getCompanyByLocationOrSlug(order?.company_slug || order?.company || order?.company_id || order?.location)
+    || getCompanyByLocationOrSlug(order?.location)
+  return normalizeCompanySlug(company?.slug || order?.company_slug || order?.company || order?.company_id || '')
+}
 
 export const useEditOrderBootstrap = ({ order, user, navigate }) => {
   const [menuItems, setMenuItems] = useState([])
@@ -35,19 +43,37 @@ export const useEditOrderBootstrap = ({ order, user, navigate }) => {
     try {
       const fallbackDate = getTomorrowISOInTimeZone()
       const menuDate = order?.delivery_date || fallbackDate
-      const { data, error } = await db.getMenuItemsByDate(menuDate)
+      const normalizedCompanySlug = resolveOrderCompanySlug(order)
+      const shouldFetchCompanyMenu = normalizedCompanySlug && normalizedCompanySlug !== 'global'
+      const [
+        { data: globalData, error: globalError },
+        companyResult
+      ] = await Promise.all([
+        db.getMenuItemsByDate(menuDate, 'global'),
+        shouldFetchCompanyMenu
+          ? db.getMenuItemsByDate(menuDate, normalizedCompanySlug)
+          : Promise.resolve({ data: [], error: null })
+      ])
 
-      if (error) {
-        console.error('Error fetching menu:', error)
-        setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS))))
+      if (globalError && (!shouldFetchCompanyMenu || companyResult?.error)) {
+        console.error('Error fetching menu:', globalError)
+        if (companyResult?.error) console.error('Error fetching company menu:', companyResult.error)
+        setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS)), normalizedCompanySlug))
         return
       }
 
-      setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(data || []))))
+      if (globalError) console.error('Error fetching global menu:', globalError)
+      if (companyResult?.error) console.error('Error fetching company menu:', companyResult.error)
+
+      const mergedItems = mergeCompanyMenuItems(
+        globalError ? [] : (globalData || []),
+        companyResult?.error ? [] : (companyResult?.data || [])
+      )
+      setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(mergedItems)), normalizedCompanySlug))
     } catch (err) {
       console.error('Error:', err)
     }
-  }, [order?.delivery_date])
+  }, [order])
 
   const fetchCustomOptions = useCallback(async () => {
     try {

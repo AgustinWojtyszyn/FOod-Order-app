@@ -24,6 +24,7 @@ const AdminMenuSection = ({
   dinnerMenuEnabled,
   onToggleDinnerMenu,
   onToggleDate,
+  onRemoveVisibleDate,
   onSaveAllMenus,
   onEditMenu,
   onSaveMenu,
@@ -31,6 +32,7 @@ const AdminMenuSection = ({
   onMenuItemChange,
   onAddMenuItem,
   onRemoveMenuItem,
+  getMenuItemChangeSummary,
   onPrimeSuccess,
   companyOptions = [],
   selectedCompanySlug = 'global',
@@ -49,8 +51,10 @@ const AdminMenuSection = ({
   )
   const weekDays = useMemo(() => getWeekDays(startOfWeek), [startOfWeek])
 
-  const selectedCount = orderedDates.length
-  const loadedCount = orderedDates.filter((date) => (menuItemsByDate?.[date] || []).length > 0).length
+  const visibleCount = orderedDates.length
+  const selectedCount = (selectedDates || []).length
+  const loadedCount = orderedDates.filter((date) => loadedSet.has(date) || (menuItemsByDate?.[date] || []).length > 0).length
+  const emptyCount = Math.max(visibleCount - loadedCount, 0)
   const isSavingAny = orderedDates.some((date) => Boolean(savingMenuByDate?.[date]))
   const dateToAddMenu = useMemo(
     () => weekDays.map(toISODate).find((date) => !selectedSet.has(date)) || null,
@@ -103,12 +107,18 @@ const AdminMenuSection = ({
             <div>
               <p className="text-xs uppercase tracking-wide text-white/70">Resumen de selección</p>
               <p className="text-lg sm:text-xl font-bold">
-                {selectedCount} día{selectedCount === 1 ? '' : 's'} seleccionado{selectedCount === 1 ? '' : 's'}
+                {visibleCount} día{visibleCount === 1 ? '' : 's'} visible{visibleCount === 1 ? '' : 's'}
               </p>
             </div>
-            <div className="sm:ml-auto flex items-center gap-3 text-xs sm:text-sm">
+            <div className="sm:ml-auto flex flex-wrap items-center gap-3 text-xs sm:text-sm">
+              <span className="px-3 py-1 rounded-full bg-white/15 border border-white/20">
+                {selectedCount} seleccionado{selectedCount === 1 ? '' : 's'} para guardar
+              </span>
               <span className="px-3 py-1 rounded-full bg-white/15 border border-white/20">
                 {loadedCount} con menú cargado
+              </span>
+              <span className="px-3 py-1 rounded-full bg-white/15 border border-white/20">
+                {emptyCount} sin menú cargado
               </span>
               <span className="px-3 py-1 rounded-full bg-white/15 border border-white/20">
                 {formatMonthFull(startOfWeek)}
@@ -172,7 +182,8 @@ const AdminMenuSection = ({
                 <div key={date} className="flex items-center gap-2 bg-gray-100 text-gray-900 px-3 py-1.5 rounded-full text-xs font-semibold">
                   <span>{date}</span>
                   <button
-                    onClick={() => onToggleDate?.(date)}
+                    type="button"
+                    onClick={() => onRemoveVisibleDate?.(date)}
                     className="p-1 rounded-full hover:bg-gray-200"
                     title="Quitar día"
                   >
@@ -192,7 +203,7 @@ const AdminMenuSection = ({
                 type="button"
               >
                 <Save className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                Guardar todos
+                Guardar seleccionados
               </button>
             </div>
           </div>
@@ -232,6 +243,7 @@ const AdminMenuSection = ({
             onMenuItemChange={onMenuItemChange}
             onAddMenuItem={onAddMenuItem}
             onRemoveMenuItem={onRemoveMenuItem}
+            changeSummary={getMenuItemChangeSummary?.(menuDate)}
             onPrimeSuccess={onPrimeSuccess}
           />
         ))}

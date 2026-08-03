@@ -1,6 +1,8 @@
 import { formatDateDMY, normalizeLabel, toDisplayString } from './monthlyOrderFormatters'
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
 
+const UNSPECIFIED_BEVERAGE_LABEL = 'Bebida sin especificar'
+
 const incrementCount = (map, key, delta = 1) => {
   map[key] = (map[key] || 0) + delta
 }
@@ -49,6 +51,12 @@ const isDinnerQuestion = (resp = {}) => {
   if (isSideQuestion(resp) || isBeverageQuestion(resp) || isDessertQuestion(resp)) return false
   return isQuestionTitle(resp, ['cena', 'plato de cena', 'opcion de cena', 'menu de cena'])
 }
+
+const isGenneiaDinnerOrder = (order = {}, service = getService(order)) =>
+  service === 'dinner' && normalizeLabel(order?.location || order?.company || order?.company_name || '').includes('genneia')
+
+const hasBeverageResponse = (responses = []) =>
+  (responses || []).some(resp => isBeverageQuestion(resp) && getResponseValues(resp).length > 0)
 
 const formatOriginalValue = (value) => {
   if (value === null || value === undefined) return ''
@@ -308,26 +316,33 @@ export const buildDailyBreakdownFromOrdersByDay = (dates = [], byDay = {}) => {
         row.lunch_items += orderQty
       }
 
-      if (service === 'dinner') return
+      if (service !== 'dinner') {
+        normalizedItems.forEach(it => {
+          const qty = Number(it?.quantity) || 1
+          const name = (it?.name || '').trim()
+          if (!name) return
+          const key = getOptionKey(name)
+          if (key) {
+            row.opciones[key] += qty
+            row.total_opciones += qty
+          } else {
+            row.menus_principales += qty
+          }
+        })
+      }
 
-      normalizedItems.forEach(it => {
-        const qty = Number(it?.quantity) || 1
-        const name = (it?.name || '').trim()
-        if (!name) return
-        const key = getOptionKey(name)
-        if (key) {
-          row.opciones[key] += qty
-          row.total_opciones += qty
-        } else {
-          row.menus_principales += qty
-        }
-      })
-
+      let countedBeverage = false
       normalizedCustomResponses.forEach(cr => {
         if (isSideQuestion(cr)) addResponseValues(cr, value => addBucketItem(value, sideBuckets, 'guarnicion'))
-        if (isBeverageQuestion(cr)) addResponseValues(cr, value => addBucketItem(value, sideBuckets, 'bebida'))
+        if (isBeverageQuestion(cr)) addResponseValues(cr, value => {
+          countedBeverage = true
+          addBucketItem(value, sideBuckets, 'bebida')
+        })
         if (isDessertQuestion(cr)) addResponseValues(cr, value => addBucketItem(value, sideBuckets, 'postre'))
       })
+      if (isGenneiaDinnerOrder(o, service) && !countedBeverage) {
+        addBucketItem(UNSPECIFIED_BEVERAGE_LABEL, sideBuckets, 'bebida', orderQty)
+      }
     })
 
     row.total_guarniciones = sideBuckets.totalGuarniciones
@@ -610,9 +625,11 @@ export const createMonthlyExportModel = (orders = [], dates = []) => {
     }
 
     if (service === 'dinner') {
+      let countedDinnerBeverage = false
       normalized.normalizedCustomResponses.forEach(resp => {
         if (isBeverageQuestion(resp)) {
           addResponseValues(resp, value => {
+            countedDinnerBeverage = true
             addMealBucketItem(value, totals.mealBuckets, service, 'bebida')
             groups.forEach(group => addMealBucketItem(value, group.mealBuckets, service, 'bebida'))
           })
@@ -629,6 +646,10 @@ export const createMonthlyExportModel = (orders = [], dates = []) => {
           unclassifiedResponses.push(createManualReview(order, `Respuesta de cena no clasificada: ${toDisplayString(resp?.title || resp?.label || resp?.question || resp?.name) || 'Sin título'}.`))
         }
       })
+      if (isGenneiaDinnerOrder(order, service) && !countedDinnerBeverage && !hasBeverageResponse(normalized.normalizedCustomResponses)) {
+        addMealBucketItem(UNSPECIFIED_BEVERAGE_LABEL, totals.mealBuckets, service, 'bebida', orderQty)
+        groups.forEach(group => addMealBucketItem(UNSPECIFIED_BEVERAGE_LABEL, group.mealBuckets, service, 'bebida', orderQty))
+      }
     }
   })
 

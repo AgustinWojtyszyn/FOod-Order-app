@@ -1,5 +1,5 @@
 import { getStatusText } from './dailyOrderFormatters'
-import { isBeverage } from './dailyOrderCalculations'
+import { getOrderBeverageLabels, isBeverage } from './dailyOrderCalculations'
 import { getSideAssociationsForOrder, getSideSummaryForOrder } from './dailyOrderSideAssociations'
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
 import { isValidCustomerName } from '../order/orderCustomerName'
@@ -134,9 +134,13 @@ export const extractCustomResponses = (order = {}) => {
     if (combined) additional.push(`${title}: ${combined}`)
   })
 
+  const beverageLabels = beverageValues.length > 0
+    ? [...new Set(beverageValues)]
+    : getOrderBeverageLabels(order)
+
   return {
     side: sideSummary.summaryText,
-    beverage: [...new Set(beverageValues)].join(', '),
+    beverage: beverageLabels.join(', '),
     additional: additional.join(' | ')
   }
 }

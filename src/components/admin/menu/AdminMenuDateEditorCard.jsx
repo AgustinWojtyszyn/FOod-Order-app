@@ -17,10 +17,15 @@ const AdminMenuDateEditorCard = ({
   onMenuItemChange,
   onAddMenuItem,
   onRemoveMenuItem,
+  changeSummary,
   onPrimeSuccess
 }) => {
   const dateLabel = formatDateLabel(menuDate)
   const dinnerToggleId = `dinner-menu-enabled-${menuDate}`
+  const newCount = changeSummary?.newItems?.length || 0
+  const modifiedCount = changeSummary?.modifiedItems?.length || 0
+  const deletedCount = changeSummary?.deletedItems?.length || 0
+  const hasChanges = Boolean(changeSummary?.hasChanges)
 
   return (
     <div className="border-2 border-gray-200 rounded-2xl bg-white p-4 sm:p-5">
@@ -122,6 +127,25 @@ const AdminMenuDateEditorCard = ({
                 Habilitar este menú también para <span className="font-extrabold">cena</span> (solo whitelist)
               </label>
             </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800">
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Cambios de esta fecha</p>
+            {hasChanges ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                <span className="rounded-full bg-white px-3 py-1 font-semibold border border-gray-200">
+                  {newCount} nuevo{newCount === 1 ? '' : 's'}
+                </span>
+                <span className="rounded-full bg-white px-3 py-1 font-semibold border border-gray-200">
+                  {modifiedCount} modificado{modifiedCount === 1 ? '' : 's'}
+                </span>
+                <span className="rounded-full bg-white px-3 py-1 font-semibold border border-gray-200">
+                  {deletedCount} eliminado{deletedCount === 1 ? '' : 's'} explícito{deletedCount === 1 ? '' : 's'}
+                </span>
+              </div>
+            ) : (
+              <p className="mt-1 font-semibold text-gray-600">Sin cambios</p>
+            )}
           </div>
 
           {draftItems.map((item, index) => {

@@ -3,6 +3,7 @@ import { resolveCustomerName } from './orderCustomerName'
 import { canChooseCustomSide } from './orderCustomSideRules'
 import { hasGenneiaOptionRules } from './companySpecialRules'
 import { hasHiddenOrderMenuSelection } from './menuDisplay'
+import { isBeverageOption, isBeverageOrDessertOption } from './orderBusinessRules'
 
 const isCustomSideOption = (opt) => (opt?.title || '').toLowerCase().includes('guarn')
 const SINGLE_MENU_MESSAGE = 'Solo podés seleccionar 1 comida principal por persona para almuerzo o cena.'
@@ -82,6 +83,36 @@ const getMissingRequiredOptionTitles = ({
 
 const getSelectedItemName = (item = {}) =>
   item.name || item.title || item.menu || item.label || item.option || item.selected_option || ''
+
+const buildCustomResponseForOption = ({ option, response, selectedItems, service, forceTitle = null }) =>
+  withSideAssociationMetadata({
+    option,
+    selectedItems,
+    service,
+    response: {
+      id: option.id,
+      title: forceTitle || option.title,
+      response
+    }
+  })
+
+const buildResponsesForOptions = ({ options = [], responses = {}, selectedItems = [], service, isSkippedOption = () => false, getTitle = null }) =>
+  (options || [])
+    .filter(opt => {
+      if (isSkippedOption(opt)) return false
+      const response = responses[opt.id]
+      if (!response) return false
+      if (Array.isArray(response) && response.length === 0) return false
+      if (typeof response === 'string' && response.trim() === '') return false
+      return true
+    })
+    .map(opt => buildCustomResponseForOption({
+      option: opt,
+      selectedItems,
+      service,
+      response: responses[opt.id],
+      forceTitle: typeof getTitle === 'function' ? getTitle(opt) : null
+    }))
 
 const withSideAssociationMetadata = ({ response, option, selectedItems, service }) => {
   if (!isCustomSideOption(option)) return response
@@ -166,6 +197,7 @@ const validateOrderSubmission = ({
   const selectedItemsListDinner = getSelectedItemsListDinner()
   const isGenneiaCompany = hasGenneiaOptionRules(companyConfig)
   const companySlug = (companyConfig?.slug || '').toString().trim().toLowerCase()
+  const isGenneiaSlug = companySlug === 'genneia'
 
   if (lunchSelected && selectedItemsList.length === 0) {
     return { error: 'Selecciona al menos un plato para almuerzo.' }
@@ -221,81 +253,81 @@ const validateOrderSubmission = ({
       return { error: `Por favor completa (almuerzo): ${missingRequiredOptions.join(', ')}` }
     }
 
-    customResponsesArray = (visibleLunchOptions || [])
-      .filter(opt => {
-        const response = customResponses[opt.id]
-        if (!response) return false
-        if (Array.isArray(response) && response.length === 0) return false
-        if (typeof response === 'string' && response.trim() === '') return false
-        return true
-      })
-      .map(opt => withSideAssociationMetadata({
-        option: opt,
-        selectedItems: selectedItemsList,
-        service: 'lunch',
-        response: {
-          id: opt.id,
-          title: opt.title,
-          response: customResponses[opt.id]
-        }
-      }))
+    customResponsesArray = buildResponsesForOptions({
+      options: visibleLunchOptions,
+      responses: customResponses,
+      selectedItems: selectedItemsList,
+      service: 'lunch'
+    })
   }
 
   let customResponsesDinnerArray = []
   if (dinnerSelected) {
+    const isGenneia = isGenneiaCompany
+    const canChooseCustomSideForDinner = selectedItemsListDinner.length > 0
+      ? selectedItemsListDinner.every(item => canChooseCustomSide(item))
+      : false
+
+    if (isGenneia && !canChooseCustomSideForDinner) {
+      const blockedCustomSide = (visibleDinnerOptions || []).some(opt => {
+        if (!isCustomSideOption(opt)) return false
+        return hasValidResponse(customResponsesDinner[opt.id])
+      })
+      if (blockedCustomSide) {
+        return { error: 'La guarnición distinta no está disponible para esta opción.' }
+      }
+    }
+
+    const genneiaDinnerBeverageOptions = isGenneiaSlug
+      ? (visibleDinnerOptions || []).filter(isBeverageOption)
+      : []
+    if (isGenneiaSlug && genneiaDinnerBeverageOptions.length === 0) {
+      return { error: 'No pudimos cargar las bebidas de cena para Genneia. Intentá nuevamente.' }
+    }
+    if (isGenneiaSlug && !genneiaDinnerBeverageOptions.some(opt => hasValidResponse(customResponsesDinner[opt.id]))) {
+      return { error: 'Para cena completa: Bebidas (solo Genneia)' }
+    }
+
+    const missingRequiredOptionsDinner = getMissingRequiredOptionTitles({
+      options: visibleDinnerOptions,
+      responses: customResponsesDinner,
+      isRequiredOption: (opt) => opt.required || isGenneiaPostreOption(opt),
+      isSkippedOption: (opt) => {
+        if (dinnerOverrideChoice && !isBeverageOrDessertOption(opt)) return true
+        return isGenneia && isCustomSideOption(opt) && !canChooseCustomSideForDinner
+      },
+      enableDessertChoiceRule: isGenneia
+    })
+    if (missingRequiredOptionsDinner.length > 0) {
+      return { error: `Para cena completa: ${missingRequiredOptionsDinner.join(', ')}` }
+    }
+
     if (dinnerOverrideChoice) {
       customResponsesDinnerArray = [{
         id: 'dinner-special',
         title: dinnerSpecialTitle || 'Opción de cena',
         response: dinnerOverrideChoice
       }]
-    } else {
-      const isGenneia = isGenneiaCompany
-      const canChooseCustomSideForDinner = selectedItemsListDinner.length > 0
-        ? selectedItemsListDinner.every(item => canChooseCustomSide(item))
-        : false
+    }
 
-      if (isGenneia && !canChooseCustomSideForDinner) {
-        const blockedCustomSide = (visibleDinnerOptions || []).some(opt => {
-          if (!isCustomSideOption(opt)) return false
-          return hasValidResponse(customResponsesDinner[opt.id])
-        })
-        if (blockedCustomSide) {
-          return { error: 'La guarnición distinta no está disponible para esta opción.' }
-        }
-      }
-
-      const missingRequiredOptionsDinner = getMissingRequiredOptionTitles({
+    customResponsesDinnerArray = [
+      ...customResponsesDinnerArray,
+      ...buildResponsesForOptions({
         options: visibleDinnerOptions,
         responses: customResponsesDinner,
-        isRequiredOption: (opt) => opt.required || isGenneiaPostreOption(opt),
-        isSkippedOption: (opt) => isGenneia && isCustomSideOption(opt) && !canChooseCustomSideForDinner,
-        enableDessertChoiceRule: isGenneia
+        selectedItems: selectedItemsListDinner,
+        service: 'dinner',
+        isSkippedOption: (opt) => {
+          if (dinnerOverrideChoice && !isBeverageOrDessertOption(opt)) return true
+          return isGenneia && isCustomSideOption(opt) && !canChooseCustomSideForDinner
+        },
+        getTitle: (opt) => {
+          if (isGenneiaSlug && isBeverageOption(opt)) return 'Bebidas (solo Genneia)'
+          return opt.title
+        }
       })
-      if (missingRequiredOptionsDinner.length > 0) {
-        return { error: `Para cena completa: ${missingRequiredOptionsDinner.join(', ')}` }
-      }
+    ]
 
-      customResponsesDinnerArray = (visibleDinnerOptions || [])
-        .filter(opt => {
-          if (isGenneia && isCustomSideOption(opt) && !canChooseCustomSideForDinner) return false
-          const response = customResponsesDinner[opt.id]
-          if (!response) return false
-          if (Array.isArray(response) && response.length === 0) return false
-          if (typeof response === 'string' && response.trim() === '') return false
-          return true
-        })
-        .map(opt => withSideAssociationMetadata({
-          option: opt,
-          selectedItems: selectedItemsListDinner,
-          service: 'dinner',
-          response: {
-            id: opt.id,
-            title: opt.title,
-            response: customResponsesDinner[opt.id]
-          }
-        }))
-    }
   }
 
   const deliveryDate = getTomorrowISOInTimeZone()

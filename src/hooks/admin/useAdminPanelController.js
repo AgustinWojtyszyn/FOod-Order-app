@@ -42,6 +42,7 @@ const useAdminPanelController = ({
   }, [adminCompanies, isAdmin])
   const firstCompanySlug = companyOptions[0]?.slug || 'global'
   const [selectedMenuCompanySlug, setSelectedMenuCompanySlug] = useState(firstCompanySlug)
+  const [hiddenMenuDates, setHiddenMenuDates] = useState([])
 
   const {
     activeTab,
@@ -94,7 +95,9 @@ const useAdminPanelController = ({
     handleMenuUpdate,
     handleMenuItemChange,
     addMenuItem,
-    removeMenuItem
+    removeMenuItem,
+    getMenuItemChangeSummary,
+    clearDeletedMenuItemsForDate
   } = useAdminMenuActions({
     menuItemsByDate,
     draftMenuItemsByDate,
@@ -237,6 +240,7 @@ const useAdminPanelController = ({
   })
 
   const menuVisibleDates = buildVisibleDates(loadedDates, selectedDates)
+    .filter(date => selectedDates.includes(date) || !hiddenMenuDates.includes(date))
   const dinnerVisibleDates = buildVisibleDates(dinnerLoadedDates, dinnerSelectedDates)
 
   useEffect(() => {
@@ -272,16 +276,29 @@ const useAdminPanelController = ({
       removeSelectedDate(menuDate)
       clearEditorForDate(menuDate)
       clearMenuDate(menuDate)
+      setHiddenMenuDates(prev => prev.includes(menuDate) ? prev : [...prev, menuDate])
       return
     }
+    setHiddenMenuDates(prev => prev.filter(date => date !== menuDate))
     addSelectedDate(menuDate)
+  }
+
+  const handleRemoveVisibleMenuDate = (menuDate) => {
+    if (!menuDate) return
+    if (selectedDates.includes(menuDate)) {
+      removeSelectedDate(menuDate)
+      clearEditorForDate(menuDate)
+    }
+    clearDeletedMenuItemsForDate(menuDate)
+    clearMenuDate(menuDate)
+    setHiddenMenuDates(prev => prev.includes(menuDate) ? prev : [...prev, menuDate])
   }
 
   const handleSaveAllMenus = async () => {
     if (!selectedDates.length) return
     const confirmed = await confirmAction({
       title: 'Guardar todos los menús',
-      message: `Se guardarán ${selectedDates.length} día${selectedDates.length === 1 ? '' : 's'} seleccionados.`,
+      message: `Se guardarán únicamente ${selectedDates.length} fecha${selectedDates.length === 1 ? '' : 's'} seleccionada${selectedDates.length === 1 ? '' : 's'}.`,
       confirmText: 'Guardar todos'
     })
     if (!confirmed) return
@@ -341,21 +358,25 @@ const useAdminPanelController = ({
       dinnerMenuEnabled,
       onToggleDinnerMenu: toggleDinnerMenu,
       onToggleDate: handleToggleMenuDate,
+      onRemoveVisibleDate: handleRemoveVisibleMenuDate,
       onSaveAllMenus: handleSaveAllMenus,
       onEditMenu: (menuDate) => setEditingForDate(menuDate, true),
       onSaveMenu: handleMenuUpdate,
       onCancelMenu: (menuDate) => {
         setEditingForDate(menuDate, false)
+        clearDeletedMenuItemsForDate(menuDate)
         fetchMenuForDate(menuDate)
       },
       onMenuItemChange: handleMenuItemChange,
       onAddMenuItem: addMenuItem,
       onRemoveMenuItem: removeMenuItem,
+      getMenuItemChangeSummary,
       onPrimeSuccess: () => Sound.primeSuccess(),
       companyOptions,
       selectedCompanySlug: selectedMenuCompanySlug,
       onCompanyChange: (companySlug) => {
         setSelectedMenuCompanySlug(companySlug)
+        setHiddenMenuDates([])
         selectedDates.forEach((date) => clearMenuDate(date))
       }
     },

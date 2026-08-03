@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { db } from '../supabaseClient'
 import { sortMenuItems } from '../utils/order/orderMenuHelpers'
-import { filterOrderableMenuItems, getMenuSlotIndex, withMenuSlotIndex } from '../utils/order/menuDisplay'
+import { filterOrderableMenuItems, withMenuSlotIndex } from '../utils/order/menuDisplay'
+import { mergeCompanyMenuItems, normalizeCompanySlug } from '../utils/order/companyMenuMerge'
 import { DINNER_FALLBACK_WHITELIST } from '../constants/dinnerWhitelist'
 import { buildSuggestionSummary, buildOptionsSummary } from '../utils/order/orderFormatters'
 import { hasMainMenuSelected } from '../utils/order/orderSelectionHelpers'
@@ -38,6 +39,29 @@ const isBeverageDessertOrFruitOption = (option = {}) => {
 const hasBeverageDessertOrFruitOption = (options = []) =>
   (options || []).some(isBeverageDessertOrFruitOption)
 
+const isBeverageOption = (option = {}) => {
+  const text = [
+    option.title,
+    ...(Array.isArray(option.options) ? option.options : [])
+  ].join(' ').toLowerCase()
+  return text.includes('bebida') ||
+    text.includes('coca') ||
+    text.includes('agua') ||
+    text.includes('gaseosa') ||
+    text.includes('soda') ||
+    text.includes('jugo')
+}
+
+const mergeMissingBeverageOptions = (options = [], fallbackOptions = []) => {
+  if ((options || []).some(isBeverageOption)) return options
+  const existingIds = new Set((options || []).map(option => option?.id).filter(Boolean))
+  const additions = (fallbackOptions || [])
+    .filter(isBeverageOption)
+    .filter(option => !existingIds.has(option?.id))
+    .map(option => ({ ...option, id: `dinner-${option.id}` }))
+  return [...options, ...additions]
+}
+
 const mergeFallbackSpecialOptions = (options = [], fallbackOptions = []) => {
   if (hasBeverageDessertOrFruitOption(options)) return options
   const existingIds = new Set((options || []).map((option) => option?.id).filter(Boolean))
@@ -46,38 +70,6 @@ const mergeFallbackSpecialOptions = (options = [], fallbackOptions = []) => {
     .filter((option) => !existingIds.has(option?.id))
     .map((option) => ({ ...option, id: `distro-cuyo-${option.id}` }))
   return [...options, ...additions]
-}
-
-const normalizeCompanySlug = (value = '') => (value || '').toString().trim().toLowerCase()
-
-const getMenuMergeKey = (item = {}) => {
-  const slotIndex = getMenuSlotIndex(item)
-  if (Number.isFinite(slotIndex)) return `slot:${slotIndex}`
-  const name = (item?.name || '').toString().trim().toLowerCase()
-  return name ? `name:${name}` : null
-}
-
-const mergeCompanyMenuItems = (globalItems = [], companyItems = []) => {
-  const merged = []
-  const indexByKey = new Map()
-
-  ;(globalItems || []).forEach((item) => {
-    const key = getMenuMergeKey(item)
-    if (key) indexByKey.set(key, merged.length)
-    merged.push(item)
-  })
-
-  ;(companyItems || []).forEach((item) => {
-    const key = getMenuMergeKey(item)
-    if (key && indexByKey.has(key)) {
-      merged[indexByKey.get(key)] = item
-      return
-    }
-    if (key) indexByKey.set(key, merged.length)
-    merged.push(item)
-  })
-
-  return merged
 }
 
 const ACTIVE_ORDER_STATUSES = new Set(['pending'])
@@ -197,6 +189,15 @@ const useOrderBootstrap = ({
       }
       // Cena siempre se resuelve con su consulta específica, sin reutilizar catálogo de almuerzo.
       let dinnerOptions = filterByMealScope(data, 'dinner')
+      if (companyOptionsSlug === 'genneia' && !dinnerOptions.some(isBeverageOption)) {
+        const { data: lunchFallbackData, error: lunchFallbackError } = await db.getVisibleCustomOptions({
+          company: 'genneia',
+          meal: 'lunch',
+          date: dinnerDate
+        })
+        if (lunchFallbackError) console.error('Error fetching Genneia dinner beverage fallback options:', lunchFallbackError)
+        dinnerOptions = mergeMissingBeverageOptions(dinnerOptions, filterByMealScope(lunchFallbackData, 'lunch'))
+      }
       if (companyOptionsSlug === 'distro_cuyo' && !hasBeverageDessertOrFruitOption(dinnerOptions)) {
         const { data: fallbackData, error: fallbackError } = await db.getVisibleCustomOptions({
           company: 'genneia',

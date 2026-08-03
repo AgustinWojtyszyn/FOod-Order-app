@@ -58,7 +58,6 @@ export const createMenuService = ({
       const normalizedCompanySlug = normalizeCompanySlug(companySlug)
       invalidateCache() // Limpiar cache al actualizar menú
 
-      // Obtener items existentes (solo del día)
       const { data: existingItems, error: fetchError } = await supabase
         .from('menu_items')
         .select('id')
@@ -72,24 +71,8 @@ export const createMenuService = ({
 
       const existingIds = existingItems?.map(item => item.id) || []
       const itemsToUpdate = menuItems.filter(item => item.id && existingIds.includes(item.id))
-      const itemsToInsert = menuItems.filter(item => !item.id || !existingIds.includes(item.id))
-      const idsToKeep = menuItems.filter(item => item.id).map(item => item.id)
-      const itemsToDelete = existingIds.filter(id => !idsToKeep.includes(id))
-
-      // Eliminar items que ya no están en la lista (solo del día)
-      if (itemsToDelete.length > 0) {
-        const { error: deleteError } = await supabase
-          .from('menu_items')
-          .delete()
-          .eq('menu_date', menuDate)
-          .eq('company_slug', normalizedCompanySlug)
-          .in('id', itemsToDelete)
-
-        if (deleteError) {
-          console.error('Error deleting items:', deleteError)
-          return { error: deleteError }
-        }
-      }
+      const itemsToInsert = menuItems.filter(item => !item.id)
+      const staleItems = menuItems.filter(item => item.id && !existingIds.includes(item.id))
 
       // Actualizar items existentes
       for (const item of itemsToUpdate) {
@@ -138,12 +121,13 @@ export const createMenuService = ({
         const summary = {
           inserted: itemsToInsert.length,
           updated: itemsToUpdate.length,
-          deleted: itemsToDelete.length,
+          deleted: 0,
+          skipped_stale: staleItems.length,
           total: data?.length || 0
         }
         await logAudit({
           action: 'menu_updated',
-          details: `Menú diario actualizado (${menuDate}) (agregados: ${summary.inserted}, editados: ${summary.updated}, eliminados: ${summary.deleted}, total vigente: ${summary.total})`,
+          details: `Menú diario actualizado (${menuDate}) (agregados: ${summary.inserted}, editados: ${summary.updated}, omitidos por estar desactualizados: ${summary.skipped_stale}, total vigente: ${summary.total})`,
           target_name: 'Todos los usuarios',
           metadata: {
             summary,
@@ -158,6 +142,53 @@ export const createMenuService = ({
       return { data, error }
     } catch (err) {
       console.error('Unexpected error in updateMenuItems:', err)
+      return { error: err }
+    }
+  }
+
+  const deleteMenuItemById = async ({ menuDate, itemId, companySlug = 'global', requestId = null }) => {
+    try {
+      if (!menuDate || !itemId) return { error: new Error('menuDate and itemId are required') }
+      const normalizedCompanySlug = normalizeCompanySlug(companySlug)
+      invalidateCache()
+
+      const { data: existingItem, error: fetchError } = await supabase
+        .from('menu_items')
+        .select('id, name')
+        .eq('id', itemId)
+        .eq('menu_date', menuDate)
+        .eq('company_slug', normalizedCompanySlug)
+        .maybeSingle()
+
+      if (fetchError) return { error: fetchError }
+      if (!existingItem) return { data: null, error: null }
+
+      const { error: deleteError } = await supabase
+        .from('menu_items')
+        .delete()
+        .eq('id', itemId)
+        .eq('menu_date', menuDate)
+        .eq('company_slug', normalizedCompanySlug)
+
+      if (deleteError) return { error: deleteError }
+
+      if (typeof logAudit === 'function') {
+        await logAudit({
+          action: 'menu_item_deleted',
+          details: `Plato eliminado del menú (${menuDate}): ${existingItem.name || itemId}`,
+          target_name: 'Todos los usuarios',
+          metadata: {
+            menu_date: menuDate,
+            company_slug: normalizedCompanySlug,
+            item: existingItem
+          },
+          request_id: requestId
+        })
+      }
+
+      return { data: existingItem, error: null }
+    } catch (err) {
+      console.error('Unexpected error in deleteMenuItemById:', err)
       return { error: err }
     }
   }
@@ -229,6 +260,7 @@ export const createMenuService = ({
     getMenuDatesByRange,
     getMenuItemsByDate,
     updateMenuItemsByDate,
+    deleteMenuItemById,
     getDinnerMenuByDate,
     upsertDinnerMenuByDate,
     getDinnerMenusByDateRange
