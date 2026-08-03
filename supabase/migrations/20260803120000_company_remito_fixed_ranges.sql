@@ -441,8 +441,8 @@ begin
 
   v_name := coalesce(nullif(trim(p_company_name), ''), v_slug);
 
-  insert into public.companies (slug, name, remito_start_number, remito_end_number)
-  values (v_slug, v_name, v_range_start, v_range_end)
+  insert into public.companies (slug, name, remito_start_number, remito_end_number, next_remito_number)
+  values (v_slug, v_name, v_range_start, v_range_end, v_range_start)
   on conflict (slug) do update
   set name = coalesce(nullif(trim(excluded.name), ''), public.companies.name),
       remito_start_number = v_range_start,
