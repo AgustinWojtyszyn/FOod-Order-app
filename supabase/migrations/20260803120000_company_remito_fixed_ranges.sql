@@ -1,30 +1,6 @@
 alter table public.companies
   add column if not exists remito_end_number integer;
 
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_constraint
-    where conrelid = 'public.company_remitos'::regclass
-      and conname = 'company_remitos_company_number_unique'
-  ) then
-    alter table public.company_remitos
-      add constraint company_remitos_company_number_unique unique (company_id, remito_number);
-  end if;
-
-  if not exists (
-    select 1
-    from pg_constraint
-    where conrelid = 'public.company_remitos'::regclass
-      and conname = 'company_remitos_company_date_unique'
-  ) then
-    alter table public.company_remitos
-      add constraint company_remitos_company_date_unique unique (company_id, delivery_date);
-  end if;
-end;
-$$;
-
 alter table public.companies
   drop constraint if exists companies_remito_start_zero;
 
@@ -296,6 +272,30 @@ set next_remito_number = least(
 from ranges r
 left join issued i on i.slug = r.slug
 where c.slug = r.slug;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.company_remitos'::regclass
+      and conname = 'company_remitos_company_number_unique'
+  ) then
+    alter table public.company_remitos
+      add constraint company_remitos_company_number_unique unique (company_id, remito_number);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.company_remitos'::regclass
+      and conname = 'company_remitos_company_date_unique'
+  ) then
+    alter table public.company_remitos
+      add constraint company_remitos_company_date_unique unique (company_id, delivery_date);
+  end if;
+end;
+$$;
 
 drop function if exists public.update_company_remito_start(text, integer);
 drop function if exists public.get_companies_remito_config();
