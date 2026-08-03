@@ -53,7 +53,7 @@ const DailyExportActions = ({
 
       <button
         type="button"
-        onClick={onGenerateNotaPedido || onExportExcel}
+        onClick={onGenerateNotaPedido}
         disabled={exportableOrdersCount === 0}
         className="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-slate-500/25 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
       >

@@ -3,7 +3,8 @@ import { downloadWorkbook, filterOrdersByCompany } from './dailyOrderCalculation
 import {
   buildDailyOrdersExcelDetailRows,
   buildDailyOrdersExcelFileName,
-  buildDailyOrdersSummary
+  buildDailyOrdersSummary,
+  formatDailyOrdersOperationalText
 } from './dailyOrdersExportModel'
 import { notifyError, notifyInfo, notifySuccess } from '../notice'
 
@@ -43,6 +44,29 @@ const addSectionRow = (worksheet, label) => {
   row.fill = SUMMARY_FILL
 }
 
+const addOperationalTextSheet = (workbook, orders, selectedStatus) => {
+  const worksheet = workbook.addWorksheet('Resumen operativo')
+  worksheet.columns = [
+    { header: 'Reporte', key: 'reporte', width: 96 }
+  ]
+
+  formatDailyOrdersOperationalText(orders, selectedStatus, {
+    title: 'REPORTE DIARIO DE PEDIDOS SERVIFOOD'
+  }).split('\n').forEach((line) => {
+    const cleanLine = line.replace(/\*/g, '')
+    const row = worksheet.addRow({ reporte: cleanLine })
+    if (/^[A-ZÁÉÍÓÚÑ /]+$/.test(cleanLine) && cleanLine.length > 3) {
+      row.font = { bold: true, color: { argb: 'FF111827' } }
+      row.fill = SUMMARY_FILL
+    }
+  })
+
+  applyHeaderStyle(worksheet)
+  worksheet.eachRow((row) => {
+    row.alignment = { vertical: 'top', wrapText: true }
+  })
+}
+
 const addSummarySheet = (workbook, summary) => {
   const worksheet = workbook.addWorksheet('Resumen')
   worksheet.columns = [
@@ -79,6 +103,133 @@ const addSummarySheet = (workbook, summary) => {
 
   applyHeaderStyle(worksheet)
   autoFitColumns(worksheet)
+}
+
+const addLocationMenuSheet = (workbook, summary) => {
+  const worksheet = workbook.addWorksheet('Detalle por empresa')
+  worksheet.columns = [
+    { header: 'Ubicación / Empresa', key: 'ubicacion', width: 30 },
+    { header: 'Menú / opción', key: 'menu', width: 54 },
+    { header: 'Cantidad', key: 'cantidad', width: 12 },
+    { header: 'Subtotal empresa', key: 'subtotal', width: 18 }
+  ]
+
+  if (summary.byLocationMenu.length) {
+    summary.byLocationMenu.forEach((location) => {
+      if (!location.menus.length) {
+        worksheet.addRow({
+          ubicacion: location.label,
+          menu: 'Sin menús/opciones para listar.',
+          cantidad: '',
+          subtotal: location.items
+        })
+        return
+      }
+
+      location.menus.forEach((menu, index) => {
+        worksheet.addRow({
+          ubicacion: location.label,
+          menu: menu.label,
+          cantidad: menu.quantity,
+          subtotal: index === 0 ? location.items : ''
+        })
+      })
+    })
+  } else {
+    worksheet.addRow({
+      ubicacion: 'Sin detalle por ubicación.',
+      menu: '',
+      cantidad: '',
+      subtotal: ''
+    })
+  }
+
+  applyHeaderStyle(worksheet)
+  worksheet.eachRow((row) => {
+    row.alignment = { vertical: 'top', wrapText: true }
+  })
+}
+
+const addAdditionalByLocationSheet = (workbook, summary) => {
+  const worksheet = workbook.addWorksheet('Adicionales por empresa')
+  worksheet.columns = [
+    { header: 'Ubicación / Empresa', key: 'ubicacion', width: 30 },
+    { header: 'Guarnición / adicional', key: 'adicional', width: 54 },
+    { header: 'Cantidad', key: 'cantidad', width: 12 }
+  ]
+
+  if (summary.additionalByLocation.length) {
+    summary.additionalByLocation.forEach((location) => {
+      if (!location.items.length) {
+        worksheet.addRow({
+          ubicacion: location.label,
+          adicional: 'Sin guarniciones/adicionales destacados.',
+          cantidad: ''
+        })
+        return
+      }
+
+      location.items.forEach((item) => {
+        worksheet.addRow({
+          ubicacion: location.label,
+          adicional: item.label,
+          cantidad: item.quantity
+        })
+      })
+    })
+  } else {
+    worksheet.addRow({
+      ubicacion: 'Sin guarniciones/adicionales destacados.',
+      adicional: '',
+      cantidad: ''
+    })
+  }
+
+  applyHeaderStyle(worksheet)
+  worksheet.eachRow((row) => {
+    row.alignment = { vertical: 'top', wrapText: true }
+  })
+}
+
+const addCommentsByLocationSheet = (workbook, summary) => {
+  const worksheet = workbook.addWorksheet('Comentarios por empresa')
+  worksheet.columns = [
+    { header: 'Ubicación / Empresa', key: 'ubicacion', width: 30 },
+    { header: 'Comentario / observación', key: 'comentario', width: 64 },
+    { header: 'Cantidad', key: 'cantidad', width: 12 }
+  ]
+
+  if (summary.commentsByLocation.length) {
+    summary.commentsByLocation.forEach((location) => {
+      if (!location.comments.length) {
+        worksheet.addRow({
+          ubicacion: location.label,
+          comentario: 'Sin comentarios destacados.',
+          cantidad: ''
+        })
+        return
+      }
+
+      location.comments.forEach((comment) => {
+        worksheet.addRow({
+          ubicacion: location.label,
+          comentario: comment.comment,
+          cantidad: comment.count
+        })
+      })
+    })
+  } else {
+    worksheet.addRow({
+      ubicacion: 'Sin comentarios destacados.',
+      comentario: '',
+      cantidad: ''
+    })
+  }
+
+  applyHeaderStyle(worksheet)
+  worksheet.eachRow((row) => {
+    row.alignment = { vertical: 'top', wrapText: true }
+  })
 }
 
 const addDetailsSheet = (workbook, summary) => {
@@ -185,10 +336,14 @@ export async function exportDailyOrdersExcel({
   try {
     const summary = buildDailyOrdersSummary(ordersToExport, selectedStatus)
     const workbook = new ExcelJS.Workbook()
-    workbook.creator = 'ServiFood'
+    workbook.creator = 'ServiFood Pedidos'
     workbook.created = new Date()
 
+    addOperationalTextSheet(workbook, ordersToExport, selectedStatus)
     addSummarySheet(workbook, summary)
+    addLocationMenuSheet(workbook, summary)
+    addAdditionalByLocationSheet(workbook, summary)
+    addCommentsByLocationSheet(workbook, summary)
     addDetailsSheet(workbook, summary)
     addCommentsSheet(workbook, summary)
     addInconsistenciesSheet(workbook, summary)
