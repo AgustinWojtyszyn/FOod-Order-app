@@ -90,9 +90,25 @@ const formatDateForFile = (isoDate) => {
   return formatted ? formatted.replaceAll('/', '-') : new Date().toLocaleDateString('es-AR').replaceAll('/', '-')
 }
 
+const normalizeCompanyMatchText = (value = '') =>
+  normalizeText(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
 const resolveCompanyForOrder = (order = {}) => {
   const raw = getOrderLocation(order)
   const company = getCompanyByLocationOrSlug(raw) || getCompanyByLocationOrSlug(order.company_slug || order.company)
+  const normalizedRaw = normalizeCompanyMatchText(raw)
+  if (!company && normalizedRaw.startsWith('epse')) {
+    return {
+      slug: 'epse',
+      name: 'EPSE',
+      displayName: raw || 'EPSE'
+    }
+  }
   return {
     slug: company?.slug || slugify(raw).toLowerCase(),
     name: company?.name || raw || 'Sin ubicación',

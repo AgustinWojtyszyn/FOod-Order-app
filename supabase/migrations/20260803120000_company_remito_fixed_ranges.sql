@@ -99,13 +99,13 @@ as $$
     )) as slug
   )
   select case
-    when slug = 'ccp' then 'ccp'
-    when slug in ('distrocuyo', 'distro_cuyo') then 'distro_cuyo'
-    when slug = 'epse' then 'epse'
-    when slug = 'genneia' then 'genneia'
-    when slug in ('la_laja', 'laja') then 'laja'
-    when slug in ('los_berros', 'losberros') then 'losberros'
-    when slug in ('padre_bueno', 'padrebueno') then 'padrebueno'
+    when slug = 'ccp' or slug like 'ccp_%' then 'ccp'
+    when slug in ('distrocuyo', 'distro_cuyo') or slug like 'distrocuyo_%' or slug like 'distro_cuyo_%' then 'distro_cuyo'
+    when slug = 'epse' or slug like 'epse_%' then 'epse'
+    when slug = 'genneia' or slug like 'genneia_%' then 'genneia'
+    when slug in ('la_laja', 'laja') or slug like 'la_laja_%' or slug like 'laja_%' then 'laja'
+    when slug in ('los_berros', 'losberros') or slug like 'los_berros_%' or slug like 'losberros_%' then 'losberros'
+    when slug in ('padre_bueno', 'padrebueno') or slug like 'padre_bueno_%' or slug like 'padrebueno_%' then 'padrebueno'
     when slug in (
       'administracion',
       'administracion_servifood',
