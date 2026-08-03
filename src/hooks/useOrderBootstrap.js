@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { db } from '../supabaseClient'
 import { sortMenuItems } from '../utils/order/orderMenuHelpers'
-import { filterOrderableMenuItems, withMenuSlotIndex } from '../utils/order/menuDisplay'
+import { filterOrderableMenuItems, getMenuSlotIndex, withMenuSlotIndex } from '../utils/order/menuDisplay'
 import { DINNER_FALLBACK_WHITELIST } from '../constants/dinnerWhitelist'
 import { buildSuggestionSummary, buildOptionsSummary } from '../utils/order/orderFormatters'
 import { hasMainMenuSelected } from '../utils/order/orderSelectionHelpers'
@@ -48,6 +48,38 @@ const mergeFallbackSpecialOptions = (options = [], fallbackOptions = []) => {
   return [...options, ...additions]
 }
 
+const normalizeCompanySlug = (value = '') => (value || '').toString().trim().toLowerCase()
+
+const getMenuMergeKey = (item = {}) => {
+  const slotIndex = getMenuSlotIndex(item)
+  if (Number.isFinite(slotIndex)) return `slot:${slotIndex}`
+  const name = (item?.name || '').toString().trim().toLowerCase()
+  return name ? `name:${name}` : null
+}
+
+const mergeCompanyMenuItems = (globalItems = [], companyItems = []) => {
+  const merged = []
+  const indexByKey = new Map()
+
+  ;(globalItems || []).forEach((item) => {
+    const key = getMenuMergeKey(item)
+    if (key) indexByKey.set(key, merged.length)
+    merged.push(item)
+  })
+
+  ;(companyItems || []).forEach((item) => {
+    const key = getMenuMergeKey(item)
+    if (key && indexByKey.has(key)) {
+      merged[indexByKey.get(key)] = item
+      return
+    }
+    if (key) indexByKey.set(key, merged.length)
+    merged.push(item)
+  })
+
+  return merged
+}
+
 const ACTIVE_ORDER_STATUSES = new Set(['pending'])
 
 const isActiveOrderForDelivery = (order, deliveryDate, service) => {
@@ -87,19 +119,37 @@ const useOrderBootstrap = ({
   const fetchMenuItems = useCallback(async () => {
     try {
       const menuDate = getTomorrowISOInTimeZone()
-      const { data, error } = await db.getMenuItemsByDate(menuDate)
+      const normalizedCompanySlug = normalizeCompanySlug(rawCompanySlug || companyOptionsSlug)
+      const shouldFetchCompanyMenu = normalizedCompanySlug && normalizedCompanySlug !== 'global'
+      const [
+        { data: globalData, error: globalError },
+        companyResult
+      ] = await Promise.all([
+        db.getMenuItemsByDate(menuDate, 'global'),
+        shouldFetchCompanyMenu
+          ? db.getMenuItemsByDate(menuDate, normalizedCompanySlug)
+          : Promise.resolve({ data: [], error: null })
+      ])
 
-      if (error) {
-        console.error('Error fetching menu:', error)
-        setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS))))
+      if (globalError && (!shouldFetchCompanyMenu || companyResult?.error)) {
+        console.error('Error fetching menu:', globalError)
+        if (companyResult?.error) console.error('Error fetching company menu:', companyResult.error)
+        setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS)), normalizedCompanySlug))
         return
       }
 
-      setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(data || []))))
+      if (globalError) console.error('Error fetching global menu:', globalError)
+      if (companyResult?.error) console.error('Error fetching company menu:', companyResult.error)
+
+      const mergedItems = mergeCompanyMenuItems(
+        globalError ? [] : (globalData || []),
+        companyResult?.error ? [] : (companyResult?.data || [])
+      )
+      setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(mergedItems)), normalizedCompanySlug))
     } catch (err) {
       console.error('Error:', err)
     }
-  }, [setMenuItems])
+  }, [companyOptionsSlug, rawCompanySlug, setMenuItems])
 
   const fetchLunchCustomOptions = useCallback(async () => {
     try {
@@ -168,15 +218,36 @@ const useOrderBootstrap = ({
       const fallbackDate = getTomorrowISOInTimeZone()
       const deliveryDate = selectedDinnerDate || fallbackDate
       // En cena se muestra primero el menú completo base (mismo bloque que almuerzo).
-      const { data: lunchMenuData, error: lunchMenuError } = await db.getMenuItemsByDate(deliveryDate)
-      if (lunchMenuError) {
-        console.error('Error fetching base menu for dinner:', lunchMenuError)
+      const normalizedCompanySlug = normalizeCompanySlug(rawCompanySlug || companyOptionsSlug)
+      const shouldFetchCompanyMenu = normalizedCompanySlug && normalizedCompanySlug !== 'global'
+      const [
+        { data: globalLunchMenuData, error: globalLunchMenuError },
+        companyLunchMenuResult
+      ] = await Promise.all([
+        db.getMenuItemsByDate(deliveryDate, 'global'),
+        shouldFetchCompanyMenu
+          ? db.getMenuItemsByDate(deliveryDate, normalizedCompanySlug)
+          : Promise.resolve({ data: [], error: null })
+      ])
+      if (globalLunchMenuError && (!shouldFetchCompanyMenu || companyLunchMenuResult?.error)) {
+        console.error('Error fetching base menu for dinner:', globalLunchMenuError)
+        if (companyLunchMenuResult?.error) console.error('Error fetching company base menu for dinner:', companyLunchMenuResult.error)
         setDinnerMenuItems([])
         setDinnerMenuSpecial(null)
         return
       }
 
-      const normalizedLunchMenu = filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(lunchMenuData || [])))
+      if (globalLunchMenuError) console.error('Error fetching global base menu for dinner:', globalLunchMenuError)
+      if (companyLunchMenuResult?.error) console.error('Error fetching company base menu for dinner:', companyLunchMenuResult.error)
+
+      const mergedLunchMenu = mergeCompanyMenuItems(
+        globalLunchMenuError ? [] : (globalLunchMenuData || []),
+        companyLunchMenuResult?.error ? [] : (companyLunchMenuResult?.data || [])
+      )
+      const normalizedLunchMenu = filterOrderableMenuItems(
+        withMenuSlotIndex(sortMenuItems(mergedLunchMenu)),
+        normalizedCompanySlug
+      )
       setDinnerMenuItems(
         normalizedLunchMenu.map((item, index) => ({
           ...item,
@@ -213,7 +284,7 @@ const useOrderBootstrap = ({
       setDinnerMenuItems([])
       setDinnerMenuSpecial(null)
     }
-  }, [companyOptionsSlug, selectedDinnerDate, setDinnerMenuItems, setDinnerMenuSpecial])
+  }, [companyOptionsSlug, rawCompanySlug, selectedDinnerDate, setDinnerMenuItems, setDinnerMenuSpecial])
 
   const fetchUserFeatures = useCallback(async () => {
     if (!user?.id) return

@@ -1,6 +1,7 @@
 const normalizeText = (value = '') => (value || '').toString().trim()
 const normalizeSlotTitle = (value = '') => normalizeText(value).toLowerCase()
 const HIDDEN_ORDER_MENU_SLOT_INDEX = 4
+const HIDDEN_ORDER_MENU_COMPANY_SLUG = 'epse'
 
 const getMenuLabelByIndex = (index = 0) => (index === 0 ? 'Menú principal' : `Opción ${index}`)
 
@@ -60,14 +61,17 @@ const getMenuSlotIndex = (item = {}, fallbackIndex = null) => {
   return Number.isFinite(fallbackIndex) ? fallbackIndex : null
 }
 
-const isHiddenOrderMenuSlot = (item = {}, fallbackIndex = null) =>
-  getMenuSlotIndex(item, fallbackIndex) === HIDDEN_ORDER_MENU_SLOT_INDEX
+const normalizeCompanySlug = (value = '') => (value || '').toString().trim().toLowerCase()
 
-const filterOrderableMenuItems = (items = []) =>
-  (items || []).filter((item, index) => !isHiddenOrderMenuSlot(item, index))
+const isHiddenOrderMenuSlot = (item = {}, companySlug = '') =>
+  normalizeCompanySlug(companySlug) === HIDDEN_ORDER_MENU_COMPANY_SLUG &&
+  getMenuSlotIndex(item) === HIDDEN_ORDER_MENU_SLOT_INDEX
 
-const hasHiddenOrderMenuSelection = (items = []) =>
-  (items || []).some((item, index) => isHiddenOrderMenuSlot(item, index))
+const filterOrderableMenuItems = (items = [], companySlug = '') =>
+  (items || []).filter((item) => !isHiddenOrderMenuSlot(item, companySlug))
+
+const hasHiddenOrderMenuSelection = (items = [], companySlug = '') =>
+  (items || []).some((item) => isHiddenOrderMenuSlot(item, companySlug))
 
 export {
   HIDDEN_ORDER_MENU_SLOT_INDEX,

@@ -165,12 +165,13 @@ const validateOrderSubmission = ({
   const selectedItemsList = getSelectedItemsList()
   const selectedItemsListDinner = getSelectedItemsListDinner()
   const isGenneiaCompany = hasGenneiaOptionRules(companyConfig)
+  const companySlug = (companyConfig?.slug || '').toString().trim().toLowerCase()
 
   if (lunchSelected && selectedItemsList.length === 0) {
     return { error: 'Selecciona al menos un plato para almuerzo.' }
   }
 
-  if (lunchSelected && hasHiddenOrderMenuSelection(selectedItemsList)) {
+  if (lunchSelected && hasHiddenOrderMenuSelection(selectedItemsList, companySlug)) {
     return { error: 'Esa opción de menú no está disponible para pedidos.' }
   }
 
@@ -184,7 +185,7 @@ const validateOrderSubmission = ({
     return { error: 'Selecciona al menos un plato para cena o una opción de cena.' }
   }
 
-  if (dinnerSelected && hasHiddenOrderMenuSelection(selectedItemsListDinner)) {
+  if (dinnerSelected && hasHiddenOrderMenuSelection(selectedItemsListDinner, companySlug)) {
     return { error: 'Esa opción de menú no está disponible para pedidos.' }
   }
 
