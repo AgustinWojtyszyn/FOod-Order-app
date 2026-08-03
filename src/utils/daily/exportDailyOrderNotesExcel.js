@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs'
 import { db } from '../../supabaseClient'
 import logoUrl from '../../assets/servifood logo.jpg'
 import { getCompanyByLocationOrSlug } from '../../constants/companyConfig'
-import { downloadWorkbook, filterOrdersByCompany } from './dailyOrderCalculations'
+import { downloadWorkbook, filterOrdersByCompany, isBeverage } from './dailyOrderCalculations'
 import {
   extractCustomResponses,
   extractOrderItems,
@@ -12,6 +12,7 @@ import {
 } from './dailyOrdersExportModel'
 import { notifyError, notifyInfo, notifySuccess } from '../notice'
 import { getUserFriendlyErrorMessage } from '../index'
+import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
 
 const DETAIL_ROWS_PER_COPY = 16
 
@@ -167,8 +168,105 @@ const incrementSummary = (map, label, quantity = 1) => {
   map.set(safeLabel, (map.get(safeLabel) || 0) + quantity)
 }
 
+const normalizeRemitoComparisonText = (value = '') =>
+  normalizeText(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+
+const getOptionNumber = (label = '') => {
+  const match = normalizeRemitoComparisonText(label).match(/\bopcion\s+(\d+)\b/)
+  return match ? Number(match[1]) : null
+}
+
+const isObservationLabel = (label = '') => {
+  const text = normalizeRemitoComparisonText(label)
+  return text.startsWith('observacion') || text.startsWith('comentario') || text.startsWith('leyenda')
+}
+
+const getRemitoRowPriority = (label = '') => {
+  const text = normalizeRemitoComparisonText(label)
+  const optionNumber = getOptionNumber(label)
+
+  if (text.startsWith('menu principal') || text.includes('menu principal')) return [10, 0]
+  if (optionNumber != null) return [20, optionNumber]
+  if (text.startsWith('menu de cena')) return [30, 0]
+  if (text.startsWith('cena')) return [40, 0]
+  if (text.startsWith('guarnicion')) return [50, 0]
+  if (text.startsWith('fruta o postre') || text.startsWith('fruta') || text.startsWith('postre')) return [60, 0]
+  if (text.startsWith('bebida') || isBeverage(text)) return [70, 0]
+  if (isObservationLabel(label)) return [90, 0]
+  return [80, 0]
+}
+
+const sortRemitoRows = (a, b) => {
+  const [categoryA, numberA] = getRemitoRowPriority(a.producto)
+  const [categoryB, numberB] = getRemitoRowPriority(b.producto)
+  return categoryA - categoryB || numberA - numberB || a.producto.localeCompare(b.producto)
+}
+
+const getResponseValues = (value) => {
+  if (Array.isArray(value)) return value.flatMap(getResponseValues)
+  if (value && typeof value === 'object') {
+    return getResponseValues(value.label ?? value.name ?? value.title ?? value.value ?? value.response ?? value.answer)
+  }
+  const text = normalizeText(value)
+  if (!text) return []
+  return text.split(',').map(normalizeText).filter(Boolean)
+}
+
+const getResponseQuantity = (response = {}) => {
+  const quantity = Number(response.quantity ?? response.qty ?? response.count ?? 1)
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1
+}
+
+const stripBeveragePrefix = (value = '') =>
+  normalizeText(value).replace(/^bebida\s*:\s*/i, '')
+
+const getBeverageSummaryKey = (value = '') =>
+  stripBeveragePrefix(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+
+const incrementBeverageSummary = (map, beverage, quantity = 1) => {
+  const label = stripBeveragePrefix(beverage)
+  const key = getBeverageSummaryKey(label)
+  if (!key) return
+  const current = map.get(key) || { label, quantity: 0 }
+  current.quantity += quantity
+  map.set(key, current)
+}
+
+const getOrderRemitoBeverages = (order = {}) => {
+  const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
+  const responses = Array.isArray(normalizedCustomResponses) ? normalizedCustomResponses : []
+  const beverages = []
+
+  responses.forEach((response) => {
+    const title = normalizeText(response.title || response.label || response.question || response.name)
+    const lowerTitle = title.toLowerCase()
+    const primaryValue = response.answer ?? response.response ?? response.value
+    const primaryValues = getResponseValues(primaryValue)
+    const values = primaryValues.length ? primaryValues : getResponseValues(response.options)
+    const isDrinkQuestion = lowerTitle.includes('bebida')
+    const quantity = getResponseQuantity(response)
+
+    values.forEach((value) => {
+      if (!value) return
+      if (!isDrinkQuestion && !isBeverage(value)) return
+      beverages.push({ label: value, quantity })
+    })
+  })
+
+  return beverages
+}
+
 const summarizeProducts = (orders = []) => {
   const totals = new Map()
+  const beverageTotals = new Map()
   orders.forEach((order) => {
     const items = extractOrderItems(order)
     if (!items.length) {
@@ -181,7 +279,9 @@ const summarizeProducts = (orders = []) => {
 
     const custom = extractCustomResponses(order)
     if (custom.side) incrementSummary(totals, `Guarnición: ${custom.side}`, 1)
-    if (custom.beverage) incrementSummary(totals, `Bebida: ${custom.beverage}`, 1)
+    getOrderRemitoBeverages(order).forEach((beverage) => {
+      incrementBeverageSummary(beverageTotals, beverage.label, beverage.quantity)
+    })
     if (custom.additional) {
       custom.additional
         .split('|')
@@ -193,9 +293,13 @@ const summarizeProducts = (orders = []) => {
       incrementSummary(totals, `Observación: ${normalizeText(order.comments)}`, 1)
     }
   })
-  return [...totals.entries()]
-    .map(([producto, cantidad]) => ({ producto, cantidad }))
-    .sort((a, b) => a.producto.localeCompare(b.producto))
+  return [
+    ...[...totals.entries()].map(([producto, cantidad]) => ({ producto, cantidad })),
+    ...[...beverageTotals.values()].map(({ label, quantity }) => ({
+      producto: `Bebida: ${label}`,
+      cantidad: quantity
+    }))
+  ].sort(sortRemitoRows)
 }
 
 const getTotalItems = (orders = []) =>
