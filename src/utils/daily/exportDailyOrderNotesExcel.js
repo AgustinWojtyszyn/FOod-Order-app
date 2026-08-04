@@ -200,7 +200,9 @@ export const getRemitoCategoryForLabel = (label = '') => {
   const text = normalizeRemitoComparisonText(label)
   if (text.startsWith('menu principal') || text.includes('menu principal')) return REMITO_ROW_CATEGORIES.mainMenu
   if (getOptionNumber(label) != null) return REMITO_ROW_CATEGORIES.numberedOption
-  if (text.startsWith('menu de cena') || text.startsWith('cena')) return REMITO_ROW_CATEGORIES.dinner
+  if (text.startsWith('menu de cena') || text.startsWith('opcion de cena') || text.startsWith('cena')) {
+    return REMITO_ROW_CATEGORIES.dinner
+  }
   if (text.startsWith('bebida') || isBeverage(text)) return REMITO_ROW_CATEGORIES.drink
   if (text.startsWith('guarnicion')) return REMITO_ROW_CATEGORIES.side
   if (text.startsWith('fruta o postre') || text.startsWith('fruta') || text.startsWith('postre')) return REMITO_ROW_CATEGORIES.dessert
@@ -228,6 +230,30 @@ const sortRemitoRows = (a, b) => {
   const [categoryA, numberA] = getRemitoRowPriority(a.producto, a.category)
   const [categoryB, numberB] = getRemitoRowPriority(b.producto, b.category)
   return categoryA - categoryB || numberA - numberB || a.producto.localeCompare(b.producto)
+}
+
+const getDinnerDishName = (label = '') =>
+  normalizeText(label)
+    .replace(/^(men[uú]\s+de\s+cena|opci[oó]n\s+de\s+cena|cena)\s*[:-]?\s*/i, '')
+
+const normalizeDinnerProductLabel = (label = '') => {
+  const dishName = getDinnerDishName(label)
+  return dishName ? `Cena: ${dishName}` : 'Cena:'
+}
+
+const buildRemitoProductSummaryRow = (label, category = getRemitoCategoryForLabel(label)) => {
+  const producto = category === REMITO_ROW_CATEGORIES.dinner
+    ? normalizeDinnerProductLabel(label)
+    : normalizeText(label)
+  const groupName = category === REMITO_ROW_CATEGORIES.dinner
+    ? getDinnerDishName(label)
+    : producto
+
+  return {
+    producto,
+    category,
+    groupKey: `${category}:${normalizeRemitoComparisonText(groupName)}`
+  }
 }
 
 const getResponseValues = (value) => {
@@ -333,12 +359,11 @@ export const summarizeProducts = (orders = []) => {
   const observations = new Map()
   const beverageTotals = new Map()
   const incrementCategorizedSummary = (label, quantity = 1, category = getRemitoCategoryForLabel(label)) => {
-    const safeLabel = normalizeText(label)
-    if (!safeLabel) return
-    const key = `${category}:${normalizeRemitoComparisonText(safeLabel)}`
-    const current = totals.get(key) || { producto: safeLabel, cantidad: 0, category }
+    if (!normalizeText(label)) return
+    const { producto, groupKey } = buildRemitoProductSummaryRow(label, category)
+    const current = totals.get(groupKey) || { producto, cantidad: 0, category }
     current.cantidad += quantity
-    totals.set(key, current)
+    totals.set(groupKey, current)
   }
 
   orders.forEach((order) => {

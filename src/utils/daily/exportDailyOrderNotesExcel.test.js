@@ -162,6 +162,41 @@ describe('daily order notes Excel model', () => {
     expect(getTotalMenuItemsForRemito(orders)).toBe(2)
   })
 
+  it('groups equivalent dinner labels into one Cena row without changing TOTAL MENU', () => {
+    const orders = [
+      makeOrder({ items: [{ id: 'main', name: 'Menú principal', quantity: 1 }] }),
+      makeOrder({ id: crypto.randomUUID(), items: [{ id: 'op-1', name: 'Opción 1', quantity: 1 }] }),
+      makeOrder({ id: crypto.randomUUID(), items: [{ id: 'op-2', name: 'Opción 2', quantity: 1 }] }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        service: 'dinner',
+        items: [{ id: 'dinner-1', name: 'Cena: CANELONES DE JAMÓN Y QUESO CON SALSA MIXTA', quantity: 1 }]
+      }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        service: 'dinner',
+        items: [{ id: 'dinner-2', name: 'Menú de cena: CANELONES DE JAMÓN Y QUESO CON SALSA MIXTA', quantity: 1 }]
+      })
+    ]
+
+    const products = summarizeProducts(orders)
+    const total = getRemitoMenuTotalFromRows(products)
+    const originalRows = getPrintableDetailRows(products, total)
+    const copyRows = getPrintableDetailRows(products, total)
+    const canelonesRows = originalRows.filter((row) =>
+      row.producto === 'Cena: CANELONES DE JAMÓN Y QUESO CON SALSA MIXTA'
+    )
+
+    expect(canelonesRows).toEqual([{
+      producto: 'Cena: CANELONES DE JAMÓN Y QUESO CON SALSA MIXTA',
+      cantidad: 2,
+      category: REMITO_ROW_CATEGORIES.dinner
+    }])
+    expect(total).toBe(5)
+    expect(originalRows.find((row) => row.producto === 'TOTAL MENÚ')).toMatchObject({ cantidad: 5 })
+    expect(originalRows).toEqual(copyRows)
+  })
+
   it('keeps Washington control case TOTAL MENU at 7 and shows extras below it', () => {
     const orders = [
       makeOrder({
