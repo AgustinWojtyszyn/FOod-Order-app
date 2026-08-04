@@ -7,6 +7,7 @@ import { isBeverageOption, isBeverageOrDessertOption } from './orderBusinessRule
 
 const isCustomSideOption = (opt) => (opt?.title || '').toLowerCase().includes('guarn')
 const SINGLE_MENU_MESSAGE = 'Solo podés seleccionar 1 comida principal por persona para almuerzo o cena.'
+const GENNEIA_BEVERAGE_TITLE = 'Bebidas (solo Genneia)'
 
 const hasValidResponse = (response) => {
   if (!response) return false
@@ -257,7 +258,11 @@ const validateOrderSubmission = ({
       options: visibleLunchOptions,
       responses: customResponses,
       selectedItems: selectedItemsList,
-      service: 'lunch'
+      service: 'lunch',
+      getTitle: (opt) => {
+        if (isGenneiaSlug && isBeverageOption(opt)) return GENNEIA_BEVERAGE_TITLE
+        return opt.title
+      }
     })
   }
 
@@ -322,7 +327,7 @@ const validateOrderSubmission = ({
           return isGenneia && isCustomSideOption(opt) && !canChooseCustomSideForDinner
         },
         getTitle: (opt) => {
-          if (isGenneiaSlug && isBeverageOption(opt)) return 'Bebidas (solo Genneia)'
+          if (isGenneiaSlug && isBeverageOption(opt)) return GENNEIA_BEVERAGE_TITLE
           return opt.title
         }
       })

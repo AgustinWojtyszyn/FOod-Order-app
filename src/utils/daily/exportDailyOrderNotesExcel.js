@@ -2,13 +2,12 @@ import ExcelJS from 'exceljs'
 import { db } from '../../supabaseClient'
 import logoUrl from '../../assets/servifood logo.jpg'
 import { getCompanyByLocationOrSlug } from '../../constants/companyConfig'
-import { downloadWorkbook, filterOrdersByCompany, isBeverage } from './dailyOrderCalculations'
+import { downloadWorkbook, filterOrdersByCompany, getOrderBeverageLabels, isBeverage } from './dailyOrderCalculations'
 import {
   extractCustomResponses,
   extractOrderItems,
   formatDateOnly,
-  getOrderLocation,
-  getOrderTotalItems
+  getOrderLocation
 } from './dailyOrdersExportModel'
 import { notifyError, notifyInfo, notifySuccess } from '../notice'
 import { getUserFriendlyErrorMessage } from '../index'
@@ -35,6 +34,7 @@ const THICK_BORDER = {
 const INVALID_SHEET_CHARS = new Set(['[', ']', '*', '?', ':', '/', '\\', "'"])
 const INVALID_FILE_CHARS = new Set(['<', '>', ':', '"', '/', '\\', '|', '?', '*'])
 const EXCLUDED_REMITO_COMPANY_SLUGS = new Set(['administracion_servifood'])
+const UNSPECIFIED_BEVERAGE_LABEL = 'Bebida sin especificar'
 const REMITO_NUMBER_RANGES = {
   ccp: [10000, 19999],
   distro_cuyo: [20000, 29999],
@@ -180,24 +180,24 @@ const getOptionNumber = (label = '') => {
   return match ? Number(match[1]) : null
 }
 
-const isObservationLabel = (label = '') => {
+export const isObservationLabel = (label = '') => {
   const text = normalizeRemitoComparisonText(label)
   return text.startsWith('observacion') || text.startsWith('comentario') || text.startsWith('leyenda')
 }
 
-const getRemitoRowPriority = (label = '') => {
+export const getRemitoRowPriority = (label = '') => {
   const text = normalizeRemitoComparisonText(label)
   const optionNumber = getOptionNumber(label)
 
-  if (text.startsWith('menu principal') || text.includes('menu principal')) return [10, 0]
-  if (optionNumber != null) return [20, optionNumber]
-  if (text.startsWith('menu de cena')) return [30, 0]
-  if (text.startsWith('cena')) return [40, 0]
-  if (text.startsWith('guarnicion')) return [50, 0]
-  if (text.startsWith('fruta o postre') || text.startsWith('fruta') || text.startsWith('postre')) return [60, 0]
-  if (text.startsWith('bebida') || isBeverage(text)) return [70, 0]
-  if (isObservationLabel(label)) return [90, 0]
-  return [80, 0]
+  if (text.startsWith('bebida') || isBeverage(text)) return [10, 0]
+  if (text.startsWith('cena')) return [20, 0]
+  if (text.startsWith('fruta o postre') || text.startsWith('fruta') || text.startsWith('postre')) return [30, 0]
+  if (text.startsWith('guarnicion')) return [40, 0]
+  if (text.startsWith('menu de cena')) return [50, 0]
+  if (text.startsWith('menu principal') || text.includes('menu principal')) return [60, 0]
+  if (isObservationLabel(label)) return [70, 0]
+  if (optionNumber != null) return [80, optionNumber]
+  return [90, 0]
 }
 
 const sortRemitoRows = (a, b) => {
@@ -224,6 +224,18 @@ const getResponseQuantity = (response = {}) => {
 const stripBeveragePrefix = (value = '') =>
   normalizeText(value).replace(/^bebida\s*:\s*/i, '')
 
+export const normalizeBeverageLabel = (value = '') => {
+  const label = stripBeveragePrefix(value)
+  const key = getBeverageSummaryKey(label)
+  if (!key) return ''
+  if (key.includes('sin especificar')) return UNSPECIFIED_BEVERAGE_LABEL
+  if (/\bcoca\s*zero\b/.test(key) || /\bcoca[-\s]*0\b/.test(key)) return 'Coca Zero'
+  if (/\bcoca\b/.test(key) || key.includes('coca cola')) return 'Coca cola'
+  if (/\bagua\b/.test(key)) return 'Agua'
+  if (/\bsoda\b/.test(key)) return 'Soda'
+  return label
+}
+
 const getBeverageSummaryKey = (value = '') =>
   stripBeveragePrefix(value)
     .normalize('NFD')
@@ -232,7 +244,7 @@ const getBeverageSummaryKey = (value = '') =>
     .replace(/\s+/g, ' ')
 
 const incrementBeverageSummary = (map, beverage, quantity = 1) => {
-  const label = stripBeveragePrefix(beverage)
+  const label = normalizeBeverageLabel(beverage)
   const key = getBeverageSummaryKey(label)
   if (!key) return
   const current = map.get(key) || { label, quantity: 0 }
@@ -240,10 +252,20 @@ const incrementBeverageSummary = (map, beverage, quantity = 1) => {
   map.set(key, current)
 }
 
-const getOrderRemitoBeverages = (order = {}) => {
+export const getOrderRemitoBeverages = (order = {}) => {
   const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
   const responses = Array.isArray(normalizedCustomResponses) ? normalizedCustomResponses : []
   const beverages = []
+  const seenKeys = new Set()
+
+  const addBeverage = (value, quantity = 1) => {
+    const label = normalizeBeverageLabel(value)
+    if (!label) return
+    const key = getBeverageSummaryKey(label)
+    if (!key || seenKeys.has(key)) return
+    seenKeys.add(key)
+    beverages.push({ label, quantity })
+  }
 
   responses.forEach((response) => {
     const title = normalizeText(response.title || response.label || response.question || response.name)
@@ -257,15 +279,36 @@ const getOrderRemitoBeverages = (order = {}) => {
     values.forEach((value) => {
       if (!value) return
       if (!isDrinkQuestion && !isBeverage(value)) return
-      beverages.push({ label: value, quantity })
+      addBeverage(value, quantity)
     })
   })
+
+  if (beverages.length === 0) {
+    getOrderBeverageLabels(order).forEach((label) => addBeverage(label, 1))
+  }
 
   return beverages
 }
 
-const summarizeProducts = (orders = []) => {
+export const isMenuProductLabel = (label = '') => {
+  const text = normalizeRemitoComparisonText(label)
+  return text.startsWith('cena') ||
+    text.startsWith('menu de cena') ||
+    text.startsWith('menu principal') ||
+    getOptionNumber(label) != null
+}
+
+export const getOrderMenuTotalForRemito = (order = {}) =>
+  extractOrderItems(order)
+    .filter((item) => isMenuProductLabel(item.label || ''))
+    .reduce((sum, item) => sum + item.quantity, 0)
+
+export const getTotalMenuItemsForRemito = (orders = []) =>
+  orders.reduce((sum, order) => sum + getOrderMenuTotalForRemito(order), 0)
+
+export const summarizeProducts = (orders = []) => {
   const totals = new Map()
+  const observations = new Map()
   const beverageTotals = new Map()
   orders.forEach((order) => {
     const items = extractOrderItems(order)
@@ -287,23 +330,28 @@ const summarizeProducts = (orders = []) => {
         .split('|')
         .map(normalizeText)
         .filter(Boolean)
-        .forEach((label) => incrementSummary(totals, label, 1))
+        .forEach((label) => {
+          if (isObservationLabel(label)) {
+            observations.set(normalizeRemitoComparisonText(label), label)
+          } else {
+            incrementSummary(totals, label, 1)
+          }
+        })
     }
     if (normalizeText(order.comments)) {
-      incrementSummary(totals, `Observación: ${normalizeText(order.comments)}`, 1)
+      const label = `Observación: ${normalizeText(order.comments)}`
+      observations.set(normalizeRemitoComparisonText(label), label)
     }
   })
   return [
     ...[...totals.entries()].map(([producto, cantidad]) => ({ producto, cantidad })),
+    ...[...observations.values()].map((producto) => ({ producto, cantidad: '' })),
     ...[...beverageTotals.values()].map(({ label, quantity }) => ({
       producto: `Bebida: ${label}`,
       cantidad: quantity
     }))
   ].sort(sortRemitoRows)
 }
-
-const getTotalItems = (orders = []) =>
-  orders.reduce((sum, order) => sum + getOrderTotalItems(order), 0)
 
 const configurePrintPage = (worksheet, printArea = 'A1:M33') => {
   worksheet.pageSetup = {
@@ -697,7 +745,7 @@ export async function exportDailyOrderNotesExcel({
         companyDisplayName: group.displayName,
         remitoNumber: issuedNumber,
         deliveryDate,
-        totalItems: getTotalItems(group.orders),
+        totalItems: getTotalMenuItemsForRemito(group.orders),
         products,
         sheetName,
         reused: !!data.reused

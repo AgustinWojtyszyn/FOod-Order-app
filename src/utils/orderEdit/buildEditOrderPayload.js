@@ -1,6 +1,10 @@
 import { resolveCustomerName } from '../order/orderCustomerName'
 import { normalizeOrderItemsForService, normalizeOrderPayloadForService } from '../order/orderItemNormalization'
 import { hasHiddenOrderMenuSelection } from '../order/menuDisplay'
+import { getCompanyByLocationOrSlug } from '../../constants/companyConfig'
+import { isBeverageOption } from '../order/orderBusinessRules'
+
+const GENNEIA_BEVERAGE_TITLE = 'Bebidas (solo Genneia)'
 
 export const buildEditOrderPayload = ({
   formData,
@@ -21,6 +25,9 @@ export const buildEditOrderPayload = ({
   const normalizedService = (service || 'lunch').toLowerCase()
   const dinnerOverrideChoice = customResponses?.['dinner-special']
   const hasDinnerOverrideChoice = !isEmptyResponse(dinnerOverrideChoice)
+  const company = getCompanyByLocationOrSlug(originalOrder?.company_slug || originalOrder?.company || originalOrder?.location || formData?.location)
+    || getCompanyByLocationOrSlug(formData?.location)
+  const isGenneia = (company?.slug || '').toLowerCase() === 'genneia'
 
   const customResponsesArray = (customOptions || [])
     .filter(opt => {
@@ -30,7 +37,7 @@ export const buildEditOrderPayload = ({
     })
     .map(option => ({
       id: option.id,
-      title: option.title,
+      title: isGenneia && isBeverageOption(option) ? GENNEIA_BEVERAGE_TITLE : option.title,
       response: customResponses?.[option.id]
     }))
 
@@ -51,11 +58,14 @@ export const buildEditOrderPayload = ({
       }))
 
   const customResponsesPayload = (normalizedService === 'dinner' && hasDinnerOverrideChoice && itemsForPayload.length === 0)
-    ? [{
-        id: 'dinner-special',
-        title: (customOptions || []).find(opt => opt?.id === 'dinner-special')?.title || 'Opción de cena',
-        response: dinnerOverrideChoice
-      }]
+    ? [
+        {
+          id: 'dinner-special',
+          title: (customOptions || []).find(opt => opt?.id === 'dinner-special')?.title || 'Opción de cena',
+          response: dinnerOverrideChoice
+        },
+        ...customResponsesArray.filter((response) => response.id !== 'dinner-special')
+      ]
     : customResponsesArray
 
   return normalizeOrderPayloadForService({

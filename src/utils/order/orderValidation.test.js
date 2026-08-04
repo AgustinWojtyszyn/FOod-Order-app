@@ -116,8 +116,33 @@ describe('order validation', () => {
     expect(result.error).toBe('')
     expect(result.data.selectedItemsList).toHaveLength(1)
     expect(result.data.customResponsesArray).toEqual([
-      { id: 'bebida', title: 'Bebida', response: 'Agua' },
+      { id: 'bebida', title: 'Bebidas (solo Genneia)', response: 'Agua' },
       { id: 'postre', title: 'Postre Genneia', response: 'Fruta' }
+    ])
+  })
+
+  it('keeps Genneia dinner override beverage with canonical title', () => {
+    const result = validateOrderSubmission(baseArgs({
+      selectedTurns: { lunch: false, dinner: true },
+      dinnerEnabled: true,
+      dinnerMenuEnabled: true,
+      visibleDinnerOptions: [
+        { id: 'bebida-cena', title: 'Bebida', required: true, options: ['Agua', 'Coca cola', 'Coca Zero', 'Soda'] }
+      ],
+      customResponsesDinner: {
+        'bebida-cena': 'Soda'
+      },
+      getSelectedItemsList: () => [],
+      getSelectedItemsListDinner: () => [],
+      getDinnerOverrideChoice: () => 'Menú principal cena',
+      dinnerSpecialTitle: 'Opción de cena',
+      calculateTotal: () => 0
+    }))
+
+    expect(result.error).toBe('')
+    expect(result.data.customResponsesDinnerArray).toEqual([
+      { id: 'dinner-special', title: 'Opción de cena', response: 'Menú principal cena' },
+      { id: 'bebida-cena', title: 'Bebidas (solo Genneia)', response: 'Soda' }
     ])
   })
 
