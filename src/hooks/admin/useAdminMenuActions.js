@@ -5,6 +5,11 @@ import { db } from '../../supabaseClient'
 import { notifyError, notifyInfo, notifySuccess } from '../../utils/notice'
 import { confirmAction } from '../../utils/confirm'
 import { Sound } from '../../utils/Sound'
+import { mapMenuError } from '../../utils/menu/menuErrorMapper'
+
+const logAdminMenuError = (...args) => {
+  if (import.meta.env.DEV) console.error(...args)
+}
 
 const useAdminMenuActions = ({
   menuItemsByDate,
@@ -68,8 +73,9 @@ const useAdminMenuActions = ({
       const validItems = draftItems.filter(item => (item.name || '').trim() !== '')
 
       if (validItems.length === 0) {
-        if (!silent) notifyInfo('Debe haber al menos un plato en el menú')
-        return { ok: false, status: 'invalid', menuDate }
+        const message = 'Agregá al menos un plato antes de guardar.'
+        if (!silent) notifyInfo(message)
+        return { ok: false, status: 'invalid', menuDate, message }
       }
 
       const changeSummary = getMenuItemChangeSummary(menuDate)
@@ -97,7 +103,7 @@ const useAdminMenuActions = ({
       if (!prevItems) {
         const { data: prevData, error: prevError } = await db.getMenuItemsByDate(prevDate, companySlug)
         if (prevError) {
-          console.error('Error fetching previous menu:', prevError)
+          logAdminMenuError('Error fetching previous menu:', prevError)
         } else {
           prevItems = sortMenuItems(prevData || [])
           setMenuItemsForDate(prevDate, prevItems)
@@ -121,9 +127,10 @@ const useAdminMenuActions = ({
       const { error } = await db.updateMenuItemsByDate(menuDate, itemsToPersist, requestId, companySlug)
 
       if (error) {
-        console.error('Error updating menu:', error)
-        if (!silent) notifyError('Error al actualizar el menú')
-        return { ok: false, status: 'error', menuDate, error }
+        logAdminMenuError('Error updating menu:', error)
+        const mapped = mapMenuError(error, { companyName: 'General', dateISO: menuDate })
+        if (!silent) notifyError(mapped.message)
+        return { ok: false, status: 'error', menuDate, error, message: mapped.message }
       } else {
         setEditingForDate(menuDate, false)
         clearDeletedMenuItemsForDate(menuDate)
@@ -133,9 +140,10 @@ const useAdminMenuActions = ({
         return { ok: true, status: 'saved', menuDate }
       }
     } catch (err) {
-      console.error('Error:', err)
-      if (!silent) notifyError('Error al actualizar el menú')
-      return { ok: false, status: 'error', menuDate, error: err }
+      logAdminMenuError('Error:', err)
+      const mapped = mapMenuError(err, { companyName: 'General', dateISO: menuDate })
+      if (!silent) notifyError(mapped.message)
+      return { ok: false, status: 'error', menuDate, error: err, message: mapped.message }
     } finally {
       setSavingForDate(menuDate, false)
     }
@@ -159,7 +167,7 @@ const useAdminMenuActions = ({
   const removeMenuItem = async (menuDate, index) => {
     const current = draftMenuItemsByDate[menuDate] || []
     if (current.length <= 1) {
-      notifyInfo('Debe haber al menos un plato en el menú')
+      notifyInfo('Agregá al menos un plato antes de guardar.')
       return
     }
     const item = current[index]
@@ -179,8 +187,12 @@ const useAdminMenuActions = ({
         requestId
       })
       if (error) {
-        console.error('Error deleting menu item:', error)
-        notifyError('Error al eliminar el plato')
+        logAdminMenuError('Error deleting menu item:', error)
+        notifyError(mapMenuError(error, {
+          companyName: companySlug === 'global' ? 'General' : companySlug,
+          dateISO: menuDate,
+          action: 'eliminar'
+        }).message)
         return
       }
       setDeletedMenuItemsByDate(prev => ({

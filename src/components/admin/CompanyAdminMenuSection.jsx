@@ -1,12 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
 import { db } from '../../supabaseClient'
-import { getTomorrowISOInTimeZone } from '../../utils/dateUtils'
+import { getTodayISOInTimeZone, getTomorrowISOInTimeZone } from '../../utils/dateUtils'
 import { confirmAction } from '../../utils/confirm'
 import { notifyError, notifyInfo, notifySuccess } from '../../utils/notice'
 import { mergeCompanyMenuItems } from '../../utils/order/companyMenuMerge'
 import { getMenuSlotIndex, getSlotIndexFromTitle, getMenuLabelByIndex, withMenuSlotIndex } from '../../utils/order/menuDisplay'
 import { sortMenuItems } from '../../utils/order/orderMenuHelpers'
+import {
+  createMenuPermissionError,
+  createMenuStaleError,
+  formatCompanyMenuSuccess,
+  mapMenuError
+} from '../../utils/menu/menuErrorMapper'
 
 const SLOT_OPTIONS = [
   { value: 0, label: 'Menú principal' },
@@ -113,6 +119,12 @@ const hasDifferentMenu = (nextItems, currentItems, deletedIds = []) =>
   deletedIds.length > 0 ||
   JSON.stringify(normalizeForComparison(nextItems)) !== JSON.stringify(normalizeForComparison(currentItems))
 
+const logMenuError = (...args) => {
+  if (import.meta.env.DEV) console.error(...args)
+}
+
+const getFieldKey = (field, index = null) => index === null ? field : `${field}-${index}`
+
 const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
   const authorizedCompanies = useMemo(
     () => (Array.isArray(adminCompanies) ? adminCompanies : [])
@@ -136,6 +148,11 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
+  const [conflictPrompt, setConflictPrompt] = useState(null)
+  const [mustReloadBeforeRetry, setMustReloadBeforeRetry] = useState(false)
+  const fieldRefs = useRef({})
+  const companyChangesRef = useRef(null)
 
   useEffect(() => {
     if (!authorizedCompanies.length) return
@@ -174,14 +191,17 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
   const hasPendingChanges = hasMenuChanges || hasDinnerChanges
 
   const loadMenu = useCallback(async () => {
-    if (!selectedCompanySlug || !deliveryDate) return
+    if (!selectedCompanySlug || !deliveryDate) return false
     if (!adminCompanySlugs.has(selectedCompanySlug) || selectedCompanySlug === 'global') {
-      setError('La empresa seleccionada no está autorizada para tu usuario.')
-      return
+      setError(createMenuPermissionError({ companyName: selectedCompanyName }).message)
+      return false
     }
 
     setLoading(true)
     setError('')
+    setFieldErrors({})
+    setConflictPrompt(null)
+    setMustReloadBeforeRetry(false)
     try {
       const [
         globalResult,
@@ -228,13 +248,19 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
         title: normalizeText(nextDinnerState.title),
         options: nextDinnerState.options.map(normalizeText).filter(Boolean)
       })
+      return true
     } catch (err) {
-      console.error('Error loading company admin menu', err)
-      setError('No pudimos cargar el menú de esta fecha. Intentá nuevamente.')
+      logMenuError('Error loading company admin menu', err)
+      setError(mapMenuError(err, {
+        companyName: selectedCompanyName,
+        dateISO: deliveryDate,
+        action: 'cargar'
+      }).message)
+      return false
     } finally {
       setLoading(false)
     }
-  }, [adminCompanySlugs, deliveryDate, selectedCompanySlug])
+  }, [adminCompanySlugs, deliveryDate, selectedCompanyName, selectedCompanySlug])
 
   useEffect(() => {
     loadMenu()
@@ -244,8 +270,9 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
     if (!hasPendingChanges) return true
     return confirmAction({
       title: 'Cambios sin guardar',
-      message: 'Tenés cambios sin guardar. Si continuás, se descartarán.',
-      confirmText: 'Descartar cambios'
+      message: `Tenés cambios sin guardar para ${selectedCompanyName} del ${formatShortDate(deliveryDate)}.\nSi continuás, se perderán.`,
+      confirmText: 'Descartar cambios',
+      cancelText: 'Seguir editando'
     })
   }
 
@@ -253,6 +280,11 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
     if (value === selectedCompanySlug) return
     const allowed = await confirmDiscardPending()
     if (!allowed) return
+    setFieldErrors((prev) => {
+      const next = { ...prev }
+      delete next.company
+      return next
+    })
     setSelectedCompanySlug(value)
   }
 
@@ -260,6 +292,11 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
     if (!value || value === deliveryDate) return
     const allowed = await confirmDiscardPending()
     if (!allowed) return
+    setFieldErrors((prev) => {
+      const next = { ...prev }
+      delete next.deliveryDate
+      return next
+    })
     setDeliveryDate(value)
   }
 
@@ -270,6 +307,13 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
   }
 
   const updateDraft = (index, field, value) => {
+    setFieldErrors((prev) => {
+      const key = getFieldKey(field, index)
+      if (!prev[key]) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
     setDraftItems((prev) => prev.map((item, itemIndex) => (
       itemIndex === index ? { ...item, [field]: field === 'slot' ? Number(value) : value } : item
     )))
@@ -306,6 +350,13 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
   }
 
   const updateDinnerOption = (index, value) => {
+    setFieldErrors((prev) => {
+      const key = getFieldKey('dinnerOption', index)
+      if (!prev[key]) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
     setDinnerOptions((prev) => prev.map((option, optionIndex) => optionIndex === index ? value : option))
   }
 
@@ -341,22 +392,121 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
     })
   }
 
-  const handleSave = async () => {
-    if (saving) return
+  const focusFirstError = (nextErrors = {}) => {
+    const firstKey = Object.keys(nextErrors)[0]
+    if (!firstKey) return
+    window.requestAnimationFrame(() => {
+      fieldRefs.current[firstKey]?.focus?.()
+    })
+  }
+
+  const validateBeforeSave = () => {
+    const nextErrors = {}
+    if (!deliveryDate) {
+      nextErrors.deliveryDate = 'Seleccioná una fecha de entrega.'
+    } else if (deliveryDate < getTodayISOInTimeZone()) {
+      nextErrors.deliveryDate = 'La fecha seleccionada ya pasó.'
+    }
     if (!adminCompanySlugs.has(selectedCompanySlug) || selectedCompanySlug === 'global') {
-      notifyError('La empresa seleccionada no está autorizada para tu usuario.')
+      nextErrors.company = 'No tenés permisos para modificar el menú de esta empresa.'
+    }
+    if (finalItems.length === 0 && draftItems.length === 0) {
+      nextErrors.companyMenu = 'Agregá al menos un plato antes de guardar.'
+    }
+
+    const seenSlots = new Set()
+    const seenNames = new Set()
+    draftItems.forEach((item, index) => {
+      const slot = Number(item.slot)
+      const title = normalizeText(item.title)
+      if (!title) {
+        nextErrors[getFieldKey('title', index)] = 'Ingresá el nombre del plato.'
+      }
+      if (!Number.isFinite(slot)) {
+        nextErrors[getFieldKey('slot', index)] = 'Seleccioná qué opción general querés reemplazar.'
+      }
+      const duplicateKey = slot >= 0 ? `slot:${slot}` : `name:${title.toLowerCase()}`
+      if (title && seenNames.has(duplicateKey)) {
+        nextErrors[getFieldKey('title', index)] = 'Esta opción está repetida en el menú.'
+      }
+      if (slot >= 0 && seenSlots.has(slot)) {
+        nextErrors[getFieldKey('slot', index)] = 'Esta opción está repetida en el menú.'
+      }
+      if (slot >= 0) seenSlots.add(slot)
+      if (title) seenNames.add(duplicateKey)
+    })
+
+    if (dinnerMode === 'different') {
+      if (!normalizeText(dinnerTitle)) {
+        nextErrors.dinnerTitle = 'Ingresá el nombre del plato.'
+      }
+      const dinnerSeen = new Set()
+      dinnerOptions.forEach((option, index) => {
+        const normalized = normalizeText(option).toLowerCase()
+        if (!normalized) {
+          nextErrors[getFieldKey('dinnerOption', index)] = 'Ingresá el nombre del plato.'
+        } else if (dinnerSeen.has(normalized)) {
+          nextErrors[getFieldKey('dinnerOption', index)] = 'Esta opción está repetida en el menú.'
+        }
+        dinnerSeen.add(normalized)
+      })
+    }
+
+    setFieldErrors(nextErrors)
+    focusFirstError(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
+
+  const ensureCurrentVersion = async () => {
+    const [currentCompanyResult, currentDinnerResult] = await Promise.all([
+      db.getMenuItemsByDate(deliveryDate, selectedCompanySlug),
+      db.getDinnerMenuByDate({ date: deliveryDate, company: selectedCompanySlug })
+    ])
+    if (currentCompanyResult.error) throw currentCompanyResult.error
+    if (currentDinnerResult.error) throw currentDinnerResult.error
+
+    const latestCompanyItems = withMenuSlotIndex(sortMenuItems(currentCompanyResult.data || []))
+    const latestDinnerData = currentDinnerResult.data || null
+    const latestDinnerOptions = Array.isArray(latestDinnerData?.options)
+      ? latestDinnerData.options.map(normalizeText).filter(Boolean)
+      : []
+    const latestDinnerMode = latestDinnerData?.active && latestDinnerOptions.length > 0
+      ? 'different'
+      : normalizeText(latestDinnerData?.title).toLowerCase() === 'sin cena especial'
+        ? 'none'
+        : 'use_base'
+    const latestDinnerState = {
+      mode: latestDinnerMode,
+      title: normalizeText(latestDinnerData?.title || 'Menú de cena'),
+      options: latestDinnerOptions
+    }
+
+    const menuChanged = JSON.stringify(normalizeForComparison(latestCompanyItems)) !== JSON.stringify(normalizeForComparison(companyItems))
+    const dinnerChanged = JSON.stringify(latestDinnerState) !== JSON.stringify(initialDinnerState)
+    if (menuChanged || dinnerChanged) throw createMenuStaleError()
+  }
+
+  const handleSave = async ({ allowOverwrite = false, retryDinnerOnly = false } = {}) => {
+    if (saving) return
+    if (mustReloadBeforeRetry) {
+      await loadMenu()
+      return
+    }
+    setConflictPrompt(null)
+    if (!validateBeforeSave()) return
+    if (!adminCompanySlugs.has(selectedCompanySlug) || selectedCompanySlug === 'global') {
+      const mapped = createMenuPermissionError({ companyName: selectedCompanyName })
+      setError(mapped.message)
+      notifyError(mapped.message)
       return
     }
 
     const validItems = currentDraftMenuItems
-    const changedExisting = validItems.filter((item) => item.id)
-    if (changedExisting.length > 0 && hasMenuChanges) {
-      const confirmed = await confirmAction({
-        title: 'Sobrescribir personalizaciones',
-        message: `Se guardarán cambios sobre ${changedExisting.length} personalización${changedExisting.length === 1 ? '' : 'es'} existente${changedExisting.length === 1 ? '' : 's'} de ${selectedCompanyName}.`,
-        confirmText: 'Guardar cambios'
+    if (!retryDinnerOnly && !allowOverwrite && companyItems.length > 0 && hasMenuChanges) {
+      setConflictPrompt({
+        message: `${selectedCompanyName} ya tiene un menú cargado para el ${formatShortDate(deliveryDate)}.\nRevisá los cambios antes de reemplazarlo.`
       })
-      if (!confirmed) return
+      return
     }
 
     if (!hasPendingChanges) {
@@ -367,42 +517,84 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
     setSaving(true)
     setError('')
     try {
-      for (const deletedItem of deletedItems) {
-        if (!deletedItem.id) continue
-        const { error } = await db.deleteMenuItemById({
-          menuDate: deliveryDate,
-          itemId: deletedItem.id,
-          companySlug: selectedCompanySlug
-        })
-        if (error) throw error
-      }
+      if (!retryDinnerOnly) await ensureCurrentVersion()
 
-      if (hasMenuChanges) {
-        const { error } = await db.updateMenuItemsByDate(
-          deliveryDate,
-          validItems,
-          crypto.randomUUID?.() || Math.random().toString(36).slice(2),
-          selectedCompanySlug
-        )
-        if (error) throw error
+      const savedParts = []
+      if (!retryDinnerOnly && hasMenuChanges) {
+        try {
+          for (const deletedItem of deletedItems) {
+            if (!deletedItem.id) continue
+            const { error } = await db.deleteMenuItemById({
+              menuDate: deliveryDate,
+              itemId: deletedItem.id,
+              companySlug: selectedCompanySlug
+            })
+            if (error) throw error
+          }
+
+          const { error } = await db.updateMenuItemsByDate(
+            deliveryDate,
+            validItems,
+            crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+            selectedCompanySlug
+          )
+          if (error) throw error
+          savedParts.push('almuerzo')
+          setCompanyItems(withMenuSlotIndex(sortMenuItems(validItems)))
+          setDeletedItems([])
+        } catch (err) {
+          throw mapMenuError(err, {
+            companyName: selectedCompanyName,
+            dateISO: deliveryDate,
+            action: 'guardar'
+          })
+        }
       }
 
       if (hasDinnerChanges) {
-        const { error } = await saveDinnerConfig()
-        if (error) throw error
+        try {
+          const { error } = await saveDinnerConfig()
+          if (error) throw error
+          savedParts.push('cena')
+        } catch (err) {
+          throw mapMenuError(err, {
+            companyName: selectedCompanyName,
+            dateISO: deliveryDate,
+            action: 'guardar',
+            savedParts,
+            failedPart: 'cena'
+          })
+        }
       }
 
-      await loadMenu()
-      notifySuccess(`El menú de ${selectedCompanyName} para el ${formatShortDate(deliveryDate)} se guardó correctamente`)
+      const refreshed = await loadMenu()
+      if (!refreshed) {
+        throw { kind: 'unknown' }
+      }
+      notifySuccess(formatCompanyMenuSuccess({
+        companyName: selectedCompanyName,
+        dateISO: deliveryDate,
+        savedDinner: savedParts.includes('cena')
+      }))
     } catch (err) {
-      console.error('Error saving company admin menu', err)
-      const message = err?.message || 'No pudimos guardar el menú. Revisá los datos e intentá nuevamente.'
-      setError(message)
-      notifyError(message)
+      logMenuError('Error saving company admin menu', err)
+      const mapped = mapMenuError(err, {
+        companyName: selectedCompanyName,
+        dateISO: deliveryDate,
+        action: 'guardar',
+        resultUnknown: err?.kind === 'unknown'
+      })
+      setError(mapped.message)
+      setMustReloadBeforeRetry(mapped.kind === 'unknown')
+      notifyError(mapped.message)
     } finally {
       setSaving(false)
     }
   }
+
+  const renderFieldError = (key) => fieldErrors[key] ? (
+    <p className="mt-1 text-xs font-bold text-red-700" role="alert">{fieldErrors[key]}</p>
+  ) : null
 
   if (authorizedCompanies.length === 0) {
     return (
@@ -431,16 +623,20 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
               <p className="mt-2 text-lg font-black text-gray-900">{selectedCompanyName}</p>
             ) : (
               <select
+                ref={(node) => { fieldRefs.current.company = node }}
                 value={selectedCompanySlug}
                 onChange={(event) => handleCompanyChange(event.target.value)}
                 className="mt-2 input-field w-full bg-white text-gray-900"
                 disabled={saving}
+                aria-invalid={Boolean(fieldErrors.company)}
+                aria-describedby={fieldErrors.company ? 'company-admin-company-error' : undefined}
               >
                 {authorizedCompanies.map((company) => (
                   <option key={company.slug} value={company.slug}>{company.name}</option>
                 ))}
               </select>
             )}
+            {fieldErrors.company && <p id="company-admin-company-error" className="mt-1 text-xs font-bold text-red-700" role="alert">{fieldErrors.company}</p>}
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
@@ -460,15 +656,19 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
               <label className="inline-flex cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-800">
                 Elegir otra fecha
                 <input
+                  ref={(node) => { fieldRefs.current.deliveryDate = node }}
                   id="company-admin-delivery-date"
                   type="date"
                   value={deliveryDate}
                   onChange={(event) => handleDateChange(event.target.value)}
                   className="sr-only"
                   disabled={saving}
+                  aria-invalid={Boolean(fieldErrors.deliveryDate)}
+                  aria-describedby={fieldErrors.deliveryDate ? 'company-admin-delivery-date-error' : undefined}
                 />
               </label>
             </div>
+            {fieldErrors.deliveryDate && <p id="company-admin-delivery-date-error" className="mt-2 text-xs font-bold text-red-700" role="alert">{fieldErrors.deliveryDate}</p>}
           </div>
         </section>
 
@@ -483,8 +683,17 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
         </div>
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">
+          <div className="whitespace-pre-line rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800" role="alert">
             {error}
+            {mustReloadBeforeRetry && (
+              <button
+                type="button"
+                onClick={loadMenu}
+                className="mt-3 block rounded-lg bg-red-700 px-3 py-2 text-sm font-black text-white"
+              >
+                Recargar versión actual
+              </button>
+            )}
           </div>
         )}
 
@@ -509,7 +718,7 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
               </div>
             </section>
 
-            <section className="rounded-xl border border-primary-200 bg-primary-50 p-4">
+            <section ref={companyChangesRef} className="rounded-xl border border-primary-200 bg-primary-50 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-black text-gray-900">Cambios de la empresa</h3>
@@ -534,6 +743,7 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
                     No hay personalizaciones de la empresa para esta fecha.
                   </p>
                 )}
+                {renderFieldError('companyMenu')}
                 {draftItems.map((item, index) => {
                   const status = buildCompanyRowStatus(item, normalizedGlobalItems)
                   const canRestore = status.startsWith('Reemplaza')
@@ -559,26 +769,32 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
                         <label className="text-sm font-bold text-gray-800">
                           Slot
                           <select
+                            ref={(node) => { fieldRefs.current[getFieldKey('slot', index)] = node }}
                             value={item.slot}
                             onChange={(event) => updateDraft(index, 'slot', event.target.value)}
                             className="mt-1 input-field w-full bg-white text-gray-900"
                             disabled={saving}
+                            aria-invalid={Boolean(fieldErrors[getFieldKey('slot', index)])}
                           >
                             {SLOT_OPTIONS.map((option) => (
                               <option key={option.value} value={option.value}>{option.label}</option>
                             ))}
                           </select>
+                          {renderFieldError(getFieldKey('slot', index))}
                         </label>
                         <label className="text-sm font-bold text-gray-800">
                           Nombre
                           <input
+                            ref={(node) => { fieldRefs.current[getFieldKey('title', index)] = node }}
                             type="text"
                             value={item.title}
                             onChange={(event) => updateDraft(index, 'title', event.target.value)}
                             className="mt-1 input-field w-full bg-white text-gray-900"
                             placeholder={Number(item.slot) === -1 ? 'Ej: Opción especial visita' : 'Ej: Pollo al horno'}
                             disabled={saving}
+                            aria-invalid={Boolean(fieldErrors[getFieldKey('title', index)])}
                           />
+                          {renderFieldError(getFieldKey('title', index))}
                         </label>
                       </div>
                       <label className="mt-3 block text-sm font-bold text-gray-800">
@@ -659,24 +875,29 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
               <label className="block text-sm font-bold text-gray-800">
                 Título de cena
                 <input
+                  ref={(node) => { fieldRefs.current.dinnerTitle = node }}
                   type="text"
                   value={dinnerTitle}
                   onChange={(event) => setDinnerTitle(event.target.value)}
                   className="mt-1 input-field w-full bg-white text-gray-900"
                   disabled={saving}
+                  aria-invalid={Boolean(fieldErrors.dinnerTitle)}
                 />
+                {renderFieldError('dinnerTitle')}
               </label>
               <div className="space-y-2">
                 <p className="text-sm font-bold text-gray-800">Opciones de cena</p>
                 {dinnerOptions.map((option, index) => (
                   <div key={index} className="flex gap-2">
                     <input
+                      ref={(node) => { fieldRefs.current[getFieldKey('dinnerOption', index)] = node }}
                       type="text"
                       value={option}
                       onChange={(event) => updateDinnerOption(index, event.target.value)}
                       className="input-field flex-1 bg-white text-gray-900"
                       placeholder={`Opción ${index + 1}`}
                       disabled={saving}
+                      aria-invalid={Boolean(fieldErrors[getFieldKey('dinnerOption', index)])}
                     />
                     {dinnerOptions.length > 1 && (
                       <button
@@ -688,6 +909,7 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
                         Quitar
                       </button>
                     )}
+                    {renderFieldError(getFieldKey('dinnerOption', index))}
                   </div>
                 ))}
                 <button
@@ -713,15 +935,53 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
               dinnerMode === 'different' ? 'cena diferente' : dinnerMode === 'use_base' ? 'usar menú principal' : 'sin cena especial'
             }</span></p>
           </div>
+          {conflictPrompt && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900" role="alert">
+              <p className="whitespace-pre-line">{conflictPrompt.message}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => companyChangesRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })}
+                  className="rounded-lg border border-amber-300 bg-white px-3 py-2 font-black text-amber-900"
+                >
+                  Revisar menú actual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSave({ allowOverwrite: true })}
+                  className="rounded-lg bg-amber-600 px-3 py-2 font-black text-white"
+                >
+                  Reemplazar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConflictPrompt(null)}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 font-black text-gray-800"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
           <button
             type="button"
-            onClick={handleSave}
+            onClick={() => handleSave()}
             disabled={saving || loading}
             className="btn-primary mt-4 inline-flex w-full items-center justify-center px-4 py-3 text-sm font-black text-black sm:w-auto"
           >
             <Save className="mr-2 h-5 w-5" />
             {saving ? 'Guardando...' : `Guardar menú del ${formatDateLabel(deliveryDate).split(' de ')[0] || 'día seleccionado'}`}
           </button>
+          {hasDinnerChanges && !hasMenuChanges && (
+            <button
+              type="button"
+              onClick={() => handleSave({ retryDinnerOnly: true })}
+              disabled={saving || loading}
+              className="ml-0 mt-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-black text-gray-800 sm:ml-2 sm:mt-4"
+            >
+              Reintentar cena
+            </button>
+          )}
         </section>
       </div>
     </div>

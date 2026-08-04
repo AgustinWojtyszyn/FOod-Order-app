@@ -18,6 +18,7 @@ import { useAdminDinnerMenuData } from './useAdminDinnerMenuData'
 import { useAdminDinnerMenuActions } from './useAdminDinnerMenuActions'
 import { useAdminCleanupData } from './useAdminCleanupData'
 import { useAdminCleanupActions } from './useAdminCleanupActions'
+import { getWeeklyMenuFailureReason } from '../../utils/menu/menuErrorMapper'
 
 const useAdminPanelController = ({
   user,
@@ -314,11 +315,22 @@ const useAdminPanelController = ({
       .map((result) => result.menuDate)
     const failedDates = results
       .filter((result) => !result?.ok)
-      .map((result) => result?.menuDate)
-      .filter(Boolean)
+      .filter((result) => result?.menuDate)
 
     if (failedDates.length > 0) {
-      notifyInfo(`Guardado parcial. Guardadas: ${savedDates.join(', ') || 'ninguna'}. Sin cambios: ${unchangedDates.join(', ') || 'ninguna'}. Fallaron: ${failedDates.join(', ')}.`)
+      const lines = [
+        `Se guardaron ${savedDates.length} de ${selectedDates.length} fechas.`,
+        '',
+        'Guardadas:',
+        ...(savedDates.length ? savedDates.map((date) => `- ${date}`) : ['- ninguna']),
+        '',
+        'No guardadas:',
+        ...failedDates.map((result) => `- ${result.menuDate}: ${getWeeklyMenuFailureReason(result)}.`)
+      ]
+      if (unchangedDates.length > 0) {
+        lines.push('', 'Sin cambios:', ...unchangedDates.map((date) => `- ${date}`))
+      }
+      notifyInfo(lines.join('\n'))
       return
     }
     notifySuccess(`Menús procesados. Guardadas: ${savedDates.join(', ') || 'ninguna'}. Sin cambios: ${unchangedDates.join(', ') || 'ninguna'}.`)
