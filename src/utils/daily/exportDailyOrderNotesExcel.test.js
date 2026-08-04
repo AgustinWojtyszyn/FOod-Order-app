@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  getPrintableDetailRows,
+  getRemitoMenuTotalFromRows,
   getRemitoRowPriority,
   getTotalMenuItemsForRemito,
+  isMenuCountableCategory,
   normalizeBeverageLabel,
+  REMITO_ROW_CATEGORIES,
   summarizeProducts
 } from './exportDailyOrderNotesExcel'
 
@@ -30,10 +34,10 @@ describe('daily order notes Excel model', () => {
     ])
 
     expect(products).toEqual(expect.arrayContaining([
-      { producto: 'Bebida: Agua', cantidad: 1 },
-      { producto: 'Bebida: Coca cola', cantidad: 1 },
-      { producto: 'Bebida: Coca Zero', cantidad: 1 },
-      { producto: 'Bebida: Soda', cantidad: 1 }
+      expect.objectContaining({ producto: 'Bebida: Agua', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }),
+      expect.objectContaining({ producto: 'Bebida: Coca cola', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }),
+      expect.objectContaining({ producto: 'Bebida: Coca Zero', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }),
+      expect.objectContaining({ producto: 'Bebida: Soda', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink })
     ]))
   })
 
@@ -49,7 +53,21 @@ describe('daily order notes Excel model', () => {
     ])
 
     expect(products.filter((row) => row.producto === 'Bebida: Coca Zero')).toEqual([
-      { producto: 'Bebida: Coca Zero', cantidad: 1 }
+      { producto: 'Bebida: Coca Zero', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }
+    ])
+  })
+
+  it('does not duplicate a beverage when it appears in items and custom responses', () => {
+    const products = summarizeProducts([
+      makeOrder({
+        service: 'cafeteria',
+        items: [{ id: 'drink', name: 'Bebida: Agua', quantity: 1 }],
+        custom_responses: [{ title: 'Bebidas (solo Genneia)', response: 'Agua' }]
+      })
+    ])
+
+    expect(products.filter((row) => row.producto === 'Bebida: Agua')).toEqual([
+      { producto: 'Bebida: Agua', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }
     ])
   })
 
@@ -80,19 +98,19 @@ describe('daily order notes Excel model', () => {
       .map((row) => row.producto)
 
     expect(sorted).toEqual([
-      'Bebida: Agua',
-      'Cena: Milanesa',
-      'Fruta o postre: Fruta',
-      'Guarnición: Puré',
-      'Menú de cena: Pastel',
       'Menú principal: Pollo',
-      'Observación: Saludos',
       'Opción 2 - Carne',
-      'Opción 10 - Pasta'
+      'Opción 10 - Pasta',
+      'Cena: Milanesa',
+      'Menú de cena: Pastel',
+      'Bebida: Agua',
+      'Guarnición: Puré',
+      'Fruta o postre: Fruta',
+      'Observación: Saludos'
     ])
   })
 
-  it('places observations before numbered options without counting them as products', () => {
+  it('places observations after operational products without counting them as products', () => {
     const products = summarizeProducts([
       makeOrder({
         items: [{ id: 'op-10', name: 'Opción 10 - Pasta', quantity: 1 }],
@@ -105,10 +123,14 @@ describe('daily order notes Excel model', () => {
       })
     ])
 
-    expect(products).toContainEqual({ producto: 'Observación: Saludos 👋', cantidad: '' })
+    expect(products).toContainEqual({
+      producto: 'Observación: Saludos 👋',
+      cantidad: '',
+      category: REMITO_ROW_CATEGORIES.observation
+    })
     expect(products.filter((row) => row.producto === 'Observación: Saludos 👋')).toHaveLength(1)
     expect(products.map((row) => row.producto).indexOf('Observación: Saludos 👋'))
-      .toBeLessThan(products.map((row) => row.producto).indexOf('Opción 2 - Carne'))
+      .toBeGreaterThan(products.map((row) => row.producto).indexOf('Opción 2 - Carne'))
   })
 
   it('calculates TOTAL MENU only from main food rations', () => {
@@ -131,12 +153,86 @@ describe('daily order notes Excel model', () => {
     ]
 
     expect(summarizeProducts(orders)).toEqual(expect.arrayContaining([
-      { producto: 'Bebida: Agua', cantidad: 1 },
-      { producto: 'Bebida: Soda', cantidad: 1 },
-      { producto: 'Fruta o postre: Fruta', cantidad: 1 },
-      { producto: 'Guarnición: Puré', cantidad: 1 },
-      { producto: 'Observación: No sumar', cantidad: '' }
+      expect.objectContaining({ producto: 'Bebida: Agua', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }),
+      expect.objectContaining({ producto: 'Bebida: Soda', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }),
+      expect.objectContaining({ producto: 'Fruta o postre: Fruta', cantidad: 1, category: REMITO_ROW_CATEGORIES.dessert }),
+      expect.objectContaining({ producto: 'Guarnición: Puré', cantidad: 1, category: REMITO_ROW_CATEGORIES.side }),
+      expect.objectContaining({ producto: 'Observación: No sumar', cantidad: '', category: REMITO_ROW_CATEGORIES.observation })
     ]))
     expect(getTotalMenuItemsForRemito(orders)).toBe(2)
+  })
+
+  it('keeps Washington control case TOTAL MENU at 7 and shows extras below it', () => {
+    const orders = [
+      makeOrder({
+        items: [{ id: 'main', name: 'Menú principal', quantity: 1 }],
+        custom_responses: [
+          { title: 'Bebidas (solo Genneia)', response: 'Agua', quantity: 3 },
+          { title: 'Guarnición', response: 'Papas fritas' }
+        ]
+      }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        items: [{ id: 'op-1', name: 'Opción 1', quantity: 1 }],
+        custom_responses: [
+          { title: 'Bebidas (solo Genneia)', response: 'Coca cola', quantity: 6 },
+          { title: 'Guarnición', response: 'Papas fritas' }
+        ]
+      }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        items: [{ id: 'op-1', name: 'Opción 1', quantity: 1 }]
+      }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        items: [{ id: 'op-2', name: 'Opción 2', quantity: 1 }],
+        custom_responses: [
+          { title: 'Bebidas (solo Genneia)', response: 'Coca Zero', quantity: 2 },
+          { title: 'Guarnición', response: 'Papas fritas' }
+        ]
+      }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        items: [{ id: 'op-3', name: 'Opción 3', quantity: 1 }],
+        custom_responses: [
+          { title: 'Bebidas (solo Genneia)', response: 'Soda', quantity: 2 },
+          { title: 'Guarnición', response: 'Verduras' }
+        ]
+      }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        items: [{ id: 'op-3', name: 'Opción 3', quantity: 1 }],
+        custom_responses: [{ title: 'Guarnición', response: 'Verduras' }]
+      }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        service: 'dinner',
+        items: [{ id: 'dinner', name: 'Cena', quantity: 1 }],
+        custom_responses: []
+      })
+    ]
+
+    const products = summarizeProducts(orders)
+    const total = getRemitoMenuTotalFromRows(products)
+    const originalRows = getPrintableDetailRows(products, total)
+    const copyRows = getPrintableDetailRows(products, total)
+    const totalIndex = originalRows.findIndex((row) => row.producto === 'TOTAL MENÚ')
+    const beverageRows = products.filter((row) => row.category === REMITO_ROW_CATEGORIES.drink)
+    const sideRows = products.filter((row) => row.category === REMITO_ROW_CATEGORIES.side)
+
+    expect(total).toBe(7)
+    expect(originalRows[totalIndex]).toMatchObject({ producto: 'TOTAL MENÚ', cantidad: 7 })
+    expect(beverageRows.reduce((sum, row) => sum + row.cantidad, 0)).toBe(13)
+    expect(sideRows.reduce((sum, row) => sum + row.cantidad, 0)).toBe(5)
+    expect(originalRows).toEqual(copyRows)
+    expect(originalRows.findIndex((row) => row.producto === 'Bebida: Agua')).toBeGreaterThan(totalIndex)
+    expect(originalRows.findIndex((row) => row.producto === 'Guarnición: Papas fritas')).toBeGreaterThan(totalIndex)
+    expect([REMITO_ROW_CATEGORIES.drink, REMITO_ROW_CATEGORIES.side, REMITO_ROW_CATEGORIES.dessert, REMITO_ROW_CATEGORIES.observation]
+      .every((category) => !isMenuCountableCategory(category))
+    ).toBe(true)
+    expect(products
+      .filter((row) => !isMenuCountableCategory(row.category))
+      .reduce((sum, row) => sum + Number(row.cantidad || 0), 0)
+    ).toBe(18)
   })
 })

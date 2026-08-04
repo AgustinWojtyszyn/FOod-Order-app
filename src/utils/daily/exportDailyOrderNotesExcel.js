@@ -14,6 +14,7 @@ import { getUserFriendlyErrorMessage } from '../index'
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
 
 const DETAIL_ROWS_PER_COPY = 16
+const DETAIL_START_ROW = 9
 
 const HEADER_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111827' } }
 const LIGHT_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
@@ -162,12 +163,6 @@ const getRemitoIssueFallbackMessage = (companyName, error) => {
   return `No pudimos emitir la nota de pedido para ${companyName}. Verificá que la empresa tenga número inicial configurado.${suffix}`
 }
 
-const incrementSummary = (map, label, quantity = 1) => {
-  const safeLabel = normalizeText(label)
-  if (!safeLabel) return
-  map.set(safeLabel, (map.get(safeLabel) || 0) + quantity)
-}
-
 const normalizeRemitoComparisonText = (value = '') =>
   normalizeText(value)
     .normalize('NFD')
@@ -185,24 +180,53 @@ export const isObservationLabel = (label = '') => {
   return text.startsWith('observacion') || text.startsWith('comentario') || text.startsWith('leyenda')
 }
 
-export const getRemitoRowPriority = (label = '') => {
-  const text = normalizeRemitoComparisonText(label)
-  const optionNumber = getOptionNumber(label)
+export const REMITO_ROW_CATEGORIES = {
+  mainMenu: 'main_menu',
+  numberedOption: 'numbered_option',
+  dinner: 'dinner',
+  drink: 'drink',
+  side: 'side',
+  dessert: 'dessert',
+  observation: 'observation',
+  additional: 'additional'
+}
 
-  if (text.startsWith('bebida') || isBeverage(text)) return [10, 0]
-  if (text.startsWith('cena')) return [20, 0]
-  if (text.startsWith('fruta o postre') || text.startsWith('fruta') || text.startsWith('postre')) return [30, 0]
-  if (text.startsWith('guarnicion')) return [40, 0]
-  if (text.startsWith('menu de cena')) return [50, 0]
-  if (text.startsWith('menu principal') || text.includes('menu principal')) return [60, 0]
-  if (isObservationLabel(label)) return [70, 0]
-  if (optionNumber != null) return [80, optionNumber]
-  return [90, 0]
+export const isMenuCountableCategory = (category) =>
+  category === REMITO_ROW_CATEGORIES.mainMenu ||
+  category === REMITO_ROW_CATEGORIES.numberedOption ||
+  category === REMITO_ROW_CATEGORIES.dinner
+
+export const getRemitoCategoryForLabel = (label = '') => {
+  const text = normalizeRemitoComparisonText(label)
+  if (text.startsWith('menu principal') || text.includes('menu principal')) return REMITO_ROW_CATEGORIES.mainMenu
+  if (getOptionNumber(label) != null) return REMITO_ROW_CATEGORIES.numberedOption
+  if (text.startsWith('menu de cena') || text.startsWith('cena')) return REMITO_ROW_CATEGORIES.dinner
+  if (text.startsWith('bebida') || isBeverage(text)) return REMITO_ROW_CATEGORIES.drink
+  if (text.startsWith('guarnicion')) return REMITO_ROW_CATEGORIES.side
+  if (text.startsWith('fruta o postre') || text.startsWith('fruta') || text.startsWith('postre')) return REMITO_ROW_CATEGORIES.dessert
+  if (isObservationLabel(label)) return REMITO_ROW_CATEGORIES.observation
+  return REMITO_ROW_CATEGORIES.additional
+}
+
+const REMITO_CATEGORY_PRIORITY = {
+  [REMITO_ROW_CATEGORIES.mainMenu]: 10,
+  [REMITO_ROW_CATEGORIES.numberedOption]: 20,
+  [REMITO_ROW_CATEGORIES.dinner]: 30,
+  [REMITO_ROW_CATEGORIES.drink]: 40,
+  [REMITO_ROW_CATEGORIES.side]: 50,
+  [REMITO_ROW_CATEGORIES.dessert]: 60,
+  [REMITO_ROW_CATEGORIES.observation]: 70,
+  [REMITO_ROW_CATEGORIES.additional]: 80
+}
+
+export const getRemitoRowPriority = (label = '', category = getRemitoCategoryForLabel(label)) => {
+  const optionNumber = category === REMITO_ROW_CATEGORIES.numberedOption ? getOptionNumber(label) : null
+  return [REMITO_CATEGORY_PRIORITY[category] || 90, optionNumber || 0]
 }
 
 const sortRemitoRows = (a, b) => {
-  const [categoryA, numberA] = getRemitoRowPriority(a.producto)
-  const [categoryB, numberB] = getRemitoRowPriority(b.producto)
+  const [categoryA, numberA] = getRemitoRowPriority(a.producto, a.category)
+  const [categoryB, numberB] = getRemitoRowPriority(b.producto, b.category)
   return categoryA - categoryB || numberA - numberB || a.producto.localeCompare(b.producto)
 }
 
@@ -290,39 +314,55 @@ export const getOrderRemitoBeverages = (order = {}) => {
   return beverages
 }
 
-export const isMenuProductLabel = (label = '') => {
-  const text = normalizeRemitoComparisonText(label)
-  return text.startsWith('cena') ||
-    text.startsWith('menu de cena') ||
-    text.startsWith('menu principal') ||
-    getOptionNumber(label) != null
-}
+export const isMenuProductLabel = (label = '') =>
+  isMenuCountableCategory(getRemitoCategoryForLabel(label))
+
+export const getRemitoMenuTotalFromRows = (products = []) =>
+  products.reduce((sum, product) => (
+    isMenuCountableCategory(product?.category) ? sum + Number(product?.cantidad || 0) : sum
+  ), 0)
 
 export const getOrderMenuTotalForRemito = (order = {}) =>
-  extractOrderItems(order)
-    .filter((item) => isMenuProductLabel(item.label || ''))
-    .reduce((sum, item) => sum + item.quantity, 0)
+  getRemitoMenuTotalFromRows(summarizeProducts([order]))
 
 export const getTotalMenuItemsForRemito = (orders = []) =>
-  orders.reduce((sum, order) => sum + getOrderMenuTotalForRemito(order), 0)
+  getRemitoMenuTotalFromRows(summarizeProducts(orders))
 
 export const summarizeProducts = (orders = []) => {
   const totals = new Map()
   const observations = new Map()
   const beverageTotals = new Map()
+  const incrementCategorizedSummary = (label, quantity = 1, category = getRemitoCategoryForLabel(label)) => {
+    const safeLabel = normalizeText(label)
+    if (!safeLabel) return
+    const key = `${category}:${normalizeRemitoComparisonText(safeLabel)}`
+    const current = totals.get(key) || { producto: safeLabel, cantidad: 0, category }
+    current.cantidad += quantity
+    totals.set(key, current)
+  }
+
   orders.forEach((order) => {
     const items = extractOrderItems(order)
+    const remitoBeverages = getOrderRemitoBeverages(order)
     if (!items.length) {
-      incrementSummary(totals, 'Sin menú / opción', 1)
+      incrementCategorizedSummary('Sin menú / opción', 1, REMITO_ROW_CATEGORIES.additional)
     } else {
       items.forEach((item) => {
-        incrementSummary(totals, item.label || 'Sin menú / opción', item.quantity)
+        const label = item.label || 'Sin menú / opción'
+        const category = getRemitoCategoryForLabel(label)
+        if (category === REMITO_ROW_CATEGORIES.drink) {
+          if (remitoBeverages.length === 0) {
+            incrementBeverageSummary(beverageTotals, label, item.quantity)
+          }
+          return
+        }
+        incrementCategorizedSummary(label, item.quantity, category)
       })
     }
 
     const custom = extractCustomResponses(order)
-    if (custom.side) incrementSummary(totals, `Guarnición: ${custom.side}`, 1)
-    getOrderRemitoBeverages(order).forEach((beverage) => {
+    if (custom.side) incrementCategorizedSummary(`Guarnición: ${custom.side}`, 1, REMITO_ROW_CATEGORIES.side)
+    remitoBeverages.forEach((beverage) => {
       incrementBeverageSummary(beverageTotals, beverage.label, beverage.quantity)
     })
     if (custom.additional) {
@@ -334,7 +374,7 @@ export const summarizeProducts = (orders = []) => {
           if (isObservationLabel(label)) {
             observations.set(normalizeRemitoComparisonText(label), label)
           } else {
-            incrementSummary(totals, label, 1)
+            incrementCategorizedSummary(label, 1)
           }
         })
     }
@@ -344,11 +384,16 @@ export const summarizeProducts = (orders = []) => {
     }
   })
   return [
-    ...[...totals.entries()].map(([producto, cantidad]) => ({ producto, cantidad })),
-    ...[...observations.values()].map((producto) => ({ producto, cantidad: '' })),
+    ...totals.values(),
+    ...[...observations.values()].map((producto) => ({
+      producto,
+      cantidad: '',
+      category: REMITO_ROW_CATEGORIES.observation
+    })),
     ...[...beverageTotals.values()].map(({ label, quantity }) => ({
       producto: `Bebida: ${label}`,
-      cantidad: quantity
+      cantidad: quantity,
+      category: REMITO_ROW_CATEGORIES.drink
     }))
   ].sort(sortRemitoRows)
 }
@@ -439,19 +484,34 @@ const addInstitutionalBlock = (worksheet, startCol) => {
   })
 }
 
-const getPrintableDetailRows = (products = []) => {
-  if (products.length <= DETAIL_ROWS_PER_COPY) return products
+const collapseOverflowRows = (products = [], maxRows = DETAIL_ROWS_PER_COPY) => {
+  if (products.length <= maxRows) return products
 
-  const visibleRows = products.slice(0, DETAIL_ROWS_PER_COPY - 1)
-  const remainingRows = products.slice(DETAIL_ROWS_PER_COPY - 1)
+  const visibleRows = products.slice(0, maxRows - 1)
+  const remainingRows = products.slice(maxRows - 1)
   const remainingQuantity = remainingRows.reduce((sum, product) => sum + Number(product?.cantidad || 0), 0)
   const remainingLabels = remainingRows.map((product) => product.producto).filter(Boolean).join(', ')
   return [
     ...visibleRows,
     {
       cantidad: remainingQuantity || '',
-      producto: `Otros conceptos (${remainingRows.length}): ${remainingLabels}`
+      producto: `Otros conceptos (${remainingRows.length}): ${remainingLabels}`,
+      category: REMITO_ROW_CATEGORIES.additional
     }
+  ]
+}
+
+export const getPrintableDetailRows = (products = [], totalItems = getRemitoMenuTotalFromRows(products)) => {
+  const menuRows = products.filter((product) => isMenuCountableCategory(product?.category))
+  const additionalRows = products.filter((product) => !isMenuCountableCategory(product?.category))
+  return [
+    ...collapseOverflowRows(menuRows),
+    {
+      cantidad: totalItems,
+      producto: 'TOTAL MENÚ',
+      category: 'total_menu'
+    },
+    ...collapseOverflowRows(additionalRows)
   ]
 }
 
@@ -511,49 +571,56 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
     fill: HEADER_FILL
   })
 
-  const detailRows = getPrintableDetailRows(remito.products)
-  for (let index = 0; index < DETAIL_ROWS_PER_COPY; index += 1) {
-    const rowNumber = 9 + index
-    const product = detailRows[index]
+  const detailRows = getPrintableDetailRows(remito.products, remito.totalItems)
+  detailRows.forEach((product, index) => {
+    const rowNumber = DETAIL_START_ROW + index
+    const isTotalRow = product?.category === 'total_menu'
     copyCell(worksheet, rowNumber, startCol, product?.cantidad || '', {
-      font: { size: 8 },
+      font: { size: 8, bold: isTotalRow },
+      fill: isTotalRow ? LIGHT_FILL : WHITE_FILL,
       alignment: { vertical: 'middle', horizontal: 'center' }
     })
     mergeAndSet(worksheet, rowNumber, startCol + 1, rowNumber, endCol, product?.producto || '', {
+      font: { size: 8, bold: isTotalRow },
+      fill: isTotalRow ? LIGHT_FILL : WHITE_FILL,
+      alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
+    })
+    worksheet.getRow(rowNumber).height = 15.5
+  })
+  for (let index = detailRows.length; index < DETAIL_ROWS_PER_COPY; index += 1) {
+    const rowNumber = DETAIL_START_ROW + index
+    copyCell(worksheet, rowNumber, startCol, '', {
+      font: { size: 8 },
+      alignment: { vertical: 'middle', horizontal: 'center' }
+    })
+    mergeAndSet(worksheet, rowNumber, startCol + 1, rowNumber, endCol, '', {
       font: { size: 8 },
       alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
     })
     worksheet.getRow(rowNumber).height = 15.5
   }
 
-  copyCell(worksheet, 25, startCol, remito.totalItems, {
-    font: { size: 8, bold: true },
-    fill: LIGHT_FILL
-  })
-  mergeAndSet(worksheet, 25, startCol + 1, 25, endCol, 'TOTAL MENÚ', {
-    font: { size: 8, bold: true },
-    fill: LIGHT_FILL,
-    alignment: { vertical: 'middle', horizontal: 'left' }
-  })
+  const footerStartRow = Math.max(27, DETAIL_START_ROW + detailRows.length + 1)
 
-  mergeAndSet(worksheet, 27, startCol, 29, endCol, 'DEVOLUCIONES', {
+  mergeAndSet(worksheet, footerStartRow, startCol, footerStartRow + 2, endCol, 'DEVOLUCIONES', {
     font: { size: 8, bold: true },
     alignment: { vertical: 'top', horizontal: 'left', wrapText: true }
   })
-  mergeAndSet(worksheet, 30, startCol, 30, endCol, 'CONTROL DE CALIDAD / CANTIDAD:    CONFORME  □      NO CONFORME  □', {
+  mergeAndSet(worksheet, footerStartRow + 3, startCol, footerStartRow + 3, endCol, 'CONTROL DE CALIDAD / CANTIDAD:    CONFORME  □      NO CONFORME  □', {
     font: { size: 8, bold: true },
     alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
   })
-  mergeAndSet(worksheet, 32, startCol, 33, startCol + 2, 'FIRMA RESPONSABLE', {
+  mergeAndSet(worksheet, footerStartRow + 5, startCol, footerStartRow + 6, startCol + 2, 'FIRMA RESPONSABLE', {
     font: { size: 8, bold: true },
     alignment: { vertical: 'bottom', horizontal: 'center' }
   })
-  mergeAndSet(worksheet, 32, xCol, 33, endCol, 'FIRMA TRANSPORTE', {
+  mergeAndSet(worksheet, footerStartRow + 5, xCol, footerStartRow + 6, endCol, 'FIRMA TRANSPORTE', {
     font: { size: 8, bold: true },
     alignment: { vertical: 'bottom', horizontal: 'center' }
   })
 
-  applyOuterBorder(worksheet, 1, 33, startCol, endCol)
+  applyOuterBorder(worksheet, 1, footerStartRow + 6, startCol, endCol)
+  return footerStartRow + 6
 }
 
 const addRemitoSheet = async (workbook, remito, sheetName) => {
@@ -575,21 +642,22 @@ const addRemitoSheet = async (workbook, remito, sheetName) => {
   ]
   worksheet.properties.showGridLines = false
   worksheet.views = [{ showGridLines: false }]
-  for (let rowNumber = 1; rowNumber <= 35; rowNumber += 1) {
+  for (let rowNumber = 1; rowNumber <= 60; rowNumber += 1) {
     worksheet.getRow(rowNumber).height = rowNumber <= 7 ? 16 : 15.5
   }
 
-  await addCopySheetBlock(workbook, worksheet, remito, 2, 'ORIGINAL')
-  await addCopySheetBlock(workbook, worksheet, remito, 8, 'DUPLICADO')
+  const originalEndRow = await addCopySheetBlock(workbook, worksheet, remito, 2, 'ORIGINAL')
+  const duplicateEndRow = await addCopySheetBlock(workbook, worksheet, remito, 8, 'DUPLICADO')
+  const sheetEndRow = Math.max(originalEndRow, duplicateEndRow)
 
-  worksheet.getCell('A35').value = {
+  worksheet.getCell(`A${sheetEndRow + 2}`).value = {
     text: 'Volver al índice',
     hyperlink: "#'Índice'!A1"
   }
-  worksheet.getCell('A35').font = { color: { argb: 'FF2563EB' }, underline: true, size: 8 }
-  worksheet.getCell('A35').alignment = { vertical: 'middle', horizontal: 'left' }
+  worksheet.getCell(`A${sheetEndRow + 2}`).font = { color: { argb: 'FF2563EB' }, underline: true, size: 8 }
+  worksheet.getCell(`A${sheetEndRow + 2}`).alignment = { vertical: 'middle', horizontal: 'left' }
 
-  configurePrintPage(worksheet, 'A1:M33')
+  configurePrintPage(worksheet, `A1:M${sheetEndRow}`)
   return worksheet
 }
 
@@ -745,7 +813,7 @@ export async function exportDailyOrderNotesExcel({
         companyDisplayName: group.displayName,
         remitoNumber: issuedNumber,
         deliveryDate,
-        totalItems: getTotalMenuItemsForRemito(group.orders),
+        totalItems: getRemitoMenuTotalFromRows(products),
         products,
         sheetName,
         reused: !!data.reused
