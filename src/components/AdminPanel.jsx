@@ -8,6 +8,7 @@ import AdminHeader from './admin/AdminHeader'
 import AdminTabs from './admin/AdminTabs'
 import AdminUsersSection from './admin/AdminUsersSection'
 import AdminMenuSection from './admin/AdminMenuSection'
+import CompanyAdminMenuSection from './admin/CompanyAdminMenuSection'
 import AdminOptionsSection from './admin/AdminOptionsSection'
 import AdminDinnerOptionSection from './admin/AdminDinnerOptionSection'
 import AdminCompaniesSection from './admin/AdminCompaniesSection'
@@ -92,6 +93,7 @@ const AdminPanel = () => {
         onChange={setActiveTab}
         showCafeteria={canExportCafeteria}
         canManageGlobalAdmin={canManageGlobalAdmin}
+        showDinner={isAdmin}
       />
 
       {mergedLoading && (
@@ -108,8 +110,12 @@ const AdminPanel = () => {
       )}
 
       {/* Menu Tab */}
-      {!mergedLoading && activeTab === 'menu' && (
+      {!mergedLoading && activeTab === 'menu' && isAdmin && (
         <AdminMenuSection {...menuSection} />
+      )}
+
+      {!mergedLoading && activeTab === 'menu' && !isAdmin && isCompanyAdmin && (
+        <CompanyAdminMenuSection adminCompanies={adminCompanies} />
       )}
 
       {!mergedLoading && canManageGlobalAdmin && activeTab === 'cafeteria' && canExportCafeteria && (
@@ -117,7 +123,7 @@ const AdminPanel = () => {
       )}
 
       {/* Dinner Option Tab */}
-      {!mergedLoading && activeTab === 'dinner-option' && (
+      {!mergedLoading && isAdmin && activeTab === 'dinner-option' && (
         <AdminDinnerOptionSection {...dinnerSection} />
       )}
 

@@ -61,7 +61,7 @@ const useAdminMenuActions = ({
   }
 
   const handleMenuUpdate = async (menuDate, { silent = false } = {}) => {
-    if (savingMenuByDate[menuDate]) return
+    if (savingMenuByDate[menuDate]) return { ok: false, status: 'busy', menuDate }
 
     try {
       const draftItems = draftMenuItemsByDate[menuDate] || []
@@ -69,7 +69,7 @@ const useAdminMenuActions = ({
 
       if (validItems.length === 0) {
         if (!silent) notifyInfo('Debe haber al menos un plato en el menú')
-        return
+        return { ok: false, status: 'invalid', menuDate }
       }
 
       const changeSummary = getMenuItemChangeSummary(menuDate)
@@ -89,7 +89,7 @@ const useAdminMenuActions = ({
             notifyInfo('No hay cambios para guardar')
           }
         }
-        return
+        return { ok: true, status: changeSummary.deletedItems.length > 0 ? 'deleted-only' : 'unchanged', menuDate }
       }
 
       const prevDate = getPreviousDateISO(menuDate)
@@ -111,7 +111,7 @@ const useAdminMenuActions = ({
             message: 'Estás repitiendo el menú del día anterior. ¿Querés continuar?',
             confirmText: 'Sí, repetir'
           })
-          if (!confirmed) return
+          if (!confirmed) return { ok: false, status: 'cancelled', menuDate }
         }
       }
 
@@ -123,16 +123,19 @@ const useAdminMenuActions = ({
       if (error) {
         console.error('Error updating menu:', error)
         if (!silent) notifyError('Error al actualizar el menú')
+        return { ok: false, status: 'error', menuDate, error }
       } else {
         setEditingForDate(menuDate, false)
         clearDeletedMenuItemsForDate(menuDate)
         Sound.playSuccess()
         if (!silent) notifySuccess('Menú actualizado exitosamente')
         await fetchMenuForDate(menuDate)
+        return { ok: true, status: 'saved', menuDate }
       }
     } catch (err) {
       console.error('Error:', err)
       if (!silent) notifyError('Error al actualizar el menú')
+      return { ok: false, status: 'error', menuDate, error: err }
     } finally {
       setSavingForDate(menuDate, false)
     }

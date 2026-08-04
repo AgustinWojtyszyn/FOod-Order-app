@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Sound } from '../../utils/Sound'
 import { getTomorrowISOInTimeZone } from '../../utils/dateUtils'
-import { notifySuccess } from '../../utils/notice'
+import { notifyInfo, notifySuccess } from '../../utils/notice'
 import { confirmAction } from '../../utils/confirm'
 import { buildVisibleDates } from '../../utils/admin/adminPanelHelpers'
 import { useAdminPanelUI } from './useAdminPanelUI'
@@ -249,7 +249,7 @@ const useAdminPanelController = ({
   }, [isAdmin, user, refreshUsers])
 
   useEffect(() => {
-    const globalOnlyTabs = ['users', 'options', 'companies', 'cleanup', 'cafeteria']
+    const globalOnlyTabs = ['users', 'options', 'companies', 'cleanup', 'cafeteria', 'dinner-option']
     if (globalOnlyTabs.includes(activeTab) && !canManageGlobalAdmin) {
       setActiveTab('menu')
       return
@@ -302,10 +302,26 @@ const useAdminPanelController = ({
       confirmText: 'Guardar todos'
     })
     if (!confirmed) return
+    const results = []
     for (const menuDate of selectedDates) {
-      await handleMenuUpdate(menuDate, { silent: true })
+      results.push(await handleMenuUpdate(menuDate, { silent: true }))
     }
-    notifySuccess('Menús guardados correctamente')
+    const savedDates = results
+      .filter((result) => result?.ok && result.status === 'saved')
+      .map((result) => result.menuDate)
+    const unchangedDates = results
+      .filter((result) => result?.ok && result.status !== 'saved')
+      .map((result) => result.menuDate)
+    const failedDates = results
+      .filter((result) => !result?.ok)
+      .map((result) => result?.menuDate)
+      .filter(Boolean)
+
+    if (failedDates.length > 0) {
+      notifyInfo(`Guardado parcial. Guardadas: ${savedDates.join(', ') || 'ninguna'}. Sin cambios: ${unchangedDates.join(', ') || 'ninguna'}. Fallaron: ${failedDates.join(', ')}.`)
+      return
+    }
+    notifySuccess(`Menús procesados. Guardadas: ${savedDates.join(', ') || 'ninguna'}. Sin cambios: ${unchangedDates.join(', ') || 'ninguna'}.`)
   }
 
   const mergedLoading = optionsLoading || usersLoading || companiesLoading
