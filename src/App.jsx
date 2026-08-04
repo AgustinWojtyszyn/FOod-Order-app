@@ -30,6 +30,7 @@ const Profile = lazy(() => import('./components/Profile'))
 const MonthlyPanel = lazy(() => import('./components/MonthlyPanel'))
 const AuditLogs = lazy(() => import('./components/AuditLogs'))
 const OrderDetails = lazy(() => import('./components/OrderDetails'))
+const OrderLabelsPage = lazy(() => import('./components/OrderLabelsPage'))
 const CafeteriaNewOrderPage = lazy(() => import('./components/cafeteria/CafeteriaNewOrderPage'))
 const CafeteriaCurrentOrderPage = lazy(() => import('./components/cafeteria/CafeteriaCurrentOrderPage'))
 const CafeteriaSuccessPage = lazy(() => import('./components/cafeteria/CafeteriaSuccessPage'))
@@ -47,6 +48,7 @@ const ADMIN_ROUTE_PATHS = [
   '/cafeteria/order',
   '/cafeteria/confirm',
   '/admin',
+  '/labels',
   '/daily-orders',
   '/monthly-panel',
   '/auditoria',
@@ -161,6 +163,7 @@ const RouteSwitch = ({ user, loading }) => {
           <Route path="/cafeteria/order" element={<CafeteriaCurrentOrderPage user={user} loading={loading} />} />
           <Route path="/cafeteria/confirm" element={<CafeteriaSuccessPage user={user} loading={loading} />} />
           <Route path="/admin" element={<AdminPanel loading={loading} />} />
+          <Route path="/labels" element={<OrderLabelsPage />} />
           <Route path="/daily-orders" element={<DailyOrders user={user} loading={loading} />} />
           <Route path="/monthly-panel" element={<MonthlyPanel user={user} loading={loading} />} />
           <Route path="/auditoria" element={<AuditLogs user={user} loading={loading} />} />

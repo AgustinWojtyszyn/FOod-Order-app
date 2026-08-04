@@ -1,0 +1,164 @@
+.labels-print-surface {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.labels-print-a4 {
+  display: grid;
+  grid-template-columns: repeat(var(--label-a4-columns, 2), minmax(0, 1fr));
+  gap: 10mm;
+}
+
+.labels-print-thermal {
+  display: grid;
+  grid-template-columns: minmax(0, var(--thermal-label-width, 100mm));
+  gap: 12px;
+  justify-content: center;
+}
+
+.sf-label-card {
+  display: flex;
+  min-height: 48mm;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  flex-direction: column;
+  gap: 2.4mm;
+  overflow: hidden;
+  border: 1.5px solid #111827;
+  border-radius: 4px;
+  background: white;
+  color: #111827;
+  padding: 4mm;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.18;
+}
+
+.labels-print-thermal .sf-label-card {
+  width: var(--thermal-label-width, 100mm);
+  min-height: var(--thermal-label-height, 50mm);
+  max-height: var(--thermal-label-height, 50mm);
+  page-break-after: always;
+  page: thermal-label;
+}
+
+.sf-label-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 3mm;
+  border-bottom: 1px solid #111827;
+  padding-bottom: 1.8mm;
+}
+
+.sf-label-customer {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.sf-label-code {
+  flex-shrink: 0;
+  border: 1px solid #111827;
+  padding: 1mm 1.8mm;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.sf-label-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.8mm 3mm;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.sf-label-line,
+.sf-label-items,
+.sf-label-responses {
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+
+.sf-label-items {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sf-label-secondary,
+.sf-label-responses {
+  color: #334155;
+}
+
+.sf-label-alert {
+  border: 2px solid #111827;
+  padding: 1.5mm;
+  font-size: 11px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .labels-preview-root,
+  .labels-preview-root * {
+    visibility: visible !important;
+  }
+
+  .print-hide {
+    display: none !important;
+  }
+
+  .labels-preview-root {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+
+  .labels-print-surface {
+    border: 0;
+    border-radius: 0;
+    background: white;
+    padding: 0;
+  }
+
+  .labels-print-a4 {
+    gap: 6mm;
+    grid-template-columns: repeat(var(--label-a4-columns, 2), minmax(0, 1fr));
+    padding: 8mm;
+  }
+
+  .labels-print-thermal {
+    display: block;
+    padding: 0;
+  }
+
+  .labels-print-thermal .sf-label-card {
+    border-radius: 0;
+    margin: 0;
+  }
+
+  .sf-label-card {
+    box-shadow: none;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@page thermal-label {
+  size: var(--thermal-label-width, 100mm) var(--thermal-label-height, 50mm);
+  margin: 0;
+}

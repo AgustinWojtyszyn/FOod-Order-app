@@ -264,6 +264,59 @@ export const createOrdersService = ({ supabase, invalidateCache = () => {} } = {
       }, { context: 'orders_with_person_key daily date query' })
     },
 
+    getOrdersForLabels: async ({
+      fromDate = null,
+      toDate = null,
+      deliveryDate = null,
+      statuses = [],
+      service = null,
+      locations = [],
+      limit = 50,
+      offset = 0
+    } = {}) => {
+      const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100)
+      const safeOffset = Math.max(Number(offset) || 0, 0)
+
+      return withSupabaseRetry(async () => {
+        let query = supabase
+          .from('orders_with_person_key')
+          .select('*', { count: 'exact' })
+
+        if (deliveryDate) {
+          query = query.eq('delivery_date', deliveryDate)
+        } else {
+          if (fromDate) query = query.gte('delivery_date', fromDate)
+          if (toDate) query = query.lte('delivery_date', toDate)
+        }
+
+        const normalizedStatuses = normalizeStatuses(statuses)
+        if (normalizedStatuses.length === 1) {
+          query = query.eq('status', normalizedStatuses[0])
+        } else if (normalizedStatuses.length > 1) {
+          query = query.in('status', normalizedStatuses)
+        }
+
+        if (service) {
+          query = query.eq('service', service)
+        }
+
+        const normalizedLocations = Array.isArray(locations)
+          ? [...new Set(locations.map(location => String(location || '').trim()).filter(Boolean))]
+          : []
+        if (normalizedLocations.length > 0) {
+          query = query.in('location', normalizedLocations)
+        }
+
+        query = query
+          .order('delivery_date', { ascending: false })
+          .order('created_at', { ascending: false })
+          .range(safeOffset, safeOffset + safeLimit - 1)
+
+        const { data, error, count } = await query
+        return { data, error, count }
+      }, { context: 'orders labels query' })
+    },
+
     // Conteo de pedidos agrupado por persona
     getOrdersCountByPerson: async () => {
       const { data, error } = await supabase

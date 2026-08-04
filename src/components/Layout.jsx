@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { auth } from '../supabaseClient'
-import { Menu, X, User, LogOut, ShoppingCart, Settings, HelpCircle, UserCircle, Calendar, MessageCircle, ClipboardList, BarChart3 } from 'lucide-react'
+import { Menu, X, User, LogOut, ShoppingCart, Settings, HelpCircle, UserCircle, Calendar, MessageCircle, ClipboardList, BarChart3, Tags } from 'lucide-react'
 import cafeteriaLogo from '../assets/food-delivery (1).png'
 import Tutorial from './Tutorial'
 import AdminTutorial from './AdminTutorial'
@@ -125,11 +125,13 @@ const Layout = ({ children, user, loading }) => {
       icon: Calendar,
       highlighted: true  // Marcar como destacado
     })
+    menuItems.push({ name: 'Etiquetas', path: '/labels', icon: Tags })
     menuItems.push({ name: 'Tendencias', path: '/tendencias', icon: BarChart3 })
     menuItems.push({ name: 'Panel Mensual', path: '/monthly-panel', icon: Calendar })
     menuItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
     menuItems.push({ name: 'Auditoría', path: '/auditoria', icon: ClipboardList })
   } else if (canAccessAdminPanel) {
+    menuItems.push({ name: 'Etiquetas', path: '/labels', icon: Tags })
     menuItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
   }
 
