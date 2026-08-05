@@ -8,7 +8,10 @@ import { sortMenuItems } from '../../utils/order/orderMenuHelpers'
 import { filterOrderableMenuItems, withMenuSlotIndex } from '../../utils/order/menuDisplay'
 import { mergeCompanyMenuItems, normalizeCompanySlug } from '../../utils/order/companyMenuMerge'
 import { mapOrderToEditForm } from '../../utils/orderEdit/mapOrderToEditForm'
-import { getCompanyByLocationOrSlug } from '../../constants/companyConfig'
+import {
+  resolveEditOrderCompanySlug,
+  resolveEditOrderOptionsSlug
+} from '../../utils/orderEdit/editOrderCompany'
 
 const DEFAULT_MENU_ITEMS = [
   { id: 1, name: 'Plato Principal 1', description: 'Delicioso plato principal' },
@@ -20,9 +23,7 @@ const DEFAULT_MENU_ITEMS = [
 ]
 
 const resolveOrderCompanySlug = (order = {}) => {
-  const company = getCompanyByLocationOrSlug(order?.company_slug || order?.company || order?.company_id || order?.location)
-    || getCompanyByLocationOrSlug(order?.location)
-  return normalizeCompanySlug(company?.slug || order?.company_slug || order?.company || order?.company_id || '')
+  return normalizeCompanySlug(resolveEditOrderCompanySlug(order) || order?.company_slug || order?.company || order?.company_id || '')
 }
 
 export const useEditOrderBootstrap = ({ order, user, navigate }) => {
@@ -80,6 +81,7 @@ export const useEditOrderBootstrap = ({ order, user, navigate }) => {
       const fallbackDate = getTomorrowISOInTimeZone()
       const deliveryDate = order?.delivery_date || fallbackDate
       const service = order?.service || 'lunch'
+      const companySlug = resolveEditOrderOptionsSlug(order) || null
 
       const filterByMealScope = (options = [], meal) =>
         (options || []).filter(opt => {
@@ -90,12 +92,12 @@ export const useEditOrderBootstrap = ({ order, user, navigate }) => {
       if (service === 'dinner') {
         const [{ data: lunchData, error: lunchError }, { data: dinnerData, error: dinnerError }] = await Promise.all([
           db.getVisibleCustomOptions({
-            company: order?.company || order?.company_id || null,
+            company: companySlug,
             meal: 'lunch',
             date: deliveryDate
           }),
           db.getVisibleCustomOptions({
-            company: order?.company || order?.company_id || null,
+            company: companySlug,
             meal: 'dinner',
             date: deliveryDate
           })
@@ -111,7 +113,7 @@ export const useEditOrderBootstrap = ({ order, user, navigate }) => {
         setCustomOptions(dinnerOptions)
       } else {
         const { data, error } = await db.getVisibleCustomOptions({
-          company: order?.company || order?.company_id || null,
+          company: companySlug,
           meal: service,
           date: deliveryDate
         })
@@ -121,7 +123,7 @@ export const useEditOrderBootstrap = ({ order, user, navigate }) => {
     } catch (err) {
       console.error('Error fetching custom options:', err)
     }
-  }, [order?.company, order?.company_id, order?.delivery_date, order?.service])
+  }, [order])
 
   const fetchDinnerMenuSpecial = useCallback(async () => {
     const service = (order?.service || 'lunch').toLowerCase()
@@ -133,9 +135,10 @@ export const useEditOrderBootstrap = ({ order, user, navigate }) => {
     try {
       const fallbackDate = getTomorrowISOInTimeZone()
       const deliveryDate = order?.delivery_date || fallbackDate
+      const companySlug = resolveEditOrderOptionsSlug(order) || null
       const { data, error } = await db.getDinnerMenuByDate({
         date: deliveryDate,
-        company: order?.company || order?.company_id || null
+        company: companySlug
       })
       if (error) {
         console.error('Error fetching dinner menu special:', error)
@@ -154,7 +157,7 @@ export const useEditOrderBootstrap = ({ order, user, navigate }) => {
       console.error('Error fetching dinner menu special:', err)
       setDinnerMenuSpecial(null)
     }
-  }, [order?.company, order?.company_id, order?.delivery_date, order?.service])
+  }, [order])
 
   useEffect(() => {
     if (!order) {

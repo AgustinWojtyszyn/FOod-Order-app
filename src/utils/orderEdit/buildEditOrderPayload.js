@@ -1,8 +1,8 @@
 import { resolveCustomerName } from '../order/orderCustomerName'
 import { normalizeOrderItemsForService, normalizeOrderPayloadForService } from '../order/orderItemNormalization'
 import { hasHiddenOrderMenuSelection } from '../order/menuDisplay'
-import { getCompanyByLocationOrSlug } from '../../constants/companyConfig'
 import { isBeverageOption } from '../order/orderBusinessRules'
+import { resolveEditOrderCompany } from './editOrderCompany'
 
 const GENNEIA_BEVERAGE_TITLE = 'Bebidas (solo Genneia)'
 
@@ -25,8 +25,7 @@ export const buildEditOrderPayload = ({
   const normalizedService = (service || 'lunch').toLowerCase()
   const dinnerOverrideChoice = customResponses?.['dinner-special']
   const hasDinnerOverrideChoice = !isEmptyResponse(dinnerOverrideChoice)
-  const company = getCompanyByLocationOrSlug(originalOrder?.company_slug || originalOrder?.company || originalOrder?.location || formData?.location)
-    || getCompanyByLocationOrSlug(formData?.location)
+  const company = resolveEditOrderCompany(originalOrder, formData?.location)
   const isGenneia = (company?.slug || '').toLowerCase() === 'genneia'
 
   const customResponsesArray = (customOptions || [])

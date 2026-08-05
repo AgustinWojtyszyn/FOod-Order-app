@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Clock, Save } from 'lucide-react'
 import { EDIT_WINDOW_MINUTES } from '../constants/orderRules'
 import RequireUser from './RequireUser'
-import { COMPANY_LOCATIONS } from '../constants/companyConfig'
+import { getVisibleCompanyList } from '../constants/companyConfig'
+import { useAuthContext } from '../contexts/authContextValue'
 import { db } from '../supabaseClient'
 import EditOrderCustomOptionsSection from './edit-order/EditOrderCustomOptionsSection'
 import EditOrderPersonalInfoSection from './edit-order/EditOrderPersonalInfoSection'
@@ -13,21 +14,34 @@ import { Sound } from '../utils/Sound'
 import { useEditOrderBootstrap } from '../hooks/orderEdit/useEditOrderBootstrap'
 import { useEditOrderSelection } from '../hooks/orderEdit/useEditOrderSelection'
 import { useEditOrderSubmit } from '../hooks/orderEdit/useEditOrderSubmit'
+import {
+  appendOriginalLocation,
+  resolveEditOrderCompany,
+  resolveEditOrderLocation
+} from '../utils/orderEdit/editOrderCompany'
 
 export default function EditOrderForm({ user, loading }) {
   const navigate = useNavigate()
   const routerLocation = useLocation()
+  const { isAdmin } = useAuthContext()
   const order = routerLocation.state?.order
 
   const [authorizedEpseLocationRows, setAuthorizedEpseLocationRows] = useState([])
-  const isEpseOrder = String(order?.location || '').startsWith('EPSE')
+  const originalCompany = useMemo(() => resolveEditOrderCompany(order), [order])
+  const originalLocation = useMemo(() => resolveEditOrderLocation(order), [order])
+  const isEpseOrder = originalCompany?.slug === 'epse'
   const authorizedEpseLocations = useMemo(
     () => authorizedEpseLocationRows.map((row) => row.name).filter(Boolean),
     [authorizedEpseLocationRows]
   )
-  const locations = useMemo(() => (
-    isEpseOrder ? authorizedEpseLocations : COMPANY_LOCATIONS
-  ), [authorizedEpseLocations, isEpseOrder])
+  const visibleCompanyLocations = useMemo(() => (
+    getVisibleCompanyList({ includeAdminOnly: isAdmin })
+      .flatMap((company) => company.locations || [])
+  ), [isAdmin])
+  const locations = useMemo(() => {
+    const baseLocations = isEpseOrder ? authorizedEpseLocations : visibleCompanyLocations
+    return appendOriginalLocation(baseLocations, originalLocation)
+  }, [authorizedEpseLocations, isEpseOrder, originalLocation, visibleCompanyLocations])
 
   const {
     menuItems,
@@ -50,10 +64,10 @@ export default function EditOrderForm({ user, loading }) {
 
   const selectedItemsList = getSelectedItemsList()
   const deliveryLocationForEdit = useMemo(() => {
-    if (!isEpseOrder) return order?.delivery_location || formData?.location || ''
+    if (!isEpseOrder) return order?.delivery_location || formData?.location || originalLocation || ''
     const row = authorizedEpseLocationRows.find((item) => item.name === formData?.location)
-    return row?.delivery_name || order?.delivery_location || formData?.location || ''
-  }, [authorizedEpseLocationRows, formData?.location, isEpseOrder, order?.delivery_location])
+    return row?.delivery_name || order?.delivery_location || formData?.location || originalLocation || ''
+  }, [authorizedEpseLocationRows, formData?.location, isEpseOrder, order?.delivery_location, originalLocation])
 
   useEffect(() => {
     if (!isEpseOrder) return

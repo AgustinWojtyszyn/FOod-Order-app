@@ -1,6 +1,8 @@
+import { resolveEditOrderLocation } from './editOrderCompany'
+
 export const mapOrderToEditForm = ({ order, user }) => {
   const formData = {
-    location: order?.location || '',
+    location: resolveEditOrderLocation(order),
     name: order?.customer_name || user?.user_metadata?.full_name || '',
     email: order?.customer_email || user?.email || '',
     phone: order?.customer_phone || '',
