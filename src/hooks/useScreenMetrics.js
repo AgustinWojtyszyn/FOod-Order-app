@@ -1,24 +1,31 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { tryLogMetric } from '../services/supabase'
+import { safeLogMetric } from '../services/supabase'
 import { useAuthContext } from '../contexts/authContextValue'
 
 export const useScreenMetrics = () => {
   const location = useLocation()
-  const { isAdmin } = useAuthContext() // enviamos siempre; RLS controla lectura
+  const { user, session, loading, isAdmin } = useAuthContext()
 
   useEffect(() => {
-    const send = async () => {
-      const path = location.pathname || '/'
-      await tryLogMetric({
+    if (loading || !session?.user || !user) return
+
+    const path = location.pathname || '/'
+    void safeLogMetric(
+      {
         p_op: 'screen.view',
         p_ok: true,
         p_duration_ms: null,
         p_screen: path,
         p_error_code: null,
         p_meta: { admin: isAdmin }
-      })
-    }
-    send()
-  }, [location, isAdmin])
+      },
+      {
+        authReady: true,
+        session,
+        user,
+        dedupeKey: `screen.view:${session.user.id}:${path}:${isAdmin ? 'admin' : 'user'}`
+      }
+    )
+  }, [location.pathname, loading, session, user, isAdmin])
 }

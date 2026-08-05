@@ -249,24 +249,54 @@ export const healthCheck = async (timeoutMs = 4000) => {
   }
 }
 
-const METRICS_CIRCUIT = {
-  failures: 0,
-  nextRetryAt: 0
+const TELEMETRY_AUTH_STATE = {
+  initialized: false,
+  session: null,
+  user: null
 }
 
-export const tryLogMetric = async (payload) => {
-  const nowTs = Date.now()
-  if (nowTs < METRICS_CIRCUIT.nextRetryAt) return
+const RECENT_METRIC_KEYS = new Map()
+const METRIC_DEDUPE_WINDOW_MS = 2000
+const AUTH_PERMISSION_ERROR_CODES = new Set(['401', '403', '42501'])
+
+const hasAuthenticatedUser = (session, user) => Boolean(session?.user || user)
+
+export const setTelemetryAuthState = (state = {}) => {
+  const { initialized, session, user } = state
+  if (typeof initialized === 'boolean') {
+    TELEMETRY_AUTH_STATE.initialized = initialized
+  }
+  if (Object.prototype.hasOwnProperty.call(state, 'session')) {
+    TELEMETRY_AUTH_STATE.session = session || null
+  }
+  if (Object.prototype.hasOwnProperty.call(state, 'user')) {
+    TELEMETRY_AUTH_STATE.user = user || null
+  }
+}
+
+export const safeLogMetric = async (payload, options = {}) => {
+  const authReady = options.authReady ?? TELEMETRY_AUTH_STATE.initialized
+  const session = options.session ?? TELEMETRY_AUTH_STATE.session
+  const user = options.user ?? TELEMETRY_AUTH_STATE.user
+
+  if (!authReady || !hasAuthenticatedUser(session, user)) return
+
+  const dedupeKey = options.dedupeKey
+  if (dedupeKey) {
+    const nowTs = Date.now()
+    const lastSentAt = RECENT_METRIC_KEYS.get(dedupeKey) || 0
+    if (nowTs - lastSentAt < METRIC_DEDUPE_WINDOW_MS) return
+    RECENT_METRIC_KEYS.set(dedupeKey, nowTs)
+  }
+
   try {
     await supabase.rpc('log_metric', payload)
-    METRICS_CIRCUIT.failures = 0
-    METRICS_CIRCUIT.nextRetryAt = 0
   } catch (e) {
-    METRICS_CIRCUIT.failures += 1
-    const backoffMs = Math.min(60000, 1000 * Math.pow(2, METRICS_CIRCUIT.failures - 1))
-    METRICS_CIRCUIT.nextRetryAt = Date.now() + backoffMs
     if (import.meta.env.DEV) {
-      console.error('[metrics] log_metric rpc failed', e?.message || e)
+      const code = String(e?.code || e?.status || '')
+      const message = e?.message || e
+      const reason = AUTH_PERMISSION_ERROR_CODES.has(code) ? `auth/permission ${code}` : 'best-effort failure'
+      console.warn('[metrics] log_metric skipped/failed', reason, message)
     }
   }
 }
@@ -290,7 +320,7 @@ export const instrumentRpc = async (rpcName, args = {}, metaContext = {}, option
     return { data, error, durationMs }
   }
 
-  await tryLogMetric({
+  void safeLogMetric({
     p_op: `rpc.${rpcName}`,
     p_ok: !error,
     p_duration_ms: durationMs,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { authService } from '../services/auth'
 import { usersService } from '../services/users'
+import { setTelemetryAuthState } from '../services/supabase'
 
 const ROLE_VALIDATION_TIMEOUT_MS = 7000
 
@@ -22,6 +23,7 @@ const withTimeout = (promise, timeoutMs, createError) => {
 
 export const useAuth = () => {
   const [user, setUser] = useState(null)
+  const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [permissionLoading, setPermissionLoading] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -134,6 +136,7 @@ export const useAuth = () => {
   // Cargar usuario inicial
   useEffect(() => {
     mountedRef.current = true
+    setTelemetryAuthState({ initialized: false, session: null, user: null })
 
     const initializeAuth = async () => {
       try {
@@ -157,39 +160,47 @@ export const useAuth = () => {
           }
 
           if (!currentUser) {
-          roleRequestIdRef.current += 1
-          setUser(null)
-          setIsAdmin(false)
-          setIsCompanyAdmin(false)
-          setAdminCompanies([])
-          setPermissionError(userError || null)
+            roleRequestIdRef.current += 1
+            setUser(null)
+            setSession(null)
+            setIsAdmin(false)
+            setIsCompanyAdmin(false)
+            setAdminCompanies([])
+            setPermissionError(userError || null)
             setPermissionLoading(false)
+            setTelemetryAuthState({ initialized: true, session: null, user: null })
             setLoading(false)
             return
           }
 
           setUser(currentUser)
+          setSession(session)
+          setTelemetryAuthState({ initialized: true, session, user: currentUser })
           setLoading(false)
           validateUserRole(currentUser)
         } else {
           roleRequestIdRef.current += 1
           setUser(null)
+          setSession(null)
           setIsAdmin(false)
           setIsCompanyAdmin(false)
           setAdminCompanies([])
           setPermissionError(null)
           setPermissionLoading(false)
+          setTelemetryAuthState({ initialized: true, session: null, user: null })
           setLoading(false)
         }
       } catch (error) {
         console.error('Error initializing auth:', error)
         roleRequestIdRef.current += 1
         setUser(null)
+        setSession(null)
         setIsAdmin(false)
         setIsCompanyAdmin(false)
         setAdminCompanies([])
         setPermissionError(error)
         setPermissionLoading(false)
+        setTelemetryAuthState({ initialized: true, session: null, user: null })
         setLoading(false)
       }
     }
@@ -203,16 +214,20 @@ export const useAuth = () => {
       }
       if (event === 'SIGNED_IN' && session?.access_token && session?.user) {
         setUser(session.user)
+        setSession(session)
+        setTelemetryAuthState({ initialized: true, session, user: session.user })
         setLoading(false)
         validateUserRole(session.user)
       } else if (event === 'SIGNED_OUT') {
         roleRequestIdRef.current += 1
         setUser(null)
+        setSession(null)
         setIsAdmin(false)
         setIsCompanyAdmin(false)
         setAdminCompanies([])
         setPermissionError(null)
         setPermissionLoading(false)
+        setTelemetryAuthState({ initialized: true, session: null, user: null })
         setLoading(false)
       }
     })
@@ -220,6 +235,7 @@ export const useAuth = () => {
     return () => {
       mountedRef.current = false
       roleRequestIdRef.current += 1
+      setTelemetryAuthState({ initialized: false, session: null, user: null })
       subscription.unsubscribe()
     }
   }, [validateUserRole])
@@ -262,6 +278,7 @@ export const useAuth = () => {
 
   const signOut = useCallback(async () => {
     setLoading(true)
+    setTelemetryAuthState({ initialized: true, session: null, user: null })
     try {
       const result = await authService.signOut()
 
@@ -329,6 +346,12 @@ export const useAuth = () => {
       // Recargar datos del usuario si es necesario
       if (result.data?.user) {
         setUser(result.data.user)
+        setSession(result.data.session || null)
+        setTelemetryAuthState({
+          initialized: true,
+          session: result.data.session || null,
+          user: result.data.user
+        })
         validateUserRole(result.data.user)
       }
 
@@ -349,6 +372,7 @@ export const useAuth = () => {
   return {
     // Estado
     user,
+    session,
     loading,
     permissionLoading,
     isAdmin,
