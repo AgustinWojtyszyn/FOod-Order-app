@@ -15,6 +15,16 @@ class QueryBuilder {
     return this
   }
 
+  gte(column, value) {
+    this.calls.push(['gte', column, value])
+    return this
+  }
+
+  lte(column, value) {
+    this.calls.push(['lte', column, value])
+    return this
+  }
+
   eq(column, value) {
     this.calls.push(['eq', column, value])
     return this
@@ -32,6 +42,11 @@ class QueryBuilder {
 
   limit(value) {
     this.calls.push(['limit', value])
+    return this
+  }
+
+  range(from, to) {
+    this.calls.push(['range', from, to])
     return this
   }
 
@@ -139,6 +154,34 @@ describe('ordersService daily orders query', () => {
 
     expect(calls).toContainEqual(['eq', 'status', 'pending'])
     expect(calls.some(([method]) => method === 'in')).toBe(false)
+  })
+
+  it('loads labels by delivery date, including orders created the previous day', async () => {
+    const order = {
+      id: 'order-1',
+      created_at: '2026-08-04T21:15:00.000Z',
+      delivery_date: '2026-08-05',
+      status: 'archived'
+    }
+    const { supabase, calls } = createSupabaseMock([{ data: [order], error: null, count: 1 }])
+    const service = createOrdersService({ supabase })
+
+    const result = await service.getOrdersForLabels({
+      deliveryDate: '2026-08-05',
+      statuses: ['pending', 'archived'],
+      limit: 50,
+      offset: 0
+    })
+
+    expect(result).toEqual({ data: [order], error: null, count: 1 })
+    expect(calls).toContainEqual(['from', 'orders_with_person_key'])
+    expect(calls).toContainEqual(['select', '*'])
+    expect(calls).toContainEqual(['eq', 'delivery_date', '2026-08-05'])
+    expect(calls).toContainEqual(['in', 'status', ['pending', 'archived']])
+    expect(calls).toContainEqual(['order', 'delivery_date', { ascending: false }])
+    expect(calls).toContainEqual(['order', 'created_at', { ascending: false }])
+    expect(calls).toContainEqual(['range', 0, 49])
+    expect(calls).not.toContainEqual(['eq', 'created_at', '2026-08-05'])
   })
 })
 

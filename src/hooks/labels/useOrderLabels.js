@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { db } from '../../supabaseClient'
-import { getTomorrowISOInTimeZone } from '../../utils/dateUtils'
+import { getTodayISOInTimeZone } from '../../utils/dateUtils'
 import {
+  getOrderCustomerEmail,
+  getOrderCustomerName,
   getCompanyLocationsForAccess,
   getCompanyOptionsForLabels,
   orderMatchesLabelFilters
@@ -13,16 +15,22 @@ const createInitialFilters = () => ({
   search: '',
   email: '',
   company: 'all',
-  deliveryDate: getTomorrowISOInTimeZone(),
+  deliveryDate: getTodayISOInTimeZone(),
   fromDate: '',
   toDate: '',
   location: '',
   service: 'all',
-  status: 'pending',
+  status: 'active',
   itemText: '',
   beverage: 'all',
   hasNotes: 'all'
 })
+
+const getStatusesForLabels = (statusFilter) => {
+  if (statusFilter === 'active') return ['pending', 'archived']
+  if (statusFilter === 'all') return ['pending', 'archived', 'cancelled']
+  return [statusFilter]
+}
 
 export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminCompanies = [] } = {}) => {
   const [filters, setFilters] = useState(createInitialFilters)
@@ -52,6 +60,20 @@ export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminC
     const company = companyOptions.find(option => option.slug === filters.company)
     return company?.locations || []
   }, [companyOptions, filters.company])
+
+  const customerOptions = useMemo(() => {
+    const optionsByKey = new Map()
+    orders.forEach((order) => {
+      const name = getOrderCustomerName(order)
+      const email = getOrderCustomerEmail(order)
+      const value = [name, email].filter(Boolean).join(' · ')
+      const key = value.toLowerCase()
+      if (value && !optionsByKey.has(key)) {
+        optionsByKey.set(key, { value, name, email })
+      }
+    })
+    return [...optionsByKey.values()].sort((a, b) => a.value.localeCompare(b.value))
+  }, [orders])
 
   const effectiveLocations = useMemo(() => {
     if (isAdmin) return selectedCompanyLocations
@@ -92,7 +114,7 @@ export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminC
         deliveryDate: filters.deliveryDate || null,
         fromDate: filters.deliveryDate ? null : (filters.fromDate || null),
         toDate: filters.deliveryDate ? null : (filters.toDate || null),
-        statuses: filters.status === 'all' ? ['pending', 'archived', 'cancelled'] : [filters.status],
+        statuses: getStatusesForLabels(filters.status),
         service: filters.service === 'all' ? null : filters.service,
         locations: effectiveLocations,
         limit: PAGE_SIZE,
@@ -231,6 +253,7 @@ export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminC
     cancelPreview,
     printWarning,
     companyOptions,
+    customerOptions,
     accessLocations
   }
 }

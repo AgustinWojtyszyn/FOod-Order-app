@@ -3,6 +3,7 @@ const OrderLabelsFilters = ({
   onFilterChange,
   onClear,
   companyOptions,
+  customerOptions = [],
   accessLocations
 }) => {
   const availableLocations = filters.company === 'all'
@@ -14,7 +15,7 @@ const OrderLabelsFilters = ({
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-lg font-black text-slate-900">Filtros</h2>
-          <p className="text-sm font-semibold text-slate-500">Buscá pedidos sin cargar historial ilimitado.</p>
+          <p className="text-sm font-semibold text-slate-500">Buscá por fecha de entrega, aunque el pedido se haya creado el día anterior.</p>
         </div>
         <button
           type="button"
@@ -28,7 +29,15 @@ const OrderLabelsFilters = ({
       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <label className="space-y-1">
           <span className="text-xs font-bold uppercase text-slate-600">Cliente</span>
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" value={filters.search} onChange={event => onFilterChange('search', event.target.value)} />
+          <input
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            list="label-customers"
+            value={filters.search}
+            onChange={event => onFilterChange('search', event.target.value)}
+          />
+          <datalist id="label-customers">
+            {customerOptions.map(option => <option key={option.value} value={option.name}>{option.email}</option>)}
+          </datalist>
         </label>
         <label className="space-y-1">
           <span className="text-xs font-bold uppercase text-slate-600">Correo</span>
@@ -78,6 +87,7 @@ const OrderLabelsFilters = ({
         <label className="space-y-1">
           <span className="text-xs font-bold uppercase text-slate-600">Estado</span>
           <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" value={filters.status} onChange={event => onFilterChange('status', event.target.value)}>
+            <option value="active">Vigentes</option>
             <option value="pending">Pendiente</option>
             <option value="archived">Archivado</option>
             <option value="cancelled">Cancelado</option>

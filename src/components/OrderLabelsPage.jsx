@@ -49,6 +49,7 @@ const OrderLabelsPage = () => {
             onFilterChange={labels.updateFilter}
             onClear={labels.clearFilters}
             companyOptions={labels.companyOptions}
+            customerOptions={labels.customerOptions}
             accessLocations={labels.accessLocations}
           />
 
