@@ -176,6 +176,7 @@ RPCs/funciones:
 - `cancel_own_pending_order`
 - `enable_feature`
 - `log_metric`
+  - Diagnostico de permisos/callers: `supabase/diagnostics/log_metric_permissions.sql`
 - `invoke_daily_orders_report_archive_after_successful_report`
 
 ## Zonas delicadas
@@ -185,6 +186,7 @@ RPCs/funciones:
 - Fecha operativa: varios flujos usan manana en zona horaria Argentina, no simplemente `new Date()` local.
 - `daily_report_runs`: evita reportes duplicados y controla el archivado post-reporte.
 - RPCs `security definer`: revisar permisos, `search_path` y grants antes de cambiar.
+- Si falla el RPC `log_metric`, correr `supabase/diagnostics/log_metric_permissions.sql` en el SQL Editor del proyecto afectado.
 - `orders.status`: `pending`, `archived`, `cancelled` impactan dashboard, daily, monthly y reportes.
 - `orders_with_person_key`: usada para agrupar personas y enriquecer reportes.
 - Variables de entorno de Supabase/Resend/Cron: no escribir valores reales en docs ni codigo.
