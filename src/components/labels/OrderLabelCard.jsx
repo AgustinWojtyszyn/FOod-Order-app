@@ -14,9 +14,9 @@ const isLongLabelContent = (label = {}) => {
   const textLength = [
     label.customerName,
     label.companyLabel,
-    label.deliveryLocation,
     label.itemsText,
-    label.beverages?.join?.(', ')
+    label.beverages?.join?.(', '),
+    label.fruitDessertChoice
   ].join(' ').length
   return textLength > 220
 }
@@ -37,12 +37,6 @@ const OrderLabelCard = ({ label }) => {
         <span>{formatDate(label.delivery_date)}</span>
       </div>
 
-      {label.deliveryLocation && (
-        <div className="sf-label-line">
-          <strong>Entrega:</strong> {label.deliveryLocation}
-        </div>
-      )}
-
       <div className="sf-label-items">
         <strong>Pedido:</strong> {label.itemsText}
       </div>
@@ -50,6 +44,12 @@ const OrderLabelCard = ({ label }) => {
       {label.beverages.length > 0 && (
         <div className="sf-label-line">
           <strong>Bebida:</strong> {label.beverages.join(', ')}
+        </div>
+      )}
+
+      {label.fruitDessertChoice && (
+        <div className="sf-label-line">
+          <strong>Fruta o postre:</strong> {label.fruitDessertChoice}
         </div>
       )}
     </article>

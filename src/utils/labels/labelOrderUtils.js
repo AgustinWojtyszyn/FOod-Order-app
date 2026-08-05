@@ -18,6 +18,30 @@ const asArray = (value) => Array.isArray(value) ? value : []
 const firstNonBlank = (...values) =>
   values.map(value => String(value || '').trim()).find(Boolean) || ''
 
+const normalizeFruitDessertChoice = (value) => {
+  const text = formatResponseValue(value)
+  const normalized = normalizeText(text)
+  if (!normalized) return ''
+  if (normalized.includes('postre')) return 'Postre'
+  if (normalized.includes('fruta')) return 'Fruta'
+  return ''
+}
+
+const isFruitDessertResponse = (response = {}) => {
+  const text = normalizeText([
+    response.title,
+    response.question,
+    response.label,
+    response.key,
+    response.id,
+    response.option_id,
+    response.section,
+    response.type
+  ].join(' '))
+
+  return text.includes('fruta_postre') || (text.includes('fruta') && text.includes('postre'))
+}
+
 export const getCompanyLocationsForAccess = (companies = []) => {
   const locations = new Set()
   asArray(companies).forEach((company) => {
@@ -91,6 +115,25 @@ export const getRelevantResponses = (order = {}) => {
     .filter(item => item && item.value)
 }
 
+export const getFruitDessertChoice = (order = {}) => {
+  const directChoice = normalizeFruitDessertChoice(
+    order.fruitDessertChoice ||
+    order.fruit_dessert_choice ||
+    order.fruta_postre ||
+    order.fruta_o_postre
+  )
+  if (directChoice) return directChoice
+
+  const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
+  const fruitDessertResponse = asArray(normalizedCustomResponses).find(isFruitDessertResponse)
+
+  return normalizeFruitDessertChoice(
+    fruitDessertResponse?.response ??
+    fruitDessertResponse?.answer ??
+    fruitDessertResponse?.value
+  )
+}
+
 export const hasImportantNotes = (order = {}) => {
   const raw = [
     order.notes,
@@ -133,6 +176,7 @@ export const buildLabelOrder = (order = {}) => {
   const preview = buildOrderPreview(order)
   const beverages = getOrderBeverageLabels(order)
   const responses = getRelevantResponses(order)
+  const fruitDessertChoice = getFruitDessertChoice(order)
   const notes = getOrderNotesText(order)
   const totalItems = Number(order.total_items || 0) ||
     asArray(normalized.normalizedItems).reduce((sum, item) => sum + (Number(item?.quantity || item?.qty || 1) || 1), 0)
@@ -149,6 +193,7 @@ export const buildLabelOrder = (order = {}) => {
     itemsText: preview.itemsText,
     optionsText: preview.optionsText,
     beverages,
+    fruitDessertChoice,
     responses,
     notes,
     totalItems,
