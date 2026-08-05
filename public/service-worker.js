@@ -1,8 +1,12 @@
-const CACHE_NAME = 'servifood-pwa-v1'
+const CACHE_NAME = 'servifood-pwa-v2'
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/favicon.ico',
+  '/icons/servifood-32.png',
+  '/icons/servifood-48.png',
+  '/icons/apple-touch-icon.png',
   '/icons/servifood-192.png',
   '/icons/servifood-512.png',
   '/icons/servifood-maskable-192.png',
