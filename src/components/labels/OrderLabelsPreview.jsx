@@ -2,9 +2,20 @@ import { ArrowLeft, Printer, X } from 'lucide-react'
 import { expandLabelsForCopies } from '../../utils/labels/labelOrderUtils'
 import OrderLabelCard from './OrderLabelCard'
 
+const THERMAL_LIMITS = {
+  width: { min: 40, max: 150, fallback: 100 },
+  height: { min: 25, max: 100, fallback: 50 }
+}
+
 const estimateA4Sheets = (count, columns) => {
   const perSheet = Number(columns) === 3 ? 12 : 8
   return Math.max(Math.ceil(count / perSheet), 1)
+}
+
+const normalizeThermalMillimeters = (value, { min, max, fallback }) => {
+  const parsed = Number(String(value ?? '').replace(',', '.'))
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.min(Math.max(parsed, min), max)
 }
 
 const OrderLabelsPreview = ({
@@ -27,10 +38,28 @@ const OrderLabelsPreview = ({
     '100x50': { width: 100, height: 50 },
     '80x50': { width: 80, height: 50 }
   }[thermalPreset]
-  const width = Math.min(Math.max(Number(thermalSize?.width || 100), 40), 150)
-  const height = Math.min(Math.max(Number(thermalSize?.height || 50), 25), 100)
+  const width = normalizeThermalMillimeters(thermalSize?.width, THERMAL_LIMITS.width)
+  const height = normalizeThermalMillimeters(thermalSize?.height, THERMAL_LIMITS.height)
   const approxSheets = printFormat === 'a4' ? estimateA4Sheets(labels.length, a4Columns) : labels.length
   const previewModeClass = printFormat === 'thermal' ? 'labels-preview-thermal' : 'labels-preview-a4'
+  const printPageSize = printFormat === 'thermal'
+    ? `${width}mm ${height}mm`
+    : 'A4'
+
+  const updateCustomThermalSize = (dimension, value) => {
+    const limits = THERMAL_LIMITS[dimension]
+    const parsed = Number(String(value ?? '').replace(',', '.'))
+    const nextValue = Number.isFinite(parsed) && parsed > limits.max ? limits.max : value
+    setCustomThermalSize(prev => ({ ...prev, [dimension]: nextValue }))
+  }
+
+  const normalizeCustomThermalSize = (dimension) => {
+    const limits = THERMAL_LIMITS[dimension]
+    setCustomThermalSize(prev => ({
+      ...prev,
+      [dimension]: normalizeThermalMillimeters(prev?.[dimension], limits)
+    }))
+  }
 
   return (
     <section
@@ -41,6 +70,10 @@ const OrderLabelsPreview = ({
         '--thermal-label-height': `${height}mm`
       }}
     >
+      <style media="print">
+        {`@page { size: ${printPageSize}; margin: 0; }`}
+      </style>
+
       <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/50 print-hide">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
@@ -79,11 +112,11 @@ const OrderLabelsPreview = ({
                 </label>
                 <label className="space-y-1">
                   <span className="text-xs font-bold uppercase text-slate-600">Ancho mm</span>
-                  <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100" type="number" min="40" max="150" disabled={thermalPreset !== 'custom'} value={customThermalSize.width} onChange={event => setCustomThermalSize(prev => ({ ...prev, width: event.target.value }))} />
+                  <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100" type="number" min="40" max="150" step="1" disabled={thermalPreset !== 'custom'} value={customThermalSize.width} onChange={event => updateCustomThermalSize('width', event.target.value)} onBlur={() => normalizeCustomThermalSize('width')} />
                 </label>
                 <label className="space-y-1">
                   <span className="text-xs font-bold uppercase text-slate-600">Alto mm</span>
-                  <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100" type="number" min="25" max="100" disabled={thermalPreset !== 'custom'} value={customThermalSize.height} onChange={event => setCustomThermalSize(prev => ({ ...prev, height: event.target.value }))} />
+                  <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100" type="number" min="25" max="100" step="1" disabled={thermalPreset !== 'custom'} value={customThermalSize.height} onChange={event => updateCustomThermalSize('height', event.target.value)} onBlur={() => normalizeCustomThermalSize('height')} />
                 </label>
               </>
             )}

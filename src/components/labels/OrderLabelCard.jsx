@@ -10,35 +10,50 @@ const formatDate = (value) => {
   }).format(new Date(Date.UTC(year, month - 1, day, 12, 0, 0)))
 }
 
-const OrderLabelCard = ({ label }) => (
-  <article className="sf-label-card">
-    <header className="sf-label-header">
-      <div className="sf-label-customer">{label.customerName}</div>
-      <div className="sf-label-code">{label.shortCode}</div>
-    </header>
+const isLongLabelContent = (label = {}) => {
+  const textLength = [
+    label.customerName,
+    label.companyLabel,
+    label.deliveryLocation,
+    label.itemsText,
+    label.beverages?.join?.(', ')
+  ].join(' ').length
+  return textLength > 220
+}
 
-    <div className="sf-label-meta">
-      <strong>{label.companyLabel}</strong>
-      <span>{label.serviceLabel}</span>
-      <span>{formatDate(label.delivery_date)}</span>
-    </div>
+const OrderLabelCard = ({ label }) => {
+  const densityClass = isLongLabelContent(label) ? ' sf-label-card--dense' : ''
 
-    {label.deliveryLocation && (
-      <div className="sf-label-line">
-        <strong>Entrega:</strong> {label.deliveryLocation}
+  return (
+    <article className={`sf-label-card${densityClass}`}>
+      <header className="sf-label-header">
+        <div className="sf-label-customer">{label.customerName}</div>
+        <div className="sf-label-code">{label.shortCode}</div>
+      </header>
+
+      <div className="sf-label-meta">
+        <strong>{label.companyLabel}</strong>
+        <span>{label.serviceLabel}</span>
+        <span>{formatDate(label.delivery_date)}</span>
       </div>
-    )}
 
-    <div className="sf-label-items">
-      <strong>Pedido:</strong> {label.itemsText}
-    </div>
+      {label.deliveryLocation && (
+        <div className="sf-label-line">
+          <strong>Entrega:</strong> {label.deliveryLocation}
+        </div>
+      )}
 
-    {label.beverages.length > 0 && (
-      <div className="sf-label-line">
-        <strong>Bebida:</strong> {label.beverages.join(', ')}
+      <div className="sf-label-items">
+        <strong>Pedido:</strong> {label.itemsText}
       </div>
-    )}
-  </article>
-)
+
+      {label.beverages.length > 0 && (
+        <div className="sf-label-line">
+          <strong>Bebida:</strong> {label.beverages.join(', ')}
+        </div>
+      )}
+    </article>
+  )
+}
 
 export default OrderLabelCard
