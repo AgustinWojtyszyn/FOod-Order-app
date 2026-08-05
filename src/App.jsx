@@ -16,6 +16,7 @@ import OrderCompanySelector from './components/OrderCompanySelector'
 import NoticeHost from './components/NoticeHost'
 import ConfirmHost from './components/ConfirmHost'
 import RequireAdmin from './components/RequireAdmin'
+import InstallAppButton from './components/InstallAppButton'
 import CafeteriaDashboardPage from './components/cafeteria/CafeteriaDashboardPage'
 import TendenciasPage from './pages/TendenciasPage'
 
@@ -319,6 +320,7 @@ function App() {
         <ScreenMetricsListener />
         <NoticeHost />
         <ConfirmHost />
+        <InstallAppButton />
         <div
           className="app-shell bg-linear-to-br from-primary-700 via-primary-800 to-primary-900 min-h-dvh min-w-0 w-full overflow-x-hidden overflow-y-visible"
         >
