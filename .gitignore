@@ -29,6 +29,7 @@ dist-ssr
 !supabase/migrations/20260731120000_company_remito_numbering.sql
 !supabase/migrations/20260731143000_company_admins_menu_permissions.sql
 !supabase/migrations/20260803120000_company_remito_fixed_ranges.sql
+!supabase/diagnostics/*.sql
 # Python
 __pycache__/
 *.pyc
