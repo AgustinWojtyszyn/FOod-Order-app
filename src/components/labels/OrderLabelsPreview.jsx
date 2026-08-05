@@ -30,10 +30,11 @@ const OrderLabelsPreview = ({
   const width = Math.min(Math.max(Number(thermalSize?.width || 100), 40), 150)
   const height = Math.min(Math.max(Number(thermalSize?.height || 50), 25), 100)
   const approxSheets = printFormat === 'a4' ? estimateA4Sheets(labels.length, a4Columns) : labels.length
+  const previewModeClass = printFormat === 'thermal' ? 'labels-preview-thermal' : 'labels-preview-a4'
 
   return (
     <section
-      className="labels-preview-root"
+      className={`labels-preview-root ${previewModeClass}`}
       style={{
         '--label-a4-columns': a4Columns,
         '--thermal-label-width': `${width}mm`,

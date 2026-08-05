@@ -15,6 +15,9 @@ const normalizeText = (value = '') =>
 
 const asArray = (value) => Array.isArray(value) ? value : []
 
+const firstNonBlank = (...values) =>
+  values.map(value => String(value || '').trim()).find(Boolean) || ''
+
 export const getCompanyLocationsForAccess = (companies = []) => {
   const locations = new Set()
   asArray(companies).forEach((company) => {
@@ -36,16 +39,19 @@ export const getCompanyOptionsForLabels = ({ isAdmin = false, adminCompanies = [
 }
 
 export const getOrderCustomerName = (order = {}) =>
-  order.user_name ||
-  order.customer_name ||
-  order.user_full_name ||
-  order.full_name ||
-  order.customer_email ||
-  order.user_email ||
-  'Cliente sin nombre'
+  firstNonBlank(
+    order.customer_name,
+    order.name,
+    order.user_name,
+    order.user_full_name,
+    order.full_name,
+    order.customer_email,
+    order.user_email,
+    'Cliente sin nombre'
+  )
 
 export const getOrderCustomerEmail = (order = {}) =>
-  order.user_email || order.customer_email || ''
+  firstNonBlank(order.customer_email, order.email, order.user_email)
 
 export const getOrderCompanyLabel = (order = {}) => {
   const location = order.location || order.delivery_location || ''
