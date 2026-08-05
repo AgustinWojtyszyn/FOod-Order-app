@@ -18,7 +18,7 @@
       worker-src 'self' blob:;
     " />
 
-    <link rel="icon" type="image/jpeg" href="/src/assets/servifood logo.jpg" />
+    <link rel="icon" type="image/png" href="/icons/servifood-192.png" />
 
     <!-- Viewport optimizado (sin cortes de pantalla) -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -27,7 +27,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="ServiFood" />
-    <link rel="apple-touch-icon" href="/src/assets/servifood logo.jpg" />
+    <link rel="apple-touch-icon" href="/icons/servifood-192.png" />
 
     <!-- Android -->
     <meta name="mobile-web-app-capable" content="yes" />
@@ -44,20 +44,44 @@
     <meta property="og:url" content="https://food-order-app-3avy.onrender.com/" />
     <meta property="og:title" content="ServiFood Catering - Gestión de Pedidos" />
     <meta property="og:description" content="Sistema de gestión de pedidos para empresas." />
-    <meta property="og:image" content="https://food-order-app-3avy.onrender.com/src/assets/servifood%20logo.jpg" />
+    <meta property="og:image" content="https://food-order-app-3avy.onrender.com/icons/servifood-512.png" />
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
     <meta property="twitter:url" content="https://food-order-app-3avy.onrender.com/" />
     <meta property="twitter:title" content="ServiFood Catering - Gestión de Pedidos" />
     <meta property="twitter:description" content="Sistema de gestión de pedidos para empresas." />
-    <meta property="twitter:image" content="https://food-order-app-3avy.onrender.com/src/assets/servifood%20logo.jpg" />
+    <meta property="twitter:image" content="https://food-order-app-3avy.onrender.com/icons/servifood-512.png" />
 
     <!-- Canonical -->
     <link rel="canonical" href="https://food-order-app-3avy.onrender.com/" />
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
+    <script>
+      window.__servifoodPwa = window.__servifoodPwa || {
+        deferredPrompt: null,
+        beforeInstallPromptReceived: false,
+        installed: false,
+        listeners: []
+      };
+
+      window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        window.__servifoodPwa.deferredPrompt = event;
+        window.__servifoodPwa.beforeInstallPromptReceived = true;
+        console.info('[PWA] beforeinstallprompt recibido');
+        window.__servifoodPwa.listeners.forEach(function (listener) {
+          listener(event);
+        });
+      });
+
+      window.addEventListener('appinstalled', function () {
+        window.__servifoodPwa.deferredPrompt = null;
+        window.__servifoodPwa.installed = true;
+        console.info('[PWA] appinstalled disparado');
+      });
+    </script>
 
     <!-- Performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

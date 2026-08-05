@@ -1,39 +1,66 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Download, X } from 'lucide-react'
 
+const getPwaState = () => {
+  if (typeof window === 'undefined') return null
+  window.__servifoodPwa = window.__servifoodPwa || {
+    deferredPrompt: null,
+    beforeInstallPromptReceived: false,
+    installed: false,
+    listeners: []
+  }
+  return window.__servifoodPwa
+}
+
 const isStandaloneDisplay = () => {
   if (typeof window === 'undefined') return false
   return window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator?.standalone === true
 }
 
-const getInstallHelpText = () => {
+const isIosBrowser = () => {
+  if (typeof navigator === 'undefined') return false
+  return /iphone|ipad|ipod/i.test(navigator.userAgent || '')
+}
+
+const getInstallUnavailableText = () => {
   if (typeof navigator === 'undefined') return 'Usá el menú del navegador y elegí instalar o agregar a pantalla principal.'
 
-  const userAgent = navigator.userAgent || ''
-  const isIos = /iphone|ipad|ipod/i.test(userAgent)
-
-  if (isIos) {
+  if (isIosBrowser()) {
     return 'En iPhone: tocá Compartir y luego Agregar a pantalla de inicio.'
   }
 
-  return 'En Android/Chrome: abrí el menú del navegador y elegí Instalar app o Agregar a pantalla principal.'
+  return 'Chrome todavía no habilitó la instalación para esta sesión. Verificá que estés en HTTPS, que el manifest y el service worker carguen sin errores, y recargá la página después del deploy.'
 }
 
 const InstallAppButton = () => {
   const [installPrompt, setInstallPrompt] = useState(null)
   const [visible, setVisible] = useState(false)
   const [helpVisible, setHelpVisible] = useState(false)
-  const helpText = useMemo(getInstallHelpText, [])
+  const helpText = useMemo(getInstallUnavailableText, [])
 
   useEffect(() => {
-    if (isStandaloneDisplay()) return
+    const pwaState = getPwaState()
+    const standalone = isStandaloneDisplay()
+    console.info('[PWA] InstallAppButton estado inicial', {
+      standalone,
+      hasDeferredPrompt: Boolean(pwaState?.deferredPrompt),
+      beforeInstallPromptReceived: Boolean(pwaState?.beforeInstallPromptReceived),
+      installed: Boolean(pwaState?.installed)
+    })
 
+    if (standalone || pwaState?.installed) return
+
+    setInstallPrompt(pwaState?.deferredPrompt || null)
     setVisible(true)
 
     const handleBeforeInstallPrompt = (event) => {
       event.preventDefault()
       setInstallPrompt(event)
       setVisible(true)
+      setHelpVisible(false)
+      console.info('[PWA] InstallAppButton recibió beforeinstallprompt', {
+        platforms: event?.platforms || []
+      })
     }
 
     const handleInstalled = () => {
@@ -42,25 +69,51 @@ const InstallAppButton = () => {
       setVisible(false)
     }
 
+    pwaState.listeners.push(handleBeforeInstallPrompt)
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
     window.addEventListener('appinstalled', handleInstalled)
 
     return () => {
+      pwaState.listeners = pwaState.listeners.filter((listener) => listener !== handleBeforeInstallPrompt)
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
       window.removeEventListener('appinstalled', handleInstalled)
     }
   }, [])
 
   const handleInstall = async () => {
-    if (!installPrompt) {
-      setHelpVisible((current) => !current)
+    const pwaState = getPwaState()
+    const promptEvent = installPrompt || pwaState?.deferredPrompt
+
+    if (isStandaloneDisplay() || pwaState?.installed) {
+      setVisible(false)
       return
     }
 
-    installPrompt.prompt()
-    const choice = await installPrompt.userChoice.catch(() => null)
+    if (!promptEvent || isIosBrowser()) {
+      setHelpVisible((current) => !current)
+      console.info('[PWA] instalación no disponible al tocar botón', {
+        hasDeferredPrompt: Boolean(promptEvent),
+        beforeInstallPromptReceived: Boolean(pwaState?.beforeInstallPromptReceived),
+        standalone: isStandaloneDisplay(),
+        isIos: isIosBrowser()
+      })
+      return
+    }
+
+    console.info('[PWA] ejecutando prompt nativo')
+    await promptEvent.prompt()
+    const choice = await promptEvent.userChoice.catch((error) => ({
+      outcome: 'error',
+      error: error?.message || String(error)
+    }))
+    console.info('[PWA] userChoice', choice)
+
     if (choice?.outcome === 'accepted') {
       setVisible(false)
+    }
+
+    if (pwaState) {
+      pwaState.deferredPrompt = null
     }
     setInstallPrompt(null)
   }

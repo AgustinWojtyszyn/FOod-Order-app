@@ -9,26 +9,63 @@ import AppErrorBoundary from './components/ui/ErrorBoundary'
 
 // No limpiar localStorage ni sessionStorage para mantener la sesión activa
 
-const clearLegacyPwaState = () => {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations()
-      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
-      .catch(() => {})
-  }
-
-  if ('caches' in window) {
-    const appCachePattern = /(servifood|servi-food|food-order|food-order-app|workbox|precache|runtime|vite)/i
-    caches.keys()
-      .then((keys) => Promise.all(
-        keys
-          .filter((key) => appCachePattern.test(key))
-          .map((key) => caches.delete(key))
-      ))
-      .catch(() => {})
-  }
+const logPwaDiagnostic = (label, data = {}) => {
+  console.info(`[PWA] ${label}`, data)
 }
 
-clearLegacyPwaState()
+const isStandaloneDisplay = () =>
+  window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator?.standalone === true
+
+const registerServiceWorker = () => {
+  logPwaDiagnostic('standalone', { standalone: isStandaloneDisplay() })
+
+  fetch('/manifest.json', { cache: 'no-store' })
+    .then((response) => {
+      logPwaDiagnostic('manifest', {
+        ok: response.ok,
+        status: response.status,
+        contentType: response.headers.get('content-type')
+      })
+      return response.ok ? response.json() : null
+    })
+    .then((manifest) => {
+      if (!manifest) return
+      logPwaDiagnostic('manifest cargado', {
+        name: manifest.name,
+        shortName: manifest.short_name,
+        startUrl: manifest.start_url,
+        scope: manifest.scope,
+        display: manifest.display,
+        icons: Array.isArray(manifest.icons) ? manifest.icons.map((icon) => icon.src) : []
+      })
+    })
+    .catch((error) => logPwaDiagnostic('manifest error', { message: error?.message || String(error) }))
+
+  if (!('serviceWorker' in navigator)) {
+    logPwaDiagnostic('service worker no soportado')
+    return
+  }
+
+  navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+    .then((registration) => {
+      logPwaDiagnostic('service worker registrado', {
+        scope: registration.scope,
+        active: Boolean(registration.active),
+        waiting: Boolean(registration.waiting),
+        installing: Boolean(registration.installing)
+      })
+      return navigator.serviceWorker.ready
+    })
+    .then((registration) => {
+      logPwaDiagnostic('service worker activo', {
+        scope: registration.scope,
+        active: Boolean(registration.active)
+      })
+    })
+    .catch((error) => logPwaDiagnostic('service worker error', { message: error?.message || String(error) }))
+}
+
+registerServiceWorker()
 
 // Diagnóstico de arranque en desarrollo
 if (import.meta.env.DEV) {
