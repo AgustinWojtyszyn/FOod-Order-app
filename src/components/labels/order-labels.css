@@ -20,26 +20,22 @@
 
 .sf-label-card {
   display: flex;
-  min-height: 48mm;
   break-inside: avoid;
   page-break-inside: avoid;
   flex-direction: column;
-  gap: 2.4mm;
+  gap: 1.8mm;
   overflow: hidden;
   border: 1.5px solid #111827;
   border-radius: 4px;
   background: white;
   color: #111827;
-  padding: 4mm;
+  padding: 3mm;
   font-family: Arial, Helvetica, sans-serif;
   line-height: 1.18;
 }
 
 .labels-print-thermal .sf-label-card {
   width: var(--thermal-label-width, 100mm);
-  min-height: var(--thermal-label-height, 50mm);
-  max-height: var(--thermal-label-height, 50mm);
-  page-break-after: always;
 }
 
 .sf-label-header {
@@ -77,8 +73,7 @@
 }
 
 .sf-label-line,
-.sf-label-items,
-.sf-label-responses {
+.sf-label-items {
   overflow-wrap: anywhere;
   font-size: 11px;
 }
@@ -86,19 +81,6 @@
 .sf-label-items {
   font-size: 12px;
   font-weight: 700;
-}
-
-.sf-label-secondary,
-.sf-label-responses {
-  color: #334155;
-}
-
-.sf-label-alert {
-  border: 2px solid #111827;
-  padding: 1.5mm;
-  font-size: 11px;
-  font-weight: 800;
-  overflow-wrap: anywhere;
 }
 
 @media print {
@@ -158,11 +140,14 @@
   .labels-print-thermal .sf-label-card {
     display: flex !important;
     width: var(--thermal-label-width, 100mm);
-    height: var(--thermal-label-height, 50mm);
-    min-height: var(--thermal-label-height, 50mm);
+    height: auto;
+    min-height: 0;
     max-height: none;
     border-radius: 0;
     margin: 0;
+  }
+
+  .labels-print-thermal .sf-label-card:not(:last-child) {
     break-after: page;
     page-break-after: always;
   }

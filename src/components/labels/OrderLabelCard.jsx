@@ -33,37 +33,9 @@ const OrderLabelCard = ({ label }) => (
       <strong>Pedido:</strong> {label.itemsText}
     </div>
 
-    {label.totalItems > 1 && (
-      <div className="sf-label-line">
-        <strong>Cantidad:</strong> {label.totalItems}
-      </div>
-    )}
-
     {label.beverages.length > 0 && (
       <div className="sf-label-line">
         <strong>Bebida:</strong> {label.beverages.join(', ')}
-      </div>
-    )}
-
-    {label.optionsText && label.optionsText !== 'Sin opciones adicionales' && (
-      <div className="sf-label-line sf-label-secondary">
-        <strong>Opciones:</strong> {label.optionsText}
-      </div>
-    )}
-
-    {label.notes && (
-      <div className="sf-label-alert">
-        <strong>Observaciones alimentarias:</strong> {label.notes}
-      </div>
-    )}
-
-    {label.responses.length > 0 && (
-      <div className="sf-label-responses">
-        {label.responses.slice(0, 4).map((response, index) => (
-          <div key={`${response.title}-${index}`}>
-            <strong>{response.title}:</strong> {response.value}
-          </div>
-        ))}
       </div>
     )}
   </article>
