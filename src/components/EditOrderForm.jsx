@@ -3,8 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Clock, Save } from 'lucide-react'
 import { EDIT_WINDOW_MINUTES } from '../constants/orderRules'
 import RequireUser from './RequireUser'
-import { getVisibleCompanyList } from '../constants/companyConfig'
-import { useAuthContext } from '../contexts/authContextValue'
+import { COMPANY_CATALOG, getVisibleCompanyList } from '../constants/companyConfig'
 import { db } from '../supabaseClient'
 import EditOrderCustomOptionsSection from './edit-order/EditOrderCustomOptionsSection'
 import EditOrderPersonalInfoSection from './edit-order/EditOrderPersonalInfoSection'
@@ -20,28 +19,41 @@ import {
   resolveEditOrderLocation
 } from '../utils/orderEdit/editOrderCompany'
 
+const TOTAL_ADMIN_EMAIL = 'agustinwojtyszyn99@gmail.com'
+const ADMIN_SERVIFOOD_SLUG = 'administracion_servifood'
+
 export default function EditOrderForm({ user, loading }) {
   const navigate = useNavigate()
   const routerLocation = useLocation()
-  const { isAdmin } = useAuthContext()
   const order = routerLocation.state?.order
 
   const [authorizedEpseLocationRows, setAuthorizedEpseLocationRows] = useState([])
+  const [canUseAdminServifoodInEdit, setCanUseAdminServifoodInEdit] = useState(false)
   const originalCompany = useMemo(() => resolveEditOrderCompany(order), [order])
   const originalLocation = useMemo(() => resolveEditOrderLocation(order), [order])
   const isEpseOrder = originalCompany?.slug === 'epse'
+  const isTotalAdminUser = String(user?.email || '').trim().toLowerCase() === TOTAL_ADMIN_EMAIL
   const authorizedEpseLocations = useMemo(
     () => authorizedEpseLocationRows.map((row) => row.name).filter(Boolean),
     [authorizedEpseLocationRows]
   )
-  const visibleCompanyLocations = useMemo(() => (
-    getVisibleCompanyList({ includeAdminOnly: isAdmin })
-      .flatMap((company) => company.locations || [])
-  ), [isAdmin])
+  const visibleCompanyLocations = useMemo(() => {
+    const companies = getVisibleCompanyList({ includeAdminOnly: false })
+    const adminServifood = COMPANY_CATALOG[ADMIN_SERVIFOOD_SLUG]
+    if (
+      canUseAdminServifoodInEdit &&
+      adminServifood &&
+      !companies.some((company) => company.slug === ADMIN_SERVIFOOD_SLUG)
+    ) {
+      companies.push(adminServifood)
+    }
+    return companies.flatMap((company) => company.locations || [])
+  }, [canUseAdminServifoodInEdit])
   const locations = useMemo(() => {
     const baseLocations = isEpseOrder ? authorizedEpseLocations : visibleCompanyLocations
-    return appendOriginalLocation(baseLocations, originalLocation)
-  }, [authorizedEpseLocations, isEpseOrder, originalLocation, visibleCompanyLocations])
+    const shouldPreserveOriginalLocation = originalCompany?.slug !== ADMIN_SERVIFOOD_SLUG || canUseAdminServifoodInEdit
+    return appendOriginalLocation(baseLocations, shouldPreserveOriginalLocation ? originalLocation : '')
+  }, [authorizedEpseLocations, canUseAdminServifoodInEdit, isEpseOrder, originalCompany?.slug, originalLocation, visibleCompanyLocations])
 
   const {
     menuItems,
@@ -82,6 +94,44 @@ export default function EditOrderForm({ user, loading }) {
       mounted = false
     }
   }, [isEpseOrder])
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadAdminServifoodEligibility = async () => {
+      if (isTotalAdminUser) {
+        setCanUseAdminServifoodInEdit(true)
+        return
+      }
+
+      if (!user?.id) {
+        setCanUseAdminServifoodInEdit(false)
+        return
+      }
+
+      const { data, error } = await db.hasArchivedOrderForLocation({
+        userId: user.id,
+        locations: [
+          'Administración ServiFood',
+          'Administracion ServiFood',
+          ADMIN_SERVIFOOD_SLUG
+        ]
+      })
+
+      if (!mounted) return
+      if (error) {
+        setCanUseAdminServifoodInEdit(false)
+        return
+      }
+      setCanUseAdminServifoodInEdit(Boolean(data))
+    }
+
+    loadAdminServifoodEligibility()
+
+    return () => {
+      mounted = false
+    }
+  }, [isTotalAdminUser, user?.id])
 
   const { handleSubmit, error, success } = useEditOrderSubmit({
     order,

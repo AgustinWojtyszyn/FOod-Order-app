@@ -66,6 +66,19 @@ const normalizeStatuses = (statuses) => {
   return status ? [status] : []
 }
 
+const normalizeLocationCandidates = (locations) => {
+  const rawLocations = Array.isArray(locations) ? locations : [locations]
+  return [...new Set(rawLocations.map(location => String(location || '').trim()).filter(Boolean))]
+}
+
+const normalizeLocationLookup = (value = '') =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+
 export const createOrdersService = ({ supabase, invalidateCache = () => {} } = {}) => {
   if (!supabase) {
     throw new Error('createOrdersService requires a supabase client')
@@ -198,6 +211,31 @@ export const createOrdersService = ({ supabase, invalidateCache = () => {} } = {
 
       const { data, error } = await query
       return { data, error }
+    },
+
+    hasArchivedOrderForLocation: async ({ userId, locations = [] } = {}) => {
+      const normalizedLocations = normalizeLocationCandidates(locations)
+      if (!userId || normalizedLocations.length === 0) {
+        return { data: false, error: null }
+      }
+
+      const lookupSet = new Set(normalizedLocations.map(normalizeLocationLookup))
+      const { data, error } = await supabase
+        .from('orders')
+        .select('location, organization, delivery_location')
+        .eq('user_id', userId)
+        .eq('status', 'archived')
+        .limit(1000)
+
+      if (error) return { data: false, error }
+
+      const hasMatch = (Array.isArray(data) ? data : []).some((order) => (
+        ['location', 'organization', 'delivery_location'].some((column) => (
+          lookupSet.has(normalizeLocationLookup(order?.[column]))
+        ))
+      ))
+
+      return { data: hasMatch, error: null }
     },
 
     // Pedidos con person_key para agrupar por persona (grupo o usuario suelto)
