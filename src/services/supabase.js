@@ -259,7 +259,7 @@ const RECENT_METRIC_KEYS = new Map()
 const METRIC_DEDUPE_WINDOW_MS = 2000
 const AUTH_PERMISSION_ERROR_CODES = new Set(['401', '403', '42501'])
 
-const hasAuthenticatedUser = (session, user) => Boolean(session?.user || user)
+const hasAuthenticatedSession = (session) => Boolean(session?.user)
 
 export const setTelemetryAuthState = (state = {}) => {
   const { initialized, session, user } = state
@@ -277,9 +277,8 @@ export const setTelemetryAuthState = (state = {}) => {
 export const safeLogMetric = async (payload, options = {}) => {
   const authReady = options.authReady ?? TELEMETRY_AUTH_STATE.initialized
   const session = options.session ?? TELEMETRY_AUTH_STATE.session
-  const user = options.user ?? TELEMETRY_AUTH_STATE.user
 
-  if (!authReady || !hasAuthenticatedUser(session, user)) return
+  if (!authReady || !hasAuthenticatedSession(session)) return
 
   const dedupeKey = options.dedupeKey
   if (dedupeKey) {
