@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Loader2, Minus, Plus, Search, X } from 'lucide-react'
+import { AlertTriangle, Loader2, Search, X } from 'lucide-react'
 import { db } from '../../supabaseClient'
 import { ALL_COMPANY_LIST, COMPANY_CATALOG } from '../../constants/companyConfig'
 import { ORDER_CUTOFF_HOUR, ORDER_START_HOUR, ORDER_TIMEZONE } from '../../constants/orderRules'
@@ -117,34 +117,44 @@ const getCounterTotal = (counts = {}) =>
 const CounterControl = ({ value = 0, onChange, min = 0, max = 99, ariaLabel }) => {
   const safeValue = Math.min(Math.max(Number(value) || 0, min), max)
   const setNext = (next) => onChange(Math.min(Math.max(next, min), max))
+  const handleInputChange = (event) => {
+    const digits = event.target.value.replace(/\D/g, '')
+    setNext(digits === '' ? 0 : Number(digits))
+  }
+
   return (
-    <div className="inline-grid h-9 grid-cols-[36px_44px_36px] overflow-hidden rounded-lg border border-slate-300 bg-white">
+    <div
+      className="sf-admin-extra-counter grid h-11 min-w-[144px] shrink-0 grid-cols-[44px_56px_44px] rounded-lg border border-slate-300 bg-white shadow-sm"
+      role="group"
+      aria-label={ariaLabel}
+    >
       <button
         type="button"
         onClick={() => setNext(safeValue - 1)}
         disabled={safeValue <= min}
-        className="inline-flex items-center justify-center text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+        className="sf-admin-extra-counter__button flex h-11 w-11 min-w-11 items-center justify-center rounded-l-lg bg-slate-50 p-0 text-xl font-black leading-none text-slate-900 hover:bg-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300"
         aria-label={`${ariaLabel || 'contador'}: restar`}
       >
-        <Minus className="h-4 w-4" />
+        −
       </button>
       <input
-        type="number"
-        min={min}
-        max={max}
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
         value={safeValue}
-        onChange={(event) => setNext(Number(event.target.value) || 0)}
-        className="w-full border-x border-slate-200 text-center text-sm font-black text-slate-900 focus:outline-none"
+        onChange={handleInputChange}
+        className="sf-admin-extra-counter__value h-11 w-14 min-w-14 border-x border-slate-200 bg-white p-0 text-center text-base font-black leading-none text-slate-950 focus:outline-none focus:ring-2 focus:ring-orange-400"
         aria-label={ariaLabel}
+        style={{ fontVariantNumeric: 'tabular-nums' }}
       />
       <button
         type="button"
         onClick={() => setNext(safeValue + 1)}
         disabled={safeValue >= max}
-        className="inline-flex items-center justify-center text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+        className="sf-admin-extra-counter__button flex h-11 w-11 min-w-11 items-center justify-center rounded-r-lg bg-slate-50 p-0 text-xl font-black leading-none text-slate-900 hover:bg-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300"
         aria-label={`${ariaLabel || 'contador'}: sumar`}
       >
-        <Plus className="h-4 w-4" />
+        +
       </button>
     </div>
   )
@@ -622,7 +632,7 @@ const AdminExtraOrderModal = ({
                   const text = [display.label, display.dish].filter(Boolean).join(' - ') || item.name || 'Menú'
                   return (
                     <div key={item.id} className="flex items-center justify-between gap-3 px-3 py-2">
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1 pr-1">
                         <p className="text-sm font-bold text-slate-900">{text}</p>
                       </div>
                       <CounterControl
@@ -661,7 +671,7 @@ const AdminExtraOrderModal = ({
                       <div className="mt-1 divide-y divide-slate-100 rounded-lg border border-slate-200">
                         {values.map((value) => (
                           <div key={value} className="flex items-center justify-between gap-3 px-3 py-2">
-                            <span className="min-w-0 text-sm font-semibold text-slate-800">{value}</span>
+                            <span className="min-w-0 flex-1 pr-1 text-sm font-semibold text-slate-800">{value}</span>
                             <CounterControl
                               value={optionCounts[value] || 0}
                               onChange={(next) => handleOptionCountChange(option, value, next)}
