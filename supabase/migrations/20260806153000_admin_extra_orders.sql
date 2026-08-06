@@ -303,16 +303,24 @@ begin
     raise exception 'menu_required';
   end if;
 
-  if v_service = 'dinner' and not exists (
-    select 1
-    from public.dinner_menu_by_date dm
-    where dm.delivery_date = v_delivery_date
-      and dm.active = true
-      and (
-        dm.company is null
-        or dm.company = ''
-        or lower(dm.company) = v_company_slug
-      )
+  if v_service = 'dinner' and not (
+    exists (
+      select 1
+      from public.menu_items mi
+      where mi.menu_date = v_delivery_date
+        and mi.company_slug in ('global', v_company_slug)
+    )
+    or exists (
+      select 1
+      from public.dinner_menu_by_date dm
+      where dm.delivery_date = v_delivery_date
+        and dm.active = true
+        and (
+          dm.company is null
+          or dm.company = ''
+          or lower(dm.company) = v_company_slug
+        )
+    )
   ) then
     raise exception 'menu_required';
   end if;
@@ -383,16 +391,33 @@ begin
     end if;
   end if;
 
-  select coalesce(jsonb_agg(
-    case
-      when jsonb_typeof(item) = 'object' then jsonb_set(item, '{quantity}', to_jsonb(v_quantity), true)
-      else item
-    end
-    order by ord
-  ), '[]'::jsonb)
+  select
+    coalesce(jsonb_agg(
+      case
+        when jsonb_typeof(item) = 'object' then jsonb_set(
+          item,
+          '{quantity}',
+          to_jsonb(greatest(coalesce((item->>'quantity')::integer, 1), 1)),
+          true
+        )
+        else item
+      end
+      order by ord
+    ), '[]'::jsonb),
+    coalesce(sum(
+      case
+        when jsonb_typeof(item) = 'object' then greatest(coalesce((item->>'quantity')::integer, 1), 1)
+        else 1
+      end
+    ), 0)::integer
   into v_items
+  , v_quantity
   from jsonb_array_elements(v_items) with ordinality as t(item, ord)
-  where ord = 1;
+  where jsonb_typeof(item) = 'object';
+
+  if jsonb_array_length(v_items) = 0 or v_quantity <= 0 then
+    raise exception 'items_required';
+  end if;
 
   insert into public.orders (
     user_id,

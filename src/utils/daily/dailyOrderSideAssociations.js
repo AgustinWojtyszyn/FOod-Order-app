@@ -55,6 +55,12 @@ const isSideResponse = (response = {}) =>
   normalizeKey(response.title || response.label || '').includes('guarn')
 
 const getSideLabels = (response = {}) => {
+  if (response?.quantities && typeof response.quantities === 'object') {
+    return Object.entries(response.quantities).flatMap(([label, quantity]) => {
+      const count = Number(quantity) || 0
+      return count > 0 ? Array.from({ length: count }, () => normalizeText(label)).filter(Boolean) : []
+    })
+  }
   const answer = valueToText(response.answer ?? response.response ?? response.value)
   const optionText = valueToText(response.options)
   const combined = [answer, optionText].filter(Boolean).join(', ')

@@ -93,6 +93,19 @@ export const getOtherCustomResponses = (customResponses) => {
   )
 }
 
+const expandQuantifiedResponseValues = (resp = {}) => {
+  if (resp?.quantities && typeof resp.quantities === 'object') {
+    return Object.entries(resp.quantities).flatMap(([label, quantity]) => {
+      const count = Number(quantity) || 0
+      return count > 0 ? Array.from({ length: count }, () => String(label || '').trim()).filter(Boolean) : []
+    })
+  }
+  const value = resp?.response ?? resp?.answer ?? resp?.value
+  if (Array.isArray(value)) return value.map(item => String(item || '').trim()).filter(Boolean)
+  const text = String(value || '').trim()
+  return text ? [text] : []
+}
+
 export const isBeverage = (text = '') => {
   const t = (text || '').toLowerCase()
   return BEVERAGE_KEYWORDS.some(k => t.includes(k))
@@ -102,6 +115,13 @@ export const getBeverageLabel = (customResponses) => {
   if (!Array.isArray(customResponses)) return '—'
   const names = []
   customResponses.forEach(resp => {
+    if (resp?.quantities && typeof resp.quantities === 'object') {
+      Object.entries(resp.quantities).forEach(([label, quantity]) => {
+        if (!isBeverage(label)) return
+        const count = Number(quantity) || 0
+        if (count > 0) names.push(`${label}${count > 1 ? ` (x${count})` : ''}`)
+      })
+    }
     if (isBeverage(resp?.response)) names.push(resp.response)
     if (Array.isArray(resp?.options)) {
       resp.options.forEach(opt => { if (isBeverage(opt)) names.push(opt) })
@@ -124,18 +144,13 @@ export const getOrderBeverageLabels = (order = {}) => {
       if (!label || !isBeverage(label)) return
       labels.push(label)
     }
-    if (Array.isArray(resp?.response)) {
-      resp.response.forEach(pushBeverage)
-    } else {
-      pushBeverage(resp?.response)
-    }
+    expandQuantifiedResponseValues(resp).forEach(pushBeverage)
     if (Array.isArray(resp?.options)) {
       resp.options.forEach(pushBeverage)
     }
   })
-  const unique = [...new Set(labels.map(label => label.trim()))].filter(Boolean)
-  if (unique.length === 0 && isLegacyGenneiaDinnerOrder(order)) return [UNSPECIFIED_BEVERAGE_LABEL]
-  return unique
+  if (labels.length === 0 && isLegacyGenneiaDinnerOrder(order)) return [UNSPECIFIED_BEVERAGE_LABEL]
+  return labels
 }
 
 export const summarizeOrderItems = (items = []) => {
@@ -343,9 +358,16 @@ export const buildPrintStats = (ordersList = []) => {
     })
 
     getOtherCustomResponses(customResponses).forEach(r => {
-      const response = Array.isArray(r.response) ? r.response.join(', ') : r.response
-      const key = `${r.title}: ${response || '—'}`
-      optionCounts[key] = (optionCounts[key] || 0) + 1
+      const values = expandQuantifiedResponseValues(r)
+      if (values.length === 0) {
+        const key = `${r.title}: —`
+        optionCounts[key] = (optionCounts[key] || 0) + 1
+        return
+      }
+      values.forEach((response) => {
+        const key = `${r.title}: ${response || '—'}`
+        optionCounts[key] = (optionCounts[key] || 0) + 1
+      })
     })
   })
 

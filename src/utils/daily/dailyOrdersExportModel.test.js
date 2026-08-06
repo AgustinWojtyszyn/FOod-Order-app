@@ -124,18 +124,29 @@ describe('daily orders export model', () => {
     const extraOrder = {
       ...baseOrder,
       order_origin: 'admin_extra',
-      total_items: 4,
-      items: [{ name: 'Opción 1 - BIDE DEL DIA', quantity: 4 }]
+      total_items: 5,
+      items: [
+        { name: 'Opción 1 - BIDE DEL DIA', quantity: 3 },
+        { name: 'Opción 2 - Pollo', quantity: 2 }
+      ],
+      custom_responses: [
+        { title: 'Bebida', response: ['Coca Cola', 'Coca Cola'], quantities: { 'Coca Cola': 2 } },
+        { title: 'Postre', response: ['Flan', 'Flan', 'Fruta'], quantities: { Flan: 2, Fruta: 1 } }
+      ]
     }
 
     const summary = buildDailyOrdersSummary([extraOrder], 'pending')
     const [row] = buildDailyOrdersExcelDetailRows([extraOrder])
     const whatsapp = formatDailyOrdersForWhatsApp([extraOrder], 'pending')
 
-    expect(summary.totalItems).toBe(4)
+    expect(summary.totalItems).toBe(5)
     expect(summary.extraOrdersCount).toBe(1)
     expect(row.Origen).toBe('Extra')
-    expect(whatsapp).toContain('TOTAL GENERAL: 4 pedidos')
+    expect(row['Menú elegido']).toContain('Opción 1 - BIDE DEL DIA')
+    expect(row['Menú elegido']).toContain('Opción 2 - Pollo')
+    expect(summary.rows[0].bebida).toBe('Coca Cola (x2)')
+    expect(row['Respuestas personalizadas']).toContain('Postre: Flan (x2), Fruta')
+    expect(whatsapp).toContain('TOTAL GENERAL: 5 pedidos')
     expect(whatsapp).toContain('Extras cargados por admin: 1')
   })
 

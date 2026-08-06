@@ -19,7 +19,11 @@ const safeParseArray = (value) => {
 
 const normalizeOrderForReadOnly = (order = {}) => {
   const parsedItems = safeParseArray(order?.items)
-  const normalizedItems = normalizeOrderItemsForService(order?.service || 'lunch', parsedItems)
+  const isAdminExtra = String(order?.order_origin || '').toLowerCase() === 'admin_extra' ||
+    Boolean(order?.created_by_admin_id || order?.admin_extra_created_at)
+  const normalizedItems = isAdminExtra
+    ? parsedItems
+    : normalizeOrderItemsForService(order?.service || 'lunch', parsedItems)
   const normalizedCustomResponses = safeParseArray(order?.custom_responses)
   return {
     ...order,

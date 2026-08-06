@@ -28,6 +28,15 @@ const valueToText = (value) => {
   return normalizeText(value)
 }
 
+const quantitiesToText = (quantities) => {
+  if (!quantities || typeof quantities !== 'object') return ''
+  return Object.entries(quantities)
+    .map(([label, quantity]) => ({ label: normalizeText(label), quantity: Number(quantity) || 0 }))
+    .filter(item => item.label && item.quantity > 0)
+    .map(item => `${item.label}${item.quantity > 1 ? ` (x${item.quantity})` : ''}`)
+    .join(', ')
+}
+
 const safeDate = (value) => {
   if (!value) return null
   const parsed = new Date(value)
@@ -118,7 +127,7 @@ export const extractCustomResponses = (order = {}) => {
 
   responses.forEach((response) => {
     const title = normalizeText(response.title || response.label || 'Opción')
-    const answer = valueToText(response.answer ?? response.response ?? response.value)
+    const answer = quantitiesToText(response.quantities) || valueToText(response.answer ?? response.response ?? response.value)
     const optionText = valueToText(response.options)
     const combined = [answer, optionText].filter(Boolean).join(', ')
     const lowerTitle = title.toLowerCase()
@@ -220,7 +229,7 @@ const getCustomResponsesTextForExcel = (order = {}) => {
     .filter((response) => !normalizeText(response.title || response.label).toLowerCase().includes('guarn'))
     .map((response) => {
       const title = normalizeText(response.title || response.label || 'Respuesta')
-      const answer = valueToText(response.answer ?? response.response ?? response.value)
+      const answer = quantitiesToText(response.quantities) || valueToText(response.answer ?? response.response ?? response.value)
       const optionText = valueToText(response.options)
       const value = [answer, optionText].filter(Boolean).join(', ')
       return value ? `${title}: ${value}` : ''
