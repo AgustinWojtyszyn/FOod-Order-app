@@ -119,6 +119,16 @@ const hasDifferentMenu = (nextItems, currentItems, deletedIds = []) =>
   deletedIds.length > 0 ||
   JSON.stringify(normalizeForComparison(nextItems)) !== JSON.stringify(normalizeForComparison(currentItems))
 
+const getModifiedExistingItems = (nextItems = [], currentItems = []) => {
+  const currentById = new Map(currentItems.filter((item) => item.id).map((item) => [item.id, item]))
+  return nextItems.filter((item) => {
+    if (!item.id || !currentById.has(item.id)) return false
+    const current = currentById.get(item.id)
+    return normalizeText(item.name) !== normalizeText(current.name) ||
+      normalizeText(item.description) !== normalizeText(current.description)
+  })
+}
+
 const logMenuError = (...args) => {
   if (import.meta.env.DEV) console.error(...args)
 }
@@ -175,6 +185,15 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
     [normalizedGlobalItems, normalizedDraftItems]
   )
   const deletedIds = useMemo(() => deletedItems.map((item) => item.id).filter(Boolean), [deletedItems])
+  const newMenuItems = useMemo(
+    () => currentDraftMenuItems.filter((item) => !item.id),
+    [currentDraftMenuItems]
+  )
+  const modifiedMenuItems = useMemo(
+    () => getModifiedExistingItems(currentDraftMenuItems, companyItems),
+    [companyItems, currentDraftMenuItems]
+  )
+  const hasNonAdditiveMenuChanges = modifiedMenuItems.length > 0 || deletedIds.length > 0
   const hasMenuChanges = useMemo(
     () => hasDifferentMenu(currentDraftMenuItems, companyItems, deletedIds),
     [currentDraftMenuItems, companyItems, deletedIds]
@@ -501,8 +520,7 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
       return
     }
 
-    const validItems = currentDraftMenuItems
-    if (!retryDinnerOnly && !allowOverwrite && companyItems.length > 0 && hasMenuChanges) {
+    if (!retryDinnerOnly && !allowOverwrite && companyItems.length > 0 && hasNonAdditiveMenuChanges) {
       setConflictPrompt({
         message: `${selectedCompanyName} ya tiene un menú cargado para el ${formatShortDate(deliveryDate)}.\nRevisá los cambios antes de reemplazarlo.`
       })
@@ -517,7 +535,7 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
     setSaving(true)
     setError('')
     try {
-      if (!retryDinnerOnly) await ensureCurrentVersion()
+      if (!retryDinnerOnly && (hasNonAdditiveMenuChanges || hasDinnerChanges)) await ensureCurrentVersion()
 
       const savedParts = []
       if (!retryDinnerOnly && hasMenuChanges) {
@@ -532,15 +550,27 @@ const CompanyAdminMenuSection = ({ adminCompanies = [] }) => {
             if (error) throw error
           }
 
-          const { error } = await db.updateMenuItemsByDate(
-            deliveryDate,
-            validItems,
-            crypto.randomUUID?.() || Math.random().toString(36).slice(2),
-            selectedCompanySlug
-          )
-          if (error) throw error
+          const requestId = crypto.randomUUID?.() || Math.random().toString(36).slice(2)
+          if (modifiedMenuItems.length > 0) {
+            const { error } = await db.updateMenuItemsByDate(
+              deliveryDate,
+              modifiedMenuItems,
+              requestId,
+              selectedCompanySlug
+            )
+            if (error) throw error
+          }
+          if (newMenuItems.length > 0) {
+            const { error } = await db.addMenuItemsByDate(
+              deliveryDate,
+              newMenuItems,
+              requestId,
+              selectedCompanySlug
+            )
+            if (error) throw error
+          }
           savedParts.push('almuerzo')
-          setCompanyItems(withMenuSlotIndex(sortMenuItems(validItems)))
+          setCompanyItems(withMenuSlotIndex(sortMenuItems(currentDraftMenuItems)))
           setDeletedItems([])
         } catch (err) {
           throw mapMenuError(err, {

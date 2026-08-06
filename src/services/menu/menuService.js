@@ -146,6 +146,50 @@ export const createMenuService = ({
     }
   }
 
+  const addMenuItemsByDate = async (menuDate, menuItems, requestId = null, companySlug = 'global') => {
+    try {
+      const normalizedCompanySlug = normalizeCompanySlug(companySlug)
+      const itemsToInsert = (menuItems || [])
+        .filter(item => !item.id && (item.name || '').trim() !== '')
+        .map(item => ({
+          name: item.name,
+          description: item.description || ''
+        }))
+
+      if (itemsToInsert.length === 0) {
+        return { data: [], error: null }
+      }
+
+      invalidateCache()
+      const { data, error } = await supabase.rpc('add_menu_items_for_date', {
+        p_menu_date: menuDate,
+        p_company_slug: normalizedCompanySlug,
+        p_items: itemsToInsert,
+        p_request_id: requestId
+      })
+
+      if (!error && typeof logAudit === 'function') {
+        await logAudit({
+          action: 'menu_options_added',
+          details: `Opciones agregadas al menú (${menuDate}) (agregadas: ${itemsToInsert.length})`,
+          target_name: 'Todos los usuarios',
+          metadata: {
+            inserted: itemsToInsert.length,
+            menu_date: menuDate,
+            company_slug: normalizedCompanySlug,
+            items: itemsToInsert.map(({ name }) => ({ name }))
+          },
+          request_id: requestId
+        })
+      }
+
+      return { data, error }
+    } catch (err) {
+      console.error('Unexpected error in addMenuItemsByDate:', err)
+      return { error: err }
+    }
+  }
+
   const deleteMenuItemById = async ({ menuDate, itemId, companySlug = 'global', requestId = null }) => {
     try {
       if (!menuDate || !itemId) return { error: new Error('menuDate and itemId are required') }
@@ -259,6 +303,7 @@ export const createMenuService = ({
   return {
     getMenuDatesByRange,
     getMenuItemsByDate,
+    addMenuItemsByDate,
     updateMenuItemsByDate,
     deleteMenuItemById,
     getDinnerMenuByDate,

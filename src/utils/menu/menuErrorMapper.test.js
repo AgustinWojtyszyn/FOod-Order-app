@@ -46,6 +46,17 @@ describe('menuErrorMapper', () => {
     expect(mapped.message).toContain('Tus cambios de cena siguen disponibles para reintentar.')
   })
 
+  it('explains the menu option cutoff with the allowed time', () => {
+    const mapped = mapMenuError(
+      { message: 'menu_add_cutoff_expired:10:00' },
+      { companyName: 'La Laja', dateISO: '2026-08-05' }
+    )
+
+    expect(mapped.kind).toBe('cutoff')
+    expect(mapped.message).toContain('Ya venció el límite para agregar opciones al menú de La Laja')
+    expect(mapped.message).toContain('La hora máxima permitida era 10:00 hs de Argentina.')
+  })
+
   it('formats contextual success with company and readable date', () => {
     expect(formatCompanyMenuSuccess({
       companyName: 'Genneia',

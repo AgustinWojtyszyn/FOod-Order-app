@@ -79,12 +79,9 @@ const useAdminMenuActions = ({
       }
 
       const changeSummary = getMenuItemChangeSummary(menuDate)
-      const itemsToPersist = [
-        ...changeSummary.newItems,
-        ...changeSummary.modifiedItems
-      ]
+      const itemsToPersist = changeSummary.newItems.length + changeSummary.modifiedItems.length
 
-      if (itemsToPersist.length === 0) {
+      if (itemsToPersist === 0) {
         setEditingForDate(menuDate, false)
         clearDeletedMenuItemsForDate(menuDate)
         await fetchMenuForDate(menuDate)
@@ -123,8 +120,15 @@ const useAdminMenuActions = ({
 
       setSavingForDate(menuDate, true)
       const requestId = crypto.randomUUID?.() || Math.random().toString(36).slice(2)
-      console.debug('[menu][save] request_id', requestId, 'items', itemsToPersist.length, 'menu_date', menuDate)
-      const { error } = await db.updateMenuItemsByDate(menuDate, itemsToPersist, requestId, companySlug)
+      console.debug('[menu][save] request_id', requestId, 'items', itemsToPersist, 'menu_date', menuDate)
+
+      const updateResult = changeSummary.modifiedItems.length > 0
+        ? await db.updateMenuItemsByDate(menuDate, changeSummary.modifiedItems, requestId, companySlug)
+        : { error: null }
+      const addResult = !updateResult.error && changeSummary.newItems.length > 0
+        ? await db.addMenuItemsByDate(menuDate, changeSummary.newItems, requestId, companySlug)
+        : { error: null }
+      const error = updateResult.error || addResult.error
 
       if (error) {
         logAdminMenuError('Error updating menu:', error)

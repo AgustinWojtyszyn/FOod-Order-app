@@ -23,6 +23,12 @@ const CONFLICT_ERROR_PATTERNS = [
 
 const normalizeText = (value = '') => String(value || '').trim()
 
+const getMenuAddCutoffTime = (error) => {
+  const text = stringifyError(error)
+  const match = text.match(/menu_add_cutoff_expired:([0-2]\d:[0-5]\d)/i)
+  return match?.[1] || ''
+}
+
 const stringifyError = (error) => {
   if (!error) return ''
   if (typeof error === 'string') return error
@@ -120,6 +126,7 @@ export const mapMenuError = (error, {
     'partial',
     'connection',
     'conflict',
+    'cutoff',
     'server'
   ].includes(error?.kind)) {
     return error
@@ -152,6 +159,14 @@ export const mapMenuError = (error, {
     }
   }
 
+  const cutoffTime = getMenuAddCutoffTime(error)
+  if (cutoffTime) {
+    return {
+      kind: 'cutoff',
+      message: `Ya venció el límite para agregar opciones al menú de ${companyName} para el ${formatShortMenuDate(dateISO)}.\nLa hora máxima permitida era ${cutoffTime} hs de Argentina.`
+    }
+  }
+
   return {
     kind: 'server',
     message: `Ocurrió un problema al ${action} el menú de ${companyName} para el ${formatShortMenuDate(dateISO)}.\nNo se confirmó ningún cambio. Intentá nuevamente.`
@@ -175,6 +190,7 @@ export const getWeeklyMenuFailureReason = (result = {}) => {
   if (mapped.kind === 'connection') return 'error de conexión'
   if (mapped.kind === 'permission') return 'sin permisos para modificar esa fecha'
   if (mapped.kind === 'conflict') return 'conflicto con un menú existente'
+  if (mapped.kind === 'cutoff') return 'límite horario vencido'
   return 'error de servidor'
 }
 
