@@ -4,6 +4,7 @@ import {
   getOrderBeverageLabels
 } from '../daily/dailyOrderCalculations'
 import { getStatusText } from '../daily/dailyOrderFormatters'
+import { getAdminExtraOrderLabel } from '../daily/adminExtraOrders'
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
 
 const normalizeText = (value = '') =>
@@ -188,6 +189,7 @@ export const buildLabelOrder = (order = {}) => {
     companyLabel: getOrderCompanyLabel(order),
     deliveryLocation: getOrderDeliveryLocation(order),
     serviceLabel: String(order.service || 'lunch') === 'dinner' ? 'Cena' : 'Almuerzo',
+    originLabel: getAdminExtraOrderLabel(order),
     statusLabel: getStatusText(order.status),
     shortCode: getShortOrderCode(order),
     itemsText: preview.itemsText,

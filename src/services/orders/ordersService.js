@@ -178,6 +178,54 @@ export const createOrdersService = ({ supabase, invalidateCache = () => {} } = {
       return { data, error }
     },
 
+    createAdminExtraOrder: async (payload) => {
+      invalidateCache()
+      const idempotencyKey = payload?.idempotency_key || createRequestId('admin-extra-order')
+      const { data, error } = await supabase.rpc('create_admin_extra_order', {
+        p_payload: {
+          ...payload,
+          idempotency_key: idempotencyKey
+        }
+      })
+      return { data, error }
+    },
+
+    searchAdminExtraOrderPeople: async ({ search, companySlug = null, limit = 10 } = {}) => {
+      const { data, error } = await supabase.rpc('search_admin_extra_order_people', {
+        p_search: search || '',
+        p_company_slug: companySlug || null,
+        p_limit: limit
+      })
+      return { data, error }
+    },
+
+    getAdminExtraOrderDuplicate: async ({ clientUserId, deliveryDate, service, companySlug } = {}) => {
+      if (!clientUserId || !deliveryDate || !service || !companySlug) {
+        return { data: null, error: null }
+      }
+      const { data, error } = await supabase.rpc('get_admin_extra_order_duplicate', {
+        p_client_user_id: clientUserId,
+        p_delivery_date: deliveryDate,
+        p_service: service,
+        p_company_slug: companySlug
+      })
+      const row = Array.isArray(data) ? (data[0] || null) : data
+      return { data: row || null, error }
+    },
+
+    getDailyOrdersForAdmin: async ({ deliveryDate, statuses = ['pending', 'archived'] } = {}) => {
+      if (!deliveryDate) {
+        return { data: null, error: new Error('deliveryDate es requerido para consultar pedidos diarios') }
+      }
+      return withSupabaseRetry(async () => {
+        const { data, error } = await supabase.rpc('get_daily_orders_for_admin', {
+          p_delivery_date: deliveryDate,
+          p_statuses: normalizeStatuses(statuses)
+        })
+        return { data, error }
+      }, { context: 'admin daily orders rpc' })
+    },
+
     getOrders: async (userId = null, {
       status = null,
       deliveryDate = null,

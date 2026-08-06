@@ -148,6 +148,7 @@ describe('daily orders export model', () => {
       'Opción elegida',
       'Guarniciones',
       'Respuestas personalizadas',
+      'Origen',
       'Comentarios',
       'Estado'
     ])
@@ -160,6 +161,7 @@ describe('daily orders export model', () => {
       'Opción elegida': 'Opción 1 - BIDE DEL DIA (x1)',
       Guarniciones: 'Puré',
       'Respuestas personalizadas': 'Bebida: Coca cola | Pan: Sin pan',
+      Origen: 'Normal',
       Comentarios: 'Sin sal',
       Estado: 'Pendiente'
     })

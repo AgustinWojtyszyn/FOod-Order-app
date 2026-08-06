@@ -10,6 +10,7 @@ import DailyClosePanel from './daily/DailyClosePanel'
 import DailyOrdersTable from './daily/DailyOrdersTable'
 import DailySummary from './daily/DailySummary'
 import DailyPrintStyles from './daily/DailyPrintStyles'
+import AdminExtraOrderModal from './daily/AdminExtraOrderModal'
 import { useDailyOrdersData } from '../hooks/useDailyOrdersData'
 import { matchesDailyOrderStatusFilter, useDailyOrdersFilters } from '../hooks/useDailyOrdersFilters'
 import {
@@ -33,6 +34,7 @@ const DailyOrders = ({ user, loading }) => {
   const [selectedDish, setSelectedDish] = useState('all')
   const [selectedSide, setSelectedSide] = useState('all')
   const [sortBy, setSortBy] = useState('recent')
+  const [extraOrderOpen, setExtraOrderOpen] = useState(false)
 
   const locations = COMPANY_LOCATIONS
   const navigate = useNavigate()
@@ -41,6 +43,8 @@ const DailyOrders = ({ user, loading }) => {
     orders,
     ordersLoading,
     isAdmin,
+    isGlobalAdmin,
+    adminCompanies,
     availableDishes,
     refreshing,
     ordersError,
@@ -194,9 +198,19 @@ const DailyOrders = ({ user, loading }) => {
           onRefresh={handleRefresh}
           onExportPdf={exportToPdf}
           onArchiveAll={handleArchiveAllPending}
+          onAddExtraOrder={() => setExtraOrderOpen(true)}
           sortedOrdersLength={sortedOrders.length}
           pendingOrdersCount={dailyCloseStatus.pendingCount}
-          isAdmin={isAdmin}
+          isAdmin={isGlobalAdmin}
+        />
+
+        <AdminExtraOrderModal
+          open={extraOrderOpen}
+          onClose={() => setExtraOrderOpen(false)}
+          onCreated={handleRefresh}
+          operationalDate={operationalDate}
+          isGlobalAdmin={isGlobalAdmin}
+          adminCompanies={adminCompanies}
         />
 
         {ordersError && (
@@ -240,7 +254,7 @@ const DailyOrders = ({ user, loading }) => {
           sortBy={sortBy}
           selectedLocation={selectedLocation}
           selectedStatus={selectedStatus}
-          onArchiveOrder={handleArchiveOrder}
+          onArchiveOrder={isGlobalAdmin ? handleArchiveOrder : null}
           onViewOrder={(orderId) => navigate(`/orders/${orderId}`)}
         />
       </div>

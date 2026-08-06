@@ -1,4 +1,4 @@
-import { Archive as ArchiveIcon, FileText, Printer, RefreshCw } from 'lucide-react'
+import { Archive as ArchiveIcon, FileText, Plus, Printer, RefreshCw } from 'lucide-react'
 import excelLogo from '../../assets/logoexcel.png'
 import whatsappLogo from '../../assets/whatsapp.png'
 
@@ -14,6 +14,7 @@ const DailyExportActions = ({
   onRefresh,
   onExportPdf,
   onArchiveAll,
+  onAddExtraOrder,
   sortedOrdersLength,
   pendingOrdersCount = 0,
   isAdmin
@@ -75,6 +76,17 @@ const DailyExportActions = ({
     </div>
 
     <div className="flex flex-wrap items-center gap-2">
+      {onAddExtraOrder && (
+        <button
+          type="button"
+          onClick={onAddExtraOrder}
+          className="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 sm:w-auto"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          + Pedido extra
+        </button>
+      )}
+
       <button
         onClick={onRefresh}
         disabled={refreshing}

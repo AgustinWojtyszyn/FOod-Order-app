@@ -35,6 +35,7 @@ const OrderLabelCard = ({ label }) => {
         <strong>{label.companyLabel}</strong>
         <span>{label.serviceLabel}</span>
         <span>{formatDate(label.delivery_date)}</span>
+        {label.originLabel === 'Extra' && <span>Extra</span>}
       </div>
 
       <div className="sf-label-items">

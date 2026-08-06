@@ -11,6 +11,7 @@ import {
   getStatusColor,
   getStatusText
 } from '../../utils/daily/dailyOrderFormatters'
+import { isAdminExtraOrder } from '../../utils/daily/adminExtraOrders'
 
 const DailyOrderRow = ({
   order,
@@ -21,6 +22,7 @@ const DailyOrderRow = ({
 }) => {
   const deliveryLocation = order.delivery_location || order.location
   const deliveryDiffers = deliveryLocation && deliveryLocation !== order.location
+  const isExtra = isAdminExtraOrder(order)
 
   if (variant === 'card') {
     const summary = summarizeOrderItems(order.items)
@@ -45,6 +47,11 @@ const DailyOrderRow = ({
               {order.user_email || 'Sin email'}
             </p>
           </div>
+          {isExtra && (
+            <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-black text-violet-800">
+              Extra
+            </span>
+          )}
           <p className="text-xs font-mono font-semibold text-slate-700 ml-2">
             {formatTime(order.created_at)}
           </p>
@@ -75,6 +82,11 @@ const DailyOrderRow = ({
           >
             {getStatusText(order.status)}
           </span>
+          {isExtra && (
+            <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-800">
+              Cargado por admin
+            </span>
+          )}
           <span className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-extrabold text-slate-900 ml-auto">
             {order.total_items} items
           </span>
@@ -115,7 +127,7 @@ const DailyOrderRow = ({
         </div>
 
         <div className="flex items-center justify-between pt-1">
-          {order.status === 'pending' ? (
+          {order.status === 'pending' && onArchiveOrder ? (
             <button
               className="text-xs font-semibold text-primary-700 hover:text-primary-900"
               onClick={() => onArchiveOrder(order)}
@@ -155,6 +167,11 @@ const DailyOrderRow = ({
             <p className="text-xs text-slate-500">
               {order.user_email || 'Sin email'}
             </p>
+            {isExtra && (
+              <span className="mt-1 inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-black text-violet-800">
+                Extra
+              </span>
+            )}
           </div>
         </div>
       </td>
@@ -226,7 +243,7 @@ const DailyOrderRow = ({
         </span>
       </td>
       <td className="border-b border-slate-200/70 px-4 py-5">
-        {order.status === 'pending' ? (
+        {order.status === 'pending' && onArchiveOrder ? (
           <button
             onClick={() => onArchiveOrder(order)}
             className="inline-flex items-center rounded-lg border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700 hover:bg-primary-100"

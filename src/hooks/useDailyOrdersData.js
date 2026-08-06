@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { db } from '../supabaseClient'
-import { usersService } from '../services/users'
+import { useAuthContext } from '../contexts/authContextValue'
 import { Sound } from '../utils/Sound'
 import { calculateStats } from '../utils/daily/dailyOrderCalculations'
 import { notifyError, notifyInfo, notifySuccess } from '../utils/notice'
@@ -9,9 +9,13 @@ import { getTomorrowISOInTimeZone } from '../utils/dateUtils'
 import { getUserFriendlyErrorMessage } from '../utils'
 
 export const useDailyOrdersData = (user) => {
+  const {
+    isAdmin: isGlobalAdmin,
+    isCompanyAdmin,
+    adminCompanies
+  } = useAuthContext()
   const [orders, setOrders] = useState([])
   const [ordersLoading, setOrdersLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
   const [availableDishes, setAvailableDishes] = useState([])
   const [refreshing, setRefreshing] = useState(false)
   const [ordersError, setOrdersError] = useState('')
@@ -28,22 +32,7 @@ export const useDailyOrdersData = (user) => {
     pending: 0
   })
   const isFetchingRef = useRef(false)
-
-  const checkIfAdmin = useCallback(async () => {
-    if (!user?.id) {
-      setIsAdmin(false)
-      return
-    }
-    try {
-      const { data, error } = await usersService.getUserById(user.id)
-      if (!error && data) {
-        setIsAdmin(data?.role === 'admin')
-      }
-    } catch (err) {
-      console.error('Error checking admin status:', err)
-      setIsAdmin(false)
-    }
-  }, [user])
+  const hasAdminAccess = isGlobalAdmin || isCompanyAdmin
 
   const fetchDailyReportRunStatus = useCallback(async (reportDate) => {
     if (!reportDate) return
@@ -76,7 +65,7 @@ export const useDailyOrdersData = (user) => {
 
       const nextOperationalDate = deliveryDate || getTomorrowISOInTimeZone()
 
-      const { data: ordersData, error } = await db.getOrdersWithPersonKeyByDate({
+      const { data: ordersData, error } = await db.getDailyOrdersForAdmin({
         deliveryDate: nextOperationalDate,
         statuses: ['pending', 'archived']
       })
@@ -91,7 +80,15 @@ export const useDailyOrdersData = (user) => {
         setOrdersError('No se pudieron cargar los pedidos diarios. Usá Actualizar para reintentar.')
       } else {
         setOrdersError('')
-        const { data: peopleData } = await db.getAdminPeopleUnified()
+        let peopleData = []
+        try {
+          const peopleResult = await db.getAdminPeopleUnified()
+          peopleData = peopleResult?.data || []
+        } catch (peopleError) {
+          if (import.meta.env.DEV) {
+            console.warn('[daily-orders] No se pudo enriquecer personas:', peopleError)
+          }
+        }
         const personById = new Map(
           (Array.isArray(peopleData) ? peopleData : []).map(person => [person.person_id, person])
         )
@@ -150,13 +147,8 @@ export const useDailyOrdersData = (user) => {
   }, [fetchDailyReportRunStatus, operationalDate, user])
 
   useEffect(() => {
-    if (!user?.id) return
-    checkIfAdmin()
-  }, [user, checkIfAdmin])
-
-  useEffect(() => {
-    if (!user?.id || isAdmin !== true) return
-    if (isAdmin === true) {
+    if (!user?.id || !hasAdminAccess) return
+    if (hasAdminAccess) {
       fetchDailyOrders()
 
       const interval = setInterval(() => {
@@ -165,7 +157,7 @@ export const useDailyOrdersData = (user) => {
 
       return () => clearInterval(interval)
     }
-  }, [isAdmin, user, fetchDailyOrders])
+  }, [hasAdminAccess, user, fetchDailyOrders])
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -253,7 +245,10 @@ export const useDailyOrdersData = (user) => {
   return {
     orders,
     ordersLoading,
-    isAdmin,
+    isAdmin: hasAdminAccess,
+    isGlobalAdmin,
+    isCompanyAdmin,
+    adminCompanies,
     availableDishes,
     refreshing,
     ordersError,

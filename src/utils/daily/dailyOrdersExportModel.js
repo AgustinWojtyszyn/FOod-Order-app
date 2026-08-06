@@ -4,6 +4,7 @@ import { getSideAssociationsForOrder, getSideSummaryForOrder } from './dailyOrde
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
 import { isValidCustomerName } from '../order/orderCustomerName'
 import { isMealService, safeOrderItemsArray } from '../order/orderItemNormalization'
+import { getAdminExtraOrderLabel, isAdminExtraOrder } from './adminExtraOrders'
 
 const EMPTY = ''
 
@@ -146,6 +147,11 @@ export const extractCustomResponses = (order = {}) => {
 }
 
 export const getOrderTotalItems = (order = {}, items = extractOrderItems(order)) => {
+  if (isAdminExtraOrder(order)) {
+    const stored = Number(order.total_items)
+    if (Number.isFinite(stored) && stored > 0) return stored
+    return items.reduce((sum, item) => sum + item.quantity, 0)
+  }
   if (isMealService(order?.service || 'lunch')) return items.length
   const stored = Number(order.total_items)
   if (Number.isFinite(stored) && stored > 0) return stored
@@ -176,6 +182,7 @@ export const buildOrderExportRow = (order = {}) => {
     bebida: custom.beverage,
     cantidad: getOrderTotalItems(order, items),
     totalItems: getOrderTotalItems(order, items),
+    origen: getAdminExtraOrderLabel(order),
     comentarios: normalizeText(order.comments),
     opcionesAdicionales: custom.additional,
     estado: getStatusText(order.status),
@@ -240,6 +247,7 @@ export const buildDailyOrdersExcelDetailRow = (order = {}) => {
     'Opción elegida': getOptionNames(items),
     Guarniciones: custom.side || 'Sin guarnición',
     'Respuestas personalizadas': getCustomResponsesTextForExcel(order),
+    Origen: getAdminExtraOrderLabel(order),
     Comentarios: normalizeText(order.comments) || 'Sin comentarios',
     Estado: status === 'pending' ? 'Pendiente' : getStatusText(order.status)
   }
@@ -495,10 +503,12 @@ export const buildDailyOrdersSummary = (orders = [], selectedStatus = 'pending')
   const locationAdditional = new Map()
   let totalItems = 0
   let commentsCount = 0
+  let extraOrdersCount = 0
 
   rows.forEach((row) => {
     totalItems += row.totalItems
     if (row.comentarios) commentsCount += 1
+    if (row.origen === 'Extra') extraOrdersCount += 1
     incrementLocation(byLocation, row.ubicacion, 1, row.totalItems)
     incrementLocation(byDeliveryLocation, row.lugarEntrega, 1, row.totalItems)
     incrementCounter(byService, row.servicio, row.totalItems)
@@ -538,6 +548,7 @@ export const buildDailyOrdersSummary = (orders = [], selectedStatus = 'pending')
     totalOrders: rows.length,
     totalItems,
     commentsCount,
+    extraOrdersCount,
     byLocation: [...byLocation.entries()].map(([label, value]) => ({ label, ...value }))
       .sort((a, b) => b.orders - a.orders || a.label.localeCompare(b.label)),
     byDeliveryLocation: [...byDeliveryLocation.entries()].map(([label, value]) => ({ label, ...value }))
@@ -669,6 +680,9 @@ export const formatDailyOrdersOperationalText = (orders = [], selectedStatus = '
   lines.push(`- ${plural(summary.commentsCount, 'pedido tiene', 'pedidos tienen')} comentarios.`)
   lines.push(`- ${plural(beverageCount, 'pedido incluye', 'pedidos incluyen')} bebida.`)
   lines.push(`- ${plural(sideCount, 'pedido incluye', 'pedidos incluyen')} guarnición.`)
+  if (summary.extraOrdersCount > 0) {
+    lines.push(`- ${plural(summary.extraOrdersCount, 'pedido fue cargado', 'pedidos fueron cargados')} por administración.`)
+  }
 
   lines.push('', '*AVISOS*', '')
   if (summary.inconsistencies.length) {
@@ -686,6 +700,7 @@ export const formatDailyOrdersOperationalText = (orders = [], selectedStatus = '
 
 export const formatDailyOrdersForWhatsApp = (orders = [], selectedStatus = 'pending') => {
   const summary = buildWhatsAppLocationMenuSummary(orders, selectedStatus)
+  const extraOrdersCount = (orders || []).filter(isAdminExtraOrder).length
   const additionalByLocation = new Map(
     buildDailyOrdersSummary(orders, selectedStatus).additionalByLocation.map((location) => [
       location.label,
@@ -725,6 +740,7 @@ export const formatDailyOrdersForWhatsApp = (orders = [], selectedStatus = 'pend
   })
 
   lines.push('========================================', '', `✅ TOTAL GENERAL: ${summary.totalItems} pedidos`)
+  if (extraOrdersCount > 0) lines.push(`Extras cargados por admin: ${extraOrdersCount}`)
 
   return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }

@@ -79,6 +79,11 @@ const OrderLabelsResults = ({
                     <td className="border-b border-slate-200 px-4 py-4">
                       <div className="font-black text-slate-900">{label.customerName}</div>
                       <div className="text-xs font-semibold text-slate-500">{label.customerEmail || 'Sin email'}</div>
+                      {label.originLabel === 'Extra' && (
+                        <span className="mt-1 inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-black text-violet-800">
+                          Extra
+                        </span>
+                      )}
                     </td>
                     <td className="border-b border-slate-200 px-4 py-4 text-sm font-bold text-slate-700">{label.companyLabel}</td>
                     <td className="border-b border-slate-200 px-4 py-4 text-sm font-semibold text-slate-700">{label.deliveryLocation || 'Sin locación'}</td>
@@ -129,6 +134,11 @@ const OrderLabelsResults = ({
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate text-base font-black text-slate-900">{label.customerName}</h3>
                     <p className="text-xs font-semibold text-slate-500">{label.customerEmail || 'Sin email'}</p>
+                    {label.originLabel === 'Extra' && (
+                      <span className="mt-1 inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-black text-violet-800">
+                        Extra
+                      </span>
+                    )}
                     <p className="mt-2 text-sm font-bold text-slate-700">{label.companyLabel} · {label.serviceLabel} · {formatDate(order.delivery_date)}</p>
                     <p className="mt-1 text-sm text-slate-700">{label.itemsText}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-2">

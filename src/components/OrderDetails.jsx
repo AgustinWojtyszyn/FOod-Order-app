@@ -8,6 +8,7 @@ import { getUserFriendlyErrorMessage, isOrderEditable, formatDate } from '../uti
 import { EDIT_WINDOW_MINUTES } from '../constants/orderRules'
 import { confirmAction } from '../utils/confirm'
 import { notifyError, notifyInfo, notifySuccess } from '../utils/notice'
+import { isAdminExtraOrder } from '../utils/daily/adminExtraOrders'
 import {
   ArrowLeft,
   Building2,
@@ -259,6 +260,11 @@ const OrderDetails = ({ user, loading }) => {
                     <Package className="h-4 w-4" />
                     {order.total_items || items.length || 0} item(s)
                   </span>
+                  {isAdminExtraOrder(order) && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-800">
+                      Extra
+                    </span>
+                  )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                   <div>

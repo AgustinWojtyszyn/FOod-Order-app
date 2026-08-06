@@ -2,6 +2,7 @@ import {
   buildOrderPreview,
   buildTurnSummary
 } from './dailyOrderCalculations'
+import { getAdminExtraOrderLabel } from './adminExtraOrders'
 import { getStatusText } from './dailyOrderFormatters'
 import { notifyError, notifyInfo } from '../notice'
 
@@ -56,6 +57,7 @@ export function exportDailyOrdersPdf(sortedOrders) {
           <td>${preview.optionsText}</td>
           <td>${(order.service || 'lunch') === 'dinner' ? 'Cena' : 'Almuerzo'}</td>
           <td>${rowDeliveryDateLabel}</td>
+          <td>${getAdminExtraOrderLabel(order)}</td>
         </tr>
       `
   }).join('')
@@ -146,6 +148,7 @@ export function exportDailyOrdersPdf(sortedOrders) {
                 <th>Opciones</th>
                 <th>Turno</th>
                 <th>Entrega</th>
+                <th>Origen</th>
               </tr>
             </thead>
             <tbody>
