@@ -31,6 +31,7 @@ dist-ssr
 !supabase/migrations/20260803120000_company_remito_fixed_ranges.sql
 !supabase/migrations/20260806120000_append_menu_options_cutoff.sql
 !supabase/migrations/20260806153000_admin_extra_orders.sql
+!supabase/migrations/20260806170000_fix_admin_extra_order_rpc_payload_validation.sql
 !supabase/diagnostics/*.sql
 # Python
 __pycache__/

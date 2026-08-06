@@ -55,10 +55,17 @@ const mapErrorMessage = (error) => {
   if (message.includes('not_authorized')) return 'No tenés autorización para cargar pedidos extra en esa empresa.'
   if (message.includes('invalid_delivery_date')) return 'No se pueden cargar pedidos extra para fechas pasadas.'
   if (message.includes('menu_required')) return 'No existe un menú válido para esa fecha, empresa y turno.'
+  if (message.includes('company_required')) return 'Seleccioná una empresa para el pedido extra.'
+  if (message.includes('location_required')) return 'Seleccioná una sede válida para el pedido extra.'
+  if (message.includes('items_required')) return 'Seleccioná al menos un menú con cantidad mayor a cero.'
+  if (message.includes('invalid_service')) return 'Seleccioná un turno válido para el pedido extra.'
+  if (message.includes('client_not_found')) return 'No pudimos validar la persona seleccionada. Buscala nuevamente.'
+  if (message.includes('custom_responses_invalid')) return 'Las opciones del pedido tienen un formato inválido. Volvé a seleccionar las cantidades.'
   if (message.includes('location_not_allowed')) return 'La sede seleccionada no pertenece a la empresa autorizada.'
   if (message.includes('duplicate_active_order')) return 'La persona ya tiene un pedido para esa fecha y turno. Confirmá que es adicional.'
   if (message.includes('reason_required')) return 'Indicá el motivo del pedido extra.'
   if (message.includes('customer_reference_required')) return 'Indicá un nombre o referencia para la visita/extra.'
+  if (message.includes('null value') && message.includes('user_id')) return 'La base todavía no permite visitas sin cuenta. Aplicá la migración SQL de pedidos extra.'
   return 'No pudimos crear el pedido extra. Revisá los datos e intentá nuevamente.'
 }
 
