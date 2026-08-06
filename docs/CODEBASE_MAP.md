@@ -41,7 +41,6 @@ Definidas en `src/App.jsx`:
 - `/auditoria`: auditoria.
 - `/tendencias`: tendencias.
 - `/cafeteria`, `/cafeteria/new`, `/cafeteria/order`, `/cafeteria/confirm`: flujo cafeteria admin.
-- `/excel-analysis`: deshabilitado salvo entorno dev con flag.
 
 ## Flujo de creacion de pedidos
 

@@ -20,10 +20,10 @@ No agregar dependencias para `server.js` ni cambiar el deploy para ejecutarlo si
 
 `server.js` NO debe formar parte del runtime actual. No cambiar `render.yaml` para ejecutar `node server.js` sin completar antes esta lista:
 
-1. Declarar `express`, `body-parser`, `multer` y `xlsx` como dependencias directas si siguen siendo necesarias.
+1. Declarar `express` y `body-parser` como dependencias directas si siguen siendo necesarias.
 2. Eliminar cualquier fallback a variables con prefijo `VITE_*` para claves de backend.
-3. Validar rol admin server-side en endpoints sensibles como `/api/upload-excel`.
-4. Limitar MIME, extension real y tamano de archivos subidos.
+3. Validar rol admin server-side en endpoints sensibles.
+4. Limitar MIME, extension real y tamano de archivos subidos si se vuelve a incorporar carga de archivos.
 5. Revisar memoria y estrategia de `cluster` en Render antes de lanzar `os.cpus().length` workers.
 
 Hasta que esa lista este resuelta, cualquier funcionalidad que dependa de `/api/*` de `server.js` debe permanecer deshabilitada o migrarse a Supabase Edge Functions/backend real.

@@ -36,13 +36,6 @@ const CafeteriaNewOrderPage = lazy(() => import('./components/cafeteria/Cafeteri
 const CafeteriaCurrentOrderPage = lazy(() => import('./components/cafeteria/CafeteriaCurrentOrderPage'))
 const CafeteriaSuccessPage = lazy(() => import('./components/cafeteria/CafeteriaSuccessPage'))
 
-// Excel Analysis queda deshabilitado por defecto mientras Render sirve solo el
-// frontend estatico. Reactivar unicamente al migrarlo a Edge Function/backend real.
-const ENABLE_EXCEL_ANALYSIS = import.meta.env.DEV && import.meta.env.VITE_ENABLE_EXCEL_ANALYSIS === 'true'
-const ExcelAnalysis = ENABLE_EXCEL_ANALYSIS
-  ? lazy(() => import('./components/ExcelAnalysis'))
-  : null
-
 const ADMIN_ROUTE_PATHS = [
   '/cafeteria',
   '/cafeteria/new',
@@ -53,8 +46,7 @@ const ADMIN_ROUTE_PATHS = [
   '/daily-orders',
   '/monthly-panel',
   '/auditoria',
-  '/tendencias',
-  '/excel-analysis'
+  '/tendencias'
 ]
 
 // Componente de carga interno (para Suspense)
@@ -88,23 +80,6 @@ const AdminLayoutRoute = ({ user, loading }) => {
     </RequireAdmin>
   )
 }
-
-const ExcelAnalysisDisabled = () => (
-  <div className="mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center px-4 py-10">
-    <section className="w-full rounded-lg border border-white/20 bg-white p-6 text-slate-900 shadow-xl sm:p-8">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary-700">
-        Funcion temporalmente deshabilitada
-      </p>
-      <h1 className="mt-3 text-2xl font-bold sm:text-3xl">
-        Analisis de Excel no disponible
-      </h1>
-      <p className="mt-4 text-base leading-7 text-slate-700">
-        Esta herramienta depende de un endpoint backend que no forma parte del deploy actual.
-        Se debe migrar a una Supabase Edge Function o a un backend real antes de volver a habilitarla.
-      </p>
-    </section>
-  </div>
-)
 
 const ScreenMetricsListener = () => {
   useScreenMetrics()
@@ -169,7 +144,6 @@ const RouteSwitch = ({ user, loading }) => {
           <Route path="/monthly-panel" element={<MonthlyPanel user={user} loading={loading} />} />
           <Route path="/auditoria" element={<AuditLogs user={user} loading={loading} />} />
           <Route path="/tendencias" element={<TendenciasPage />} />
-          <Route path="/excel-analysis" element={ENABLE_EXCEL_ANALYSIS ? <ExcelAnalysis /> : <ExcelAnalysisDisabled />} />
         </Route>
 
         <Route
