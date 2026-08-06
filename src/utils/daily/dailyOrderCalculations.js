@@ -237,7 +237,7 @@ export const buildOperationalSummary = (ordersList = []) => {
 
   ;(ordersList || []).forEach(order => {
     if (!order) return
-    const { normalizedItems, normalizedCustomResponses } = normalizeOrderForReadOnly(order)
+    const { normalizedItems } = normalizeOrderForReadOnly(order)
 
     if (Array.isArray(normalizedItems)) {
       normalizedItems.forEach(item => {
