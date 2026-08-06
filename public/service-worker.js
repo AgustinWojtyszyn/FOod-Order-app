@@ -1,7 +1,5 @@
-const CACHE_NAME = 'servifood-pwa-v2'
+const CACHE_NAME = 'servifood-pwa-v3'
 const APP_SHELL = [
-  '/',
-  '/index.html',
   '/manifest.json',
   '/favicon.ico',
   '/icons/servifood-32.png',
@@ -40,26 +38,41 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-store' })
         .then((response) => {
-          const copy = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy))
           return response
         })
-        .catch(() => caches.match('/index.html'))
+        .catch(() => new Response('ServiFood no está disponible sin conexión. Volvé a intentar cuando tengas internet.', {
+          status: 503,
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+        }))
+    )
+    return
+  }
+
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      fetch(request).then((response) => {
+        const contentType = response.headers.get('content-type') || ''
+        if (response.ok && !contentType.includes('text/html')) {
+          const copy = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
+        }
+        return response
+      }).catch(() => caches.match(request))
     )
     return
   }
 
   if (
-    url.pathname.startsWith('/assets/') ||
     url.pathname.startsWith('/icons/') ||
     url.pathname === '/manifest.json'
   ) {
     event.respondWith(
       caches.match(request).then((cached) => (
         cached || fetch(request).then((response) => {
-          if (response.ok) {
+          const contentType = response.headers.get('content-type') || ''
+          if (response.ok && !contentType.includes('text/html')) {
             const copy = response.clone()
             caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
           }
