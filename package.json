@@ -1,11 +1,11 @@
 {
   "name": "food-order-app",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "version": "0.0.0",
+    "type": "module",
+    "scripts": {
+      "dev": "vite",
+      "build": "vite build",
     "build:analyze": "vite build --mode production && npx vite-bundle-visualizer",
     "lint": "eslint .",
     "test": "vitest run",
@@ -21,12 +21,10 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.80.0",
     "clsx": "^2.1.1",
-    "compression": "^1.8.1",
     "deno": "^2.6.8",
     "dompurify": "^3.3.0",
     "dotenv": "^17.2.3",
     "exceljs": "^4.4.0",
-    "express-rate-limit": "^8.2.1",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.553.0",
     "nodemailer": "^9.0.1",

@@ -6,6 +6,7 @@
 - React Router DOM 7.
 - Supabase JS 2 para Auth, Postgres, RPC y Edge Functions.
 - Supabase Edge Functions en Deno/TypeScript.
+- Render Static Site sirve `dist` como SPA estatica.
 - ExcelJS para reportes Excel en la Edge Function de reporte diario.
 - ESLint 9 y Vitest.
 
@@ -22,6 +23,19 @@
 - `supabase/migrations`: SQL critico de RPCs, guards, crons y archivado.
 - `docs`: documentacion operativa y auditorias.
 - `reports` y `testing`: pruebas de carga/reportes locales.
+
+## Runtime de produccion
+
+- Render usa `runtime: static` en `render.yaml`.
+- El build ejecuta `npm install && npm run build`.
+- Render publica `./dist`.
+- La regla `/* -> /index.html` conserva el routing SPA de React Router.
+- No hay runtime Node ni endpoints `/api` propios en produccion.
+- `/health` y `/__cache-debug` fueron retirados junto con `server.js`.
+- La UI de auditoria verifica salud consultando Supabase directamente desde `src/services/supabase.js`.
+- El backend real vive en Supabase: Auth, Postgres, RPCs y Edge Functions.
+- `daily-orders-report` y los crons dependen de Supabase Edge/SQL, no del deploy frontend de Render.
+- Los secretos server-side de Edge Functions no deben configurarse como `VITE_*` ni incorporarse al bundle frontend.
 
 ## Rutas y pantallas importantes
 

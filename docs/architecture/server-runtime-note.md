@@ -1,29 +1,34 @@
-# server.js runtime note
+# Render static runtime note
 
 ## Estado actual
 
-El archivo `server.js` existe en el repositorio, pero no forma parte del flujo de deploy actual.
-Render sirve la aplicacion como frontend estatico.
+Render sirve la aplicacion como una SPA estatica. El backend vigente vive en
+Supabase: Auth, Postgres, RPCs y Edge Functions.
 
 ### Evidencia
-- `render.yaml` construye con `npm run build`
-- `render.yaml` sirve la app con `npx serve -s dist -l ${PORT:-3000} --single`
-- `package.json` no tiene scripts que ejecuten `server.js`
 
-No agregar dependencias para `server.js` ni cambiar el deploy para ejecutarlo sin una decision explicita. Si se reactiva en el futuro, las claves privadas deben leerse solo desde variables backend como `SUPABASE_SERVICE_ROLE_KEY`; nunca desde variables con prefijo `VITE_`.
+- `render.yaml` define `runtime: static`.
+- `render.yaml` construye con `npm install && npm run build`.
+- `render.yaml` publica `./dist`.
+- El rewrite `/* -> /index.html` mantiene React Router en rutas directas.
 
-## Observacion importante
+## Backend
 
-`server.js` conserva endpoints y middleware que no se usan en el deploy vigente. Tambien referencia dependencias que no estan declaradas en `package.json`; eso es aceptable mientras el archivo siga fuera del runtime real.
+No hay runtime Node en produccion. `server.js` fue retirado porque ya no contenia
+endpoints de negocio. Con ese retiro tambien desaparecen `/health` y
+`/__cache-debug`.
 
-## Bloqueo contra reactivacion accidental
+Los procesos server-side reales son:
 
-`server.js` NO debe formar parte del runtime actual. No cambiar `render.yaml` para ejecutar `node server.js` sin completar antes esta lista:
+- Supabase Auth y Postgres desde el frontend con `@supabase/supabase-js`.
+- RPCs de dominio para pedidos, usuarios, archivado y metricas.
+- Edge Functions, en particular `daily-orders-report`.
+- Crons SQL/Supabase que invocan Edge Functions o RPCs.
 
-1. Declarar `express` y `body-parser` como dependencias directas si siguen siendo necesarias.
-2. Eliminar cualquier fallback a variables con prefijo `VITE_*` para claves de backend.
-3. Validar rol admin server-side en endpoints sensibles.
-4. Limitar MIME, extension real y tamano de archivos subidos si se vuelve a incorporar carga de archivos.
-5. Revisar memoria y estrategia de `cluster` en Render antes de lanzar `os.cpus().length` workers.
+`daily-orders-report` y los crons no dependen del deploy frontend. Sus secretos
+(`SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `EMAIL_PROVIDER_API_KEY`,
+destinatarios y remitente) deben configurarse como secretos de Supabase Edge
+Functions, no como variables `VITE_*` ni en Render Static.
 
-Hasta que esa lista este resuelta, cualquier funcionalidad que dependa de `/api/*` de `server.js` debe permanecer deshabilitada o migrarse a Supabase Edge Functions/backend real.
+La UI de auditoria verifica salud consultando Supabase directamente desde
+`src/services/supabase.js`; no llama a `/health`.

@@ -40,7 +40,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['server.js', 'testing/scripts/sendDailyOrdersEmail.js', 'testing/load/test-load.js'],
+    files: ['testing/scripts/sendDailyOrdersEmail.js', 'testing/load/test-load.js'],
     extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: 2020,
