@@ -24,6 +24,8 @@ const DailyOrderRow = ({
   const deliveryLocation = order.delivery_location || order.location
   const deliveryDiffers = deliveryLocation && deliveryLocation !== order.location
   const isExtra = isAdminExtraOrder(order)
+  const displayName = isExtra ? 'Solicitado por admin' : order.user_name
+  const displayEmail = isExtra ? '' : order.user_email
 
   if (variant === 'card') {
     const summary = summarizeOrderItems(order.items)
@@ -42,11 +44,13 @@ const DailyOrderRow = ({
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-base font-bold text-slate-900 truncate">
-              {order.user_name}
+              {displayName}
             </p>
-            <p className="text-xs text-slate-500 truncate">
-              {order.user_email || 'Sin email'}
-            </p>
+            {displayEmail && (
+              <p className="text-xs text-slate-500 truncate">
+                {displayEmail}
+              </p>
+            )}
           </div>
           {isExtra && (
             <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-black text-violet-800">
@@ -171,11 +175,13 @@ const DailyOrderRow = ({
           </div>
           <div>
             <h5 className="text-base font-extrabold text-slate-900 tracking-wide">
-              {order.user_name}
+              {displayName}
             </h5>
-            <p className="text-xs text-slate-500">
-              {order.user_email || 'Sin email'}
-            </p>
+            {displayEmail && (
+              <p className="text-xs text-slate-500">
+                {displayEmail}
+              </p>
+            )}
             {isExtra && (
               <span className="mt-1 inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-black text-violet-800">
                 Extra

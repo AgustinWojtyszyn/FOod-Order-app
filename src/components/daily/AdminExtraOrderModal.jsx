@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Loader2, Search, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, Loader2, X } from 'lucide-react'
 import { db } from '../../supabaseClient'
 import { ALL_COMPANY_LIST, COMPANY_CATALOG } from '../../constants/companyConfig'
 import { ORDER_CUTOFF_HOUR, ORDER_START_HOUR, ORDER_TIMEZONE } from '../../constants/orderRules'
@@ -59,13 +59,10 @@ const mapErrorMessage = (error) => {
   if (message.includes('location_required')) return 'Seleccioná una sede válida para el pedido extra.'
   if (message.includes('items_required')) return 'Seleccioná al menos un menú con cantidad mayor a cero.'
   if (message.includes('invalid_service')) return 'Seleccioná un turno válido para el pedido extra.'
-  if (message.includes('client_not_found')) return 'No pudimos validar la persona seleccionada. Buscala nuevamente.'
   if (message.includes('custom_responses_invalid')) return 'Las opciones del pedido tienen un formato inválido. Volvé a seleccionar las cantidades.'
   if (message.includes('location_not_allowed')) return 'La sede seleccionada no pertenece a la empresa autorizada.'
-  if (message.includes('duplicate_active_order')) return 'La persona ya tiene un pedido para esa fecha y turno. Confirmá que es adicional.'
   if (message.includes('reason_required')) return 'Indicá el motivo del pedido extra.'
-  if (message.includes('customer_reference_required')) return 'Indicá un nombre o referencia para la visita/extra.'
-  if (message.includes('null value') && message.includes('user_id')) return 'La base todavía no permite visitas sin cuenta. Aplicá la migración SQL de pedidos extra.'
+  if (message.includes('null value') && message.includes('user_id')) return 'La base todavía no permite pedidos extra sin cliente. Aplicá la migración SQL de pedidos extra.'
   return 'No pudimos crear el pedido extra. Revisá los datos e intentá nuevamente.'
 }
 
@@ -183,7 +180,6 @@ const AdminExtraOrderModal = ({
       .filter((company) => company?.slug && company.slug !== 'global')
   }, [adminCompanies, isGlobalAdmin])
 
-  const [mode, setMode] = useState('registered')
   const [deliveryDate, setDeliveryDate] = useState(operationalDate || today)
   const [companySlug, setCompanySlug] = useState('')
   const [location, setLocation] = useState('')
@@ -197,15 +193,6 @@ const AdminExtraOrderModal = ({
   const [reason, setReason] = useState('')
   const [otherReason, setOtherReason] = useState('')
   const [comment, setComment] = useState('')
-  const [search, setSearch] = useState('')
-  const [searchResults, setSearchResults] = useState([])
-  const [searchLoading, setSearchLoading] = useState(false)
-  const [selectedPerson, setSelectedPerson] = useState(null)
-  const [guestName, setGuestName] = useState('')
-  const [guestEmail, setGuestEmail] = useState('')
-  const [guestPhone, setGuestPhone] = useState('')
-  const [duplicateOrder, setDuplicateOrder] = useState(null)
-  const [duplicateConfirmed, setDuplicateConfirmed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const selectedCompany = useMemo(
@@ -298,53 +285,6 @@ const AdminExtraOrderModal = ({
     }
   }, [companySlug, deliveryDate, open, selectedCompany, service])
 
-  useEffect(() => {
-    if (!open || mode !== 'registered' || search.trim().length < 2) {
-      setSearchResults([])
-      return undefined
-    }
-    const timeoutId = window.setTimeout(async () => {
-      setSearchLoading(true)
-      const { data, error } = await db.searchAdminExtraOrderPeople({
-        search,
-        companySlug,
-        limit: 8
-      })
-      if (error) {
-        notifyError('No pudimos buscar personas.')
-        setSearchResults([])
-      } else {
-        setSearchResults(Array.isArray(data) ? data : [])
-      }
-      setSearchLoading(false)
-    }, 300)
-    return () => window.clearTimeout(timeoutId)
-  }, [companySlug, mode, open, search])
-
-  const checkDuplicate = useCallback(async () => {
-    if (mode !== 'registered' || !selectedPerson?.id || !deliveryDate || !service || !companySlug) {
-      setDuplicateOrder(null)
-      setDuplicateConfirmed(false)
-      return
-    }
-    const { data, error } = await db.getAdminExtraOrderDuplicate({
-      clientUserId: selectedPerson.id,
-      deliveryDate,
-      service,
-      companySlug
-    })
-    if (error) {
-      setDuplicateOrder(null)
-      return
-    }
-    setDuplicateOrder(data || null)
-    setDuplicateConfirmed(false)
-  }, [companySlug, deliveryDate, mode, selectedPerson, service])
-
-  useEffect(() => {
-    checkDuplicate()
-  }, [checkDuplicate])
-
   const selectedItems = useMemo(
     () => menuItems
       .map((item) => ({
@@ -413,27 +353,12 @@ const AdminExtraOrderModal = ({
       notifyError('La guarnición distinta no está disponible para esta opción.')
       return
     }
-    if (mode === 'registered' && !selectedPerson?.id) {
-      notifyError('Seleccioná una persona registrada.')
-      return
-    }
-    if (mode === 'guest' && !normalizeText(guestName)) {
-      notifyError('Indicá nombre o referencia para la visita/extra.')
-      return
-    }
-    if (duplicateOrder && !duplicateConfirmed) {
-      notifyError('Confirmá explícitamente que se trata de un pedido adicional.')
-      return
-    }
-
     setSubmitting(true)
     const payload = {
-      client_user_id: mode === 'registered' ? selectedPerson.id : null,
-      customer_name: mode === 'registered'
-        ? (selectedPerson.full_name || selectedPerson.email)
-        : guestName,
-      customer_email: mode === 'registered' ? selectedPerson.email : guestEmail,
-      customer_phone: mode === 'registered' ? null : guestPhone,
+      client_user_id: null,
+      customer_name: null,
+      customer_email: null,
+      customer_phone: null,
       delivery_date: deliveryDate,
       company_slug: companySlug,
       company_name: selectedCompany?.name || companySlug,
@@ -450,7 +375,7 @@ const AdminExtraOrderModal = ({
       quantity: totalMenuCount,
       reason: resolvedReason,
       comment,
-      duplicate_confirmed: Boolean(duplicateOrder && duplicateConfirmed)
+      duplicate_confirmed: false
     }
 
     const { error } = await db.createAdminExtraOrder(payload)
@@ -543,85 +468,6 @@ const AdminExtraOrderModal = ({
                 <option value="dinner">Cena</option>
               </select>
             </label>
-          </div>
-
-          <div className="rounded-lg border border-slate-200 p-3">
-            <div className="mb-3 grid grid-cols-2 rounded-lg bg-slate-100 p-1">
-              <button
-                type="button"
-                onClick={() => setMode('registered')}
-                className={`rounded-md px-3 py-2 text-sm font-bold ${mode === 'registered' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'}`}
-              >
-                Persona registrada
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('guest')}
-                className={`rounded-md px-3 py-2 text-sm font-bold ${mode === 'guest' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'}`}
-              >
-                Visita o extra
-              </button>
-            </div>
-
-            {mode === 'registered' ? (
-              <div className="space-y-3">
-                <label className="text-sm font-bold text-slate-700">
-                  Buscar persona
-                  <div className="relative mt-1">
-                    <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                    <input
-                      type="search"
-                      value={search}
-                      onChange={(event) => {
-                        setSearch(event.target.value)
-                        setSelectedPerson(null)
-                      }}
-                      placeholder="Nombre o correo"
-                      className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm font-semibold"
-                    />
-                  </div>
-                </label>
-                {searchLoading && <p className="text-xs font-semibold text-slate-500">Buscando...</p>}
-                {searchResults.length > 0 && !selectedPerson && (
-                  <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
-                    {searchResults.map((person) => (
-                      <button
-                        key={person.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedPerson(person)
-                          setSearch(person.full_name || person.email || '')
-                        }}
-                        className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
-                      >
-                        <span className="block font-bold text-slate-900">{person.full_name || 'Sin nombre'}</span>
-                        <span className="block text-xs font-semibold text-slate-500">{person.email}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {selectedPerson && (
-                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm">
-                    <span className="font-bold text-emerald-950">{selectedPerson.full_name || selectedPerson.email}</span>
-                    <span className="ml-2 text-emerald-800">{selectedPerson.email}</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-3">
-                <label className="sm:col-span-3 text-sm font-bold text-slate-700">
-                  Nombre o referencia
-                  <input
-                    value={guestName}
-                    onChange={(event) => setGuestName(event.target.value)}
-                    placeholder="Visita Gerencia"
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold"
-                  />
-                </label>
-                <input value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} placeholder="Correo opcional" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" />
-                <input value={guestPhone} onChange={(event) => setGuestPhone(event.target.value)} placeholder="Teléfono opcional" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold sm:col-span-2" />
-              </div>
-            )}
           </div>
 
           <div className="rounded-lg border border-slate-200 p-3">
@@ -733,24 +579,6 @@ const AdminExtraOrderModal = ({
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold"
             />
           </label>
-
-          {duplicateOrder && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-              <p className="font-black">La persona ya tiene un pedido pendiente para esta fecha y turno.</p>
-              <p className="mt-1 font-semibold">
-                Pedido existente: {(duplicateOrder.items || []).map((item) => item.name).join(', ') || 'Sin detalle'}.
-              </p>
-              <label className="mt-3 flex items-start gap-2 font-bold">
-                <input
-                  type="checkbox"
-                  checked={duplicateConfirmed}
-                  onChange={(event) => setDuplicateConfirmed(event.target.checked)}
-                  className="mt-1"
-                />
-                Confirmo que este pedido es adicional y debe auditarse como duplicado confirmado.
-              </label>
-            </div>
-          )}
 
           <div className="flex flex-col-reverse gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">
             <button

@@ -227,23 +227,6 @@ describe('ordersService admin extra RPCs', () => {
     expect(calls[0][2].p_payload.customer_name).toBe('Visita Gerencia')
   })
 
-  it('searches admin extra people through the limited RPC instead of users table scans', async () => {
-    const { supabase, calls } = createRpcSupabaseMock({ data: [{ id: 'user-1' }], error: null })
-    const service = createOrdersService({ supabase })
-
-    await expect(service.searchAdminExtraOrderPeople({
-      search: 'ana',
-      companySlug: 'laja',
-      limit: 8
-    })).resolves.toEqual({ data: [{ id: 'user-1' }], error: null })
-
-    expect(calls).toEqual([[
-      'rpc',
-      'search_admin_extra_order_people',
-      { p_search: 'ana', p_company_slug: 'laja', p_limit: 8 }
-    ]])
-  })
-
   it('deletes admin extra orders through the secure delete RPC with reason and request id', async () => {
     const { supabase, calls } = createRpcSupabaseMock({ data: { deleted: true }, error: null })
     const service = createOrdersService({ supabase })

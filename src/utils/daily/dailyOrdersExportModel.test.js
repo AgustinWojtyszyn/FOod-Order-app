@@ -124,6 +124,10 @@ describe('daily orders export model', () => {
     const extraOrder = {
       ...baseOrder,
       order_origin: 'admin_extra',
+      customer_name: '',
+      customer_email: '',
+      user_name: '',
+      user_email: '',
       total_items: 5,
       items: [
         { name: 'Opción 1 - BIDE DEL DIA', quantity: 3 },
@@ -142,6 +146,9 @@ describe('daily orders export model', () => {
     expect(summary.totalItems).toBe(5)
     expect(summary.extraOrdersCount).toBe(1)
     expect(row.Origen).toBe('Extra')
+    expect(row.Cliente).toBe('Solicitado por admin')
+    expect(summary.rows[0].cliente).toBe('Solicitado por admin')
+    expect(summary.rows[0].email).toBe('')
     expect(row['Menú elegido']).toContain('Opción 1 - BIDE DEL DIA')
     expect(row['Menú elegido']).toContain('Opción 2 - Pollo')
     expect(summary.rows[0].bebida).toBe('Coca Cola (x2)')

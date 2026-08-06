@@ -13,6 +13,9 @@ begin
   end if;
 end $$;
 
+drop function if exists public.search_admin_extra_order_people(text, text, integer);
+drop function if exists public.get_admin_extra_order_duplicate(uuid, date, text, text);
+
 create or replace function public.create_admin_extra_order(p_payload jsonb)
 returns public.orders
 language plpgsql
@@ -22,7 +25,6 @@ as $$
 declare
   v_admin_id uuid := auth.uid();
   v_admin public.users;
-  v_client public.users;
   v_order public.orders;
   v_items jsonb;
   v_custom_responses jsonb;
@@ -36,7 +38,6 @@ declare
   v_reference text;
   v_email text;
   v_phone text;
-  v_client_user_id uuid;
   v_idempotency_key text;
   v_quantity integer;
   v_duplicate_confirmed boolean;
@@ -46,9 +47,7 @@ declare
   v_location public.order_locations;
   v_delivery_location public.order_locations;
   v_organization public.order_organizations;
-  v_existing_order_id uuid;
   v_delivery_date_text text;
-  v_client_user_id_text text;
 begin
   if v_admin_id is null then
     raise exception 'not_authenticated';
@@ -72,30 +71,22 @@ begin
   v_comment := nullif(trim(coalesce(p_payload->>'comment', '')), '');
   v_items := coalesce(p_payload->'items', '[]'::jsonb);
   v_custom_responses := coalesce(p_payload->'custom_responses', '[]'::jsonb);
-  v_client_user_id_text := nullif(trim(coalesce(p_payload->>'client_user_id', '')), '');
-  v_reference := nullif(trim(coalesce(p_payload->>'customer_name', '')), '');
-  v_email := nullif(trim(coalesce(p_payload->>'customer_email', '')), '');
-  v_phone := nullif(trim(coalesce(p_payload->>'customer_phone', '')), '');
+  v_reference := null;
+  v_email := null;
+  v_phone := null;
   v_idempotency_key := nullif(trim(coalesce(p_payload->>'idempotency_key', '')), '');
   v_quantity := case
     when coalesce(p_payload->>'quantity', '') ~ '^[0-9]+$'
       then greatest((p_payload->>'quantity')::integer, 1)
     else 1
   end;
-  v_duplicate_confirmed := lower(coalesce(p_payload->>'duplicate_confirmed', 'false')) in ('true', 't', '1', 'yes');
+  v_duplicate_confirmed := false;
   v_outside_window := (v_ba_hour < 9 or v_ba_hour >= 22);
 
   if v_delivery_date_text is null or v_delivery_date_text !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then
     raise exception 'invalid_delivery_date';
   end if;
   v_delivery_date := v_delivery_date_text::date;
-
-  if v_client_user_id_text is not null then
-    if v_client_user_id_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
-      raise exception 'client_not_found';
-    end if;
-    v_client_user_id := v_client_user_id_text::uuid;
-  end if;
 
   if v_company_slug = '' then
     raise exception 'company_required';
@@ -187,38 +178,6 @@ begin
     where id = v_location.organization_id;
   end if;
 
-  if v_client_user_id is not null then
-    select *
-    into v_client
-    from public.users
-    where id = v_client_user_id;
-
-    if v_client.id is null then
-      raise exception 'client_not_found';
-    end if;
-
-    v_reference := coalesce(v_reference, nullif(trim(coalesce(v_client.full_name, '')), ''), v_client.email);
-    v_email := coalesce(v_email, nullif(trim(coalesce(v_client.email, '')), ''));
-
-    select o.id
-    into v_existing_order_id
-    from public.orders o
-    where o.user_id = v_client_user_id
-      and o.delivery_date = v_delivery_date
-      and coalesce(nullif(lower(o.service), ''), 'lunch') = v_service
-      and o.status = 'pending'
-    order by o.created_at desc
-    limit 1;
-
-    if v_existing_order_id is not null and not v_duplicate_confirmed then
-      raise exception 'duplicate_active_order';
-    end if;
-  else
-    if v_reference is null then
-      raise exception 'customer_reference_required';
-    end if;
-  end if;
-
   if v_idempotency_key is not null then
     select *
     into v_order
@@ -291,7 +250,7 @@ begin
     admin_extra_created_at
   )
   values (
-    v_client_user_id,
+    null,
     v_idempotency_key,
     coalesce(v_location.display_name, v_location_text),
     v_company_slug,
@@ -344,7 +303,7 @@ begin
     v_admin_id,
     v_admin.email,
     coalesce(nullif(trim(v_admin.full_name), ''), v_admin.email),
-    v_client_user_id,
+    null,
     v_email,
     v_reference,
     jsonb_build_object(
@@ -359,7 +318,7 @@ begin
       'reason', v_reason,
       'outside_window', v_outside_window,
       'duplicate_confirmed', v_duplicate_confirmed,
-      'existing_order_id', v_existing_order_id,
+      'existing_order_id', null,
       'origin', 'admin_extra'
     ),
     v_idempotency_key,

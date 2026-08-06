@@ -33,9 +33,14 @@ describe('admin extra orders migration', () => {
 
   it('keeps guest extra orders supported and avoids unsafe payload casts', () => {
     expect(rpcFixMigration).toContain('alter column user_id drop not null')
+    expect(rpcFixMigration).toContain('v_reference := null')
     expect(rpcFixMigration).toContain("v_delivery_date_text !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'")
-    expect(rpcFixMigration).toContain("v_client_user_id_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'")
     expect(rpcFixMigration).toContain("coalesce(item->>'quantity', '') ~ '^[0-9]+$'")
     expect(rpcFixMigration).toContain("raise exception 'custom_responses_invalid'")
+    expect(rpcFixMigration).not.toContain("raise exception 'customer_reference_required'")
+    expect(rpcFixMigration).not.toContain("raise exception 'duplicate_active_order'")
+    expect(rpcFixMigration).not.toContain('v_client public.users')
+    expect(rpcFixMigration).toContain('drop function if exists public.search_admin_extra_order_people')
+    expect(rpcFixMigration).toContain('drop function if exists public.get_admin_extra_order_duplicate')
   })
 })

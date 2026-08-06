@@ -103,7 +103,8 @@ export const useDailyOrdersData = (user) => {
           const emails = Array.isArray(person?.emails) ? person.emails.filter(Boolean) : []
           const orderEmail = order.customer_email || order.user_email || ''
           const orderName = order.customer_name || order.user_name || order.user_full_name || order.full_name || ''
-          let userName = orderName || (orderEmail ? orderEmail.split('@')[0] : '') || 'Usuario'
+          const isExtra = isAdminExtraOrder(order)
+          let userName = isExtra ? 'Solicitado por admin' : orderName || (orderEmail ? orderEmail.split('@')[0] : '') || 'Usuario'
           if (person) {
             userName = (person.display_name !== undefined ? person.display_name : null)
               || (emails[0] ? emails[0].split('@')[0] : null)
@@ -121,7 +122,7 @@ export const useDailyOrdersData = (user) => {
           return {
             ...order,
             user_name: userName,
-            user_email: orderEmail || emails[0] || ''
+            user_email: isExtra ? '' : orderEmail || emails[0] || ''
           }
         }).filter(Boolean) : []
 
@@ -247,7 +248,7 @@ export const useDailyOrdersData = (user) => {
     if (!order?.id || !isAdminExtraOrder(order)) return
     const confirmed = await confirmAction({
       title: 'Eliminar pedido extra',
-      message: `Se eliminará el pedido extra de ${order.user_name || order.customer_name || 'cliente'}. Esta acción queda auditada con snapshot completo.`,
+      message: 'Se eliminará este pedido extra solicitado por admin. Esta acción queda auditada con snapshot completo.',
       confirmText: 'Continuar'
     })
     if (!confirmed) return

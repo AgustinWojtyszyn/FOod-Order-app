@@ -84,10 +84,12 @@ export const getOrderOrganization = (order = {}) =>
   normalizeText(order.organization || order.company_name || order.company)
 
 export const getOrderCustomer = (order = {}) =>
-  normalizeText(order.customer_name || order.user_name || order.user_full_name || order.full_name || order.name) || 'Sin cliente'
+  isAdminExtraOrder(order)
+    ? 'Solicitado por admin'
+    : normalizeText(order.customer_name || order.user_name || order.user_full_name || order.full_name || order.name) || 'Sin cliente'
 
 export const getOrderEmail = (order = {}) =>
-  normalizeText(order.customer_email || order.user_email || order.email)
+  isAdminExtraOrder(order) ? '' : normalizeText(order.customer_email || order.user_email || order.email)
 
 export const getOrderPhone = (order = {}) =>
   normalizeText(order.customer_phone || order.phone)
