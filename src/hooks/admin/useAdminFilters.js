@@ -1,47 +1,46 @@
-import { useDeferredValue, useMemo, useState, useEffect } from 'react'
-import { buildUserSearchIndex, filterAndSortUsers } from '../../domain/admin/adminUserSearch'
+import { useEffect, useState } from 'react'
 
-const useAdminFilters = ({ users }) => {
+const useAdminFilters = () => {
   const pageSize = 40
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
   const [sortBy, setSortBy] = useState('name_asc')
   const [page, setPage] = useState(1)
-  const deferredSearchTerm = useDeferredValue(searchTerm)
-
-  const userSearchIndex = useMemo(
-    () => buildUserSearchIndex(users),
-    [users]
-  )
-
-  const filteredUsers = useMemo(
-    () => filterAndSortUsers(userSearchIndex, deferredSearchTerm, roleFilter, sortBy),
-    [userSearchIndex, deferredSearchTerm, roleFilter, sortBy]
-  )
 
   useEffect(() => {
-    setPage(1)
-  }, [deferredSearchTerm, roleFilter, sortBy, users])
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 300)
 
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize))
-  const safePage = Math.min(page, totalPages)
-  const pagedUsers = useMemo(() => {
-    const start = (safePage - 1) * pageSize
-    return filteredUsers.slice(start, start + pageSize)
-  }, [filteredUsers, safePage])
+    return () => window.clearTimeout(timer)
+  }, [searchTerm])
+
+  const changeSearchTerm = (value) => {
+    setSearchTerm(value)
+    setPage(1)
+  }
+
+  const changeRoleFilter = (value) => {
+    setRoleFilter(value)
+    setPage(1)
+  }
+
+  const changeSortBy = (value) => {
+    setSortBy(value)
+    setPage(1)
+  }
 
   return {
     searchTerm,
-    setSearchTerm,
+    debouncedSearchTerm,
+    setSearchTerm: changeSearchTerm,
     roleFilter,
-    setRoleFilter,
+    setRoleFilter: changeRoleFilter,
     sortBy,
-    setSortBy,
-    filteredUsers,
-    pagedUsers,
+    setSortBy: changeSortBy,
     page,
     setPage,
-    totalPages,
     pageSize
   }
 }

@@ -75,6 +75,29 @@ export const createUsersService = ({
       return { data, error }
     },
 
+    getAdminPeoplePage: async ({
+      search = '',
+      role = 'all',
+      sort = 'name_asc',
+      page = 1,
+      pageSize = 40
+    } = {}) => {
+      const normalizedRole = ['all', 'admin', 'user'].includes(role) ? role : 'all'
+      const normalizedSort = ['name_asc', 'name_desc', 'newest', 'oldest'].includes(sort) ? sort : 'name_asc'
+      const normalizedPage = Math.max(1, Number(page) || 1)
+      const normalizedPageSize = Math.max(1, Number(pageSize) || 40)
+
+      const { data, error } = await supabase.rpc('get_admin_people_page', {
+        p_search: (search || '').toString().trim(),
+        p_role: normalizedRole,
+        p_sort: normalizedSort,
+        p_page: normalizedPage,
+        p_page_size: normalizedPageSize
+      })
+
+      return { data, error }
+    },
+
     updateUserRole: async (userId, role) => {
       return updateUserRoleWithRpc({
         rpc: (name, args) => supabase.rpc(name, args),

@@ -14,6 +14,6 @@ export const ROLE_OPTIONS = [
 export const USER_SORT_OPTIONS = [
   { value: 'name_asc', label: 'Nombre (A-Z)' },
   { value: 'name_desc', label: 'Nombre (Z-A)' },
-  { value: 'created_desc', label: 'Fecha (más reciente)' },
-  { value: 'created_asc', label: 'Fecha (más antigua)' }
+  { value: 'newest', label: 'Más recientes' },
+  { value: 'oldest', label: 'Más antiguos' }
 ]

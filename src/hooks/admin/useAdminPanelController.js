@@ -58,7 +58,34 @@ const useAdminPanelController = ({
     }
   }, [companyOptions, firstCompanySlug, selectedMenuCompanySlug])
 
-  const { users, usersLoading, usersError, refreshUsers } = useAdminUsersData()
+  const {
+    searchTerm,
+    debouncedSearchTerm,
+    setSearchTerm,
+    roleFilter,
+    setRoleFilter,
+    sortBy,
+    setSortBy,
+    page,
+    setPage,
+    pageSize
+  } = useAdminFilters()
+
+  const {
+    users,
+    usersTotalCount,
+    usersTotalPages,
+    usersLoading,
+    usersError,
+    refreshUsers
+  } = useAdminUsersData({
+    enabled: !!user?.id && isAdmin,
+    searchTerm: debouncedSearchTerm,
+    roleFilter,
+    sortBy,
+    page,
+    pageSize
+  })
 
   const {
     draftMenuItemsByDate,
@@ -213,21 +240,6 @@ const useAdminPanelController = ({
   })
 
   const {
-    searchTerm,
-    setSearchTerm,
-    roleFilter,
-    setRoleFilter,
-    sortBy,
-    setSortBy,
-    filteredUsers,
-    pagedUsers,
-    page,
-    setPage,
-    totalPages,
-    pageSize
-  } = useAdminFilters({ users })
-
-  const {
     isPersonExpanded,
     togglePersonDetails,
     handleRoleChange,
@@ -243,11 +255,6 @@ const useAdminPanelController = ({
   const menuVisibleDates = buildVisibleDates(loadedDates, selectedDates)
     .filter(date => selectedDates.includes(date) || !hiddenMenuDates.includes(date))
   const dinnerVisibleDates = buildVisibleDates(dinnerLoadedDates, dinnerSelectedDates)
-
-  useEffect(() => {
-    if (!user?.id || !isAdmin) return
-    refreshUsers()
-  }, [isAdmin, user, refreshUsers])
 
   useEffect(() => {
     const globalOnlyTabs = ['users', 'options', 'companies', 'cleanup', 'cafeteria', 'dinner-option']
@@ -351,13 +358,13 @@ const useAdminPanelController = ({
       onRoleFilterChange: setRoleFilter,
       sortBy,
       onSortChange: setSortBy,
-      filteredUsers: pagedUsers,
-      usersCount: users.length,
+      filteredUsers: users,
+      usersCount: usersTotalCount,
       usersLoading,
       usersError,
-      filteredTotalCount: filteredUsers.length,
+      filteredTotalCount: users.length,
       page,
-      totalPages,
+      totalPages: usersTotalPages,
       pageSize,
       onPageChange: setPage,
       onClearFilters: () => {

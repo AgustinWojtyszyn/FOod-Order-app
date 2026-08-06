@@ -181,9 +181,62 @@ const mapAdminPeople = (people = [], accounts = []) => {
   return dedupedPeople
 }
 
+const mapAdminPeoplePageItems = (items = []) => {
+  if (!Array.isArray(items)) return []
+
+  return items.map((item = {}) => {
+    const emails = Array.isArray(item.emails)
+      ? item.emails.filter(Boolean)
+      : [item.email].filter(Boolean)
+    const userIds = Array.isArray(item.user_ids)
+      ? item.user_ids.filter(Boolean)
+      : [item.user_id, item.primary_user_id, item.id].filter(Boolean)
+    const accounts = Array.isArray(item.accounts) ? item.accounts : []
+    const primaryUserId = item.primary_user_id || item.user_id || userIds[0] || accounts[0]?.id || null
+    const role = item.role || item.primary_role || (accounts.some((account) => account?.role === 'admin') ? 'admin' : 'user')
+
+    return {
+      ...item,
+      id: item.id || item.person_id || primaryUserId || emails[0],
+      person_id: item.person_id || item.id || primaryUserId || emails[0],
+      group_id: item.group_id || null,
+      full_name: item.full_name || item.display_name || item.name || emails[0] || 'Sin nombre',
+      email: item.email || emails[0] || '',
+      emails,
+      user_ids: userIds,
+      primary_user_id: primaryUserId,
+      members_count: Math.max(
+        item.members_count || 1,
+        userIds.length,
+        emails.length,
+        accounts.length
+      ),
+      is_grouped: Boolean(item.is_grouped) || userIds.length > 1 || emails.length > 1 || accounts.length > 1,
+      created_at: item.created_at || item.first_created || item.last_created || accounts[0]?.created_at || null,
+      role,
+      accounts
+    }
+  })
+}
+
+const normalizeAdminPeoplePage = (payload = {}) => {
+  const pageData = Array.isArray(payload) ? { items: payload } : (payload || {})
+  const items = mapAdminPeoplePageItems(pageData.items || [])
+  const totalCount = Number(pageData.total_count ?? items.length)
+  const totalPages = Number(pageData.total_pages ?? 1)
+
+  return {
+    items,
+    total_count: Number.isFinite(totalCount) ? totalCount : items.length,
+    total_pages: Math.max(1, Number.isFinite(totalPages) ? totalPages : 1)
+  }
+}
+
 export {
   normalizeName,
   normalizeEmail,
   toDateMs,
-  mapAdminPeople
+  mapAdminPeople,
+  mapAdminPeoplePageItems,
+  normalizeAdminPeoplePage
 }
