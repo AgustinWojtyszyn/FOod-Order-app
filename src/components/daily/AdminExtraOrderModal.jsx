@@ -62,6 +62,7 @@ const mapErrorMessage = (error) => {
   if (message.includes('custom_responses_invalid')) return 'Las opciones del pedido tienen un formato inválido. Volvé a seleccionar las cantidades.'
   if (message.includes('location_not_allowed')) return 'La sede seleccionada no pertenece a la empresa autorizada.'
   if (message.includes('reason_required')) return 'Indicá el motivo del pedido extra.'
+  if (message.includes('customer_reference_required') || message.includes('duplicate_active_order')) return 'La base todavía tiene activa la versión anterior de pedidos extra. Aplicá la migración SQL de pedidos extra.'
   if (message.includes('null value') && message.includes('user_id')) return 'La base todavía no permite pedidos extra sin cliente. Aplicá la migración SQL de pedidos extra.'
   return 'No pudimos crear el pedido extra. Revisá los datos e intentá nuevamente.'
 }
