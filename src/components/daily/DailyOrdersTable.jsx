@@ -8,6 +8,7 @@ const DailyOrdersTable = ({
   selectedLocation,
   selectedStatus,
   onArchiveOrder,
+  onDeleteExtraOrder,
   onViewOrder
 }) => (
   <div className="rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-200/50 print-hide">
@@ -86,6 +87,7 @@ const DailyOrdersTable = ({
                   order={order}
                   index={index}
                   onArchiveOrder={onArchiveOrder}
+                  onDeleteExtraOrder={onDeleteExtraOrder}
                 />
               ))}
             </tbody>
@@ -99,6 +101,7 @@ const DailyOrdersTable = ({
               order={order}
               variant="card"
               onArchiveOrder={onArchiveOrder}
+              onDeleteExtraOrder={onDeleteExtraOrder}
               onViewOrder={onViewOrder}
             />
           ))}

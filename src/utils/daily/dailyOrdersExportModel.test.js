@@ -120,6 +120,25 @@ describe('daily orders export model', () => {
     expect(text).toContain('Total Administración ServiFood: 1')
   })
 
+  it('mantiene cantidad real y origen para pedidos extra administrativos', () => {
+    const extraOrder = {
+      ...baseOrder,
+      order_origin: 'admin_extra',
+      total_items: 4,
+      items: [{ name: 'Opción 1 - BIDE DEL DIA', quantity: 4 }]
+    }
+
+    const summary = buildDailyOrdersSummary([extraOrder], 'pending')
+    const [row] = buildDailyOrdersExcelDetailRows([extraOrder])
+    const whatsapp = formatDailyOrdersForWhatsApp([extraOrder], 'pending')
+
+    expect(summary.totalItems).toBe(4)
+    expect(summary.extraOrdersCount).toBe(1)
+    expect(row.Origen).toBe('Extra')
+    expect(whatsapp).toContain('TOTAL GENERAL: 4 pedidos')
+    expect(whatsapp).toContain('Extras cargados por admin: 1')
+  })
+
   it('genera nombre de Excel con delivery_date y estado', () => {
     const summary = buildDailyOrdersSummary([baseOrder], 'pending')
 

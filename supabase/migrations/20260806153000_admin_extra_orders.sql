@@ -550,6 +550,143 @@ begin
 end;
 $$;
 
+create or replace function public.delete_admin_extra_order(
+  p_order_id uuid,
+  p_reason text,
+  p_request_id text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_admin_id uuid := auth.uid();
+  v_admin public.users;
+  v_order public.orders;
+  v_reason text := nullif(trim(coalesce(p_reason, '')), '');
+  v_request_id text := nullif(trim(coalesce(p_request_id, '')), '');
+  v_allowed boolean := false;
+begin
+  if v_admin_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  if p_order_id is null then
+    raise exception 'order_required';
+  end if;
+
+  if v_reason is null then
+    raise exception 'reason_required';
+  end if;
+
+  select *
+  into v_admin
+  from public.users
+  where id = v_admin_id;
+
+  if not public.has_company_admin_access() then
+    raise exception 'not_authorized';
+  end if;
+
+  if v_request_id is not null and exists (
+    select 1
+    from public.audit_logs a
+    where a.request_id = v_request_id
+      and a.action = 'admin_extra_order_deleted'
+  ) then
+    return jsonb_build_object(
+      'deleted', false,
+      'idempotent', true,
+      'order_id', p_order_id
+    );
+  end if;
+
+  select *
+  into v_order
+  from public.orders
+  where id = p_order_id
+  for update;
+
+  if not found then
+    raise exception 'order_not_found';
+  end if;
+
+  if lower(coalesce(v_order.order_origin, 'user')) <> 'admin_extra' then
+    raise exception 'not_admin_extra_order';
+  end if;
+
+  if public.is_admin() then
+    v_allowed := true;
+  else
+    select exists (
+      select 1
+      from public.company_admins ca
+      join public.companies c on c.id = ca.company_id
+      where ca.user_id = v_admin_id
+        and (
+          c.slug = v_order.company_slug
+          or public.admin_extra_company_location_allowed(c.slug, coalesce(v_order.location, v_order.delivery_location, ''))
+        )
+    )
+    into v_allowed;
+  end if;
+
+  if not coalesce(v_allowed, false) then
+    raise exception 'not_authorized';
+  end if;
+
+  insert into public.audit_logs (
+    action,
+    details,
+    actor_id,
+    actor_email,
+    actor_name,
+    target_id,
+    target_email,
+    target_name,
+    metadata,
+    request_id,
+    created_at
+  )
+  values (
+    'admin_extra_order_deleted',
+    'Pedido extra eliminado por administrador',
+    v_admin_id,
+    v_admin.email,
+    coalesce(nullif(trim(v_admin.full_name), ''), v_admin.email),
+    v_order.user_id,
+    v_order.customer_email,
+    v_order.customer_name,
+    jsonb_build_object(
+      'reason', v_reason,
+      'order_id', v_order.id,
+      'company_slug', v_order.company_slug,
+      'company_name', v_order.company_name,
+      'location', v_order.location,
+      'delivery_location', v_order.delivery_location,
+      'delivery_date', v_order.delivery_date,
+      'service', v_order.service,
+      'origin', v_order.order_origin,
+      'snapshot', to_jsonb(v_order)
+    ),
+    v_request_id,
+    now()
+  )
+  on conflict (request_id, action) where request_id is not null do nothing;
+
+  delete from public.orders
+  where id = v_order.id
+    and lower(coalesce(order_origin, 'user')) = 'admin_extra';
+
+  return jsonb_build_object(
+    'deleted', true,
+    'idempotent', false,
+    'order_id', v_order.id
+  );
+end;
+$$;
+
 create or replace function public.resolve_order_delivery_snapshot()
 returns trigger
 language plpgsql
@@ -678,3 +815,7 @@ grant execute on function public.create_admin_extra_order(jsonb) to authenticate
 revoke all on function public.get_daily_orders_for_admin(date, text[]) from public;
 revoke all on function public.get_daily_orders_for_admin(date, text[]) from anon;
 grant execute on function public.get_daily_orders_for_admin(date, text[]) to authenticated;
+
+revoke all on function public.delete_admin_extra_order(uuid, text, text) from public;
+revoke all on function public.delete_admin_extra_order(uuid, text, text) from anon;
+grant execute on function public.delete_admin_extra_order(uuid, text, text) to authenticated;

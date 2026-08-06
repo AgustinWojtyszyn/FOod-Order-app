@@ -56,7 +56,8 @@ const DailyOrders = ({ user, loading }) => {
     handleRefresh,
     handleDeliveryDateChange,
     handleArchiveOrder,
-    handleArchiveAllPending
+    handleArchiveAllPending,
+    handleDeleteExtraOrder
   } = useDailyOrdersData(user)
 
   const {
@@ -255,6 +256,7 @@ const DailyOrders = ({ user, loading }) => {
           selectedLocation={selectedLocation}
           selectedStatus={selectedStatus}
           onArchiveOrder={isGlobalAdmin ? handleArchiveOrder : null}
+          onDeleteExtraOrder={handleDeleteExtraOrder}
           onViewOrder={(orderId) => navigate(`/orders/${orderId}`)}
         />
       </div>

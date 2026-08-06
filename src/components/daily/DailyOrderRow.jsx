@@ -18,6 +18,7 @@ const DailyOrderRow = ({
   index,
   variant = 'table',
   onArchiveOrder,
+  onDeleteExtraOrder,
   onViewOrder
 }) => {
   const deliveryLocation = order.delivery_location || order.location
@@ -126,7 +127,7 @@ const DailyOrderRow = ({
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
           {order.status === 'pending' && onArchiveOrder ? (
             <button
               className="text-xs font-semibold text-primary-700 hover:text-primary-900"
@@ -143,6 +144,14 @@ const DailyOrderRow = ({
           >
             Ver pedido
           </button>
+          {isExtra && onDeleteExtraOrder && (
+            <button
+              className="text-xs font-bold text-red-700 hover:text-red-900"
+              onClick={() => onDeleteExtraOrder(order)}
+            >
+              Eliminar pedido extra
+            </button>
+          )}
         </div>
       </div>
     )
@@ -243,16 +252,26 @@ const DailyOrderRow = ({
         </span>
       </td>
       <td className="border-b border-slate-200/70 px-4 py-5">
-        {order.status === 'pending' && onArchiveOrder ? (
-          <button
-            onClick={() => onArchiveOrder(order)}
-            className="inline-flex items-center rounded-lg border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700 hover:bg-primary-100"
-          >
-            Archivar
-          </button>
-        ) : (
-          <span className="text-xs text-slate-400">—</span>
-        )}
+        <div className="flex flex-col gap-2">
+          {order.status === 'pending' && onArchiveOrder ? (
+            <button
+              onClick={() => onArchiveOrder(order)}
+              className="inline-flex items-center justify-center rounded-lg border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700 hover:bg-primary-100"
+            >
+              Archivar
+            </button>
+          ) : (
+            <span className="text-xs text-slate-400">—</span>
+          )}
+          {isExtra && onDeleteExtraOrder && (
+            <button
+              onClick={() => onDeleteExtraOrder(order)}
+              className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 py-1 text-xs font-bold text-red-700 hover:bg-red-100"
+            >
+              Eliminar pedido extra
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   )

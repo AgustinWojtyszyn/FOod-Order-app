@@ -211,6 +211,69 @@ describe('ordersService admin cleanup RPCs', () => {
   })
 })
 
+describe('ordersService admin extra RPCs', () => {
+  it('creates admin extra orders through the secure RPC with idempotency', async () => {
+    const { supabase, calls } = createRpcSupabaseMock({ data: { id: 'extra-1' }, error: null })
+    const service = createOrdersService({ supabase })
+
+    await expect(service.createAdminExtraOrder({
+      customer_name: 'Visita Gerencia',
+      company_slug: 'genneia'
+    })).resolves.toEqual({ data: { id: 'extra-1' }, error: null })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0][1]).toBe('create_admin_extra_order')
+    expect(calls[0][2].p_payload.idempotency_key).toMatch(/^admin-extra-order-/)
+    expect(calls[0][2].p_payload.customer_name).toBe('Visita Gerencia')
+  })
+
+  it('searches admin extra people through the limited RPC instead of users table scans', async () => {
+    const { supabase, calls } = createRpcSupabaseMock({ data: [{ id: 'user-1' }], error: null })
+    const service = createOrdersService({ supabase })
+
+    await expect(service.searchAdminExtraOrderPeople({
+      search: 'ana',
+      companySlug: 'laja',
+      limit: 8
+    })).resolves.toEqual({ data: [{ id: 'user-1' }], error: null })
+
+    expect(calls).toEqual([[
+      'rpc',
+      'search_admin_extra_order_people',
+      { p_search: 'ana', p_company_slug: 'laja', p_limit: 8 }
+    ]])
+  })
+
+  it('deletes admin extra orders through the secure delete RPC with reason and request id', async () => {
+    const { supabase, calls } = createRpcSupabaseMock({ data: { deleted: true }, error: null })
+    const service = createOrdersService({ supabase })
+
+    await expect(service.deleteAdminExtraOrder({
+      orderId: 'order-1',
+      reason: 'Carga duplicada'
+    })).resolves.toEqual({ data: { deleted: true }, error: null })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0][1]).toBe('delete_admin_extra_order')
+    expect(calls[0][2]).toMatchObject({
+      p_order_id: 'order-1',
+      p_reason: 'Carga duplicada'
+    })
+    expect(calls[0][2].p_request_id).toMatch(/^admin-extra-order-delete-/)
+  })
+
+  it('rejects deleteAdminExtraOrder locally without a mandatory reason', async () => {
+    const { supabase, calls } = createRpcSupabaseMock({ data: { deleted: true }, error: null })
+    const service = createOrdersService({ supabase })
+
+    const result = await service.deleteAdminExtraOrder({ orderId: 'order-1', reason: '   ' })
+
+    expect(result.data).toBeNull()
+    expect(result.error?.message).toContain('reason es requerido')
+    expect(calls).toEqual([])
+  })
+})
+
 describe('withSupabaseRetry', () => {
   it('retries transient network errors and returns the successful result', async () => {
     const operation = vi.fn()

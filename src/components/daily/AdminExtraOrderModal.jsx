@@ -7,6 +7,7 @@ import { getTodayISOInTimeZone } from '../../utils/dateUtils'
 import { mergeCompanyMenuItems } from '../../utils/order/companyMenuMerge'
 import { filterOrderableMenuItems, getMenuDisplay, withMenuSlotIndex } from '../../utils/order/menuDisplay'
 import { sortMenuItems } from '../../utils/order/orderMenuHelpers'
+import { canChooseCustomSide } from '../../utils/order/orderCustomSideRules'
 import { notifyError, notifySuccess } from '../../utils/notice'
 
 const REASONS = [
@@ -34,6 +35,7 @@ const isOutsideOrderWindow = () => {
 const normalizeText = (value = '') => String(value || '').trim()
 
 const getOptionTitle = (option = {}) => option.title || option.label || option.name || 'Opción'
+const isCustomSideOption = (option = {}) => getOptionTitle(option).toLowerCase().includes('guarn')
 
 const safeOptions = (option = {}) => {
   if (Array.isArray(option.options)) return option.options
@@ -271,10 +273,21 @@ const AdminExtraOrderModal = ({
       return
     }
     const missingRequired = customOptions
-      .filter((option) => option.required && !hasOptionResponse(customResponses[option.id]))
+      .filter((option) => {
+        if (!option.required) return false
+        if (selectedItem && isCustomSideOption(option) && !canChooseCustomSide(selectedItem)) return false
+        return !hasOptionResponse(customResponses[option.id])
+      })
       .map(getOptionTitle)
     if (missingRequired.length > 0) {
       notifyError(`Completá las opciones requeridas: ${missingRequired.join(', ')}.`)
+      return
+    }
+    const blockedCustomSide = selectedItem && !canChooseCustomSide(selectedItem) && customOptions.some((option) =>
+      isCustomSideOption(option) && hasOptionResponse(customResponses[option.id])
+    )
+    if (blockedCustomSide) {
+      notifyError('La guarnición distinta no está disponible para esta opción.')
       return
     }
     if (mode === 'registered' && !selectedPerson?.id) {

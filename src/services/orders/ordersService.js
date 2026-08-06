@@ -226,6 +226,23 @@ export const createOrdersService = ({ supabase, invalidateCache = () => {} } = {
       }, { context: 'admin daily orders rpc' })
     },
 
+    deleteAdminExtraOrder: async ({ orderId, reason, requestId = null } = {}) => {
+      invalidateCache()
+      if (!orderId) {
+        return { data: null, error: new Error('orderId es requerido para eliminar un pedido extra') }
+      }
+      if (!String(reason || '').trim()) {
+        return { data: null, error: new Error('reason es requerido para eliminar un pedido extra') }
+      }
+      const deleteRequestId = requestId || createRequestId('admin-extra-order-delete')
+      const { data, error } = await supabase.rpc('delete_admin_extra_order', {
+        p_order_id: orderId,
+        p_reason: reason,
+        p_request_id: deleteRequestId
+      })
+      return { data, error }
+    },
+
     getOrders: async (userId = null, {
       status = null,
       deliveryDate = null,

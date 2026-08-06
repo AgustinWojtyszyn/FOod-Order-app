@@ -7,6 +7,7 @@ import { notifyError, notifyInfo, notifySuccess } from '../utils/notice'
 import { confirmAction } from '../utils/confirm'
 import { getTomorrowISOInTimeZone } from '../utils/dateUtils'
 import { getUserFriendlyErrorMessage } from '../utils'
+import { isAdminExtraOrder } from '../utils/daily/adminExtraOrders'
 
 export const useDailyOrdersData = (user) => {
   const {
@@ -242,6 +243,44 @@ export const useDailyOrdersData = (user) => {
     }
   }, [handleRefresh, operationalDate, orders])
 
+  const handleDeleteExtraOrder = useCallback(async (order) => {
+    if (!order?.id || !isAdminExtraOrder(order)) return
+    const confirmed = await confirmAction({
+      title: 'Eliminar pedido extra',
+      message: `Se eliminará el pedido extra de ${order.user_name || order.customer_name || 'cliente'}. Esta acción queda auditada con snapshot completo.`,
+      confirmText: 'Continuar'
+    })
+    if (!confirmed) return
+
+    const reason = typeof window !== 'undefined'
+      ? window.prompt('Motivo obligatorio para eliminar el pedido extra:')
+      : ''
+    const normalizedReason = String(reason || '').trim()
+    if (!normalizedReason) {
+      notifyError('Indicá el motivo para eliminar el pedido extra.')
+      return
+    }
+
+    const { error } = await db.deleteAdminExtraOrder({
+      orderId: order.id,
+      reason: normalizedReason
+    })
+    if (error) {
+      notifyError(getUserFriendlyErrorMessage(error, 'No pudimos eliminar el pedido extra. Intentá nuevamente.'))
+      return
+    }
+
+    notifySuccess('Pedido extra eliminado correctamente.')
+    Sound.playSuccess()
+    setOrders((prev) => {
+      if (!Array.isArray(prev)) return prev
+      const next = prev.filter((item) => item?.id !== order.id)
+      setStats(calculateStats(next))
+      return next
+    })
+    handleRefresh()
+  }, [handleRefresh])
+
   return {
     orders,
     ordersLoading,
@@ -260,6 +299,7 @@ export const useDailyOrdersData = (user) => {
     handleRefresh,
     handleDeliveryDateChange,
     handleArchiveOrder,
-    handleArchiveAllPending
+    handleArchiveAllPending,
+    handleDeleteExtraOrder
   }
 }
