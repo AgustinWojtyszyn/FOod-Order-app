@@ -1,9 +1,14 @@
 import { buildDailyOrdersSummary, formatTimeOnly } from './dailyOrdersExportModel'
+import { getOperationalOrderUnits } from './dailyOrderCalculations'
 
 const normalizeText = (value = '') => String(value || '').trim()
 
 const countByStatus = (orders = [], status) =>
-  (orders || []).filter(order => String(order?.status || '').toLowerCase() === status).length
+  (orders || []).reduce((sum, order) => (
+    String(order?.status || '').toLowerCase() === status
+      ? sum + getOperationalOrderUnits(order)
+      : sum
+  ), 0)
 
 const normalizeDailyReportArchiveStatus = (run = null) => {
   const status = String(run?.archive_status || '').toLowerCase()
@@ -203,11 +208,12 @@ export const getDailyOperationalStatus = ({
   const safeOrders = Array.isArray(orders) ? orders : []
   const summary = buildDailyOrdersSummary(safeOrders, selectedStatus)
   const reportStatus = normalizeDailyReportRunStatus(reportRun, reportRunError)
+  const totalOrders = safeOrders.reduce((sum, order) => sum + getOperationalOrderUnits(order), 0)
   const pendingCount = countByStatus(safeOrders, 'pending')
   const archivedCount = countByStatus(safeOrders, 'archived')
   const inconsistencyCount = summary.inconsistencies.length
   const overallStatus = getDailyCloseOverallStatus({
-    totalOrders: safeOrders.length,
+    totalOrders,
     inconsistencyCount,
     pendingCount,
     reportStatus
@@ -215,7 +221,7 @@ export const getDailyOperationalStatus = ({
 
   return {
     deliveryDate,
-    totalOrders: safeOrders.length,
+    totalOrders,
     totalItems: summary.totalItems,
     pendingCount,
     archivedCount,
@@ -230,7 +236,7 @@ export const getDailyOperationalStatus = ({
     isExportFiltered: exportCompany !== 'all',
     canArchivePending: pendingCount > 0,
     checklist: buildDailyCloseChecklist({
-      totalOrders: safeOrders.length,
+      totalOrders,
       inconsistencyCount,
       pendingCount,
       reportStatus,

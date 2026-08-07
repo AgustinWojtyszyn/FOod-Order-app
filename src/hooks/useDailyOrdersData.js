@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { db } from '../supabaseClient'
 import { useAuthContext } from '../contexts/authContextValue'
 import { Sound } from '../utils/Sound'
-import { calculateStats } from '../utils/daily/dailyOrderCalculations'
+import { calculateStats, getOperationalOrderUnits } from '../utils/daily/dailyOrderCalculations'
 import { notifyError, notifyInfo, notifySuccess } from '../utils/notice'
 import { confirmAction } from '../utils/confirm'
 import { getTomorrowISOInTimeZone } from '../utils/dateUtils'
@@ -199,10 +199,12 @@ export const useDailyOrdersData = (user) => {
   }, [handleRefresh])
 
   const handleArchiveAllPending = useCallback(async () => {
-    const pendingCount = (Array.isArray(orders) ? orders : []).filter((order) =>
+    const pendingCount = (Array.isArray(orders) ? orders : []).reduce((sum, order) => (
       String(order?.status || '').toLowerCase() === 'pending' &&
       String(order?.delivery_date || '') === operationalDate
-    ).length
+        ? sum + getOperationalOrderUnits(order)
+        : sum
+    ), 0)
 
     if (pendingCount === 0) {
       notifyInfo('No hay pedidos pendientes para archivar.')

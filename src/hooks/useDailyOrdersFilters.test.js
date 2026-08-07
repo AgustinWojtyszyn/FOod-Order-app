@@ -32,4 +32,29 @@ describe('daily orders status filtering', () => {
     expect(stats.archived).toBe(1)
     expect(stats.total).toBe(4)
   })
+
+  it('calculateStats cuenta pedidos extra por cantidad real de menús', () => {
+    const stats = calculateStats([
+      {
+        id: 'normal-1',
+        status: 'pending',
+        location: 'CCP',
+        total_items: 1,
+        items: [{ name: 'Opción 1', quantity: 1 }]
+      },
+      {
+        id: 'extra-1',
+        status: 'pending',
+        location: 'CCP',
+        order_origin: 'admin_extra',
+        total_items: 20,
+        items: [{ name: 'Opción 1', quantity: 20 }]
+      }
+    ])
+
+    expect(stats.total).toBe(21)
+    expect(stats.pending).toBe(21)
+    expect(stats.byLocation.CCP).toBe(21)
+    expect(stats.totalItems).toBe(21)
+  })
 })

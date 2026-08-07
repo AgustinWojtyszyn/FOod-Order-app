@@ -2,6 +2,7 @@ import { BEVERAGE_KEYWORDS, DINNER_OVERRIDE_KEYWORDS } from './dailyOrderConstan
 import { normalizeDishName } from './dailyOrderFormatters'
 import { getSideSummaryForOrder } from './dailyOrderSideAssociations'
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
+import { isAdminExtraOrder } from './adminExtraOrders'
 
 const UNSPECIFIED_BEVERAGE_LABEL = 'Bebida sin especificar'
 const GENNEIA_DINNER_BEVERAGE_FIX_DATE = '2026-08-03'
@@ -35,10 +36,18 @@ const getNormalizedOrderItemTotal = (order = {}) => {
   return 0
 }
 
+export const getOperationalOrderUnits = (order = {}) => {
+  if (!isAdminExtraOrder(order)) return 1
+  const stored = Number(order?.total_items)
+  if (Number.isFinite(stored) && stored > 0) return stored
+  const itemTotal = getNormalizedOrderItemTotal(order)
+  return itemTotal > 0 ? itemTotal : 1
+}
+
 export const getCustomSideFromResponses = (responses = []) => {
   if (!Array.isArray(responses) || responses.length === 0) return null
   for (const r of responses) {
-    if (r?.title?.toLowerCase().includes('guarn')) {
+    if (String(r?.title || '').toLowerCase().includes('guarn')) {
       return r?.answer ?? r?.response ?? null
     }
   }
@@ -241,12 +250,13 @@ export const buildTurnSummary = (ordersList = []) => {
     const itemsQty = getNormalizedOrderItemTotal(order)
     const loc = order.location || 'Sin ubicación'
 
-    turnCounts[turn].orders += 1
+    const units = getOperationalOrderUnits(order)
+    turnCounts[turn].orders += units
     turnCounts[turn].items += itemsQty
 
     if (!byLocationTurn[loc]) byLocationTurn[loc] = { lunch: 0, dinner: 0, total: 0 }
-    byLocationTurn[loc][turn] += 1
-    byLocationTurn[loc].total += 1
+    byLocationTurn[loc][turn] += units
+    byLocationTurn[loc].total += units
   })
 
   return { turnCounts, byLocationTurn }
@@ -300,7 +310,7 @@ export const buildLocationCards = (ordersList = []) => {
     if (!byLocation[loc]) {
       byLocation[loc] = { total: 0, dishCounts: {}, sideCounts: {} }
     }
-    byLocation[loc].total += 1
+    byLocation[loc].total += getOperationalOrderUnits(order)
 
     if (Array.isArray(normalizedItems)) {
       normalizedItems.forEach(item => {
@@ -348,15 +358,16 @@ export const buildPrintStats = (ordersList = []) => {
     const turn = (order.service || 'lunch') === 'dinner' ? 'dinner' : 'lunch'
     const itemsQty = getNormalizedOrderItemTotal(order)
 
-    turnCounts[turn].orders += 1
+    const units = getOperationalOrderUnits(order)
+    turnCounts[turn].orders += units
     turnCounts[turn].items += itemsQty
 
     const loc = order.location || 'Sin ubicación'
     if (!byLocationTurn[loc]) {
       byLocationTurn[loc] = { lunch: 0, dinner: 0, total: 0 }
     }
-    byLocationTurn[loc][turn] += 1
-    byLocationTurn[loc].total += 1
+    byLocationTurn[loc][turn] += units
+    byLocationTurn[loc].total += units
 
     const sideSummary = getSideSummaryForOrder(order)
     sideSummary.associations.forEach((association) => {
@@ -390,10 +401,12 @@ export const calculateStats = (ordersData = []) => {
 
   Array.isArray(ordersData) && ordersData.forEach(order => {
     const { normalizedItems } = normalizeOrderForReadOnly(order || {})
-    if (!byLocation[order.location]) {
-      byLocation[order.location] = 0
+    const units = getOperationalOrderUnits(order)
+    const location = order.location || 'Sin ubicación'
+    if (!byLocation[location]) {
+      byLocation[location] = 0
     }
-    byLocation[order.location]++
+    byLocation[location] += units
 
     if (Array.isArray(normalizedItems)) {
       normalizedItems.forEach(item => {
@@ -410,14 +423,16 @@ export const calculateStats = (ordersData = []) => {
     totalItems += getNormalizedOrderItemTotal(order)
 
     if (order.status === 'archived') {
-      archived++
+      archived += units
     } else if (order.status === 'pending') {
-      pending++
+      pending += units
     }
   })
 
   return {
-    total: ordersData.length,
+    total: Array.isArray(ordersData)
+      ? ordersData.reduce((sum, order) => sum + getOperationalOrderUnits(order), 0)
+      : 0,
     byLocation,
     byDish,
     totalItems,

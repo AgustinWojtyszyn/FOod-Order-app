@@ -18,7 +18,8 @@ import {
   buildOperationalSummary,
   calculateStats,
   buildPrintStats,
-  filterOrdersByCompany
+  filterOrdersByCompany,
+  getOperationalOrderUnits
 } from '../utils/daily/dailyOrderCalculations'
 import { getDailyOperationalStatus } from '../utils/daily/dailyCloseStatus'
 import { formatDeliveryDateLabel } from '../utils/daily/dailyOrderFormatters'
@@ -130,7 +131,11 @@ const DailyOrders = ({ user, loading }) => {
     () => filterOrdersByCompany(sortedOrders, exportCompany),
     [sortedOrders, exportCompany]
   )
-  const exportableOrdersCount = manualExportOrders.length
+  const countOperationalUnits = (ordersList = []) =>
+    (Array.isArray(ordersList) ? ordersList : [])
+      .reduce((sum, order) => sum + getOperationalOrderUnits(order), 0)
+  const exportableOrdersCount = countOperationalUnits(manualExportOrders)
+  const sortedOrdersUnits = countOperationalUnits(sortedOrders)
   const deliveryDateLabel = formatDeliveryDateLabel(operationalDate)
   const dailyCloseStatus = useMemo(
     () => getDailyOperationalStatus({
@@ -200,7 +205,7 @@ const DailyOrders = ({ user, loading }) => {
           onExportPdf={exportToPdf}
           onArchiveAll={handleArchiveAllPending}
           onAddExtraOrder={() => setExtraOrderOpen(true)}
-          sortedOrdersLength={sortedOrders.length}
+          sortedOrdersLength={sortedOrdersUnits}
           pendingOrdersCount={dailyCloseStatus.pendingCount}
           isAdmin={isGlobalAdmin}
         />
@@ -245,7 +250,7 @@ const DailyOrders = ({ user, loading }) => {
           mode="main"
           stats={stats}
           operationalSummary={operationalSummary}
-          sortedOrdersLength={sortedOrders.length}
+          sortedOrdersLength={sortedOrdersUnits}
           selectedLocation={selectedLocation}
           locationCards={locationCards}
         />
