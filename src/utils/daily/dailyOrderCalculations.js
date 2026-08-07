@@ -107,8 +107,11 @@ const expandQuantifiedResponseValues = (resp = {}) => {
 }
 
 export const isBeverage = (text = '') => {
-  const t = (text || '').toLowerCase()
-  return BEVERAGE_KEYWORDS.some(k => t.includes(k))
+  const t = Array.isArray(text)
+    ? text.map(item => String(item || '')).join(' ')
+    : String(text || '')
+  const normalized = t.toLowerCase()
+  return BEVERAGE_KEYWORDS.some(k => normalized.includes(k))
 }
 
 export const getBeverageLabel = (customResponses) => {
@@ -122,7 +125,11 @@ export const getBeverageLabel = (customResponses) => {
         if (count > 0) names.push(`${label}${count > 1 ? ` (x${count})` : ''}`)
       })
     }
-    if (isBeverage(resp?.response)) names.push(resp.response)
+    if (Array.isArray(resp?.response)) {
+      resp.response.forEach(value => { if (isBeverage(value)) names.push(value) })
+    } else if (isBeverage(resp?.response)) {
+      names.push(resp.response)
+    }
     if (Array.isArray(resp?.options)) {
       resp.options.forEach(opt => { if (isBeverage(opt)) names.push(opt) })
     }
