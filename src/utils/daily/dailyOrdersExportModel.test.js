@@ -427,6 +427,26 @@ describe('daily orders export model', () => {
     )
   })
 
+  it('no marca inconsistencias por cliente nulo ni cantidades mayores en pedidos extra administrativos', () => {
+    const summary = buildDailyOrdersSummary([{
+      id: 'admin-extra-ok',
+      status: 'pending',
+      order_origin: 'admin_extra',
+      company_slug: 'ccp',
+      company_name: 'CCP',
+      location: 'CCP',
+      customer_name: null,
+      customer_email: null,
+      delivery_date: '2026-08-08',
+      service: 'lunch',
+      items: [{ name: 'Opción 1', quantity: 20 }],
+      custom_responses: [{ title: 'Guarnición', response: ['Puré'], quantities: { Puré: 1 } }],
+      total_items: 20
+    }], 'pending')
+
+    expect(summary.inconsistencies).toEqual([])
+  })
+
   it('reporta cliente inválido si customer_name es numérico', () => {
     const summary = buildDailyOrdersSummary([{
       ...baseOrder,

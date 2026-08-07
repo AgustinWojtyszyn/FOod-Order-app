@@ -469,18 +469,21 @@ const buildInconsistencies = (orders) => {
     const label = getOrderCustomer(order) || `Pedido ${index + 1}`
     const issues = []
     const normalized = normalizeOrderForReadOnly(order || {})
+    const isExtra = isAdminExtraOrder(order)
     const items = toArray(normalized.normalizedItems)
     const rawItems = safeOrderItemsArray(order?.items)
     const rawTotalItems = Number(order?.total_items)
 
     const rawCustomerName = normalizeText(order.customer_name || order.user_name || order.name)
-    if (!rawCustomerName) issues.push('Sin cliente')
-    else if (!isValidCustomerName(rawCustomerName)) issues.push('Cliente inválido')
-    if (!getOrderEmail(order)) issues.push('Sin email')
+    if (!isExtra) {
+      if (!rawCustomerName) issues.push('Sin cliente')
+      else if (!isValidCustomerName(rawCustomerName)) issues.push('Cliente inválido')
+      if (!getOrderEmail(order)) issues.push('Sin email')
+    }
     if (!normalizeText(order.location || order.company_name || order.company)) issues.push('Sin ubicación')
     if (items.length === 0) issues.push('Sin items')
     if (!Array.isArray(normalized.normalizedItems)) issues.push('Items malformados')
-    if (isMealService(order?.service || 'lunch')) {
+    if (!isExtra && isMealService(order?.service || 'lunch')) {
       if (rawItems.length > 1) issues.push('Más de un menú principal en almuerzo/cena')
       if (rawItems.some((item) => getRawItemQuantity(item) !== 1)) issues.push('Cantidad histórica normalizada')
       if (Number.isFinite(rawTotalItems) && rawTotalItems !== items.length) issues.push('Total histórico no coincide con items normalizados')
