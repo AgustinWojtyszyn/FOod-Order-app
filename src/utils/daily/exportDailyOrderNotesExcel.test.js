@@ -136,6 +136,9 @@ describe('daily order notes Excel model', () => {
       deliveryDate: '2026-08-10',
       ordersCount: 1,
       totalItems: 10,
+      totalMenus: 10,
+      totalBeverages: 10,
+      totalDesserts: 10,
       orderIds: ['7bb6f6cd-8f76-4d97-b340-681c020140c1']
     })
     expect(snapshot.products).toContainEqual(expect.objectContaining({
@@ -144,7 +147,11 @@ describe('daily order notes Excel model', () => {
     }))
     expect(snapshot.products).toContainEqual(expect.objectContaining({
       producto: 'Bebida: Agua',
-      cantidad: 1
+      cantidad: 10
+    }))
+    expect(snapshot.products).toContainEqual(expect.objectContaining({
+      producto: 'Postre: Fruta',
+      cantidad: 10
     }))
   })
 
@@ -193,7 +200,7 @@ describe('daily order notes Excel model', () => {
     expect(summarizeProducts(orders)).toEqual(expect.arrayContaining([
       expect.objectContaining({ producto: 'Bebida: Agua', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }),
       expect.objectContaining({ producto: 'Bebida: Soda', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }),
-      expect.objectContaining({ producto: 'Fruta o postre: Fruta', cantidad: 1, category: REMITO_ROW_CATEGORIES.dessert }),
+      expect.objectContaining({ producto: 'Postre: Fruta', cantidad: 2, category: REMITO_ROW_CATEGORIES.dessert }),
       expect.objectContaining({ producto: 'Guarnición: Puré', cantidad: 1, category: REMITO_ROW_CATEGORIES.side }),
       expect.objectContaining({ producto: 'Observación: No sumar', cantidad: '', category: REMITO_ROW_CATEGORIES.observation })
     ]))
@@ -231,7 +238,7 @@ describe('daily order notes Excel model', () => {
       category: REMITO_ROW_CATEGORIES.dinner
     }])
     expect(total).toBe(5)
-    expect(originalRows.find((row) => row.producto === 'TOTAL MENÚ')).toMatchObject({ cantidad: 5 })
+    expect(originalRows.find((row) => row.producto === 'TOTAL MENÚS / VIANDAS')).toMatchObject({ cantidad: 5 })
     expect(originalRows).toEqual(copyRows)
   })
 
@@ -289,13 +296,15 @@ describe('daily order notes Excel model', () => {
     const total = getRemitoMenuTotalFromRows(products)
     const originalRows = getPrintableDetailRows(products, total)
     const copyRows = getPrintableDetailRows(products, total)
-    const totalIndex = originalRows.findIndex((row) => row.producto === 'TOTAL MENÚ')
+    const totalIndex = originalRows.findIndex((row) => row.producto === 'TOTAL MENÚS / VIANDAS')
     const beverageRows = products.filter((row) => row.category === REMITO_ROW_CATEGORIES.drink)
+    const dessertRows = products.filter((row) => row.category === REMITO_ROW_CATEGORIES.dessert)
     const sideRows = products.filter((row) => row.category === REMITO_ROW_CATEGORIES.side)
 
     expect(total).toBe(7)
-    expect(originalRows[totalIndex]).toMatchObject({ producto: 'TOTAL MENÚ', cantidad: 7 })
-    expect(beverageRows.reduce((sum, row) => sum + row.cantidad, 0)).toBe(13)
+    expect(originalRows[totalIndex]).toMatchObject({ producto: 'TOTAL MENÚS / VIANDAS', cantidad: 7 })
+    expect(beverageRows.reduce((sum, row) => sum + row.cantidad, 0)).toBe(16)
+    expect(dessertRows.reduce((sum, row) => sum + row.cantidad, 0)).toBe(7)
     expect(sideRows.reduce((sum, row) => sum + row.cantidad, 0)).toBe(5)
     expect(originalRows).toEqual(copyRows)
     expect(originalRows.findIndex((row) => row.producto === 'Bebida: Agua')).toBeGreaterThan(totalIndex)
@@ -306,6 +315,6 @@ describe('daily order notes Excel model', () => {
     expect(products
       .filter((row) => !isMenuCountableCategory(row.category))
       .reduce((sum, row) => sum + Number(row.cantidad || 0), 0)
-    ).toBe(18)
+    ).toBe(28)
   })
 })

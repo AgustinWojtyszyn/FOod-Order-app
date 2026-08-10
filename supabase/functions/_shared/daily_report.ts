@@ -183,6 +183,39 @@ const isAdminExtraOrder = (order: Record<string, unknown>) =>
 const getItemsQuantity = (items: Array<Record<string, unknown>>) =>
   items.reduce((sum, item) => sum + (Number(item.quantity ?? item.qty ?? 1) || 1), 0)
 
+const normalizeOperationalLabel = (value: unknown) =>
+  String(value ?? '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+
+const isBeverageLabel = (value: unknown) => {
+  const label = normalizeOperationalLabel(value)
+  const tokens = label.split(' ').filter(Boolean)
+  const has = (keyword: string) => keyword.includes(' ') ? label.includes(keyword) : tokens.includes(keyword)
+  return ['agua', 'coca', 'cola', 'sprite', 'fanta', 'soda', 'jugo', 'gaseosa', 'pepsi', 'seven', '7up', 'limonada', 'te', 'mate', 'cafe']
+    .some(has)
+}
+
+const isDessertLabel = (value: unknown) => {
+  const label = normalizeOperationalLabel(value)
+  const tokens = label.split(' ').filter(Boolean)
+  const has = (keyword: string) => keyword.includes(' ') ? label.includes(keyword) : tokens.includes(keyword)
+  return ['fruta', 'frutas', 'postre', 'flan', 'budin', 'gelatina', 'mousse', 'helado', 'torta', 'brownie', 'alfajor']
+    .some(has)
+}
+
+const getOrderOperationalMenuTotal = (order: Record<string, unknown>) => {
+  const storedTotal = Number(order.total_items)
+  if (Number.isFinite(storedTotal) && storedTotal > 0) return storedTotal
+  return getItemsQuantity(safeArray(order.items).filter((item) => {
+    const label = getMenuLabel(item)
+    return !isBeverageLabel(label) && !isDessertLabel(label)
+  }))
+}
+
 const normalizeItemsForService = (
   service: unknown,
   items: Array<Record<string, unknown>>,
@@ -199,7 +232,7 @@ const normalizeItemsForService = (
 export const normalizeOrder = (order: Record<string, unknown>): NormalizedOrder => {
   const rawItems = safeArray(order.items)
   const isExtra = isAdminExtraOrder(order)
-  const normalizedItems = normalizeItemsForService(order.service, rawItems, isExtra)
+  const normalizedItems = normalizeItemsForService(order.service, rawItems, true)
   const service = getNormalizedService(order.service)
   const warnings: string[] = []
 
@@ -211,10 +244,7 @@ export const normalizeOrder = (order: Record<string, unknown>): NormalizedOrder 
     }
   }
 
-  const storedTotal = Number(order.total_items)
-  const totalItems = isExtra && Number.isFinite(storedTotal) && storedTotal > 0
-    ? storedTotal
-    : getItemsQuantity(normalizedItems)
+  const totalItems = getOrderOperationalMenuTotal(order)
 
   return {
     ...order,
@@ -230,6 +260,80 @@ const normalizeValue = (value: unknown) => {
   if (Array.isArray(value)) return value.map(String).filter(Boolean).join(', ')
   if (value === null || value === undefined || value === '') return ''
   return String(value)
+}
+
+const getResponseValues = (value: unknown): string[] => {
+  if (Array.isArray(value)) return value.flatMap(getResponseValues)
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>
+    return getResponseValues(obj.label ?? obj.name ?? obj.title ?? obj.value ?? obj.response ?? obj.answer)
+  }
+  const text = String(value ?? '').trim()
+  if (!text) return []
+  return text.split(',').map((part) => part.trim()).filter(Boolean)
+}
+
+const getQuantityEntries = (response: Record<string, unknown>) => {
+  const quantities = response.quantities
+  if (!quantities || typeof quantities !== 'object' || Array.isArray(quantities)) return []
+  return Object.entries(quantities as Record<string, unknown>)
+    .map(([label, quantity]) => ({ label, quantity: Number(quantity) || 0 }))
+    .filter((entry) => entry.label && entry.quantity > 0)
+}
+
+const titleHas = (response: Record<string, unknown>, keywords: string[]) => {
+  const title = normalizeOperationalLabel(response.title || response.label || response.question || response.name)
+  return keywords.some((keyword) => title.includes(keyword))
+}
+
+const getOperationalResponseRows = (order: NormalizedOrder, kind: 'bebida' | 'postre') => {
+  const rows = new Map<string, { label: string; quantity: number }>()
+  const orderTotal = getOrderTotalItems(order)
+  const isTargetLabel = kind === 'bebida' ? isBeverageLabel : isDessertLabel
+  const defaultLabel = kind === 'bebida' ? 'Agua sin gas' : 'Fruta'
+
+  const add = (label: string, quantity: number) => {
+    const clean = String(label || '').trim()
+    const amount = Number(quantity) || 0
+    if (!clean || amount <= 0) return
+    const key = normalizeOperationalLabel(clean)
+    const current = rows.get(key) || { label: clean, quantity: 0 }
+    current.quantity += amount
+    rows.set(key, current)
+  }
+
+  order.custom_responses.forEach((response) => {
+    const isTargetQuestion = kind === 'bebida'
+      ? titleHas(response, ['bebida', 'bebidas'])
+      : titleHas(response, ['postre', 'postres', 'fruta'])
+    const quantityEntries = getQuantityEntries(response)
+    if (quantityEntries.length) {
+      quantityEntries.forEach((entry) => {
+        if (isTargetQuestion || isTargetLabel(entry.label)) add(entry.label, entry.quantity)
+      })
+      return
+    }
+
+    const values = getResponseValues(response.response ?? response.answer ?? response.value)
+    const fallbackValues = values.length ? values : getResponseValues(response.options)
+    const counted = new Map<string, { label: string; quantity: number }>()
+    fallbackValues.forEach((value) => {
+      if (!isTargetQuestion && !isTargetLabel(value)) return
+      const key = normalizeOperationalLabel(value)
+      const current = counted.get(key) || { label: value, quantity: 0 }
+      current.quantity += 1
+      counted.set(key, current)
+    })
+    const countedRows = [...counted.values()]
+    if (countedRows.length === 1 && fallbackValues.length === 1) {
+      add(countedRows[0].label, Number(response.quantity ?? response.qty ?? response.count) || orderTotal || 1)
+      return
+    }
+    countedRows.forEach((entry) => add(entry.label, entry.quantity))
+  })
+
+  if (rows.size === 0 && orderTotal > 0) add(defaultLabel, orderTotal)
+  return [...rows.values()]
 }
 
 export const getCustomSide = (order: NormalizedOrder) => {
@@ -270,15 +374,13 @@ export const getServiceLabel = (service?: string | null) =>
   String(service || 'lunch') === 'dinner' ? 'Cena' : 'Almuerzo'
 
 export const getOrderTotalItems = (order: NormalizedOrder) => {
-  if (isAdminExtraOrder(order as unknown as Record<string, unknown>)) {
-    const storedTotal = Number(order.total_items || 0)
-    if (storedTotal > 0) return storedTotal
-    return getItemsQuantity(order.items)
-  }
-  if (isMealService(order.service)) return order.items.length
   const storedTotal = Number(order.total_items || 0)
   if (storedTotal > 0) return storedTotal
-  return order.items.reduce((sum, item) => sum + Number(item.quantity || item.qty || 1), 0)
+  return order.items.reduce((sum, item) => {
+    const label = getMenuLabel(item)
+    if (isBeverageLabel(label) || isDessertLabel(label)) return sum
+    return sum + Number(item.quantity || item.qty || 1)
+  }, 0)
 }
 
 const plural = (count: number, singular: string, pluralText: string) =>
@@ -314,7 +416,7 @@ const isBaseMenuAdditionalTitle = (title = '') => {
 }
 
 const getAdditionalLabels = (order: NormalizedOrder) => {
-  const labels: string[] = []
+  const labels: Array<{ label: string; quantity: number }> = []
 
   order.custom_responses.forEach((response) => {
     const title = String(response.title || response.label || '').trim()
@@ -328,13 +430,15 @@ const getAdditionalLabels = (order: NormalizedOrder) => {
 
     if (lowerTitle.includes('guarn')) return
 
-    if (lowerTitle.includes('bebida')) {
-      labels.push(combined)
-      return
-    }
+    if (lowerTitle.includes('bebida') || lowerTitle.includes('postre') || lowerTitle.includes('fruta')) return
 
-    labels.push(title ? `${title}: ${combined}` : combined)
+    labels.push({ label: title ? `${title}: ${combined}` : combined, quantity: 1 })
   })
+
+  getOperationalResponseRows(order, 'bebida')
+    .forEach((row) => labels.push({ label: `Bebida: ${row.label}`, quantity: row.quantity }))
+  getOperationalResponseRows(order, 'postre')
+    .forEach((row) => labels.push({ label: `Postre: ${row.label}`, quantity: row.quantity }))
 
   return labels
 }
@@ -413,7 +517,7 @@ export const buildDailySummary = (orders: NormalizedOrder[], reportDate: string)
     if (additionalLabels.length) {
       if (!additionalByLocationText.has(location)) additionalByLocationText.set(location, new Map())
       const scopedAdditional = additionalByLocationText.get(location)!
-      additionalLabels.forEach((label) => incrementMap(scopedAdditional, label, 1))
+      additionalLabels.forEach((row) => incrementMap(scopedAdditional, row.label, row.quantity))
     }
 
     const missing = []

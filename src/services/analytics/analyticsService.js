@@ -1,4 +1,5 @@
 import { normalizeOrderForReadOnly } from '../../utils/order/normalizeOrderForReadOnly'
+import { getOrderMenuTotal, summarizeOperationalOrder } from '../../utils/order/orderOperationalTotals'
 
 export const createAnalyticsService = ({ supabase } = {}) => {
   if (!supabase) {
@@ -126,17 +127,16 @@ export const createAnalyticsService = ({ supabase } = {}) => {
         }
         const row = byDay.get(key)
         row.count += 1
-        const { normalizedItems, normalizedCustomResponses } = normalizeOrderForReadOnly(o)
-        const orderQuantity = (Array.isArray(normalizedItems) ? normalizedItems : [])
-          .reduce((sum, item) => sum + (Number(item?.quantity ?? item?.qty ?? 1) || 1), 0) || (Number(o.total_items) || 0)
+        const { normalizedCustomResponses } = normalizeOrderForReadOnly(o)
+        const operational = summarizeOperationalOrder(o)
+        const orderQuantity = getOrderMenuTotal(o)
         row.total_items += orderQuantity
         row.total_amount += (o.total_amount || 0)
 
         // Procesar items: separar menús principales y opciones
-        const items = Array.isArray(normalizedItems) ? normalizedItems : []
-        items.forEach(item => {
+        operational.menuBreakdown.forEach(item => {
           const qty = (item?.quantity ?? 1)
-          const nombre = (item?.name ?? '').trim()
+          const nombre = (item?.label ?? '').trim()
           const m = nombre.match(/^OPC(ION|IÓN)\s*(\d+)/i)
           if (m) {
             const n = Number(m[2])

@@ -5,6 +5,12 @@ import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
 import { isValidCustomerName } from '../order/orderCustomerName'
 import { isMealService, safeOrderItemsArray } from '../order/orderItemNormalization'
 import { getAdminExtraOrderLabel, isAdminExtraOrder } from './adminExtraOrders'
+import {
+  getOrderBeverageBreakdown,
+  getOrderDessertBreakdown,
+  getOrderMenuTotal,
+  isDessertLabel
+} from '../order/orderOperationalTotals'
 
 const EMPTY = ''
 
@@ -135,6 +141,7 @@ export const extractCustomResponses = (order = {}) => {
     const lowerTitle = title.toLowerCase()
     const isSide = lowerTitle.includes('guarn')
     const isDrink = lowerTitle.includes('bebida') || isBeverage(combined)
+    const isDessert = lowerTitle.includes('postre') || lowerTitle.includes('fruta') || isDessertLabel(combined)
 
     if (isSide) return
 
@@ -143,30 +150,27 @@ export const extractCustomResponses = (order = {}) => {
       return
     }
 
+    if (isDessert) return
+
     if (combined) additional.push(`${title}: ${combined}`)
   })
 
-  const beverageLabels = beverageValues.length > 0
-    ? [...new Set(beverageValues)]
-    : getOrderBeverageLabels(order)
+  const beverageLabels = getOrderBeverageBreakdown(order)
+    .map(({ label, quantity }) => `${label}${quantity > 1 ? ` (x${quantity})` : ''}`)
+  const dessertLabels = getOrderDessertBreakdown(order)
+    .map(({ label, quantity }) => `${label}${quantity > 1 ? ` (x${quantity})` : ''}`)
 
   return {
     side: sideSummary.summaryText,
-    beverage: beverageLabels.join(', '),
+    beverage: beverageLabels.join(', ') || [...new Set(beverageValues)].join(', ') || getOrderBeverageLabels(order).join(', '),
+    dessert: dessertLabels.join(', '),
     additional: additional.join(' | ')
   }
 }
 
 export const getOrderTotalItems = (order = {}, items = extractOrderItems(order)) => {
-  if (isAdminExtraOrder(order)) {
-    const stored = Number(order.total_items)
-    if (Number.isFinite(stored) && stored > 0) return stored
-    return items.reduce((sum, item) => sum + item.quantity, 0)
-  }
-  if (isMealService(order?.service || 'lunch')) return items.length
-  const stored = Number(order.total_items)
-  if (Number.isFinite(stored) && stored > 0) return stored
-  return items.reduce((sum, item) => sum + item.quantity, 0)
+  void items
+  return getOrderMenuTotal(order)
 }
 
 export const buildOrderExportRow = (order = {}) => {
@@ -191,6 +195,7 @@ export const buildOrderExportRow = (order = {}) => {
     menuOpcion: menuOption || 'Sin menú / opción',
     guarnicion: custom.side,
     bebida: custom.beverage,
+    postre: custom.dessert,
     cantidad: getOrderTotalItems(order, items),
     totalItems: getOrderTotalItems(order, items),
     origen: getAdminExtraOrderLabel(order),
@@ -257,6 +262,8 @@ export const buildDailyOrdersExcelDetailRow = (order = {}) => {
     'Menú elegido': getMenuNames(items),
     'Opción elegida': getOptionNames(items),
     Guarniciones: custom.side || 'Sin guarnición',
+    Bebidas: custom.beverage || 'Sin bebida',
+    Postres: custom.dessert || 'Sin postre',
     'Respuestas personalizadas': getCustomResponsesTextForExcel(order),
     Origen: getAdminExtraOrderLabel(order),
     Comentarios: normalizeText(order.comments) || 'Sin comentarios',

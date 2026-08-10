@@ -2,7 +2,12 @@ import { BEVERAGE_KEYWORDS, DINNER_OVERRIDE_KEYWORDS } from './dailyOrderConstan
 import { normalizeDishName } from './dailyOrderFormatters'
 import { getSideSummaryForOrder } from './dailyOrderSideAssociations'
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
-import { isAdminExtraOrder } from './adminExtraOrders'
+import {
+  getOrderBeverageBreakdown,
+  getOrderDessertBreakdown,
+  getOrderMenuTotal,
+  summarizeOperationalOrder
+} from '../order/orderOperationalTotals'
 
 const UNSPECIFIED_BEVERAGE_LABEL = 'Bebida sin especificar'
 const GENNEIA_DINNER_BEVERAGE_FIX_DATE = '2026-08-03'
@@ -28,20 +33,8 @@ const isLegacyOrderBeforeBeverageFix = (order = {}) => {
 const isLegacyGenneiaDinnerOrder = (order = {}) =>
   isGenneiaDinnerOrder(order) && isLegacyOrderBeforeBeverageFix(order)
 
-const getNormalizedOrderItemTotal = (order = {}) => {
-  const { normalizedItems } = normalizeOrderForReadOnly(order)
-  if (Array.isArray(normalizedItems)) {
-    return normalizedItems.reduce((sum, item) => sum + (Number(item?.quantity || item?.qty || 1) || 1), 0)
-  }
-  return 0
-}
-
 export const getOperationalOrderUnits = (order = {}) => {
-  if (!isAdminExtraOrder(order)) return 1
-  const stored = Number(order?.total_items)
-  if (Number.isFinite(stored) && stored > 0) return stored
-  const itemTotal = getNormalizedOrderItemTotal(order)
-  return itemTotal > 0 ? itemTotal : 1
+  return getOrderMenuTotal(order)
 }
 
 export const getCustomSideFromResponses = (responses = []) => {
@@ -123,7 +116,15 @@ export const isBeverage = (text = '') => {
   return BEVERAGE_KEYWORDS.some(k => normalized.includes(k))
 }
 
-export const getBeverageLabel = (customResponses) => {
+export const getBeverageLabel = (orderOrCustomResponses) => {
+  if (orderOrCustomResponses && !Array.isArray(orderOrCustomResponses) && typeof orderOrCustomResponses === 'object') {
+    const labels = getOrderBeverageBreakdown(orderOrCustomResponses)
+      .map(({ label, quantity }) => `${label}${quantity > 1 ? ` (x${quantity})` : ''}`)
+      .filter(Boolean)
+    const joined = labels.slice(0, 3).join(', ')
+    return labels.length > 3 ? `${joined} (+${labels.length - 3})` : joined || '—'
+  }
+  const customResponses = orderOrCustomResponses
   if (!Array.isArray(customResponses)) return '—'
   const names = []
   customResponses.forEach(resp => {
@@ -149,22 +150,17 @@ export const getBeverageLabel = (customResponses) => {
   return unique.length > 3 ? `${joined} (+${unique.length - 3})` : joined || '—'
 }
 
+export const getDessertLabel = (order = {}) => {
+  const labels = getOrderDessertBreakdown(order)
+    .map(({ label, quantity }) => `${label}${quantity > 1 ? ` (x${quantity})` : ''}`)
+    .filter(Boolean)
+  const joined = labels.slice(0, 3).join(', ')
+  return labels.length > 3 ? `${joined} (+${labels.length - 3})` : joined || '—'
+}
+
 export const getOrderBeverageLabels = (order = {}) => {
-  const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
-  const customResponses = Array.isArray(normalizedCustomResponses) ? normalizedCustomResponses : []
-  const labels = []
-  customResponses.forEach(resp => {
-    const pushBeverage = (value) => {
-      if (!value) return
-      const label = String(value).trim()
-      if (!label || !isBeverage(label)) return
-      labels.push(label)
-    }
-    expandQuantifiedResponseValues(resp).forEach(pushBeverage)
-    if (Array.isArray(resp?.options)) {
-      resp.options.forEach(pushBeverage)
-    }
-  })
+  const labels = getOrderBeverageBreakdown(order)
+    .flatMap((row) => Array.from({ length: Math.max(1, Number(row.quantity) || 1) }, () => row.label))
   if (labels.length === 0 && isLegacyGenneiaDinnerOrder(order)) return [UNSPECIFIED_BEVERAGE_LABEL]
   return labels
 }
@@ -247,12 +243,11 @@ export const buildTurnSummary = (ordersList = []) => {
   ;(ordersList || []).forEach((order) => {
     if (!order) return
     const turn = (order.service || 'lunch') === 'dinner' ? 'dinner' : 'lunch'
-    const itemsQty = getNormalizedOrderItemTotal(order)
     const loc = order.location || 'Sin ubicación'
 
     const units = getOperationalOrderUnits(order)
     turnCounts[turn].orders += units
-    turnCounts[turn].items += itemsQty
+    turnCounts[turn].items += units
 
     if (!byLocationTurn[loc]) byLocationTurn[loc] = { lunch: 0, dinner: 0, total: 0 }
     byLocationTurn[loc][turn] += units
@@ -266,18 +261,16 @@ export const buildOperationalSummary = (ordersList = []) => {
   const dishCounts = {}
   const sideCounts = {}
   const beverageCounts = {}
+  const dessertCounts = {}
 
   ;(ordersList || []).forEach(order => {
     if (!order) return
-    const { normalizedItems } = normalizeOrderForReadOnly(order)
-
-    if (Array.isArray(normalizedItems)) {
-      normalizedItems.forEach(item => {
-        if (!item?.name) return
-        const normalizedName = normalizeDishName(item.name)
-        dishCounts[normalizedName] = (dishCounts[normalizedName] || 0) + (item.quantity || 1)
-      })
-    }
+    const operational = summarizeOperationalOrder(order)
+    operational.menuBreakdown.forEach(item => {
+      if (!item?.label) return
+      const normalizedName = normalizeDishName(item.label)
+      dishCounts[normalizedName] = (dishCounts[normalizedName] || 0) + (item.quantity || 1)
+    })
 
     const sideSummary = getSideSummaryForOrder(order)
     sideSummary.associations.forEach((association) => {
@@ -288,6 +281,9 @@ export const buildOperationalSummary = (ordersList = []) => {
     getOrderBeverageLabels(order).forEach(label => {
       beverageCounts[label] = (beverageCounts[label] || 0) + 1
     })
+    operational.dessertBreakdown.forEach(({ label, quantity }) => {
+      dessertCounts[label] = (dessertCounts[label] || 0) + quantity
+    })
   })
 
   const sortCounts = (counts) =>
@@ -296,7 +292,8 @@ export const buildOperationalSummary = (ordersList = []) => {
   return {
     dishes: sortCounts(dishCounts),
     sides: sortCounts(sideCounts),
-    beverages: sortCounts(beverageCounts)
+    beverages: sortCounts(beverageCounts),
+    desserts: sortCounts(dessertCounts)
   }
 }
 
@@ -305,21 +302,19 @@ export const buildLocationCards = (ordersList = []) => {
 
   ;(ordersList || []).forEach(order => {
     if (!order) return
-    const { normalizedItems } = normalizeOrderForReadOnly(order)
+    const operational = summarizeOperationalOrder(order)
     const loc = order.location || 'Sin ubicación'
     if (!byLocation[loc]) {
       byLocation[loc] = { total: 0, dishCounts: {}, sideCounts: {} }
     }
     byLocation[loc].total += getOperationalOrderUnits(order)
 
-    if (Array.isArray(normalizedItems)) {
-      normalizedItems.forEach(item => {
-        if (!item?.name) return
-        const normalizedName = normalizeDishName(item.name)
-        byLocation[loc].dishCounts[normalizedName] =
-          (byLocation[loc].dishCounts[normalizedName] || 0) + (item.quantity || 1)
-      })
-    }
+    operational.menuBreakdown.forEach(item => {
+      if (!item?.label) return
+      const normalizedName = normalizeDishName(item.label)
+      byLocation[loc].dishCounts[normalizedName] =
+        (byLocation[loc].dishCounts[normalizedName] || 0) + (item.quantity || 1)
+    })
 
     const sideSummary = getSideSummaryForOrder(order)
     sideSummary.associations.forEach((association) => {
@@ -356,11 +351,10 @@ export const buildPrintStats = (ordersList = []) => {
     const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
     const customResponses = Array.isArray(normalizedCustomResponses) ? normalizedCustomResponses : []
     const turn = (order.service || 'lunch') === 'dinner' ? 'dinner' : 'lunch'
-    const itemsQty = getNormalizedOrderItemTotal(order)
 
     const units = getOperationalOrderUnits(order)
     turnCounts[turn].orders += units
-    turnCounts[turn].items += itemsQty
+    turnCounts[turn].items += units
 
     const loc = order.location || 'Sin ubicación'
     if (!byLocationTurn[loc]) {
@@ -400,7 +394,7 @@ export const calculateStats = (ordersData = []) => {
   let pending = 0
 
   Array.isArray(ordersData) && ordersData.forEach(order => {
-    const { normalizedItems } = normalizeOrderForReadOnly(order || {})
+    const operational = summarizeOperationalOrder(order || {})
     const units = getOperationalOrderUnits(order)
     const location = order.location || 'Sin ubicación'
     if (!byLocation[location]) {
@@ -408,19 +402,17 @@ export const calculateStats = (ordersData = []) => {
     }
     byLocation[location] += units
 
-    if (Array.isArray(normalizedItems)) {
-      normalizedItems.forEach(item => {
-        if (item?.name) {
-          const normalizedName = normalizeDishName(item.name)
-          if (!byDish[normalizedName]) {
-            byDish[normalizedName] = 0
-          }
-          byDish[normalizedName] += item.quantity || 1
+    operational.menuBreakdown.forEach(item => {
+      if (item?.label) {
+        const normalizedName = normalizeDishName(item.label)
+        if (!byDish[normalizedName]) {
+          byDish[normalizedName] = 0
         }
-      })
-    }
+        byDish[normalizedName] += item.quantity || 1
+      }
+    })
 
-    totalItems += getNormalizedOrderItemTotal(order)
+    totalItems += units
 
     if (order.status === 'archived') {
       archived += units

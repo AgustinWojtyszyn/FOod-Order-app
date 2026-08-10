@@ -2,6 +2,8 @@ import { User } from 'lucide-react'
 import {
   buildOrderPreview,
   getBeverageLabel,
+  getDessertLabel,
+  getOperationalOrderUnits,
   summarizeOrderItems
 } from '../../utils/daily/dailyOrderCalculations'
 import { getSideSummaryForOrder } from '../../utils/daily/dailyOrderSideAssociations'
@@ -26,6 +28,7 @@ const DailyOrderRow = ({
   const isExtra = isAdminExtraOrder(order)
   const displayName = isExtra ? 'Solicitado por admin' : order.user_name
   const displayEmail = isExtra ? '' : order.user_email
+  const menuTotal = getOperationalOrderUnits(order)
 
   if (variant === 'card') {
     const summary = summarizeOrderItems(order.items)
@@ -93,10 +96,13 @@ const DailyOrderRow = ({
             </span>
           )}
           <span className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-extrabold text-slate-900 ml-auto">
-            {order.total_items} items
+            {menuTotal} menús
           </span>
           <span className="inline-flex items-center rounded-full border border-blue-300 bg-blue-100/70 px-3 py-1 text-xs font-bold text-blue-900">
-            {getBeverageLabel(order.custom_responses)}
+            {getBeverageLabel(order)}
+          </span>
+          <span className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-100/70 px-3 py-1 text-xs font-bold text-emerald-900">
+            {getDessertLabel(order)}
           </span>
         </div>
 
@@ -204,7 +210,7 @@ const DailyOrderRow = ({
       </td>
       <td className="border-b border-slate-200/70 px-4 py-5">
         <span className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-sm font-extrabold text-slate-900">
-          {order.total_items}
+          {menuTotal}
         </span>
       </td>
       <td className="border-b border-slate-200/70 px-4 py-5">
@@ -234,9 +240,14 @@ const DailyOrderRow = ({
         </div>
       </td>
       <td className="border-b border-slate-200/70 px-4 py-5">
-        <span className="inline-flex items-center rounded-full border border-blue-300 bg-blue-100/70 px-3 py-1 text-xs font-bold text-blue-900 max-w-[200px] truncate">
-          {getBeverageLabel(order.custom_responses)}
-        </span>
+        <div className="flex flex-col gap-1">
+          <span className="inline-flex items-center rounded-full border border-blue-300 bg-blue-100/70 px-3 py-1 text-xs font-bold text-blue-900 max-w-[200px] truncate">
+            {getBeverageLabel(order)}
+          </span>
+          <span className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-100/70 px-3 py-1 text-xs font-bold text-emerald-900 max-w-[200px] truncate">
+            {getDessertLabel(order)}
+          </span>
+        </div>
       </td>
       <td className="border-b border-slate-200/70 px-4 py-5">
         <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${

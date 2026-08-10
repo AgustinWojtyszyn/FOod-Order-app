@@ -1,5 +1,6 @@
 import { formatDateDMY, normalizeLabel, toDisplayString } from './monthlyOrderFormatters'
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
+import { getOrderMenuTotal, summarizeOperationalOrder } from '../order/orderOperationalTotals'
 
 const UNSPECIFIED_BEVERAGE_LABEL = 'Bebida sin especificar'
 const GENNEIA_DINNER_BEVERAGE_FIX_DATE = '2026-08-03'
@@ -18,9 +19,7 @@ export const createOptionCounts = () => OPTION_KEYS.reduce((acc, key) => {
 const getService = (order = {}) => String(order?.service || 'lunch').toLowerCase() === 'dinner' ? 'dinner' : 'lunch'
 
 const getOrderQuantity = (order = {}) => {
-  const { normalizedItems } = normalizeOrderForReadOnly(order)
-  const itemsTotal = normalizedItems.reduce((sum, item) => sum + (Number(item?.quantity) || 1), 0)
-  return itemsTotal || 1
+  return getOrderMenuTotal(order)
 }
 
 const getResponseValues = (resp = {}) => {
@@ -317,6 +316,7 @@ export const buildDailyBreakdownFromOrdersByDay = (dates = [], byDay = {}) => {
 
     dayOrders.forEach(o => {
       const { normalizedItems, normalizedCustomResponses } = normalizeOrderForReadOnly(o)
+      const operational = summarizeOperationalOrder(o)
       const orderQty = getOrderQuantity(o)
       const service = getService(o)
       row.count += 1
@@ -342,15 +342,12 @@ export const buildDailyBreakdownFromOrdersByDay = (dates = [], byDay = {}) => {
         })
       }
 
-      let countedBeverage = false
+      let countedBeverage = operational.beverageBreakdown.length > 0
       normalizedCustomResponses.forEach(cr => {
         if (isSideQuestion(cr)) addResponseValues(cr, value => addBucketItem(value, sideBuckets, 'guarnicion'))
-        if (isBeverageQuestion(cr)) addResponseValues(cr, value => {
-          countedBeverage = true
-          addBucketItem(value, sideBuckets, 'bebida')
-        })
-        if (isDessertQuestion(cr)) addResponseValues(cr, value => addBucketItem(value, sideBuckets, 'postre'))
       })
+      operational.beverageBreakdown.forEach(({ label, quantity }) => addBucketItem(label, sideBuckets, 'bebida', quantity))
+      operational.dessertBreakdown.forEach(({ label, quantity }) => addBucketItem(label, sideBuckets, 'postre', quantity))
       if (isLegacyGenneiaDinnerOrder(o, service) && !countedBeverage) {
         addBucketItem(UNSPECIFIED_BEVERAGE_LABEL, sideBuckets, 'bebida', orderQty)
       }
@@ -542,6 +539,7 @@ export const createMonthlyExportModel = (orders = [], dates = []) => {
 
   orders.forEach(order => {
     const normalized = normalizeOrderForReadOnly(order)
+    const operational = summarizeOperationalOrder(order)
     const service = getService(order)
     const orderQty = getOrderQuantity(order)
     const date = (order?.delivery_date || '').slice(0, 10) || 'Sin fecha'
@@ -581,8 +579,8 @@ export const createMonthlyExportModel = (orders = [], dates = []) => {
     })
 
     if (service === 'lunch') {
-      normalized.normalizedItems.forEach(item => {
-        const name = (item?.name || '').trim()
+      operational.menuBreakdown.forEach(item => {
+        const name = (item?.label || '').trim()
         const qty = Number(item?.quantity) || 1
         if (!name) {
           validations.unclassifiedItems += qty
@@ -606,6 +604,15 @@ export const createMonthlyExportModel = (orders = [], dates = []) => {
         }
       })
 
+      operational.beverageBreakdown.forEach(({ label, quantity }) => {
+        addMealBucketItem(label, totals.mealBuckets, service, 'bebida', quantity)
+        groups.forEach(group => addMealBucketItem(label, group.mealBuckets, service, 'bebida', quantity))
+      })
+      operational.dessertBreakdown.forEach(({ label, quantity }) => {
+        addMealBucketItem(label, totals.mealBuckets, service, 'postre', quantity)
+        groups.forEach(group => addMealBucketItem(label, group.mealBuckets, service, 'postre', quantity))
+      })
+
       normalized.normalizedCustomResponses.forEach(resp => {
         if (isSideQuestion(resp)) {
           addResponseValues(resp, value => {
@@ -613,18 +620,6 @@ export const createMonthlyExportModel = (orders = [], dates = []) => {
             groups.forEach(group => addBucketItem(value, group.sideBuckets, 'guarnicion'))
             addMealBucketItem(value, totals.mealBuckets, service, 'guarnicion')
             groups.forEach(group => addMealBucketItem(value, group.mealBuckets, service, 'guarnicion'))
-          })
-        }
-        if (isBeverageQuestion(resp)) {
-          addResponseValues(resp, value => {
-            addMealBucketItem(value, totals.mealBuckets, service, 'bebida')
-            groups.forEach(group => addMealBucketItem(value, group.mealBuckets, service, 'bebida'))
-          })
-        }
-        if (isDessertQuestion(resp)) {
-          addResponseValues(resp, value => {
-            addMealBucketItem(value, totals.mealBuckets, service, 'postre')
-            groups.forEach(group => addMealBucketItem(value, group.mealBuckets, service, 'postre'))
           })
         }
         const hasValues = getResponseValues(resp).length > 0
@@ -636,21 +631,16 @@ export const createMonthlyExportModel = (orders = [], dates = []) => {
     }
 
     if (service === 'dinner') {
-      let countedDinnerBeverage = false
+      let countedDinnerBeverage = operational.beverageBreakdown.length > 0
+      operational.beverageBreakdown.forEach(({ label, quantity }) => {
+        addMealBucketItem(label, totals.mealBuckets, service, 'bebida', quantity)
+        groups.forEach(group => addMealBucketItem(label, group.mealBuckets, service, 'bebida', quantity))
+      })
+      operational.dessertBreakdown.forEach(({ label, quantity }) => {
+        addMealBucketItem(label, totals.mealBuckets, service, 'postre', quantity)
+        groups.forEach(group => addMealBucketItem(label, group.mealBuckets, service, 'postre', quantity))
+      })
       normalized.normalizedCustomResponses.forEach(resp => {
-        if (isBeverageQuestion(resp)) {
-          addResponseValues(resp, value => {
-            countedDinnerBeverage = true
-            addMealBucketItem(value, totals.mealBuckets, service, 'bebida')
-            groups.forEach(group => addMealBucketItem(value, group.mealBuckets, service, 'bebida'))
-          })
-        }
-        if (isDessertQuestion(resp)) {
-          addResponseValues(resp, value => {
-            addMealBucketItem(value, totals.mealBuckets, service, 'postre')
-            groups.forEach(group => addMealBucketItem(value, group.mealBuckets, service, 'postre'))
-          })
-        }
         const hasValues = getResponseValues(resp).length > 0
         if (hasValues && !isBeverageQuestion(resp) && !isDessertQuestion(resp) && !isDinnerQuestion(resp)) {
           validations.unclassifiedResponses += 1

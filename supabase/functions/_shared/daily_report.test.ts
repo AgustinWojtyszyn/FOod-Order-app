@@ -61,22 +61,25 @@ describe('daily report helpers', () => {
     const summary = buildDailySummary(orders, '2026-06-23')
 
     expect(summary.totalOrders).toBe(2)
-    expect(summary.totalItems).toBe(1)
-    expect(summary.byLocation[0]).toEqual({ label: 'Planta Norte', orders: 1, items: 1 })
-    expect(summary.byMenuOption).toContainEqual({ label: 'Menú principal - Pollo', quantity: 1 })
+    expect(summary.totalItems).toBe(3)
+    expect(summary.byLocation[0]).toEqual({ label: 'Planta Norte', orders: 1, items: 2 })
+    expect(summary.byMenuOption).toContainEqual({ label: 'Menú principal - Pollo', quantity: 2 })
     expect(summary.byLocationMenu).toContainEqual({
       label: 'Planta Norte',
       orders: 1,
-      items: 1,
+      items: 2,
       menus: [{
         label: 'Menú principal - Pollo',
-        quantity: 1,
-        sides: [{ label: 'Puré', quantity: 1 }]
+        quantity: 2,
+        sides: [{ label: 'Puré', quantity: 2 }]
       }]
     })
     expect(summary.additionalByLocation).toContainEqual({
       label: 'Planta Norte',
-      items: []
+      items: [
+        { label: 'Bebida: Agua sin gas', quantity: 2 },
+        { label: 'Postre: Fruta', quantity: 2 }
+      ]
     })
     expect(summary.commentsByLocation).toContainEqual({
       label: 'Planta Norte',
@@ -144,13 +147,13 @@ describe('daily report helpers', () => {
       sides: []
     })
     expect(summary.additionalByLocation[0].items).toEqual([
-      { label: 'Coca cola', quantity: 1 },
-      { label: 'Postre (solo Genneia): Fruta', quantity: 1 }
+      { label: 'Bebida: Coca cola', quantity: 1 },
+      { label: 'Postre: Fruta', quantity: 1 }
     ])
     expect(html).toContain('Cena: PASTEL DE PAPAS')
     expect(text).toContain('- Cena: PASTEL DE PAPAS: 1')
     expect(html).toContain('Coca cola')
-    expect(html).toContain('Postre (solo Genneia): Fruta')
+    expect(html).toContain('Postre: Fruta')
     expect(html).not.toContain('Menú de cena: PASTEL DE PAPAS')
     expect(text).not.toContain('Menú de cena: PASTEL DE PAPAS')
   })
@@ -257,15 +260,16 @@ describe('daily report helpers', () => {
 
     expect(text).toContain('Detalle por ubicación / empresa')
     expect(text).toContain('La Laja')
-    expect(text).toContain('- Opción 4 - Bife: 1')
+    expect(text).toContain('- Opción 4 - Bife: 2')
     expect(text).toContain('- Menú principal - Merluza: 1')
-    expect(text).toContain('- Subtotal La Laja: 2 ítems')
+    expect(text).toContain('- Subtotal La Laja: 3 ítems')
     expect(text).toContain('Genneia')
-    expect(text).toContain('- Opción 1 - Pan de carne: 1')
+    expect(text).toContain('- Opción 1 - Pan de carne: 3')
     expect(text).toContain('Adicionales por ubicación / empresa')
-    expect(text).toContain('- Coca Zero')
+    expect(text).toContain('- Bebida: Coca Zero (x2)')
+    expect(text).toContain('- Bebida: Agua sin gas')
+    expect(text).toContain('- Postre: Fruta (x3)')
     expect(text).toContain('Guarnición: Puré')
-    expect(text).toContain('- Sin guarniciones/adicionales destacados.')
     expect(text).toContain('Comentarios / observaciones por ubicación / empresa')
     expect(text).toContain('- Coca Zero (x2)')
     expect(text).toContain('- Sin comentarios destacados.')
@@ -322,12 +326,12 @@ describe('daily report helpers', () => {
     ], '2026-06-23')
     const text = buildEmailText(summary)
 
-    expect(summary.totalItems).toBe(3)
+    expect(summary.totalItems).toBe(4)
     expect(summary.byLocationMenu[0].menus).toEqual([
       {
         label: 'Menú principal - Pollo',
-        quantity: 2,
-        sides: [{ label: 'Puré', quantity: 1 }]
+        quantity: 3,
+        sides: [{ label: 'Puré', quantity: 2 }]
       },
       {
         label: 'Cena - Milanesa',
@@ -335,8 +339,11 @@ describe('daily report helpers', () => {
         sides: [{ label: 'Puré', quantity: 1 }]
       }
     ])
-    expect(summary.additionalByLocation[0].items).toEqual([])
-    expect(text).toContain('- Menú principal - Pollo: 2\n  Guarnición: Puré')
+    expect(summary.additionalByLocation[0].items).toEqual([
+      { label: 'Bebida: Agua sin gas', quantity: 4 },
+      { label: 'Postre: Fruta', quantity: 4 }
+    ])
+    expect(text).toContain('- Menú principal - Pollo: 3\n  Guarnición: Puré (x2)')
     expect(text).toContain('- Cena - Milanesa: 1\n  Guarnición: Puré')
     expect(text).not.toContain('- Guarnición: Puré (x3)')
   })
@@ -398,7 +405,8 @@ describe('daily report helpers', () => {
     expect(html).toContain('Menú principal - PECHUGUITAS A LA CREMA CON PAPAS AL VERDEO')
     expect(html).toContain('Coca cola')
     expect(html).toContain('Guarnición: Puré')
-    expect(html).toContain('Sin guarniciones/adicionales destacados.')
+    expect(html).toContain('Bebida: Agua sin gas')
+    expect(html).toContain('Postre: Fruta')
     expect(html).toContain('Coca Zero almuerzo y cena por favor')
     expect(html).toContain('Sin comentarios destacados.')
     expect(html).not.toContain('Totales por menú / opción')
@@ -424,7 +432,7 @@ describe('daily report helpers', () => {
     const summary = buildDailySummary(createMockOrders('2026-06-23'), '2026-06-23')
 
     expect(summary.totalOrders).toBe(3)
-    expect(summary.totalItems).toBe(3)
+    expect(summary.totalItems).toBe(4)
   })
 
   it('testEmail usa mock interno y destinatario seguro por defecto', () => {

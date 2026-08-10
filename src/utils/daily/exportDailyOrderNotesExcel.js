@@ -5,12 +5,15 @@ import { getCompanyByLocationOrSlug } from '../../constants/companyConfig'
 import { downloadWorkbook, filterOrdersByCompany, getOrderBeverageLabels, isBeverage } from './dailyOrderCalculations'
 import {
   extractCustomResponses,
-  extractOrderItems,
   formatDateOnly,
   getOrderLocation
 } from './dailyOrdersExportModel'
 import { notifyError, notifyInfo, notifySuccess } from '../notice'
 import { getUserFriendlyErrorMessage } from '../index'
+import {
+  getOrderMenuTotal,
+  summarizeOperationalOrders
+} from '../order/orderOperationalTotals'
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
 
 const DETAIL_ROWS_PER_COPY = 16
@@ -293,15 +296,6 @@ const getBeverageSummaryKey = (value = '') =>
     .toLowerCase()
     .replace(/\s+/g, ' ')
 
-const incrementBeverageSummary = (map, beverage, quantity = 1) => {
-  const label = normalizeBeverageLabel(beverage)
-  const key = getBeverageSummaryKey(label)
-  if (!key) return
-  const current = map.get(key) || { label, quantity: 0 }
-  current.quantity += quantity
-  map.set(key, current)
-}
-
 export const getOrderRemitoBeverages = (order = {}) => {
   const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
   const responses = Array.isArray(normalizedCustomResponses) ? normalizedCustomResponses : []
@@ -357,7 +351,7 @@ export const getTotalMenuItemsForRemito = (orders = []) =>
 export const summarizeProducts = (orders = []) => {
   const totals = new Map()
   const observations = new Map()
-  const beverageTotals = new Map()
+  const operationalSummary = summarizeOperationalOrders(orders)
   const incrementCategorizedSummary = (label, quantity = 1, category = getRemitoCategoryForLabel(label)) => {
     if (!normalizeText(label)) return
     const { producto, groupKey } = buildRemitoProductSummaryRow(label, category)
@@ -366,30 +360,23 @@ export const summarizeProducts = (orders = []) => {
     totals.set(groupKey, current)
   }
 
-  orders.forEach((order) => {
-    const items = extractOrderItems(order)
-    const remitoBeverages = getOrderRemitoBeverages(order)
-    if (!items.length) {
-      incrementCategorizedSummary('Sin menú / opción', 1, REMITO_ROW_CATEGORIES.additional)
-    } else {
-      items.forEach((item) => {
-        const label = item.label || 'Sin menú / opción'
-        const category = getRemitoCategoryForLabel(label)
-        if (category === REMITO_ROW_CATEGORIES.drink) {
-          if (remitoBeverages.length === 0) {
-            incrementBeverageSummary(beverageTotals, label, item.quantity)
-          }
-          return
-        }
-        incrementCategorizedSummary(label, item.quantity, category)
-      })
-    }
+  operationalSummary.menuBreakdown.forEach((row) => {
+    incrementCategorizedSummary(row.label, row.quantity, getRemitoCategoryForLabel(row.label))
+  })
+  if (operationalSummary.menuBreakdown.length === 0 && operationalSummary.menuTotal > 0) {
+    incrementCategorizedSummary('Menú / vianda', operationalSummary.menuTotal, REMITO_ROW_CATEGORIES.mainMenu)
+  }
+  operationalSummary.beverageBreakdown.forEach((row) => {
+    incrementCategorizedSummary(`Bebida: ${row.label}`, row.quantity, REMITO_ROW_CATEGORIES.drink)
+  })
+  operationalSummary.dessertBreakdown.forEach((row) => {
+    incrementCategorizedSummary(`Postre: ${row.label}`, row.quantity, REMITO_ROW_CATEGORIES.dessert)
+  })
 
+  orders.forEach((order) => {
     const custom = extractCustomResponses(order)
-    if (custom.side) incrementCategorizedSummary(`Guarnición: ${custom.side}`, 1, REMITO_ROW_CATEGORIES.side)
-    remitoBeverages.forEach((beverage) => {
-      incrementBeverageSummary(beverageTotals, beverage.label, beverage.quantity)
-    })
+    const menuTotal = getOrderMenuTotal(order)
+    if (custom.side) incrementCategorizedSummary(`Guarnición: ${custom.side}`, menuTotal || 1, REMITO_ROW_CATEGORIES.side)
     if (custom.additional) {
       custom.additional
         .split('|')
@@ -414,11 +401,6 @@ export const summarizeProducts = (orders = []) => {
       producto,
       cantidad: '',
       category: REMITO_ROW_CATEGORIES.observation
-    })),
-    ...[...beverageTotals.values()].map(({ label, quantity }) => ({
-      producto: `Bebida: ${label}`,
-      cantidad: quantity,
-      category: REMITO_ROW_CATEGORIES.drink
     }))
   ].sort(sortRemitoRows)
 }
@@ -528,13 +510,33 @@ const collapseOverflowRows = (products = [], maxRows = DETAIL_ROWS_PER_COPY) => 
 
 export const getPrintableDetailRows = (products = [], totalItems = getRemitoMenuTotalFromRows(products)) => {
   const menuRows = products.filter((product) => isMenuCountableCategory(product?.category))
-  const additionalRows = products.filter((product) => !isMenuCountableCategory(product?.category))
+  const beverageRows = products.filter((product) => product?.category === REMITO_ROW_CATEGORIES.drink)
+  const dessertRows = products.filter((product) => product?.category === REMITO_ROW_CATEGORIES.dessert)
+  const additionalRows = products.filter((product) => (
+    !isMenuCountableCategory(product?.category) &&
+    product?.category !== REMITO_ROW_CATEGORIES.drink &&
+    product?.category !== REMITO_ROW_CATEGORIES.dessert
+  ))
+  const beverageTotal = beverageRows.reduce((sum, product) => sum + Number(product?.cantidad || 0), 0)
+  const dessertTotal = dessertRows.reduce((sum, product) => sum + Number(product?.cantidad || 0), 0)
   return [
     ...collapseOverflowRows(menuRows),
     {
       cantidad: totalItems,
-      producto: 'TOTAL MENÚ',
+      producto: 'TOTAL MENÚS / VIANDAS',
       category: 'total_menu'
+    },
+    ...collapseOverflowRows(beverageRows),
+    {
+      cantidad: beverageTotal,
+      producto: 'TOTAL BEBIDAS',
+      category: 'total_beverages'
+    },
+    ...collapseOverflowRows(dessertRows),
+    {
+      cantidad: dessertTotal,
+      producto: 'TOTAL POSTRES',
+      category: 'total_desserts'
     },
     ...collapseOverflowRows(additionalRows)
   ]
@@ -599,7 +601,7 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
   const detailRows = getPrintableDetailRows(remito.products, remito.totalItems)
   detailRows.forEach((product, index) => {
     const rowNumber = DETAIL_START_ROW + index
-    const isTotalRow = product?.category === 'total_menu'
+    const isTotalRow = String(product?.category || '').startsWith('total_')
     copyCell(worksheet, rowNumber, startCol, product?.cantidad || '', {
       font: { size: 8, bold: isTotalRow },
       fill: isTotalRow ? LIGHT_FILL : WHITE_FILL,
@@ -772,6 +774,7 @@ export const buildRemitoSnapshot = ({
   status = 'draft'
 } = {}) => {
   const products = summarizeProducts(group?.orders || [])
+  const operationalSummary = summarizeOperationalOrders(group?.orders || [])
   const orderIds = getOrderIds(group?.orders || [])
   return {
     version: 1,
@@ -786,7 +789,13 @@ export const buildRemitoSnapshot = ({
     issuedBy,
     orderIds,
     ordersCount: orderIds.length || (group?.orders || []).length,
-    totalItems: getRemitoMenuTotalFromRows(products),
+    totalItems: operationalSummary.menuTotal,
+    totalMenus: operationalSummary.menuTotal,
+    menuBreakdown: operationalSummary.menuBreakdown,
+    totalBeverages: operationalSummary.beverageTotal,
+    beverageBreakdown: operationalSummary.beverageBreakdown,
+    totalDesserts: operationalSummary.dessertTotal,
+    dessertBreakdown: operationalSummary.dessertBreakdown,
     products,
     sourceOrders: (group?.orders || []).map((order) => ({
       id: order?.id || null,
@@ -809,14 +818,24 @@ export const buildRemitoSnapshot = ({
 export const remitoFromSnapshot = (snapshot = {}, fallback = {}) => {
   const rawNumber = snapshot.remitoNumber ?? fallback.remito_number ?? fallback.remitoNumber
   const remitoNumber = Number(rawNumber)
+  const products = Array.isArray(snapshot.products) ? snapshot.products : []
+  const totalMenus = Number(snapshot.totalMenus ?? snapshot.totalItems ?? getRemitoMenuTotalFromRows(products) ?? 0)
+  const beverageBreakdown = Array.isArray(snapshot.beverageBreakdown) ? snapshot.beverageBreakdown : []
+  const dessertBreakdown = Array.isArray(snapshot.dessertBreakdown) ? snapshot.dessertBreakdown : []
   return {
     companySlug: snapshot.companySlug || fallback.company_slug || fallback.companySlug || '',
     companyName: snapshot.companyName || fallback.company_name || fallback.companyName || '',
     companyDisplayName: snapshot.companyDisplayName || snapshot.companyName || fallback.company_name || fallback.companyName || 'Empresa',
     remitoNumber: Number.isFinite(remitoNumber) ? remitoNumber : (rawNumber || 'SIN EMITIR'),
     deliveryDate: snapshot.deliveryDate || snapshot.serviceDate || fallback.delivery_date || fallback.deliveryDate || '',
-    totalItems: Number(snapshot.totalItems || 0),
-    products: Array.isArray(snapshot.products) ? snapshot.products : [],
+    totalItems: Number.isFinite(totalMenus) ? totalMenus : 0,
+    totalMenus: Number.isFinite(totalMenus) ? totalMenus : 0,
+    menuBreakdown: Array.isArray(snapshot.menuBreakdown) ? snapshot.menuBreakdown : [],
+    totalBeverages: Number(snapshot.totalBeverages ?? beverageBreakdown.reduce((sum, row) => sum + Number(row?.quantity || 0), 0) ?? 0),
+    beverageBreakdown,
+    totalDesserts: Number(snapshot.totalDesserts ?? dessertBreakdown.reduce((sum, row) => sum + Number(row?.quantity || 0), 0) ?? 0),
+    dessertBreakdown,
+    products,
     reused: Boolean(fallback.reused)
   }
 }
