@@ -41,19 +41,18 @@ export default function EditOrderForm({ user, loading }) {
     const companies = getVisibleCompanyList({ includeAdminOnly: false })
     const adminServifood = COMPANY_CATALOG[ADMIN_SERVIFOOD_SLUG]
     if (
-      canUseAdminServifoodInEdit &&
+      (canUseAdminServifoodInEdit || originalCompany?.slug === ADMIN_SERVIFOOD_SLUG) &&
       adminServifood &&
       !companies.some((company) => company.slug === ADMIN_SERVIFOOD_SLUG)
     ) {
       companies.push(adminServifood)
     }
     return companies.flatMap((company) => company.locations || [])
-  }, [canUseAdminServifoodInEdit])
+  }, [canUseAdminServifoodInEdit, originalCompany?.slug])
   const locations = useMemo(() => {
     const baseLocations = isEpseOrder ? authorizedEpseLocations : visibleCompanyLocations
-    const shouldPreserveOriginalLocation = originalCompany?.slug !== ADMIN_SERVIFOOD_SLUG || canUseAdminServifoodInEdit
-    return appendOriginalLocation(baseLocations, shouldPreserveOriginalLocation ? originalLocation : '')
-  }, [authorizedEpseLocations, canUseAdminServifoodInEdit, isEpseOrder, originalCompany?.slug, originalLocation, visibleCompanyLocations])
+    return appendOriginalLocation(baseLocations, originalLocation)
+  }, [authorizedEpseLocations, isEpseOrder, originalLocation, visibleCompanyLocations])
 
   const {
     menuItems,

@@ -55,6 +55,9 @@ export type NormalizedOrder = {
   comments?: string | null
   status?: string | null
   total_items?: number | null
+  order_origin?: string | null
+  created_by_admin_id?: string | null
+  admin_extra_created_at?: string | null
   created_at?: string | null
   normalization_warnings?: string[]
 }
@@ -173,10 +176,19 @@ const isMealService = (service?: unknown) => {
   return normalized === 'lunch' || normalized === 'dinner'
 }
 
+const isAdminExtraOrder = (order: Record<string, unknown>) =>
+  String(order.order_origin || '').trim().toLowerCase() === 'admin_extra' ||
+  Boolean(order.created_by_admin_id || order.admin_extra_created_at)
+
+const getItemsQuantity = (items: Array<Record<string, unknown>>) =>
+  items.reduce((sum, item) => sum + (Number(item.quantity ?? item.qty ?? 1) || 1), 0)
+
 const normalizeItemsForService = (
   service: unknown,
-  items: Array<Record<string, unknown>>
+  items: Array<Record<string, unknown>>,
+  preserveQuantities = false
 ): Array<Record<string, unknown>> => {
+  if (preserveQuantities) return items.map((item) => ({ ...item }))
   if (!isMealService(service)) return items.map((item) => ({ ...item }))
   return items.slice(0, 1).map((item) => ({
     ...item,
@@ -186,11 +198,12 @@ const normalizeItemsForService = (
 
 export const normalizeOrder = (order: Record<string, unknown>): NormalizedOrder => {
   const rawItems = safeArray(order.items)
-  const normalizedItems = normalizeItemsForService(order.service, rawItems)
+  const isExtra = isAdminExtraOrder(order)
+  const normalizedItems = normalizeItemsForService(order.service, rawItems, isExtra)
   const service = getNormalizedService(order.service)
   const warnings: string[] = []
 
-  if (isMealService(service)) {
+  if (!isExtra && isMealService(service)) {
     if (rawItems.length > 1) warnings.push('más de un menú principal')
     if (rawItems.some((item) => Number(item.quantity || item.qty || 1) !== 1)) warnings.push('cantidad histórica normalizada')
     if (Number.isFinite(Number(order.total_items)) && Number(order.total_items) !== normalizedItems.length) {
@@ -198,12 +211,17 @@ export const normalizeOrder = (order: Record<string, unknown>): NormalizedOrder 
     }
   }
 
+  const storedTotal = Number(order.total_items)
+  const totalItems = isExtra && Number.isFinite(storedTotal) && storedTotal > 0
+    ? storedTotal
+    : getItemsQuantity(normalizedItems)
+
   return {
     ...order,
     service,
     items: normalizedItems,
     custom_responses: safeArray(order.custom_responses),
-    total_items: normalizedItems.length,
+    total_items: totalItems,
     normalization_warnings: warnings
   }
 }
@@ -252,6 +270,11 @@ export const getServiceLabel = (service?: string | null) =>
   String(service || 'lunch') === 'dinner' ? 'Cena' : 'Almuerzo'
 
 export const getOrderTotalItems = (order: NormalizedOrder) => {
+  if (isAdminExtraOrder(order as unknown as Record<string, unknown>)) {
+    const storedTotal = Number(order.total_items || 0)
+    if (storedTotal > 0) return storedTotal
+    return getItemsQuantity(order.items)
+  }
   if (isMealService(order.service)) return order.items.length
   const storedTotal = Number(order.total_items || 0)
   if (storedTotal > 0) return storedTotal

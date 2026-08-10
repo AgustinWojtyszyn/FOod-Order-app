@@ -1,5 +1,12 @@
 import { updateUserRoleWithRpc } from './roleUpdates'
 
+const normalizeSearchText = (value = '') =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
 export const createUsersService = ({
   supabase,
   cache = null,
@@ -94,6 +101,63 @@ export const createUsersService = ({
         p_page: normalizedPage,
         p_page_size: normalizedPageSize
       })
+
+      if (error?.code === 'PGRST202' || /get_admin_people_page/i.test(error?.message || '')) {
+        const [{ data: peopleData, error: peopleError }, { data: accountsData, error: accountsError }] = await Promise.all([
+          supabase
+            .from('admin_people_unified')
+            .select('person_id, group_id, display_name, emails, user_ids, members_count, first_created, last_created, is_grouped'),
+          supabase
+            .from('users')
+            .select('id, email, full_name, role, created_at')
+        ])
+
+        if (peopleError || accountsError) {
+          return { data: null, error: peopleError || accountsError || error }
+        }
+
+        const accountsById = new Map((accountsData || []).map((account) => [account.id, account]))
+        const searchText = normalizeSearchText(search)
+        const items = (peopleData || []).map((person) => {
+          const emails = Array.isArray(person.emails) ? person.emails.filter(Boolean) : []
+          const userIds = Array.isArray(person.user_ids) ? person.user_ids.filter(Boolean) : []
+          const accounts = userIds.map((id) => accountsById.get(id)).filter(Boolean)
+          const role = accounts.some((account) => account.role === 'admin') ? 'admin' : 'user'
+          return {
+            ...person,
+            full_name: person.display_name || emails[0] || 'Sin nombre',
+            email: emails[0] || '',
+            role,
+            primary_user_id: userIds[0] || accounts[0]?.id || null,
+            accounts
+          }
+        }).filter((person) => {
+          if (normalizedRole !== 'all' && person.role !== normalizedRole) return false
+          if (!searchText) return true
+          const haystack = normalizeSearchText([
+            person.full_name,
+            person.email,
+            ...(person.emails || []),
+            ...(person.accounts || []).flatMap((account) => [account.full_name, account.email])
+          ].filter(Boolean).join(' '))
+          return haystack.includes(searchText)
+        }).sort((a, b) => {
+          if (normalizedSort === 'name_desc') return String(b.full_name || '').localeCompare(String(a.full_name || ''), 'es')
+          if (normalizedSort === 'newest') return new Date(b.first_created || b.created_at || 0) - new Date(a.first_created || a.created_at || 0)
+          if (normalizedSort === 'oldest') return new Date(a.first_created || a.created_at || 0) - new Date(b.first_created || b.created_at || 0)
+          return String(a.full_name || '').localeCompare(String(b.full_name || ''), 'es')
+        })
+        const from = (normalizedPage - 1) * normalizedPageSize
+        const pageItems = items.slice(from, from + normalizedPageSize)
+        return {
+          data: {
+            items: pageItems,
+            total_count: items.length,
+            total_pages: Math.max(1, Math.ceil(items.length / normalizedPageSize))
+          },
+          error: null
+        }
+      }
 
       return { data, error }
     },

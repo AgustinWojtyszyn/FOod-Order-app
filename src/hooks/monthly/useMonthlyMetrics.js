@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { COUNTABLE_STATUSES } from '../../utils/monthly/monthlyOrderConstants'
 import { toDisplayString } from '../../utils/monthly/monthlyOrderFormatters'
+import { normalizeOrderForReadOnly } from '../../utils/order/normalizeOrderForReadOnly'
 import {
   addSideItem,
   buildDailyBreakdownFromOrdersByDay,
@@ -62,7 +63,7 @@ export const useMonthlyMetrics = ({ supabase, db, pushLog }) => {
     setError(null)
     try {
       pushLogRef.current?.('fetch-start', currentRange)
-      const columns = 'id,status,delivery_date,created_at,total_items,items,custom_responses,location,service,customer_name,customer_email,customer_phone,comments'
+      const columns = 'id,status,delivery_date,created_at,total_items,items,custom_responses,location,service,customer_name,customer_email,customer_phone,comments,order_origin,created_by_admin_id,admin_extra_created_at'
       pushLogRef.current?.('query-params', { start: currentRange.start, end: currentRange.end })
 
       const deliveryOrders = await fetchAllOrders(
@@ -108,16 +109,8 @@ export const useMonthlyMetrics = ({ supabase, db, pushLog }) => {
         const sideBuckets = createSideBuckets()
 
         pedidos.forEach(p => {
-          let items = []
-          if (Array.isArray(p.items)) {
-            items = p.items
-          } else if (typeof p.items === 'string') {
-            try {
-              items = JSON.parse(p.items)
-            } catch (_err) {
-              // ignore parse errors (legacy payloads)
-            }
-          }
+          const { normalizedItems, normalizedCustomResponses } = normalizeOrderForReadOnly(p)
+          const items = Array.isArray(normalizedItems) ? normalizedItems : []
           items.forEach(item => {
             totalMenus += item.quantity || 1
             const nombre = (item.name || '').trim()
@@ -128,16 +121,7 @@ export const useMonthlyMetrics = ({ supabase, db, pushLog }) => {
             }
           })
 
-          let customResponses = []
-          if (Array.isArray(p.custom_responses)) {
-            customResponses = p.custom_responses
-          } else if (typeof p.custom_responses === 'string') {
-            try {
-              customResponses = JSON.parse(p.custom_responses)
-            } catch (_err) {
-              // ignore parse errors (legacy payloads)
-            }
-          }
+          const customResponses = Array.isArray(normalizedCustomResponses) ? normalizedCustomResponses : []
           customResponses.forEach(resp => {
             const baseResp = toDisplayString(resp.response)
             if (baseResp) addSideItem(baseResp, sideBuckets)

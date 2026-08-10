@@ -23,6 +23,77 @@ const createSupabaseMock = (rpcResult = { data: [{ id: 'user-1', role: 'admin' }
   }
 }
 
+const createAdminPeopleFallbackSupabaseMock = () => {
+  const calls = []
+  const tableResults = {
+    admin_people_unified: {
+      data: [
+        {
+          person_id: 'global-admin',
+          display_name: 'Administración Álvarez',
+          emails: ['admin.alvarez@example.com'],
+          user_ids: ['global-admin'],
+          members_count: 1,
+          first_created: '2026-08-01T00:00:00.000Z',
+          last_created: '2026-08-01T00:00:00.000Z',
+          is_grouped: false
+        },
+        {
+          person_id: 'regular-user',
+          display_name: 'Usuario Normal',
+          emails: ['user@example.com'],
+          user_ids: ['regular-user'],
+          members_count: 1,
+          first_created: '2026-08-02T00:00:00.000Z',
+          last_created: '2026-08-02T00:00:00.000Z',
+          is_grouped: false
+        }
+      ],
+      error: null
+    },
+    users: {
+      data: [
+        {
+          id: 'global-admin',
+          email: 'admin.alvarez@example.com',
+          full_name: 'Administración Álvarez',
+          role: 'admin',
+          created_at: '2026-08-01T00:00:00.000Z'
+        },
+        {
+          id: 'regular-user',
+          email: 'user@example.com',
+          full_name: 'Usuario Normal',
+          role: 'user',
+          created_at: '2026-08-02T00:00:00.000Z'
+        }
+      ],
+      error: null
+    }
+  }
+  return {
+    calls,
+    supabase: {
+      rpc(name, args) {
+        calls.push(['rpc', name, args])
+        return Promise.resolve({
+          data: null,
+          error: { code: 'PGRST202', message: 'Could not find get_admin_people_page' }
+        })
+      },
+      from(table) {
+        calls.push(['from', table])
+        return {
+          select(columns) {
+            calls.push(['select', table, columns])
+            return Promise.resolve(tableResults[table] || { data: [], error: null })
+          }
+        }
+      }
+    }
+  }
+}
+
 describe('usersService role updates', () => {
   it('usa la RPC administrativa y no actualiza public.users directamente', async () => {
     const { supabase, calls } = createSupabaseMock()
@@ -81,5 +152,28 @@ describe('usersService role updates', () => {
     expect(result.data).toBeNull()
     expect(result.error?.message).toBe('invalid_role')
     expect(calls).toEqual([])
+  })
+
+  it('usa fallback real y busca admins sin distinguir tildes si falta get_admin_people_page', async () => {
+    const { supabase, calls } = createAdminPeopleFallbackSupabaseMock()
+    const service = createUsersService({ supabase })
+
+    const result = await service.getAdminPeoplePage({
+      search: 'administracion alv',
+      role: 'admin',
+      page: 1,
+      pageSize: 40
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.data.total_count).toBe(1)
+    expect(result.data.items[0]).toMatchObject({
+      person_id: 'global-admin',
+      email: 'admin.alvarez@example.com',
+      role: 'admin',
+      primary_user_id: 'global-admin'
+    })
+    expect(calls).toContainEqual(['from', 'admin_people_unified'])
+    expect(calls).toContainEqual(['from', 'users'])
   })
 })

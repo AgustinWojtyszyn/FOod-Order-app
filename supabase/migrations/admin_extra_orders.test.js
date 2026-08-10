@@ -9,6 +9,10 @@ const rpcFixMigration = readFileSync(
   new URL('./20260806170000_fix_admin_extra_order_rpc_payload_validation.sql', import.meta.url),
   'utf8'
 )
+const stabilizationMigration = readFileSync(
+  new URL('./20260810120000_stabilize_orders_admin_users_editing.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -42,5 +46,15 @@ describe('admin extra orders migration', () => {
     expect(rpcFixMigration).not.toContain('v_client public.users')
     expect(rpcFixMigration).toContain('drop function if exists public.search_admin_extra_order_people')
     expect(rpcFixMigration).toContain('drop function if exists public.get_admin_extra_order_duplicate')
+  })
+
+  it('keeps null-user admin extra orders countable and creates paged admin search', () => {
+    expect(stabilizationMigration).toContain('alter column user_id drop not null')
+    expect(stabilizationMigration).toContain("'admin_extra:' || o.id::text")
+    expect(stabilizationMigration).toContain('create or replace function public.get_admin_people_page')
+    expect(stabilizationMigration).toContain('extensions.unaccent')
+    expect(stabilizationMigration).toContain("v_role not in ('all', 'admin', 'user')")
+    expect(stabilizationMigration).toContain('is_global_admin')
+    expect(stabilizationMigration).toContain('is_company_admin')
   })
 })

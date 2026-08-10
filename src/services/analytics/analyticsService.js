@@ -1,3 +1,5 @@
+import { normalizeOrderForReadOnly } from '../../utils/order/normalizeOrderForReadOnly'
+
 export const createAnalyticsService = ({ supabase } = {}) => {
   if (!supabase) {
     throw new Error('createAnalyticsService requires a supabase client')
@@ -55,7 +57,7 @@ export const createAnalyticsService = ({ supabase } = {}) => {
       }
 
       // Intento principal: incluye custom_responses si existe
-      const primaryColumns = 'id, status, delivery_date, created_at, total_items, items, custom_responses'
+      const primaryColumns = 'id, status, delivery_date, created_at, total_items, items, custom_responses, order_origin, created_by_admin_id, admin_extra_created_at'
       let { data: orders, error } = await selectOrders(primaryColumns)
 
       // Si falla por columna inexistente (ej. custom_responses), reintentar sin esa columna
@@ -124,16 +126,14 @@ export const createAnalyticsService = ({ supabase } = {}) => {
         }
         const row = byDay.get(key)
         row.count += 1
-        row.total_items += (o.total_items || 0)
+        const { normalizedItems, normalizedCustomResponses } = normalizeOrderForReadOnly(o)
+        const orderQuantity = (Array.isArray(normalizedItems) ? normalizedItems : [])
+          .reduce((sum, item) => sum + (Number(item?.quantity ?? item?.qty ?? 1) || 1), 0) || (Number(o.total_items) || 0)
+        row.total_items += orderQuantity
         row.total_amount += (o.total_amount || 0)
 
         // Procesar items: separar menús principales y opciones
-        let items = []
-        if (Array.isArray(o.items)) {
-          items = o.items
-        } else if (typeof o.items === 'string') {
-          try { items = JSON.parse(o.items) } catch (_err) { /* ignore malformed payload */ }
-        }
+        const items = Array.isArray(normalizedItems) ? normalizedItems : []
         items.forEach(item => {
           const qty = (item?.quantity ?? 1)
           const nombre = (item?.name ?? '').trim()
@@ -150,12 +150,7 @@ export const createAnalyticsService = ({ supabase } = {}) => {
         })
 
         // Procesar guarniciones desde custom_responses
-        let customResponses = []
-        if (Array.isArray(o.custom_responses)) {
-          customResponses = o.custom_responses
-        } else if (typeof o.custom_responses === 'string') {
-          try { customResponses = JSON.parse(o.custom_responses) } catch (_err) { /* ignore malformed payload */ }
-        }
+        const customResponses = Array.isArray(normalizedCustomResponses) ? normalizedCustomResponses : []
         customResponses.forEach(resp => {
           const r = norm(resp?.response)
           if (r) {

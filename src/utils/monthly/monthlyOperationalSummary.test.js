@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buildMonthlyOperationalSummary } from './monthlyOrderCalculations'
+import {
+  buildDailyBreakdownFromOrdersByDay,
+  buildMonthlyOperationalSummary
+} from './monthlyOrderCalculations'
 
 const day = (date, count, extra = {}) => ({
   date,
@@ -45,6 +48,31 @@ describe('buildMonthlyOperationalSummary', () => {
     expect(summary.trend.firstHalfTotal).toBe(0)
     expect(summary.trend.secondHalfTotal).toBe(5)
     expect(summary.trend.label).toBe('+5 pedidos en la segunda mitad')
+  })
+
+  it('cuenta cantidades reales de pedidos extra administrativos en el panel mensual', () => {
+    const result = buildDailyBreakdownFromOrdersByDay(['2026-08-11'], {
+      '2026-08-11': [{
+        id: 'extra-1',
+        status: 'pending',
+        delivery_date: '2026-08-11',
+        service: 'lunch',
+        order_origin: 'admin_extra',
+        created_by_admin_id: 'admin-1',
+        location: 'CCP',
+        total_items: 20,
+        items: [{ name: 'Opción 1 - Pollo', quantity: 20 }],
+        custom_responses: []
+      }]
+    })
+
+    expect(result.daily_breakdown[0]).toMatchObject({
+      count: 1,
+      total_items: 20,
+      lunch_items: 20,
+      total_opciones: 20
+    })
+    expect(result.range_totals.total_items).toBe(20)
   })
 
   it('usa rango inclusivo y cuenta dias sin pedidos en el promedio', () => {

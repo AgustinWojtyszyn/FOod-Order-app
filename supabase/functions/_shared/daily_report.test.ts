@@ -86,6 +86,36 @@ describe('daily report helpers', () => {
     expect(summary.warnings.some((warning) => warning.includes('Pedido 2'))).toBe(true)
   })
 
+  it('contabiliza pedidos extra administrativos desde la cantidad real del pedido', () => {
+    const order = normalizeOrder({
+      id: 'extra-1',
+      user_id: null,
+      customer_name: null,
+      customer_email: null,
+      location: 'CCP',
+      company_slug: 'ccp',
+      delivery_date: '2026-08-11',
+      service: 'lunch',
+      status: 'pending',
+      order_origin: 'admin_extra',
+      created_by_admin_id: 'admin-1',
+      created_by_admin_email: 'admin@example.com',
+      created_by_admin_name: 'Admin',
+      total_items: 20,
+      items: [{ name: 'Opción 1 - Pollo', quantity: 20 }],
+      custom_responses: [{ title: 'Guarnición', response: ['Puré'], quantities: { Puré: 20 } }]
+    })
+
+    const summary = buildDailySummary([order], '2026-08-11')
+
+    expect(order.total_items).toBe(20)
+    expect(order.items).toEqual([{ name: 'Opción 1 - Pollo', quantity: 20 }])
+    expect(summary.totalOrders).toBe(1)
+    expect(summary.totalItems).toBe(20)
+    expect(summary.byLocation).toContainEqual({ label: 'CCP', orders: 1, items: 20 })
+    expect(summary.byMenuOption).toContainEqual({ label: 'Opción 1 - Pollo', quantity: 20 })
+  })
+
   it('no duplica menú de cena como adicional pero lo conserva en detalle por empresa', () => {
     const summary = buildDailySummary([
       normalizeOrder({
