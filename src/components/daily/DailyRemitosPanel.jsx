@@ -133,11 +133,24 @@ const DailyRemitosPanel = ({
     notifyInfo('Vista previa generada. REMITO SIN EMITIR: no se asignó número ni se escribió en la base.')
   }
 
-  const downloadIssued = async (remito) => {
+  const downloadIssued = async (remito, group = null) => {
     const snapshot = remito.snapshot && typeof remito.snapshot === 'object' ? remito.snapshot : {}
-    const printable = remitoFromSnapshot(snapshot, remito)
+    const hasSnapshotProducts = Array.isArray(snapshot.products) && snapshot.products.length > 0
+    const legacySnapshot = !hasSnapshotProducts && group
+      ? buildRemitoSnapshot({
+        group,
+        remitoNumber: remito.remito_number,
+        deliveryDate: remito.delivery_date || deliveryDate,
+        issuedAt: remito.issued_at || null,
+        issuedBy: remito.issued_by || null,
+        status: remito.status || 'issued'
+      })
+      : snapshot
+    const printable = remitoFromSnapshot(legacySnapshot, remito)
     await downloadRemitoWorkbook([printable], printable.deliveryDate || deliveryDate)
-    notifySuccess('Remito descargado desde snapshot emitido.')
+    notifySuccess(hasSnapshotProducts
+      ? 'Remito descargado desde snapshot emitido.'
+      : 'Remito histórico descargado reconstruyendo el detalle desde los pedidos de esa fecha.')
   }
 
   const issueGroup = async (group) => {
@@ -271,11 +284,11 @@ const DailyRemitosPanel = ({
                     )}
                     {existing && (
                       <>
-                        <button type="button" onClick={() => downloadIssued(existing)} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">
+                        <button type="button" onClick={() => downloadIssued(existing, group)} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">
                           <Download className="mr-2 h-4 w-4" />
                           Descargar
                         </button>
-                        <button type="button" onClick={() => downloadIssued(existing)} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">
+                        <button type="button" onClick={() => downloadIssued(existing, group)} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">
                           <Printer className="mr-2 h-4 w-4" />
                           Reimprimir
                         </button>
