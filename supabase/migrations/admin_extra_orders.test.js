@@ -13,6 +13,10 @@ const stabilizationMigration = readFileSync(
   new URL('./20260810120000_stabilize_orders_admin_users_editing.sql', import.meta.url),
   'utf8'
 )
+const retroactiveRemitosMigration = readFileSync(
+  new URL('./20260810143000_retroactive_company_remitos.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -56,5 +60,17 @@ describe('admin extra orders migration', () => {
     expect(stabilizationMigration).toContain("v_role not in ('all', 'admin', 'user')")
     expect(stabilizationMigration).toContain('is_global_admin')
     expect(stabilizationMigration).toContain('is_company_admin')
+  })
+
+  it('extends existing remitos with immutable snapshots and idempotent retroactive issuance', () => {
+    expect(retroactiveRemitosMigration).toContain('add column if not exists snapshot jsonb')
+    expect(retroactiveRemitosMigration).toContain('add column if not exists request_id text')
+    expect(retroactiveRemitosMigration).toContain('company_remitos_request_id_unique')
+    expect(retroactiveRemitosMigration).toContain('prevent_issued_remito_snapshot_mutation')
+    expect(retroactiveRemitosMigration).toContain('create or replace function public.get_company_remitos_for_date')
+    expect(retroactiveRemitosMigration).toContain('create or replace function public.issue_company_remito')
+    expect(retroactiveRemitosMigration).toContain('for update')
+    expect(retroactiveRemitosMigration).toContain("'company_remito_issued'")
+    expect(retroactiveRemitosMigration).toContain('public.is_company_admin(v_slug)')
   })
 })

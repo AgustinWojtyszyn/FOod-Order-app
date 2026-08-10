@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   getPrintableDetailRows,
+  buildRemitoSnapshot,
   getRemitoMenuTotalFromRows,
   getRemitoRowPriority,
   getTotalMenuItemsForRemito,
@@ -108,6 +109,43 @@ describe('daily order notes Excel model', () => {
       'Fruta o postre: Fruta',
       'Observación: Saludos'
     ])
+  })
+
+  it('builds immutable remito snapshots from the same product model used by Excel', () => {
+    const order = makeOrder({
+      id: '7bb6f6cd-8f76-4d97-b340-681c020140c1',
+      order_origin: 'admin_extra',
+      total_items: 10,
+      items: [{ id: 'op-1', name: 'Opción 1 - Pollo', quantity: 10 }],
+      custom_responses: [{ title: 'Bebida', response: 'Agua' }]
+    })
+    const snapshot = buildRemitoSnapshot({
+      group: {
+        slug: 'genneia',
+        name: 'Genneia',
+        displayName: 'Genneia',
+        orders: [order]
+      },
+      deliveryDate: '2026-08-10',
+      status: 'draft'
+    })
+
+    expect(snapshot).toMatchObject({
+      status: 'draft',
+      companySlug: 'genneia',
+      deliveryDate: '2026-08-10',
+      ordersCount: 1,
+      totalItems: 10,
+      orderIds: ['7bb6f6cd-8f76-4d97-b340-681c020140c1']
+    })
+    expect(snapshot.products).toContainEqual(expect.objectContaining({
+      producto: 'Opción 1 - Pollo',
+      cantidad: 10
+    }))
+    expect(snapshot.products).toContainEqual(expect.objectContaining({
+      producto: 'Bebida: Agua',
+      cantidad: 1
+    }))
   })
 
   it('places observations after operational products without counting them as products', () => {

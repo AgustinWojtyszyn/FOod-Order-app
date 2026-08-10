@@ -222,12 +222,24 @@ export const db = {
     return { data, error }
   },
 
-  issueCompanyRemito: async ({ companySlug, companyName, deliveryDate, orderIds }) => {
+  getCompanyRemitosForDate: async ({ deliveryDate, companySlug = null, locationKey = null } = {}) => {
+    const { data, error } = await supabase.rpc('get_company_remitos_for_date', {
+      p_delivery_date: deliveryDate,
+      p_company_slug: companySlug && companySlug !== 'all' ? companySlug : null,
+      p_location_key: locationKey && locationKey !== 'all' ? locationKey : null
+    })
+    return { data, error }
+  },
+
+  issueCompanyRemito: async ({ companySlug, companyName, deliveryDate, orderIds, requestId = null, snapshot = null, locationKey = '' }) => {
     const { data, error } = await supabase.rpc('issue_company_remito', {
       p_company_slug: companySlug,
       p_company_name: companyName,
       p_delivery_date: deliveryDate,
-      p_order_ids: Array.isArray(orderIds) ? orderIds : []
+      p_order_ids: Array.isArray(orderIds) ? orderIds : [],
+      p_request_id: requestId,
+      p_snapshot: snapshot,
+      p_location_key: locationKey || ''
     })
     return { data: Array.isArray(data) ? data[0] : data, error }
   },

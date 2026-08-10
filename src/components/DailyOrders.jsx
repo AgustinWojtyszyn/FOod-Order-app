@@ -11,6 +11,7 @@ import DailyOrdersTable from './daily/DailyOrdersTable'
 import DailySummary from './daily/DailySummary'
 import DailyPrintStyles from './daily/DailyPrintStyles'
 import AdminExtraOrderModal from './daily/AdminExtraOrderModal'
+import DailyRemitosPanel from './daily/DailyRemitosPanel'
 import { useDailyOrdersData } from '../hooks/useDailyOrdersData'
 import { matchesDailyOrderStatusFilter, useDailyOrdersFilters } from '../hooks/useDailyOrdersFilters'
 import {
@@ -36,6 +37,7 @@ const DailyOrders = ({ user, loading }) => {
   const [selectedSide, setSelectedSide] = useState('all')
   const [sortBy, setSortBy] = useState('recent')
   const [extraOrderOpen, setExtraOrderOpen] = useState(false)
+  const [activeSubtab, setActiveSubtab] = useState('orders')
 
   const locations = COMPANY_LOCATIONS
   const navigate = useNavigate()
@@ -137,6 +139,10 @@ const DailyOrders = ({ user, loading }) => {
   const exportableOrdersCount = countOperationalUnits(manualExportOrders)
   const sortedOrdersUnits = countOperationalUnits(sortedOrders)
   const deliveryDateLabel = formatDeliveryDateLabel(operationalDate)
+  const remitoCompanyOptions = useMemo(
+    () => locations.map((location) => ({ value: location, label: location })),
+    [locations]
+  )
   const dailyCloseStatus = useMemo(
     () => getDailyOperationalStatus({
       orders: allOrders,
@@ -229,41 +235,73 @@ const DailyOrders = ({ user, loading }) => {
           status={dailyCloseStatus}
         />
 
-        <DailyFilters
-          stats={statsForFilters}
-          locations={locations}
-          selectedLocation={selectedLocation}
-          onLocationChange={setSelectedLocation}
-          selectedStatus={selectedStatus}
-          onStatusChange={setSelectedStatus}
-          selectedDish={selectedDish}
-          onDishChange={setSelectedDish}
-          selectedSide={selectedSide}
-          onSideChange={setSelectedSide}
-          availableDishes={availableDishes}
-          availableSides={availableSides}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-        />
+        <div className="mb-4 flex max-w-full gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 print-hide">
+          {[
+            ['orders', 'Pedidos'],
+            ['remitos', 'Remitos']
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setActiveSubtab(value)}
+              className={`min-w-0 flex-1 rounded-lg px-3 py-2 text-sm font-black ${activeSubtab === value ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-        <DailySummary
-          mode="main"
-          stats={stats}
-          operationalSummary={operationalSummary}
-          sortedOrdersLength={sortedOrdersUnits}
-          selectedLocation={selectedLocation}
-          locationCards={locationCards}
-        />
+        {activeSubtab === 'orders' && (
+          <>
+            <DailyFilters
+              stats={statsForFilters}
+              locations={locations}
+              selectedLocation={selectedLocation}
+              onLocationChange={setSelectedLocation}
+              selectedStatus={selectedStatus}
+              onStatusChange={setSelectedStatus}
+              selectedDish={selectedDish}
+              onDishChange={setSelectedDish}
+              selectedSide={selectedSide}
+              onSideChange={setSelectedSide}
+              availableDishes={availableDishes}
+              availableSides={availableSides}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+            />
 
-        <DailyOrdersTable
-          sortedOrders={sortedOrders}
-          sortBy={sortBy}
-          selectedLocation={selectedLocation}
-          selectedStatus={selectedStatus}
-          onArchiveOrder={isGlobalAdmin ? handleArchiveOrder : null}
-          onDeleteExtraOrder={handleDeleteExtraOrder}
-          onViewOrder={(orderId) => navigate(`/orders/${orderId}`)}
-        />
+            <DailySummary
+              mode="main"
+              stats={stats}
+              operationalSummary={operationalSummary}
+              sortedOrdersLength={sortedOrdersUnits}
+              selectedLocation={selectedLocation}
+              locationCards={locationCards}
+            />
+
+            <DailyOrdersTable
+              sortedOrders={sortedOrders}
+              sortBy={sortBy}
+              selectedLocation={selectedLocation}
+              selectedStatus={selectedStatus}
+              onArchiveOrder={isGlobalAdmin ? handleArchiveOrder : null}
+              onDeleteExtraOrder={handleDeleteExtraOrder}
+              onViewOrder={(orderId) => navigate(`/orders/${orderId}`)}
+            />
+          </>
+        )}
+
+        {activeSubtab === 'remitos' && (
+          <DailyRemitosPanel
+            orders={allOrders}
+            deliveryDate={operationalDate}
+            exportCompany={exportCompany}
+            onExportCompanyChange={setExportCompany}
+            companyOptions={remitoCompanyOptions}
+            onDeliveryDateChange={handleDeliveryDateChange}
+            onRefresh={handleRefresh}
+          />
+        )}
       </div>
     </RequireUser>
   )

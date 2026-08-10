@@ -87,16 +87,16 @@ const buildUniqueSheetName = (displayName, usedNames) => {
   return candidate
 }
 
-const getOrderIds = (orders = []) =>
+export const getOrderIds = (orders = []) =>
   orders
     .map((order) => order?.id)
     .filter((id) => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
 
-const getDeliveryDate = (orders = []) =>
+export const getDeliveryDate = (orders = []) =>
   normalizeText(orders.find((order) => order?.delivery_date)?.delivery_date).slice(0, 10) ||
   new Date().toISOString().slice(0, 10)
 
-const formatDateForFile = (isoDate) => {
+export const formatDateForFile = (isoDate) => {
   const formatted = formatDateOnly(isoDate)
   return formatted ? formatted.replaceAll('/', '-') : new Date().toLocaleDateString('es-AR').replaceAll('/', '-')
 }
@@ -109,7 +109,7 @@ const normalizeCompanyMatchText = (value = '') =>
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
 
-const resolveCompanyForOrder = (order = {}) => {
+export const resolveCompanyForOrder = (order = {}) => {
   const raw = getOrderLocation(order)
   const company = getCompanyByLocationOrSlug(raw) || getCompanyByLocationOrSlug(order.company_slug || order.company)
   const normalizedRaw = normalizeCompanyMatchText(raw)
@@ -127,10 +127,10 @@ const resolveCompanyForOrder = (order = {}) => {
   }
 }
 
-const isRemitoEligibleCompany = (company = {}) =>
+export const isRemitoEligibleCompany = (company = {}) =>
   company?.slug && !EXCLUDED_REMITO_COMPANY_SLUGS.has(company.slug)
 
-const buildCompanyGroups = (orders = []) => {
+export const buildCompanyGroups = (orders = []) => {
   const groups = new Map()
   orders.forEach((order) => {
     const company = resolveCompanyForOrder(order)
@@ -146,13 +146,13 @@ const buildCompanyGroups = (orders = []) => {
 const getIndexCompanyLabel = (remito = {}) =>
   `${remito.companyDisplayName || remito.companyName || 'Empresa'} - N° ${remito.remitoNumber}`
 
-const isRemitoNumberInCompanyRange = (companySlug, remitoNumber) => {
+export const isRemitoNumberInCompanyRange = (companySlug, remitoNumber) => {
   const range = REMITO_NUMBER_RANGES[companySlug]
   if (!range) return false
   return remitoNumber >= range[0] && remitoNumber <= range[1]
 }
 
-const getRemitoIssueFallbackMessage = (companyName, error) => {
+export const getRemitoIssueFallbackMessage = (companyName, error) => {
   const raw = [
     error?.message,
     error?.details,
@@ -648,7 +648,7 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
   return footerStartRow + 6
 }
 
-const addRemitoSheet = async (workbook, remito, sheetName) => {
+export const addRemitoSheet = async (workbook, remito, sheetName) => {
   const worksheet = workbook.addWorksheet(sheetName)
   worksheet.columns = [
     { key: 'margin', width: 1.6 },
@@ -686,7 +686,7 @@ const addRemitoSheet = async (workbook, remito, sheetName) => {
   return worksheet
 }
 
-const addIndexSheet = (workbook, remitos) => {
+export const addIndexSheet = (workbook, remitos) => {
   const worksheet = workbook.addWorksheet('Índice', { properties: { tabColor: { argb: 'FF111827' } } })
   worksheet.columns = [
     { header: 'Empresa', key: 'empresa', width: 34 },
@@ -754,13 +754,98 @@ const addIndexSheet = (workbook, remitos) => {
   return worksheet
 }
 
-const buildFileName = (remitos, deliveryDate) => {
+export const buildFileName = (remitos, deliveryDate) => {
   const dateForFile = formatDateForFile(deliveryDate)
   if (remitos.length === 1) {
     const companyPart = sanitizeFileName(slugify(remitos[0].companyName).toUpperCase())
     return `Nota_de_Pedido_${companyPart}_${remitos[0].remitoNumber}_${dateForFile}.xlsx`
   }
   return `Notas_de_Pedido_Empresas_${dateForFile}.xlsx`
+}
+
+export const buildRemitoSnapshot = ({
+  group,
+  remitoNumber = null,
+  deliveryDate = getDeliveryDate(group?.orders || []),
+  issuedAt = null,
+  issuedBy = null,
+  status = 'draft'
+} = {}) => {
+  const products = summarizeProducts(group?.orders || [])
+  const orderIds = getOrderIds(group?.orders || [])
+  return {
+    version: 1,
+    status,
+    companySlug: group?.slug || '',
+    companyName: group?.name || group?.slug || '',
+    companyDisplayName: group?.displayName || group?.name || group?.slug || 'Empresa',
+    remitoNumber,
+    deliveryDate,
+    serviceDate: deliveryDate,
+    issuedAt,
+    issuedBy,
+    orderIds,
+    ordersCount: orderIds.length || (group?.orders || []).length,
+    totalItems: getRemitoMenuTotalFromRows(products),
+    products,
+    sourceOrders: (group?.orders || []).map((order) => ({
+      id: order?.id || null,
+      status: order?.status || null,
+      delivery_date: order?.delivery_date || null,
+      service: order?.service || null,
+      order_origin: order?.order_origin || null,
+      total_items: order?.total_items ?? null,
+      items: order?.items || [],
+      custom_responses: order?.custom_responses || [],
+      location: order?.location || null,
+      delivery_location: order?.delivery_location || null,
+      company_slug: order?.company_slug || null,
+      company_name: order?.company_name || null,
+      comments: order?.comments || null
+    }))
+  }
+}
+
+export const remitoFromSnapshot = (snapshot = {}, fallback = {}) => {
+  const rawNumber = snapshot.remitoNumber ?? fallback.remito_number ?? fallback.remitoNumber
+  const remitoNumber = Number(rawNumber)
+  return {
+    companySlug: snapshot.companySlug || fallback.company_slug || fallback.companySlug || '',
+    companyName: snapshot.companyName || fallback.company_name || fallback.companyName || '',
+    companyDisplayName: snapshot.companyDisplayName || snapshot.companyName || fallback.company_name || fallback.companyName || 'Empresa',
+    remitoNumber: Number.isFinite(remitoNumber) ? remitoNumber : (rawNumber || 'SIN EMITIR'),
+    deliveryDate: snapshot.deliveryDate || snapshot.serviceDate || fallback.delivery_date || fallback.deliveryDate || '',
+    totalItems: Number(snapshot.totalItems || 0),
+    products: Array.isArray(snapshot.products) ? snapshot.products : [],
+    reused: Boolean(fallback.reused)
+  }
+}
+
+export const buildRemitoWorkbook = async (remitos = []) => {
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'ServiFood'
+  workbook.created = new Date()
+  const usedSheetNames = new Set(['índice'])
+  const printableRemitos = remitos.map((remito) => ({
+    ...remito,
+    sheetName: remito.sheetName || buildUniqueSheetName(`${remito.companyName} ${remito.remitoNumber || 'sin emitir'}`, usedSheetNames)
+  }))
+
+  addIndexSheet(workbook, printableRemitos)
+  for (const remito of printableRemitos) {
+    await addRemitoSheet(workbook, remito, remito.sheetName)
+  }
+  if (printableRemitos.length === 1) {
+    workbook.views = [{ activeTab: 1 }]
+  }
+  return { workbook, remitos: printableRemitos }
+}
+
+export const downloadRemitoWorkbook = async (remitos = [], deliveryDate = getDeliveryDate([])) => {
+  const { workbook, remitos: printableRemitos } = await buildRemitoWorkbook(remitos)
+  const fileName = buildFileName(printableRemitos, deliveryDate)
+  await downloadWorkbook(workbook, fileName)
+  return { fileName, remitos: printableRemitos }
 }
 
 export async function exportDailyOrderNotesExcel({
@@ -806,11 +891,15 @@ export async function exportDailyOrderNotesExcel({
     const remitos = []
 
     for (const group of groups) {
+      const draftSnapshot = buildRemitoSnapshot({ group, deliveryDate, status: 'draft' })
+      const requestId = `daily-remito:${group.slug}:${deliveryDate}:${getOrderIds(group.orders).sort().join(',')}`
       const { data, error } = await db.issueCompanyRemito({
         companySlug: group.slug,
         companyName: group.name,
         deliveryDate,
-        orderIds: getOrderIds(group.orders)
+        orderIds: getOrderIds(group.orders),
+        requestId,
+        snapshot: draftSnapshot
       })
 
       if (error) {
