@@ -17,7 +17,7 @@ import AdminCafeteriaSection from './admin/AdminCafeteriaSection'
 import { useAdminPanelController } from '../hooks/admin/useAdminPanelController'
 
 const AdminPanel = () => {
-  const { isAdmin, isCompanyAdmin, adminCompanies, user, refreshSession, loading } = useAuthContext()
+  const { isAdmin, isCompanyAdmin, adminCompanies, user, refreshPermissions, loading } = useAuthContext()
   const {
     activeTab,
     setActiveTab,
@@ -36,7 +36,7 @@ const AdminPanel = () => {
     isAdmin,
     isCompanyAdmin,
     adminCompanies,
-    refreshSession
+    refreshPermissions
   })
 
   useEffect(() => {

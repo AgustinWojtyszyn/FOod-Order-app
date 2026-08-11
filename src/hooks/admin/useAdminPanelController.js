@@ -25,7 +25,7 @@ const useAdminPanelController = ({
   isAdmin,
   isCompanyAdmin = false,
   adminCompanies = [],
-  refreshSession
+  refreshPermissions
 }) => {
   const tomorrowISO = getTomorrowISOInTimeZone()
   const initialSelectedDates = [tomorrowISO]
@@ -248,7 +248,7 @@ const useAdminPanelController = ({
     deletingById
   } = useAdminUsersActions({
     user,
-    refreshSession,
+    refreshPermissions,
     refreshAdminData
   })
 

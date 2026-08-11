@@ -397,6 +397,16 @@ export const useAuth = () => {
     }
   }, [validateUserRole])
 
+  const refreshPermissions = useCallback(async () => {
+    if (!user) return { data: null, error: new Error('Usuario no autenticado') }
+    try {
+      await validateUserRole(user)
+      return { data: { user }, error: null }
+    } catch (error) {
+      return { data: null, error }
+    }
+  }, [user, validateUserRole])
+
   useEffect(() => {
     if (import.meta.env.DEV) {
       console.log('[Auth] state', { user, loading, permissionLoading, isAdmin, isCompanyAdmin, isHumanResources, adminCompanies, humanResourcesCompanies, permissionError })
@@ -426,6 +436,7 @@ export const useAuth = () => {
     updateProfile,
     updatePassword,
     resetPassword,
-    refreshSession
+    refreshSession,
+    refreshPermissions
   }
 }

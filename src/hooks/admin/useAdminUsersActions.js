@@ -6,7 +6,7 @@ import { getUserFriendlyErrorMessage } from '../../utils'
 
 const useAdminUsersActions = ({
   user,
-  refreshSession,
+  refreshPermissions,
   refreshAdminData
 }) => {
   const [expandedPeople, setExpandedPeople] = useState({})
@@ -40,7 +40,7 @@ const useAdminUsersActions = ({
       notifySuccess('Rol actualizado correctamente')
       await refreshAdminData()
       if (user && user.id === userId) {
-        await refreshSession()
+        await refreshPermissions()
       }
     } catch (err) {
       notifyError(getUserFriendlyErrorMessage(err, 'No pudimos actualizar el rol. Intentá nuevamente.'))

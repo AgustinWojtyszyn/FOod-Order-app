@@ -12,4 +12,9 @@ describe('useAdminUsersActions role submission guards', () => {
     expect(source).toContain('setRoleUpdatingById(prev => ({ ...prev, [userId]: true }))')
     expect(source).toContain('setRoleUpdatingById(prev => ({ ...prev, [userId]: false }))')
   })
+
+  it('revalida permisos sin refrescar Supabase Auth al cambiar el propio rol', () => {
+    expect(source).toContain('refreshPermissions')
+    expect(source).not.toContain('refreshSession')
+  })
 })
