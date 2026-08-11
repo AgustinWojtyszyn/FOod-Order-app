@@ -56,6 +56,33 @@ export const getBirthdayDateForYear = ({ day, month, year }) => {
   return `${numericYear}-${String(numericMonth).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`
 }
 
+export const getAgeOnDate = ({ day, month, year }, today = new Date()) => {
+  const numericYear = Number(year)
+  if (!Number.isInteger(numericYear)) return null
+  const todayStart = new Date(today)
+  todayStart.setHours(0, 0, 0, 0)
+  const birthdayThisYear = getBirthdayDateForYear({
+    day,
+    month,
+    year: todayStart.getFullYear()
+  })
+  if (!birthdayThisYear) return null
+  const hasHadBirthday = birthdayThisYear <= todayStart.toISOString().slice(0, 10)
+  return todayStart.getFullYear() - numericYear - (hasHadBirthday ? 0 : 1)
+}
+
+export const getMinimumBirthYearForMaxAge = ({ day, month, maxAge = 99 }, today = new Date()) => {
+  const todayStart = new Date(today)
+  todayStart.setHours(0, 0, 0, 0)
+  const birthdayThisYear = getBirthdayDateForYear({
+    day,
+    month,
+    year: todayStart.getFullYear()
+  })
+  const hadBirthday = birthdayThisYear ? birthdayThisYear <= todayStart.toISOString().slice(0, 10) : true
+  return todayStart.getFullYear() - maxAge - (hadBirthday ? 0 : 1)
+}
+
 export const getNextBirthdayYear = ({ day, month, today = new Date() }) => {
   const currentYear = today.getFullYear()
   const currentOccurrence = getBirthdayDateForYear({ day, month, year: currentYear })
@@ -64,7 +91,7 @@ export const getNextBirthdayYear = ({ day, month, today = new Date() }) => {
   return currentOccurrence >= todayISO ? currentYear : currentYear + 1
 }
 
-export const validateBirthdayForm = (form = {}, { allowedCompanies = [], companyLocations = {} } = {}) => {
+export const validateBirthdayForm = (form = {}, { allowedCompanies = [], companyLocations = {}, today = new Date() } = {}) => {
   const birthday = normalizeBirthdayForm(form)
   const errors = {}
 
@@ -72,8 +99,19 @@ export const validateBirthdayForm = (form = {}, { allowedCompanies = [], company
   if (!isValidBirthdayDayMonth(birthday.birth_day, birthday.birth_month)) {
     errors.birth_date = 'Ingresá un día y mes válidos.'
   }
-  if (birthday.birth_year && (birthday.birth_year < 1900 || birthday.birth_year > 2200)) {
-    errors.birth_year = 'Ingresá un año válido o dejalo vacío.'
+  if (birthday.birth_year) {
+    const currentYear = today.getFullYear()
+    if (!Number.isInteger(birthday.birth_year) || birthday.birth_year < 1900) {
+      errors.birth_year = 'Ingresá un año válido o dejalo vacío.'
+    } else if (birthday.birth_year > currentYear) {
+      errors.birth_year = 'No se permiten años futuros.'
+    } else if (getAgeOnDate({
+      day: birthday.birth_day,
+      month: birthday.birth_month,
+      year: birthday.birth_year
+    }, today) > 99) {
+      errors.birth_year = 'La edad no puede superar los 99 años'
+    }
   }
   if (!birthday.company_slug) errors.company_slug = 'Seleccioná una empresa.'
 

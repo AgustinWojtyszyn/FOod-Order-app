@@ -4,7 +4,9 @@ import {
   filterBirthdays,
   filterBirthdayCakeOrders,
   findBirthdayDuplicate,
+  getAgeOnDate,
   getBirthdayDateForYear,
+  getMinimumBirthYearForMaxAge,
   getNextBirthdayYear,
   isValidBirthdayDayMonth,
   summarizeBirthdayOrders,
@@ -41,6 +43,31 @@ describe('birthday utilities', () => {
     expect(result.valid).toBe(true)
     expect(result.birthday.person_name).toBe('Susana Agrello')
     expect(result.birthday.cake_quantity).toBe(1)
+  })
+
+  it('valida año de nacimiento opcional con edad real maxima de 99 años', () => {
+    const today = new Date('2026-08-11T12:00:00Z')
+    const baseForm = {
+      person_name: 'Susana Agrello',
+      birth_day: 11,
+      birth_month: 8,
+      company_slug: 'laja',
+      delivery_location: 'La Laja'
+    }
+
+    expect(validateBirthdayForm(baseForm, { allowedCompanies: companies, companyLocations: locations, today }).valid).toBe(true)
+    expect(validateBirthdayForm({ ...baseForm, birth_year: 1927 }, { allowedCompanies: companies, companyLocations: locations, today }).valid).toBe(true)
+    expect(validateBirthdayForm({ ...baseForm, birth_year: 1926 }, { allowedCompanies: companies, companyLocations: locations, today }).errors.birth_year).toBe('La edad no puede superar los 99 años')
+    expect(validateBirthdayForm({ ...baseForm, birth_year: 2027 }, { allowedCompanies: companies, companyLocations: locations, today }).errors.birth_year).toBe('No se permiten años futuros.')
+  })
+
+  it('calcula edad real y minimo visual contemplando dia y mes', () => {
+    const today = new Date('2026-08-11T12:00:00Z')
+
+    expect(getAgeOnDate({ day: 12, month: 8, year: 1926 }, today)).toBe(99)
+    expect(getAgeOnDate({ day: 10, month: 8, year: 1926 }, today)).toBe(100)
+    expect(getMinimumBirthYearForMaxAge({ day: 12, month: 8 }, today)).toBe(1926)
+    expect(getMinimumBirthYearForMaxAge({ day: 10, month: 8 }, today)).toBe(1927)
   })
 
   it('bloquea empresas y ubicaciones fuera del alcance', () => {

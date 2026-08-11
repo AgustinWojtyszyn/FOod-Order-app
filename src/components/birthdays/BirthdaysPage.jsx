@@ -10,6 +10,7 @@ import {
   filterBirthdays,
   filterBirthdayCakeOrders,
   findBirthdayDuplicate,
+  getMinimumBirthYearForMaxAge,
   validateBirthdayForm
 } from '../../utils/birthdays/birthdayUtils'
 import LoadingState from '../ui/LoadingState'
@@ -192,6 +193,13 @@ const BirthdaysPage = () => {
 
   const hasPeopleFilters = filters.search || filters.company !== 'all' || filters.location !== 'all' || filters.month !== 'all' || filters.status !== 'active'
   const hasOrderFilters = orderFilters.company !== 'all' || orderFilters.location !== 'all' || orderFilters.status !== 'all'
+  const birthYearBounds = useMemo(() => ({
+    min: getMinimumBirthYearForMaxAge({
+      day: Number(form.birth_day) || new Date().getDate(),
+      month: Number(form.birth_month) || new Date().getMonth() + 1
+    }),
+    max: new Date().getFullYear()
+  }), [form.birth_day, form.birth_month])
 
   const openCreateForm = () => {
     const firstCompany = companyOptions[0]
@@ -512,7 +520,7 @@ const BirthdaysPage = () => {
               <NumberField label="Cantidad de tortitas" min="1" value={form.cake_quantity} error={formErrors.cake_quantity} onChange={(value) => updateForm('cake_quantity', value)} />
               <NumberField label="Día" min="1" max="31" value={form.birth_day} error={formErrors.birth_date} onChange={(value) => updateForm('birth_day', value)} />
               <FilterSelect label="Mes" value={String(form.birth_month)} onChange={(value) => updateForm('birth_month', value)} options={[['', 'Seleccionar'], ...MONTH_OPTIONS]} error={formErrors.birth_date} />
-              <NumberField label="Año de nacimiento (opcional)" min="1900" max="2200" value={form.birth_year} error={formErrors.birth_year} onChange={(value) => updateForm('birth_year', value)} />
+              <NumberField label="Año de nacimiento (opcional)" min={birthYearBounds.min} max={birthYearBounds.max} value={form.birth_year} error={formErrors.birth_year} onChange={(value) => updateForm('birth_year', value)} />
               <FilterSelect label="Empresa" value={form.company_slug} onChange={(value) => updateForm('company_slug', value)} options={[['', 'Seleccionar'], ...companyOptions.map((company) => [company.slug, company.name])]} error={formErrors.company_slug} />
               <FilterSelect label="Ubicación de entrega" value={form.delivery_location} onChange={(value) => updateForm('delivery_location', value)} options={[['', 'Seleccionar'], ...(companyLocations[form.company_slug] || []).map((item) => [item, item])]} error={formErrors.delivery_location} />
               <label className="flex items-center gap-2 text-sm font-bold text-slate-700">

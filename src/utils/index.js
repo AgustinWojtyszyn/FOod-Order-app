@@ -369,6 +369,14 @@ export const getUserFriendlyErrorMessage = (error, fallback = 'No pudimos comple
     return 'No se puede quitar el rol al último administrador.'
   }
 
+  if (normalized.includes('birthday_age_exceeds_limit')) {
+    return 'La edad no puede superar los 99 años'
+  }
+
+  if (normalized.includes('birthday_birth_year_future')) {
+    return 'No se permiten años futuros.'
+  }
+
   if (
     normalized.includes('duplicate') ||
     normalized.includes('unique constraint') ||
