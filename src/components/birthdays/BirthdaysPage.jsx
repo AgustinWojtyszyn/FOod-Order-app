@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CakeSlice, CalendarDays, CheckCircle2, Edit3, Plus, Search, XCircle } from 'lucide-react'
+import { CakeSlice, CalendarDays, CheckCircle2, Edit3, Plus, Search, SlidersHorizontal, XCircle } from 'lucide-react'
 import { useAuthContext } from '../../contexts/authContextValue'
 import { birthdaysService } from '../../services/birthdays'
 import { ALL_COMPANY_LIST } from '../../constants/companyConfig'
@@ -9,7 +9,6 @@ import {
   canOperateBirthdayOrder,
   filterBirthdays,
   findBirthdayDuplicate,
-  summarizeBirthdayOrders,
   validateBirthdayForm
 } from '../../utils/birthdays/birthdayUtils'
 import LoadingState from '../ui/LoadingState'
@@ -56,14 +55,52 @@ const getCompanyLocations = (companies = []) => Object.fromEntries(
   })
 )
 
-const formatDate = (value) => value ? new Date(`${value}T00:00:00`).toLocaleDateString('es-AR') : '-'
+const formatDate = (value) => value ? new Date(`${value}T00:00:00`).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }) : '-'
 
-const SummaryCard = ({ label, value }) => (
-  <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-    <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-    <p className="mt-2 text-2xl font-black text-slate-900">{value}</p>
+const getOccurrenceDate = (day, month, today = new Date()) => {
+  const year = today.getFullYear()
+  const maxDay = new Date(year, Number(month), 0).getDate()
+  const currentYearDate = new Date(year, Number(month) - 1, Math.min(Number(day), maxDay))
+  currentYearDate.setHours(0, 0, 0, 0)
+  const todayStart = new Date(today)
+  todayStart.setHours(0, 0, 0, 0)
+  if (currentYearDate >= todayStart) return currentYearDate
+  const nextYear = year + 1
+  const nextMaxDay = new Date(nextYear, Number(month), 0).getDate()
+  return new Date(nextYear, Number(month) - 1, Math.min(Number(day), nextMaxDay))
+}
+
+const getDaysUntilBirthday = (birthday, today = new Date()) => {
+  const target = getOccurrenceDate(birthday.birth_day, birthday.birth_month, today)
+  const start = new Date(today)
+  start.setHours(0, 0, 0, 0)
+  return Math.round((target.getTime() - start.getTime()) / 86400000)
+}
+
+const getCountdownLabel = (days) => {
+  if (days === 0) return 'Hoy'
+  if (days === 1) return 'Mañana'
+  if (days === 2) return 'Falta 1 día'
+  return `Faltan ${Math.max(0, days - 1)} días`
+}
+
+const formatActor = (id) => id ? `Usuario ${String(id).slice(0, 8)}` : 'Sin dato'
+
+const SummaryCard = ({ label, value, tone = 'blue' }) => (
+  <div className={`rounded-lg border bg-white px-4 py-3 shadow-sm ${tone === 'orange' ? 'border-orange-200' : tone === 'amber' ? 'border-amber-200' : 'border-blue-100'}`}>
+    <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">{label}</p>
+    <p className={`mt-1 text-2xl font-black ${tone === 'orange' ? 'text-orange-700' : tone === 'amber' ? 'text-amber-700' : 'text-blue-700'}`}>{value}</p>
   </div>
 )
+
+const getStatusClass = (status, active = true) => {
+  if (!active) return 'bg-slate-100 text-slate-600 border-slate-200'
+  if (status === 'pending') return 'bg-orange-50 text-orange-700 border-orange-200'
+  if (status === 'prepared') return 'bg-amber-50 text-amber-700 border-amber-200'
+  if (status === 'delivered') return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  if (status === 'cancelled') return 'bg-red-50 text-red-700 border-red-200'
+  return 'bg-blue-50 text-blue-700 border-blue-200'
+}
 
 const BirthdaysPage = () => {
   const {
@@ -134,14 +171,31 @@ const BirthdaysPage = () => {
     loadData()
   }, [])
 
-  const visibleBirthdays = useMemo(() => filterBirthdays(birthdays, filters), [birthdays, filters])
+  const visibleBirthdays = useMemo(() => filterBirthdays(birthdays, filters)
+    .map((birthday) => ({ ...birthday, daysUntil: getDaysUntilBirthday(birthday) }))
+    .sort((a, b) => a.daysUntil - b.daysUntil || String(a.person_name || '').localeCompare(String(b.person_name || ''), 'es')), [birthdays, filters])
   const visibleOrders = useMemo(() => orders.filter((order) => {
     if (orderFilters.company !== 'all' && order.company_slug !== orderFilters.company) return false
     if (orderFilters.location !== 'all' && order.delivery_location !== orderFilters.location) return false
     if (orderFilters.status !== 'all' && order.status !== orderFilters.status) return false
     return true
   }), [orders, orderFilters])
-  const summary = useMemo(() => summarizeBirthdayOrders(visibleOrders), [visibleOrders])
+  const birthdaySummary = useMemo(() => {
+    const activeBirthdays = birthdays.filter((birthday) => birthday.is_active)
+    return {
+      today: activeBirthdays.filter((birthday) => getDaysUntilBirthday(birthday) === 0).length,
+      next30: activeBirthdays.filter((birthday) => {
+        const days = getDaysUntilBirthday(birthday)
+        return days >= 0 && days <= 30
+      }).length,
+      pendingDelivery: orders
+        .filter((order) => order.status === 'pending')
+        .reduce((total, order) => total + Number(order.cake_quantity || 0), 0)
+    }
+  }, [birthdays, orders])
+
+  const hasPeopleFilters = filters.search || filters.company !== 'all' || filters.location !== 'all' || filters.month !== 'all' || filters.status !== 'active'
+  const hasOrderFilters = orderFilters.company !== 'all' || orderFilters.location !== 'all' || orderFilters.status !== 'all'
 
   const openCreateForm = () => {
     const firstCompany = companyOptions[0]
@@ -271,17 +325,16 @@ const BirthdaysPage = () => {
   }
 
   return (
-    <div className="space-y-6 p-3 sm:p-6">
-      <header className="rounded-lg border border-white/20 bg-white/95 p-5 shadow-xl">
+    <div className="min-w-0 space-y-4 p-3 sm:p-5">
+      <header className="rounded-lg border border-blue-100 bg-white/95 p-4 shadow-lg shadow-blue-950/10 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Módulo independiente</p>
-            <h1 className="mt-1 text-2xl sm:text-3xl font-black text-slate-900">Cumpleaños</h1>
-            <p className="mt-1 text-sm font-semibold text-slate-600">Gestión de cumpleaños del personal y pedidos de tortitas.</p>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-black text-slate-900 sm:text-3xl">Cumpleaños del personal</h1>
+            <p className="mt-1 text-sm font-semibold text-slate-600">Gestioná los cumpleaños y las entregas de tortitas</p>
           </div>
-          <button type="button" onClick={openCreateForm} className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white">
+          <button type="button" onClick={openCreateForm} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-orange-700 sm:w-auto">
             <Plus className="h-4 w-4" />
-            Agregar cumpleaños
+            Registrar cumpleaños
           </button>
         </div>
       </header>
@@ -292,114 +345,145 @@ const BirthdaysPage = () => {
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <SummaryCard label="Tortitas de hoy" value={summary.today} />
-        <SummaryCard label="Próximas" value={summary.upcoming} />
-        <SummaryCard label="Pendientes" value={summary.pending} />
-        <SummaryCard label="Preparadas" value={summary.prepared} />
-        <SummaryCard label="Entregadas" value={summary.delivered} />
-        <SummaryCard label="Canceladas" value={summary.cancelled} />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <SummaryCard label="Cumpleaños de hoy" value={birthdaySummary.today} tone="orange" />
+        <SummaryCard label="Próximos 30 días" value={birthdaySummary.next30} />
+        <SummaryCard label="Pendientes de entrega" value={birthdaySummary.pendingDelivery} tone="amber" />
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="flex border-b border-slate-200">
-          <button type="button" onClick={() => setActiveTab('people')} className={`flex-1 px-4 py-3 text-sm font-black ${activeTab === 'people' ? 'bg-slate-900 text-white' : 'text-slate-700'}`}>
-            Cumpleaños del personal
-          </button>
-          <button type="button" onClick={() => setActiveTab('orders')} className={`flex-1 px-4 py-3 text-sm font-black ${activeTab === 'orders' ? 'bg-slate-900 text-white' : 'text-slate-700'}`}>
-            Pedidos de tortitas
-          </button>
+        <div className="border-b border-slate-100 p-2">
+          <div className="grid rounded-lg bg-slate-100 p-1 sm:inline-grid sm:grid-cols-2">
+            <button type="button" onClick={() => setActiveTab('people')} className={`rounded-md px-3 py-2 text-sm font-black transition ${activeTab === 'people' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+              Cumpleaños del personal
+            </button>
+            <button type="button" onClick={() => setActiveTab('orders')} className={`rounded-md px-3 py-2 text-sm font-black transition ${activeTab === 'orders' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+              Pedidos de tortitas
+            </button>
+          </div>
         </div>
 
         {activeTab === 'people' ? (
-          <section className="space-y-4 p-4">
-            <div className="grid gap-3 md:grid-cols-5">
-              <label className="text-xs font-bold text-slate-600">
+          <section className="space-y-3 p-3 sm:p-4">
+            <div className="grid gap-2 md:grid-cols-[minmax(180px,1.4fr)_repeat(4,minmax(120px,1fr))_auto] md:items-end">
+              <label className="min-w-0 text-xs font-bold text-slate-600">
                 Buscar
                 <div className="relative mt-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm font-semibold" />
+                  <input placeholder="Buscar por nombre" value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm font-semibold outline-none focus:border-blue-500" />
                 </div>
               </label>
               <FilterSelect label="Empresa" value={filters.company} onChange={(value) => setFilters({ ...filters, company: value, location: 'all' })} options={[['all', 'Todas'], ...companyOptions.map((company) => [company.slug, company.name])]} />
               <FilterSelect label="Ubicación" value={filters.location} onChange={(value) => setFilters({ ...filters, location: value })} options={[['all', 'Todas'], ...locationOptions.map((item) => [item, item])]} />
               <FilterSelect label="Mes" value={filters.month} onChange={(value) => setFilters({ ...filters, month: value })} options={[['all', 'Todos'], ...MONTH_OPTIONS]} />
               <FilterSelect label="Estado" value={filters.status} onChange={(value) => setFilters({ ...filters, status: value })} options={[['all', 'Todos'], ['active', 'Activo'], ['inactive', 'Inactivo']]} />
+              {hasPeopleFilters && (
+                <button type="button" onClick={() => setFilters({ search: '', company: 'all', location: 'all', month: 'all', status: 'active' })} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 text-xs font-black text-slate-700 hover:bg-slate-50">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Limpiar filtros
+                </button>
+              )}
             </div>
 
             {visibleBirthdays.length === 0 ? (
-              <EmptyState text="No hay cumpleaños para los filtros seleccionados." />
+              <EmptyState
+                text={hasPeopleFilters ? 'No hay cumpleaños para esos filtros.' : 'Todavía no hay cumpleaños cargados.'}
+                action={hasPeopleFilters ? 'Limpiar filtros' : ''}
+                onAction={hasPeopleFilters ? () => setFilters({ search: '', company: 'all', location: 'all', month: 'all', status: 'active' }) : null}
+              />
             ) : (
-              <div className="grid gap-3 lg:grid-cols-2">
+              <div className="grid gap-3 xl:grid-cols-2">
                 {visibleBirthdays.map((birthday) => (
-                  <article key={birthday.id} className="rounded-lg border border-slate-200 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="truncate text-lg font-black text-slate-900">{birthday.person_name}</h3>
-                        <p className="text-sm font-semibold text-slate-600">{String(birthday.birth_day).padStart(2, '0')}/{String(birthday.birth_month).padStart(2, '0')} · {birthday.company_name}</p>
-                        <p className="text-xs font-semibold text-slate-500">{birthday.delivery_location} · {birthday.cake_quantity} tortita{Number(birthday.cake_quantity) === 1 ? '' : 's'}</p>
-                        <p className="mt-2 text-xs text-slate-500">Cargado: {new Date(birthday.created_at).toLocaleString('es-AR')}</p>
+                  <article key={birthday.id} className="min-w-0 rounded-lg border border-blue-100 bg-white p-3 shadow-sm shadow-blue-950/5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="min-w-0 truncate text-lg font-black text-slate-900">{birthday.person_name}</h3>
+                          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black ${getStatusClass(null, birthday.is_active)}`}>
+                            {birthday.is_active ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </div>
+                        <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+                          <InfoLine label="Fecha" value={`${String(birthday.birth_day).padStart(2, '0')}/${String(birthday.birth_month).padStart(2, '0')}`} />
+                          <InfoLine label="Cuenta regresiva" value={getCountdownLabel(birthday.daysUntil)} accent />
+                          <InfoLine label="Empresa" value={birthday.company_name} />
+                          <InfoLine label="Ubicación" value={birthday.delivery_location} />
+                          <InfoLine label="Tortitas" value={`${birthday.cake_quantity} tortita${Number(birthday.cake_quantity) === 1 ? '' : 's'}`} />
+                          <InfoLine label="Cargó" value={`${formatActor(birthday.created_by)} · ${new Date(birthday.created_at).toLocaleDateString('es-AR')}`} />
+                        </div>
                       </div>
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-black ${birthday.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                        {birthday.is_active ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </div>
-                    {birthday.comment && <p className="mt-3 text-sm font-semibold text-slate-700">{birthday.comment}</p>}
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <button type="button" onClick={() => openEditForm(birthday)} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">
-                        <Edit3 className="h-4 w-4" /> Editar
-                      </button>
-                      {birthday.is_active && (
-                        <button type="button" disabled={saving} onClick={() => deactivateBirthday(birthday)} className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-700">
-                          <XCircle className="h-4 w-4" /> Desactivar
+                      <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                        <button type="button" onClick={() => openEditForm(birthday)} className="inline-flex h-9 items-center gap-2 rounded-lg border border-blue-200 px-3 text-sm font-bold text-blue-700 hover:bg-blue-50">
+                          <Edit3 className="h-4 w-4" /> Editar
                         </button>
-                      )}
+                        {birthday.is_active && (
+                          <button type="button" disabled={saving} onClick={() => deactivateBirthday(birthday)} className="inline-flex h-9 items-center gap-2 rounded-lg border border-red-200 px-3 text-sm font-bold text-red-700 hover:bg-red-50">
+                            <XCircle className="h-4 w-4" /> Desactivar
+                          </button>
+                        )}
+                      </div>
                     </div>
+                    {birthday.comment && <p className="mt-3 rounded-lg bg-orange-50 px-3 py-2 text-sm font-semibold text-slate-700">{birthday.comment}</p>}
                   </article>
                 ))}
               </div>
             )}
           </section>
         ) : (
-          <section className="space-y-4 p-4">
-            <div className="grid gap-3 md:grid-cols-3">
+          <section className="space-y-3 p-3 sm:p-4">
+            <div className="grid gap-2 md:grid-cols-[repeat(3,minmax(140px,1fr))_auto] md:items-end">
               <FilterSelect label="Empresa" value={orderFilters.company} onChange={(value) => setOrderFilters({ ...orderFilters, company: value, location: 'all' })} options={[['all', 'Todas'], ...companyOptions.map((company) => [company.slug, company.name])]} />
               <FilterSelect label="Ubicación" value={orderFilters.location} onChange={(value) => setOrderFilters({ ...orderFilters, location: value })} options={[['all', 'Todas'], ...locationOptions.map((item) => [item, item])]} />
               <FilterSelect label="Estado" value={orderFilters.status} onChange={(value) => setOrderFilters({ ...orderFilters, status: value })} options={[['all', 'Todos'], ...BIRTHDAY_STATUS_VALUES.map((status) => [status, BIRTHDAY_STATUS_LABELS[status]])]} />
+              {hasOrderFilters && (
+                <button type="button" onClick={() => setOrderFilters({ company: 'all', location: 'all', status: 'all' })} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 text-xs font-black text-slate-700 hover:bg-slate-50">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Limpiar filtros
+                </button>
+              )}
             </div>
 
             {visibleOrders.length === 0 ? (
-              <EmptyState text="No hay pedidos de tortitas para los filtros seleccionados." />
+              <EmptyState
+                text={hasOrderFilters ? 'No hay pedidos de tortitas para esos filtros.' : 'Todavía no hay pedidos de tortitas.'}
+                action={hasOrderFilters ? 'Limpiar filtros' : ''}
+                onAction={hasOrderFilters ? () => setOrderFilters({ company: 'all', location: 'all', status: 'all' }) : null}
+              />
             ) : (
-              <div className="space-y-3">
+              <div className="grid gap-3 xl:grid-cols-2">
                 {visibleOrders.map((order) => (
-                  <article key={order.id} className="rounded-lg border border-slate-200 p-4">
-                    <div className="grid gap-3 lg:grid-cols-[1.3fr_1fr_auto] lg:items-center">
-                      <div>
-                        <h3 className="text-lg font-black text-slate-900">{order.person_name}</h3>
-                        <p className="text-sm font-semibold text-slate-600">{order.company_name} · {order.delivery_location}</p>
-                        <p className="text-xs font-semibold text-slate-500">Entrega: {formatDate(order.planned_delivery_date)} · Año {order.birthday_year}</p>
+                  <article key={order.id} className="min-w-0 rounded-lg border border-blue-100 bg-white p-3 shadow-sm shadow-blue-950/5">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="min-w-0 truncate text-lg font-black text-slate-900">{order.person_name}</h3>
+                          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black ${getStatusClass(order.status)}`}>{BIRTHDAY_STATUS_LABELS[order.status] || order.status}</span>
+                        </div>
+                        <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+                          <InfoLine label="Entrega" value={formatDate(order.planned_delivery_date)} />
+                          <InfoLine label="Año" value={order.birthday_year} />
+                          <InfoLine label="Empresa" value={order.company_name} />
+                          <InfoLine label="Ubicación" value={order.delivery_location} />
+                          <InfoLine label="Tortitas" value={`${order.cake_quantity} tortita${Number(order.cake_quantity) === 1 ? '' : 's'}`} />
+                          <InfoLine label="Cargó" value={`${formatActor(order.created_by)} · ${new Date(order.created_at).toLocaleDateString('es-AR')}`} />
+                        </div>
                       </div>
-                      <div>
-                        <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-black text-blue-700">{BIRTHDAY_STATUS_LABELS[order.status] || order.status}</span>
-                        <p className="mt-2 text-sm font-black text-slate-900">{order.cake_quantity} tortita{Number(order.cake_quantity) === 1 ? '' : 's'}</p>
-                      </div>
-                      <div className="flex flex-wrap gap-2 lg:justify-end">
+                      <div className="flex shrink-0 flex-wrap gap-2 lg:max-w-[260px] lg:justify-end">
                         {order.status !== 'cancelled' && (
-                          <button type="button" disabled={saving} onClick={() => transitionOrder(order, 'cancelled')} className="rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-700">Cancelar</button>
+                          <button type="button" disabled={saving} onClick={() => transitionOrder(order, 'cancelled')} className="h-9 rounded-lg border border-red-200 px-3 text-sm font-bold text-red-700 hover:bg-red-50">Cancelar</button>
                         )}
                         {canOperate && order.status !== 'prepared' && order.status !== 'delivered' && order.status !== 'cancelled' && (
-                          <button type="button" disabled={saving} onClick={() => transitionOrder(order, 'prepared')} className="inline-flex items-center gap-2 rounded-lg border border-amber-200 px-3 py-2 text-sm font-bold text-amber-700">
+                          <button type="button" disabled={saving} onClick={() => transitionOrder(order, 'prepared')} className="inline-flex h-9 items-center gap-2 rounded-lg border border-amber-200 px-3 text-sm font-bold text-amber-700 hover:bg-amber-50">
                             <CalendarDays className="h-4 w-4" /> Preparado
                           </button>
                         )}
                         {canOperate && order.status !== 'delivered' && order.status !== 'cancelled' && (
-                          <button type="button" disabled={saving} onClick={() => transitionOrder(order, 'delivered')} className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 px-3 py-2 text-sm font-bold text-emerald-700">
+                          <button type="button" disabled={saving} onClick={() => transitionOrder(order, 'delivered')} className="inline-flex h-9 items-center gap-2 rounded-lg border border-emerald-200 px-3 text-sm font-bold text-emerald-700 hover:bg-emerald-50">
                             <CheckCircle2 className="h-4 w-4" /> Entregado
                           </button>
                         )}
                         {canOperate && (
-                          <button type="button" onClick={() => setReschedule({ orderId: order.id, date: order.planned_delivery_date, reason: '' })} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">Reprogramar</button>
+                          <button type="button" onClick={() => setReschedule({ orderId: order.id, date: order.planned_delivery_date, reason: '' })} className="h-9 rounded-lg border border-slate-300 px-3 text-sm font-bold text-slate-700 hover:bg-slate-50">Reprogramar</button>
                         )}
                       </div>
                     </div>
@@ -415,7 +499,7 @@ const BirthdaysPage = () => {
         <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
           <form onSubmit={submitForm} className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
-              <h2 className="text-xl font-black text-slate-900">{editingBirthday ? 'Editar cumpleaños' : 'Agregar cumpleaños'}</h2>
+              <h2 className="text-xl font-black text-slate-900">{editingBirthday ? 'Editar cumpleaños' : 'Registrar cumpleaños'}</h2>
               <button type="button" onClick={() => setFormOpen(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Cerrar">
                 <XCircle className="h-5 w-5" />
               </button>
@@ -469,10 +553,22 @@ const BirthdaysPage = () => {
   )
 }
 
-const EmptyState = ({ text }) => (
-  <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-    <CakeSlice className="mx-auto h-8 w-8 text-slate-400" />
-    <p className="mt-3 text-sm font-bold text-slate-600">{text}</p>
+const EmptyState = ({ text, action, onAction }) => (
+  <div className="rounded-lg border border-dashed border-orange-200 bg-orange-50/60 p-6 text-center">
+    <CakeSlice className="mx-auto h-8 w-8 text-orange-400" />
+    <p className="mt-3 text-sm font-bold text-slate-700">{text}</p>
+    {action && onAction && (
+      <button type="button" onClick={onAction} className="mt-4 rounded-lg border border-orange-200 bg-white px-3 py-2 text-xs font-black text-orange-700 hover:bg-orange-50">
+        {action}
+      </button>
+    )}
+  </div>
+)
+
+const InfoLine = ({ label, value, accent = false }) => (
+  <div className="min-w-0 rounded-md bg-slate-50 px-3 py-2">
+    <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">{label}</p>
+    <p className={`mt-0.5 min-w-0 truncate text-sm font-bold ${accent ? 'text-orange-700' : 'text-slate-800'}`}>{value || '-'}</p>
   </div>
 )
 

@@ -122,12 +122,11 @@ const Layout = ({ children, user, loading }) => {
 
   if (isAdmin) {
     menuItems.push({ name: 'Cafeteria', path: '/cafeteria', logoSrc: cafeteriaLogo })
-    menuItems.push({ name: '🎂 Cumpleaños', path: '/birthdays', icon: CakeSlice })
+    menuItems.push({ name: 'Cumpleaños', path: '/birthdays', icon: CakeSlice })
     menuItems.push({ 
       name: 'Pedidos Diarios', 
       path: '/daily-orders', 
-      icon: Calendar,
-      highlighted: true  // Marcar como destacado
+      icon: Calendar
     })
     menuItems.push({ name: 'Etiquetas', path: '/labels', icon: Tags })
     menuItems.push({ name: 'Tendencias', path: '/tendencias', icon: BarChart3 })
@@ -136,12 +135,12 @@ const Layout = ({ children, user, loading }) => {
     menuItems.push({ name: 'Auditoría', path: '/auditoria', icon: ClipboardList })
   } else if (canAccessAdminPanel) {
     if (canAccessBirthdays) {
-      menuItems.push({ name: '🎂 Cumpleaños', path: '/birthdays', icon: CakeSlice })
+      menuItems.push({ name: 'Cumpleaños', path: '/birthdays', icon: CakeSlice })
     }
     menuItems.push({ name: 'Etiquetas', path: '/labels', icon: Tags })
     menuItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
   } else if (canAccessBirthdays) {
-    menuItems.push({ name: '🎂 Cumpleaños', path: '/birthdays', icon: CakeSlice })
+    menuItems.push({ name: 'Cumpleaños', path: '/birthdays', icon: CakeSlice })
   }
 
   // Add Profile option for all users
