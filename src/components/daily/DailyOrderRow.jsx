@@ -13,7 +13,7 @@ import {
   getStatusColor,
   getStatusText
 } from '../../utils/daily/dailyOrderFormatters'
-import { isAdminExtraOrder } from '../../utils/daily/adminExtraOrders'
+import { isAdminExtraOrder, resolveAdminExtraCreator } from '../../utils/daily/adminExtraOrders'
 
 const DailyOrderRow = ({
   order,
@@ -26,8 +26,9 @@ const DailyOrderRow = ({
   const deliveryLocation = order.delivery_location || order.location
   const deliveryDiffers = deliveryLocation && deliveryLocation !== order.location
   const isExtra = isAdminExtraOrder(order)
-  const displayName = isExtra ? 'Solicitado por admin' : order.user_name
-  const displayEmail = isExtra ? '' : order.user_email
+  const adminCreator = resolveAdminExtraCreator(order)
+  const displayName = isExtra ? adminCreator.label : order.user_name
+  const displayEmail = isExtra ? adminCreator.email : order.user_email
   const menuTotal = getOperationalOrderUnits(order)
 
   if (variant === 'card') {
@@ -46,11 +47,11 @@ const DailyOrderRow = ({
             <User className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-base font-bold text-slate-900 truncate">
+            <p className="text-base font-bold text-slate-900 truncate" title={isExtra ? adminCreator.label : undefined}>
               {displayName}
             </p>
             {displayEmail && (
-              <p className="text-xs text-slate-500 truncate">
+              <p className="text-xs text-slate-500 truncate" title={displayEmail}>
                 {displayEmail}
               </p>
             )}
@@ -90,11 +91,6 @@ const DailyOrderRow = ({
           >
             {getStatusText(order.status)}
           </span>
-          {isExtra && (
-            <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-800">
-              Cargado por admin
-            </span>
-          )}
           <span className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-extrabold text-slate-900 ml-auto">
             {menuTotal} menús
           </span>
@@ -180,11 +176,11 @@ const DailyOrderRow = ({
             <User className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h5 className="text-base font-extrabold text-slate-900 tracking-wide">
+            <h5 className="text-base font-extrabold text-slate-900 tracking-wide" title={isExtra ? adminCreator.label : undefined}>
               {displayName}
             </h5>
             {displayEmail && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500" title={displayEmail}>
                 {displayEmail}
               </p>
             )}

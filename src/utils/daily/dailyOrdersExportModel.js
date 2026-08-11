@@ -4,7 +4,7 @@ import { getSideAssociationsForOrder, getSideSummaryForOrder } from './dailyOrde
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
 import { isValidCustomerName } from '../order/orderCustomerName'
 import { isMealService, safeOrderItemsArray } from '../order/orderItemNormalization'
-import { getAdminExtraOrderLabel, isAdminExtraOrder } from './adminExtraOrders'
+import { getAdminExtraOrderLabel, isAdminExtraOrder, resolveAdminExtraCreator } from './adminExtraOrders'
 import {
   getOrderBeverageBreakdown,
   getOrderDessertBreakdown,
@@ -91,11 +91,11 @@ export const getOrderOrganization = (order = {}) =>
 
 export const getOrderCustomer = (order = {}) =>
   isAdminExtraOrder(order)
-    ? 'Solicitado por admin'
+    ? resolveAdminExtraCreator(order).label
     : normalizeText(order.customer_name || order.user_name || order.user_full_name || order.full_name || order.name) || 'Sin cliente'
 
 export const getOrderEmail = (order = {}) =>
-  isAdminExtraOrder(order) ? '' : normalizeText(order.customer_email || order.user_email || order.email)
+  isAdminExtraOrder(order) ? resolveAdminExtraCreator(order).email : normalizeText(order.customer_email || order.user_email || order.email)
 
 export const getOrderPhone = (order = {}) =>
   normalizeText(order.customer_phone || order.phone)
@@ -254,6 +254,7 @@ export const buildDailyOrdersExcelDetailRow = (order = {}) => {
 
   return {
     Cliente: getOrderCustomer(order).replace(/^Sin cliente$/, 'Sin nombre'),
+    Email: getOrderEmail(order),
     Organización: getOrderOrganization(order) || 'Sin organización',
     'Ubicación / empresa': getOrderLocation(order).replace(/^Sin ubicación$/, 'Sin ubicación / empresa'),
     'Lugar de entrega': getOrderDeliveryLocation(order).replace(/^Sin ubicación$/, 'Sin ubicación / empresa'),

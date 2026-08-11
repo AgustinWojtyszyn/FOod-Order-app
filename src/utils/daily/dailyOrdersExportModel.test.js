@@ -5,7 +5,9 @@ import {
   buildDailyOrdersSummary,
   extractCustomResponses,
   extractOrderItems,
-  formatDailyOrdersForWhatsApp
+  formatDailyOrdersForWhatsApp,
+  getOrderCustomer,
+  getOrderEmail
 } from './dailyOrdersExportModel'
 
 const baseOrder = {
@@ -127,6 +129,9 @@ describe('daily orders export model', () => {
     const extraOrder = {
       ...baseOrder,
       order_origin: 'admin_extra',
+      created_by_admin_id: 'admin-1',
+      created_by_admin_name: 'Claudia Sarmiento',
+      created_by_admin_email: 'claudia@servifood.com',
       customer_name: '',
       customer_email: '',
       user_name: '',
@@ -149,9 +154,10 @@ describe('daily orders export model', () => {
     expect(summary.totalItems).toBe(5)
     expect(summary.extraOrdersCount).toBe(1)
     expect(row.Origen).toBe('Extra')
-    expect(row.Cliente).toBe('Solicitado por admin')
-    expect(summary.rows[0].cliente).toBe('Solicitado por admin')
-    expect(summary.rows[0].email).toBe('')
+    expect(row.Cliente).toBe('Solicitado por Claudia Sarmiento')
+    expect(row.Email).toBe('claudia@servifood.com')
+    expect(summary.rows[0].cliente).toBe('Solicitado por Claudia Sarmiento')
+    expect(summary.rows[0].email).toBe('claudia@servifood.com')
     expect(row['Menú elegido']).toContain('Opción 1 - BIDE DEL DIA')
     expect(row['Menú elegido']).toContain('Opción 2 - Pollo')
     expect(summary.rows[0].bebida).toBe('Coca Cola (x2), Agua sin gas (x3)')
@@ -159,6 +165,43 @@ describe('daily orders export model', () => {
     expect(row['Respuestas personalizadas']).toContain('Postre: Flan (x2), Fruta')
     expect(whatsapp).toContain('TOTAL GENERAL: 5 pedidos')
     expect(whatsapp).toContain('Extras cargados por admin: 1')
+  })
+
+  it('muestra correo como creador cuando un pedido extra no tiene nombre de admin', () => {
+    const extraOrder = {
+      ...baseOrder,
+      order_origin: 'admin_extra',
+      created_by_admin_email: 'admin@example.com',
+      customer_name: 'No usar',
+      customer_email: 'cliente@example.com',
+      user_name: 'Tampoco usar',
+      user_email: 'usuario@example.com'
+    }
+
+    const [row] = buildDailyOrdersExcelDetailRows([extraOrder])
+
+    expect(getOrderCustomer(extraOrder)).toBe('Solicitado por admin@example.com')
+    expect(getOrderEmail(extraOrder)).toBe('admin@example.com')
+    expect(row.Cliente).toBe('Solicitado por admin@example.com')
+    expect(row.Email).toBe('admin@example.com')
+  })
+
+  it('usa fallback legado para pedido extra sin datos de trazabilidad', () => {
+    const extraOrder = {
+      ...baseOrder,
+      order_origin: 'admin_extra',
+      customer_name: 'No usar',
+      customer_email: 'cliente@example.com',
+      user_name: 'Tampoco usar',
+      user_email: 'usuario@example.com'
+    }
+
+    const [row] = buildDailyOrdersExcelDetailRows([extraOrder])
+
+    expect(getOrderCustomer(extraOrder)).toBe('Solicitado por administrador')
+    expect(getOrderEmail(extraOrder)).toBe('')
+    expect(row.Cliente).toBe('Solicitado por administrador')
+    expect(row.Email).toBe('')
   })
 
   it('genera nombre de Excel con delivery_date y estado', () => {
@@ -180,6 +223,7 @@ describe('daily orders export model', () => {
 
     expect(Object.keys(rows[0])).toEqual([
       'Cliente',
+      'Email',
       'Organización',
       'Ubicación / empresa',
       'Lugar de entrega',
@@ -197,6 +241,7 @@ describe('daily orders export model', () => {
     ])
     expect(rows[0]).toMatchObject({
       Cliente: 'Nombre Desde Vista',
+      Email: 'vista@example.com',
       'Ubicación / empresa': 'Genneia',
       'Fecha de entrega': '25/06/2026',
       'Turno / servicio': 'Almuerzo',

@@ -7,7 +7,7 @@ import { notifyError, notifyInfo, notifySuccess } from '../utils/notice'
 import { confirmAction } from '../utils/confirm'
 import { getTomorrowISOInTimeZone } from '../utils/dateUtils'
 import { getUserFriendlyErrorMessage } from '../utils'
-import { isAdminExtraOrder } from '../utils/daily/adminExtraOrders'
+import { isAdminExtraOrder, resolveAdminExtraCreator } from '../utils/daily/adminExtraOrders'
 
 export const useDailyOrdersData = (user) => {
   const {
@@ -90,9 +90,12 @@ export const useDailyOrdersData = (user) => {
             console.warn('[daily-orders] No se pudo enriquecer personas:', peopleError)
           }
         }
-        const personById = new Map(
-          (Array.isArray(peopleData) ? peopleData : []).map(person => [person.person_id, person])
-        )
+        const personById = new Map()
+        ;(Array.isArray(peopleData) ? peopleData : []).forEach((person) => {
+          ;[person?.person_id, person?.id, person?.primary_user_id, ...(Array.isArray(person?.user_ids) ? person.user_ids : [])]
+            .filter(Boolean)
+            .forEach((id) => personById.set(String(id), person))
+        })
 
         const dishesSet = new Set()
 
@@ -104,8 +107,9 @@ export const useDailyOrdersData = (user) => {
           const orderEmail = order.customer_email || order.user_email || ''
           const orderName = order.customer_name || order.user_name || order.user_full_name || order.full_name || ''
           const isExtra = isAdminExtraOrder(order)
-          let userName = isExtra ? 'Solicitado por admin' : orderName || (orderEmail ? orderEmail.split('@')[0] : '') || 'Usuario'
-          if (person) {
+          const adminCreator = isExtra ? resolveAdminExtraCreator(order, { peopleById: personById }) : null
+          let userName = isExtra ? adminCreator.label : orderName || (orderEmail ? orderEmail.split('@')[0] : '') || 'Usuario'
+          if (!isExtra && person) {
             userName = (person.display_name !== undefined ? person.display_name : null)
               || (emails[0] ? emails[0].split('@')[0] : null)
               || orderName
@@ -121,8 +125,14 @@ export const useDailyOrdersData = (user) => {
           }
           return {
             ...order,
+            ...(isExtra
+              ? {
+                  admin_extra_creator_name: adminCreator.hasTraceability ? adminCreator.name : '',
+                  admin_extra_creator_email: adminCreator.email
+                }
+              : {}),
             user_name: userName,
-            user_email: isExtra ? '' : orderEmail || emails[0] || ''
+            user_email: isExtra ? adminCreator.email : orderEmail || emails[0] || ''
           }
         }).filter(Boolean) : []
 

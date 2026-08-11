@@ -18,7 +18,9 @@ describe('useDailyOrdersData daily orders loading', () => {
     expect(source).toContain('db.getDailyOrdersForAdmin')
     expect(source).toContain('deliveryDate: nextOperationalDate')
     expect(source).toContain("statuses: ['pending', 'archived']")
+    expect(source).toContain('resolveAdminExtraCreator(order')
     expect(source).not.toContain('db.getOrdersWithPersonKey(')
+    expect(source).not.toContain('Solicitado por admin')
   })
 
   it('changes the selected delivery date and reloads through the filtered loader', () => {

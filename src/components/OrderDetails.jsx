@@ -8,7 +8,7 @@ import { getUserFriendlyErrorMessage, isOrderEditable, formatDate } from '../uti
 import { EDIT_WINDOW_MINUTES } from '../constants/orderRules'
 import { confirmAction } from '../utils/confirm'
 import { notifyError, notifyInfo, notifySuccess } from '../utils/notice'
-import { isAdminExtraOrder } from '../utils/daily/adminExtraOrders'
+import { isAdminExtraOrder, resolveAdminExtraCreator } from '../utils/daily/adminExtraOrders'
 import {
   ArrowLeft,
   Building2,
@@ -126,6 +126,8 @@ const OrderDetails = ({ user, loading }) => {
   const statusInfo = statusMeta[status] || statusMeta.unknown
 
   const company = companyByLocation.get(String(order?.location || '').toLowerCase())
+  const isExtra = isAdminExtraOrder(order)
+  const adminCreator = resolveAdminExtraCreator(order)
   const canEditOrder = order?.created_at
     ? isOrderEditable(order.created_at, EDIT_WINDOW_MINUTES)
     : false
@@ -260,7 +262,7 @@ const OrderDetails = ({ user, loading }) => {
                     <Package className="h-4 w-4" />
                     {order.total_items || items.length || 0} item(s)
                   </span>
-                  {isAdminExtraOrder(order) && (
+                  {isExtra && (
                     <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-800">
                       Extra
                     </span>
@@ -275,6 +277,15 @@ const OrderDetails = ({ user, loading }) => {
                     <p className="text-gray-600 font-semibold">Estado</p>
                     <p className="text-gray-900 font-bold">{statusInfo.label}</p>
                   </div>
+                  {isExtra && (
+                    <div title={adminCreator.email || undefined}>
+                      <p className="text-gray-600 font-semibold">Solicitado por</p>
+                      <p className="text-gray-900 font-bold">{adminCreator.name}</p>
+                      {adminCreator.email && (
+                        <p className="text-xs text-gray-500 font-semibold truncate">{adminCreator.email}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

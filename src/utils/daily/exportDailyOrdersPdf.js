@@ -2,7 +2,7 @@ import {
   buildOrderPreview,
   buildTurnSummary
 } from './dailyOrderCalculations'
-import { getAdminExtraOrderLabel } from './adminExtraOrders'
+import { getAdminExtraOrderLabel, isAdminExtraOrder, resolveAdminExtraCreator } from './adminExtraOrders'
 import { getStatusText } from './dailyOrderFormatters'
 import { notifyError, notifyInfo } from '../notice'
 
@@ -47,10 +47,12 @@ export function exportDailyOrdersPdf(sortedOrders) {
   const rowsHtml = sortedOrders.map(order => {
     const preview = buildOrderPreview(order)
     const rowDeliveryDateLabel = formatDeliveryDateLabel(order.delivery_date)
+    const isExtra = isAdminExtraOrder(order)
+    const adminCreator = resolveAdminExtraCreator(order)
     return `
         <tr>
-          <td>${order.customer_name || order.user_name || 'Usuario'}</td>
-          <td>${order.user_email || order.customer_email || ''}</td>
+          <td>${isExtra ? adminCreator.label : order.customer_name || order.user_name || 'Usuario'}</td>
+          <td>${isExtra ? adminCreator.email : order.user_email || order.customer_email || ''}</td>
           <td>${order.location || '—'}</td>
           <td>${getStatusText(order.status)}</td>
           <td>${preview.itemsText}</td>
