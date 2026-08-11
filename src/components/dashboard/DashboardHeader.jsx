@@ -18,7 +18,11 @@ const DashboardHeader = ({
   deleteActionLabel = 'Eliminar',
   onOpenChangeCompany,
   canOpenChangeCompany,
-  changeCompanyHint
+  changeCompanyHint,
+  hideNewOrder = false,
+  description = 'Aquí está el resumen de tus pedidos',
+  emptyTitle = 'Sin pedido activo',
+  emptyDescription = 'Creá tu pedido para hoy en segundos'
 }) => {
   const allowEdit = headerOrder && canEditOrder ? canEditOrder(headerOrder) : false
 
@@ -31,7 +35,7 @@ const DashboardHeader = ({
             <p className="dashboardHeroGreeting">
               ¡Hola, {user?.user_metadata?.full_name || user?.email?.split('@')[0]}!
             </p>
-            <p className="dashboardHeroDescription">Aquí está el resumen de tus pedidos</p>
+            <p className="dashboardHeroDescription">{description}</p>
             <div
               className={`dashboardHeroSchedule ${
                 countdownTone === 'urgent'
@@ -58,10 +62,12 @@ const DashboardHeader = ({
                 <RefreshCw className={`h-5 w-5 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                 {refreshing ? 'Actualizando...' : 'Actualizar'}
               </button>
-              <Link to="/order" className="inline-flex items-center justify-center w-full sm:w-auto text-white font-bold py-3 sm:py-4 px-6 sm:px-8 text-base sm:text-lg rounded-xl border border-blue-300/70 bg-transparent hover:bg-blue-600/25 shadow-lg shadow-blue-900/25 transition-colors">
-                <Plus className="h-5 w-5 sm:h-6 sm:w-6 mr-2" />
-                Nuevo Pedido
-              </Link>
+              {!hideNewOrder && (
+                <Link to="/order" className="inline-flex items-center justify-center w-full sm:w-auto text-white font-bold py-3 sm:py-4 px-6 sm:px-8 text-base sm:text-lg rounded-xl border border-blue-300/70 bg-transparent hover:bg-blue-600/25 shadow-lg shadow-blue-900/25 transition-colors">
+                  <Plus className="h-5 w-5 sm:h-6 sm:w-6 mr-2" />
+                  Nuevo Pedido
+                </Link>
+              )}
             </div>
           </div>
 
@@ -140,16 +146,16 @@ const DashboardHeader = ({
               <>
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="h-5 w-5 text-white/90" />
-                  <p className="text-3xl sm:text-4xl font-black text-white">Sin pedido activo</p>
+                  <p className="text-3xl sm:text-4xl font-black text-white">{emptyTitle}</p>
                 </div>
                 <p className="text-base sm:text-lg text-white/90 font-semibold mt-3">
-                  Creá tu pedido para hoy en segundos
+                  {emptyDescription}
                 </p>
               </>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button
+            {!hideNewOrder && <button
               type="button"
               onClick={onOpenChangeCompany}
               disabled={!canOpenChangeCompany}
@@ -162,7 +168,7 @@ const DashboardHeader = ({
             >
               <Building2 className="h-4 w-4" />
               Cambiar empresa
-            </button>
+            </button>}
             {headerOrder && (
               <>
                 <button

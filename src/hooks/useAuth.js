@@ -28,7 +28,9 @@ export const useAuth = () => {
   const [permissionLoading, setPermissionLoading] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [isCompanyAdmin, setIsCompanyAdmin] = useState(false)
+  const [isHumanResources, setIsHumanResources] = useState(false)
   const [adminCompanies, setAdminCompanies] = useState([])
+  const [humanResourcesCompanies, setHumanResourcesCompanies] = useState([])
   const [permissionError, setPermissionError] = useState(null)
   const roleRequestIdRef = useRef(0)
   const mountedRef = useRef(true)
@@ -48,7 +50,9 @@ export const useAuth = () => {
     setPermissionError(null)
     setIsAdmin(false)
     setIsCompanyAdmin(false)
+    setIsHumanResources(false)
     setAdminCompanies([])
+    setHumanResourcesCompanies([])
 
     try {
       if (import.meta.env.DEV) {
@@ -57,6 +61,7 @@ export const useAuth = () => {
       let roleFromDb = null
       let roleError = null
       let accessContext = null
+      let humanResourcesContext = null
 
       if (authUser?.id) {
         try {
@@ -86,12 +91,27 @@ export const useAuth = () => {
             console.warn('[Auth][role-debug] error fetching admin access context', err)
           }
         }
+
+        try {
+          const { data, error } = await withTimeout(
+            usersService.getHumanResourcesAccessContext(),
+            ROLE_VALIDATION_TIMEOUT_MS,
+            createPermissionTimeoutError
+          )
+          if (!error) humanResourcesContext = data || null
+        } catch (err) {
+          if (import.meta.env.DEV) {
+            console.warn('[Auth][role-debug] error fetching human resources access context', err)
+          }
+        }
       }
 
       const normalizedRole = roleFromDb || null
       const contextCompanies = Array.isArray(accessContext?.companies) ? accessContext.companies : []
+      const hrCompanies = Array.isArray(humanResourcesContext?.companies) ? humanResourcesContext.companies : []
       const isAdminRole = normalizedRole === 'admin' || accessContext?.is_global_admin === true
       const isCompanyAdminRole = !isAdminRole && (accessContext?.is_company_admin === true || contextCompanies.length > 0)
+      const isHumanResourcesRole = normalizedRole === 'human_resources' || humanResourcesContext?.is_human_resources === true
 
       logRoleDebug('raw user metadata', {
         id: authUser?.id,
@@ -106,13 +126,17 @@ export const useAuth = () => {
       setUser((prev) => (prev ? { ...prev, ...authUser, role: normalizedRole } : { ...authUser, role: normalizedRole }))
       setIsAdmin(isAdminRole)
       setIsCompanyAdmin(isCompanyAdminRole)
+      setIsHumanResources(isHumanResourcesRole)
       setAdminCompanies(contextCompanies)
+      setHumanResourcesCompanies(hrCompanies)
       setPermissionError(roleError)
 
       logRoleDebug('computed flags', {
         isAdmin: isAdminRole,
         isCompanyAdmin: isCompanyAdminRole,
+        isHumanResources: isHumanResourcesRole,
         adminCompanies: contextCompanies,
+        humanResourcesCompanies: hrCompanies,
         permissionError: roleError
       })
     } catch (error) {
@@ -121,7 +145,9 @@ export const useAuth = () => {
       setUser((prev) => prev || authUser)
       setIsAdmin(false)
       setIsCompanyAdmin(false)
+      setIsHumanResources(false)
       setAdminCompanies([])
+      setHumanResourcesCompanies([])
       setPermissionError(error)
     } finally {
       if (mountedRef.current && roleRequestIdRef.current === requestId) {
@@ -165,7 +191,9 @@ export const useAuth = () => {
             setSession(null)
             setIsAdmin(false)
             setIsCompanyAdmin(false)
+            setIsHumanResources(false)
             setAdminCompanies([])
+            setHumanResourcesCompanies([])
             setPermissionError(userError || null)
             setPermissionLoading(false)
             setTelemetryAuthState({ initialized: true, session: null, user: null })
@@ -184,7 +212,9 @@ export const useAuth = () => {
           setSession(null)
           setIsAdmin(false)
           setIsCompanyAdmin(false)
+          setIsHumanResources(false)
           setAdminCompanies([])
+          setHumanResourcesCompanies([])
           setPermissionError(null)
           setPermissionLoading(false)
           setTelemetryAuthState({ initialized: true, session: null, user: null })
@@ -197,7 +227,9 @@ export const useAuth = () => {
         setSession(null)
         setIsAdmin(false)
         setIsCompanyAdmin(false)
+        setIsHumanResources(false)
         setAdminCompanies([])
+        setHumanResourcesCompanies([])
         setPermissionError(error)
         setPermissionLoading(false)
         setTelemetryAuthState({ initialized: true, session: null, user: null })
@@ -224,7 +256,9 @@ export const useAuth = () => {
         setSession(null)
         setIsAdmin(false)
         setIsCompanyAdmin(false)
+        setIsHumanResources(false)
         setAdminCompanies([])
+        setHumanResourcesCompanies([])
         setPermissionError(null)
         setPermissionLoading(false)
         setTelemetryAuthState({ initialized: true, session: null, user: null })
@@ -365,9 +399,9 @@ export const useAuth = () => {
 
   useEffect(() => {
     if (import.meta.env.DEV) {
-      console.log('[Auth] state', { user, loading, permissionLoading, isAdmin, isCompanyAdmin, adminCompanies, permissionError })
+      console.log('[Auth] state', { user, loading, permissionLoading, isAdmin, isCompanyAdmin, isHumanResources, adminCompanies, humanResourcesCompanies, permissionError })
     }
-  }, [user, loading, permissionLoading, isAdmin, isCompanyAdmin, adminCompanies, permissionError])
+  }, [user, loading, permissionLoading, isAdmin, isCompanyAdmin, isHumanResources, adminCompanies, humanResourcesCompanies, permissionError])
 
   return {
     // Estado
@@ -377,8 +411,11 @@ export const useAuth = () => {
     permissionLoading,
     isAdmin,
     isCompanyAdmin,
+    isHumanResources,
     canAccessAdminPanel: isAdmin || isCompanyAdmin,
+    canAccessBirthdays: isAdmin || isCompanyAdmin || isHumanResources,
     adminCompanies,
+    humanResourcesCompanies,
     permissionError,
     isAuthenticated: !!user,
 

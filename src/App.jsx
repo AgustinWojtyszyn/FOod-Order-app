@@ -16,6 +16,7 @@ import OrderCompanySelector from './components/OrderCompanySelector'
 import NoticeHost from './components/NoticeHost'
 import ConfirmHost from './components/ConfirmHost'
 import RequireAdmin from './components/RequireAdmin'
+import RequireBirthdayAccess, { RequireNonHumanResources } from './components/RequireBirthdayAccess'
 import InstallAppButton from './components/InstallAppButton'
 import CafeteriaDashboardPage from './components/cafeteria/CafeteriaDashboardPage'
 import TendenciasPage from './pages/TendenciasPage'
@@ -35,12 +36,14 @@ const OrderLabelsPage = lazy(() => import('./components/OrderLabelsPage'))
 const CafeteriaNewOrderPage = lazy(() => import('./components/cafeteria/CafeteriaNewOrderPage'))
 const CafeteriaCurrentOrderPage = lazy(() => import('./components/cafeteria/CafeteriaCurrentOrderPage'))
 const CafeteriaSuccessPage = lazy(() => import('./components/cafeteria/CafeteriaSuccessPage'))
+const BirthdaysPage = lazy(() => import('./components/birthdays/BirthdaysPage'))
 
 const ADMIN_ROUTE_PATHS = [
   '/cafeteria',
   '/cafeteria/new',
   '/cafeteria/order',
   '/cafeteria/confirm',
+  '/birthdays',
   '/admin',
   '/labels',
   '/daily-orders',
@@ -81,6 +84,18 @@ const AdminLayoutRoute = ({ user, loading }) => {
   )
 }
 
+const BirthdayLayoutRoute = ({ user, loading }) => {
+  const location = useLocation()
+
+  return (
+    <RequireBirthdayAccess>
+      <Layout key={location.pathname} user={user} loading={loading}>
+        <Outlet key={location.pathname} />
+      </Layout>
+    </RequireBirthdayAccess>
+  )
+}
+
 const ScreenMetricsListener = () => {
   useScreenMetrics()
   return null
@@ -117,20 +132,24 @@ const RouteSwitch = ({ user, loading }) => {
             !loading && (user ? <Dashboard user={user} loading={loading} /> : <Navigate to="/login" />)
           } />
           <Route path="/order" element={
-            !loading && (user ? <OrderCompanySelector user={user} loading={loading} /> : <Navigate to="/login" />)
+            !loading && (user ? <RequireNonHumanResources><OrderCompanySelector user={user} loading={loading} /></RequireNonHumanResources> : <Navigate to="/login" />)
           } />
           <Route path="/order/:companySlug" element={
-            !loading && (user ? <OrderForm user={user} loading={loading} /> : <Navigate to="/login" />)
+            !loading && (user ? <RequireNonHumanResources><OrderForm user={user} loading={loading} /></RequireNonHumanResources> : <Navigate to="/login" />)
           } />
           <Route path="/edit-order" element={
-            !loading && (user ? <EditOrderForm user={user} loading={loading} /> : <Navigate to="/login" />)
+            !loading && (user ? <RequireNonHumanResources><EditOrderForm user={user} loading={loading} /></RequireNonHumanResources> : <Navigate to="/login" />)
           } />
           <Route path="/profile" element={
             !loading && (user ? <Profile user={user} loading={loading} /> : <Navigate to="/login" />)
           } />
           <Route path="/orders/:orderId" element={
-            !loading && (user ? <OrderDetails user={user} loading={loading} /> : <Navigate to="/login" />)
+            !loading && (user ? <RequireNonHumanResources><OrderDetails user={user} loading={loading} /></RequireNonHumanResources> : <Navigate to="/login" />)
           } />
+        </Route>
+
+        <Route element={<BirthdayLayoutRoute user={user} loading={loading} />}>
+          <Route path="/birthdays" element={<BirthdaysPage user={user} loading={loading} />} />
         </Route>
 
         <Route element={<AdminLayoutRoute user={user} loading={loading} />}>

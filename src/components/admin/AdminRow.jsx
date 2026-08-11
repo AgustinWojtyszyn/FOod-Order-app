@@ -1,6 +1,6 @@
 import { Fragment } from 'react'
 import { Trash2, X } from 'lucide-react'
-import { ROLE_OPTIONS } from '../../utils/admin/adminConstants'
+import { ROLE_OPTIONS, getRoleDisplay } from '../../utils/admin/adminConstants'
 import { formatShortDate } from '../../utils/admin/adminFormatters'
 
 const AdminRow = ({
@@ -19,6 +19,7 @@ const AdminRow = ({
   const accounts = Array.isArray(user.accounts) ? user.accounts : []
   const hasMultipleAccounts = (user.members_count || 0) > 1 || user.is_grouped || accounts.length > 1
   const isBusy = !!isRoleUpdating || !!isDeleting
+  const userRoleDisplay = getRoleDisplay(user.role || 'user')
 
   if (variant === 'mobile') {
     return (
@@ -33,12 +34,8 @@ const AdminRow = ({
               {Array.isArray(user.emails) && user.emails.length > 1 ? ` (+${user.emails.length - 1})` : ''}
             </p>
           </div>
-          <span className={`ml-2 shrink-0 inline-flex px-2.5 py-1 text-xs font-bold rounded-full ${
-            user.role === 'admin'
-              ? 'bg-purple-100 text-purple-800'
-              : 'bg-blue-100 text-blue-800'
-          }`}>
-            {user.role === 'admin' ? 'Admin' : 'Usuario'}
+          <span className={`ml-2 shrink-0 inline-flex px-2.5 py-1 text-xs font-bold rounded-full ${userRoleDisplay.className}`}>
+            {userRoleDisplay.label}
           </span>
         </div>
         {user.is_grouped && user.members_count > 1 && (
@@ -124,13 +121,16 @@ const AdminRow = ({
                           Registrado: {formatShortDate(account.created_at)}
                         </div>
                       </div>
+                    {(() => {
+                      const accountRoleDisplay = getRoleDisplay(account.role || 'user')
+                      return (
                       <span className={`shrink-0 inline-flex px-2 py-1 text-[11px] font-bold rounded-full ${
-                        account.role === 'admin'
-                          ? 'bg-purple-100 text-purple-800'
-                          : 'bg-blue-100 text-blue-800'
+                        accountRoleDisplay.className
                       }`}>
-                        {account.role === 'admin' ? 'Admin' : 'Usuario'}
+                        {accountRoleDisplay.label}
                       </span>
+                      )
+                    })()}
                     </div>
                     <div className="mt-2 flex gap-2">
                       <select
@@ -180,12 +180,8 @@ const AdminRow = ({
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <div className="flex items-center gap-2">
-            <span className={`inline-flex px-3 py-1 text-sm font-bold rounded-full ${
-              user.role === 'admin'
-                ? 'bg-purple-100 text-purple-800'
-                : 'bg-blue-100 text-blue-800'
-            }`}>
-              {user.role === 'admin' ? 'Admin' : 'Usuario'}
+            <span className={`inline-flex px-3 py-1 text-sm font-bold rounded-full ${userRoleDisplay.className}`}>
+              {userRoleDisplay.label}
             </span>
             {user.is_grouped && user.members_count > 1 && (
               <span className="inline-flex px-2.5 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-800">
@@ -263,13 +259,16 @@ const AdminRow = ({
                           Registrado: {formatShortDate(account.created_at)}
                         </div>
                       </div>
+                      {(() => {
+                        const accountRoleDisplay = getRoleDisplay(account.role || 'user')
+                        return (
                       <span className={`shrink-0 inline-flex px-2.5 py-1 text-xs font-bold rounded-full ${
-                        account.role === 'admin'
-                          ? 'bg-purple-100 text-purple-800'
-                          : 'bg-blue-100 text-blue-800'
+                        accountRoleDisplay.className
                       }`}>
-                        {account.role === 'admin' ? 'Admin' : 'Usuario'}
+                        {accountRoleDisplay.label}
                       </span>
+                        )
+                      })()}
                     </div>
                     <div className="mt-3 flex items-center gap-2">
                       <select

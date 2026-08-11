@@ -7,6 +7,12 @@ const normalizeName = (value) => {
 
 const normalizeEmail = (value) => (value || '').toString().trim().toLowerCase()
 
+const resolveDominantRole = (roles = []) => {
+  if (roles.includes('admin')) return 'admin'
+  if (roles.includes('human_resources')) return 'human_resources'
+  return 'user'
+}
+
 const toDateMs = (value) => {
   const ms = value ? new Date(value).getTime() : NaN
   return Number.isFinite(ms) ? ms : null
@@ -171,7 +177,7 @@ const mapAdminPeople = (people = [], accounts = []) => {
       mergedAccounts.length
     )
     existing.is_grouped = existing.is_grouped || person.is_grouped || mergedUserIds.length > 1 || mergedEmails.length > 1 || mergedAccounts.length > 1
-    existing.role = existing.role === 'admin' || person.role === 'admin' ? 'admin' : 'user'
+    existing.role = resolveDominantRole([existing.role, person.role])
     existing.primary_user_id = existing.primary_user_id || person.primary_user_id || mergedUserIds[0] || mergedAccounts[0]?.id || null
     if (earliestMs) {
       existing.created_at = new Date(earliestMs).toISOString()
@@ -193,7 +199,7 @@ const mapAdminPeoplePageItems = (items = []) => {
       : [item.user_id, item.primary_user_id, item.id].filter(Boolean)
     const accounts = Array.isArray(item.accounts) ? item.accounts : []
     const primaryUserId = item.primary_user_id || item.user_id || userIds[0] || accounts[0]?.id || null
-    const role = item.role || item.primary_role || (accounts.some((account) => account?.role === 'admin') ? 'admin' : 'user')
+    const role = item.role || item.primary_role || resolveDominantRole(accounts.map((account) => account?.role))
 
     return {
       ...item,
@@ -236,6 +242,7 @@ export {
   normalizeName,
   normalizeEmail,
   toDateMs,
+  resolveDominantRole,
   mapAdminPeople,
   mapAdminPeoplePageItems,
   normalizeAdminPeoplePage

@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient'
 import { User, Mail, Save, CheckCircle, AlertCircle } from 'lucide-react'
 import RequireUser from './RequireUser'
 import { getUserFriendlyErrorMessage } from '../utils'
+import { getRoleDisplay } from '../utils/admin/adminConstants'
 
 const Profile = ({ user, loading }) => {
   const [submitting, setSubmitting] = useState(false)
@@ -15,6 +16,7 @@ const Profile = ({ user, loading }) => {
   })
   const [message, setMessage] = useState({ type: '', text: '' })
   const [lastUpdateInfo, setLastUpdateInfo] = useState(null)
+  const roleDisplay = getRoleDisplay(user?.role || user?.user_metadata?.role || 'user')
 
   useEffect(() => {
     if (!user?.id) return
@@ -313,7 +315,7 @@ const Profile = ({ user, loading }) => {
         <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t-2 border-gray-200">
           <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">Información de la Cuenta</h3>
           <div className="space-y-2 text-xs sm:text-sm text-gray-600">
-            <p><span className="font-semibold">Rol:</span> {user?.user_metadata?.role || 'user'}</p>
+            <p><span className="font-semibold">Rol:</span> {roleDisplay.label}</p>
             <p><span className="font-semibold">Cuenta creada:</span> {new Date(user?.created_at).toLocaleDateString('es-ES', {
               year: 'numeric',
               month: 'long',

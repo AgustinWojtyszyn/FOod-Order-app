@@ -127,6 +127,16 @@ class UsersService {
     }
   }
 
+  async getHumanResourcesAccessContext() {
+    try {
+      const { data, error } = await supabase.rpc('get_human_resources_access_context')
+      if (error) throw error
+      return { data, error: null }
+    } catch (error) {
+      return { data: null, error: handleError(error, 'getHumanResourcesAccessContext') }
+    }
+  }
+
   // Actualizar rol de usuario
   async updateUserRole(userId, role) {
     try {
@@ -251,6 +261,7 @@ class UsersService {
           total: data.length,
           users: data.filter(u => u.role === USER_ROLES.USER).length,
           admins: data.filter(u => u.role === USER_ROLES.ADMIN).length,
+          humanResources: data.filter(u => u.role === USER_ROLES.HUMAN_RESOURCES).length,
           recentRegistrations: data.filter(u => {
             const weekAgo = new Date()
             weekAgo.setDate(weekAgo.getDate() - 7)
