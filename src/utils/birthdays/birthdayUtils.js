@@ -142,6 +142,15 @@ export const summarizeBirthdayOrders = (orders = [], today = new Date()) => {
   }, base)
 }
 
+export const isOperationalBirthdayOrder = (order = {}) => order?.status !== 'cancelled'
+
+export const filterBirthdayCakeOrders = (orders = [], filters = {}) => orders.filter((order) => {
+  if (filters.company && filters.company !== 'all' && order.company_slug !== filters.company) return false
+  if (filters.location && filters.location !== 'all' && order.delivery_location !== filters.location) return false
+  if (filters.status && filters.status !== 'all') return order.status === filters.status
+  return isOperationalBirthdayOrder(order)
+})
+
 export const filterBirthdays = (birthdays = [], filters = {}) => {
   const search = normalizeText(filters.search)
   return birthdays.filter((birthday) => {

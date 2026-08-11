@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   canOperateBirthdayOrder,
   filterBirthdays,
+  filterBirthdayCakeOrders,
   findBirthdayDuplicate,
   getBirthdayDateForYear,
   getNextBirthdayYear,
@@ -102,5 +103,17 @@ describe('birthday utilities', () => {
     expect(filterBirthdays(rows, { search: 'ana', company: 'all', location: 'all', month: 'all', status: 'active' })).toHaveLength(1)
     expect(canOperateBirthdayOrder({ isAdmin: false, isCompanyAdmin: false })).toBe(false)
     expect(canOperateBirthdayOrder({ isAdmin: false, isCompanyAdmin: true })).toBe(true)
+  })
+
+  it('filtra pedidos cancelados solo cuando se seleccionan explicitamente', () => {
+    const orders = [
+      { id: '1', company_slug: 'laja', delivery_location: 'La Laja', status: 'pending' },
+      { id: '2', company_slug: 'laja', delivery_location: 'La Laja', status: 'prepared' },
+      { id: '3', company_slug: 'laja', delivery_location: 'La Laja', status: 'cancelled' }
+    ]
+
+    expect(filterBirthdayCakeOrders(orders, { company: 'all', location: 'all', status: 'all' }).map((order) => order.id)).toEqual(['1', '2'])
+    expect(filterBirthdayCakeOrders(orders, { company: 'all', location: 'all', status: 'cancelled' }).map((order) => order.id)).toEqual(['3'])
+    expect(filterBirthdayCakeOrders(orders, { company: 'laja', location: 'La Laja', status: 'all' }).map((order) => order.id)).toEqual(['1', '2'])
   })
 })

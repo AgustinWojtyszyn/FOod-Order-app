@@ -8,6 +8,7 @@ import {
   BIRTHDAY_STATUS_VALUES,
   canOperateBirthdayOrder,
   filterBirthdays,
+  filterBirthdayCakeOrders,
   findBirthdayDuplicate,
   validateBirthdayForm
 } from '../../utils/birthdays/birthdayUtils'
@@ -174,12 +175,7 @@ const BirthdaysPage = () => {
   const visibleBirthdays = useMemo(() => filterBirthdays(birthdays, filters)
     .map((birthday) => ({ ...birthday, daysUntil: getDaysUntilBirthday(birthday) }))
     .sort((a, b) => a.daysUntil - b.daysUntil || String(a.person_name || '').localeCompare(String(b.person_name || ''), 'es')), [birthdays, filters])
-  const visibleOrders = useMemo(() => orders.filter((order) => {
-    if (orderFilters.company !== 'all' && order.company_slug !== orderFilters.company) return false
-    if (orderFilters.location !== 'all' && order.delivery_location !== orderFilters.location) return false
-    if (orderFilters.status !== 'all' && order.status !== orderFilters.status) return false
-    return true
-  }), [orders, orderFilters])
+  const visibleOrders = useMemo(() => filterBirthdayCakeOrders(orders, orderFilters), [orders, orderFilters])
   const birthdaySummary = useMemo(() => {
     const activeBirthdays = birthdays.filter((birthday) => birthday.is_active)
     return {
@@ -283,6 +279,12 @@ const BirthdaysPage = () => {
       setError(getUserFriendlyErrorMessage(result.error, 'No pudimos desactivar el cumpleaños.'))
       return
     }
+    setBirthdays((current) => current.map((item) => item.id === birthday.id ? { ...item, is_active: false } : item))
+    setOrders((current) => current.map((order) => (
+      order.birthday_id === birthday.id && order.status !== 'cancelled' && order.status !== 'delivered'
+        ? { ...order, status: 'cancelled' }
+        : order
+    )))
     await loadData()
   }
 
@@ -434,7 +436,7 @@ const BirthdaysPage = () => {
             <div className="grid gap-2 md:grid-cols-[repeat(3,minmax(140px,1fr))_auto] md:items-end">
               <FilterSelect label="Empresa" value={orderFilters.company} onChange={(value) => setOrderFilters({ ...orderFilters, company: value, location: 'all' })} options={[['all', 'Todas'], ...companyOptions.map((company) => [company.slug, company.name])]} />
               <FilterSelect label="Ubicación" value={orderFilters.location} onChange={(value) => setOrderFilters({ ...orderFilters, location: value })} options={[['all', 'Todas'], ...locationOptions.map((item) => [item, item])]} />
-              <FilterSelect label="Estado" value={orderFilters.status} onChange={(value) => setOrderFilters({ ...orderFilters, status: value })} options={[['all', 'Todos'], ...BIRTHDAY_STATUS_VALUES.map((status) => [status, BIRTHDAY_STATUS_LABELS[status]])]} />
+              <FilterSelect label="Estado" value={orderFilters.status} onChange={(value) => setOrderFilters({ ...orderFilters, status: value })} options={[['all', 'Todos'], ...BIRTHDAY_STATUS_VALUES.map((status) => [status, status === 'cancelled' ? 'Cancelados' : BIRTHDAY_STATUS_LABELS[status]])]} />
               {hasOrderFilters && (
                 <button type="button" onClick={() => setOrderFilters({ company: 'all', location: 'all', status: 'all' })} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 text-xs font-black text-slate-700 hover:bg-slate-50">
                   <SlidersHorizontal className="h-4 w-4" />
@@ -482,7 +484,7 @@ const BirthdaysPage = () => {
                             <CheckCircle2 className="h-4 w-4" /> Entregado
                           </button>
                         )}
-                        {canOperate && (
+                        {canOperate && order.status !== 'cancelled' && (
                           <button type="button" onClick={() => setReschedule({ orderId: order.id, date: order.planned_delivery_date, reason: '' })} className="h-9 rounded-lg border border-slate-300 px-3 text-sm font-bold text-slate-700 hover:bg-slate-50">Reprogramar</button>
                         )}
                       </div>
