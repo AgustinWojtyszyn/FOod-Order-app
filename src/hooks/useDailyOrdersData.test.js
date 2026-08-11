@@ -15,7 +15,7 @@ describe('useDailyOrdersData daily orders loading', () => {
   })
 
   it('loads daily orders with server-side delivery_date and operational statuses', () => {
-    expect(source).toContain('db.getOrdersWithPersonKeyByDate')
+    expect(source).toContain('db.getDailyOrdersForAdmin')
     expect(source).toContain('deliveryDate: nextOperationalDate')
     expect(source).toContain("statuses: ['pending', 'archived']")
     expect(source).not.toContain('db.getOrdersWithPersonKey(')

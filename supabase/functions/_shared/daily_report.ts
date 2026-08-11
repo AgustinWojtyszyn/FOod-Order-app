@@ -332,7 +332,9 @@ const getOperationalResponseRows = (order: NormalizedOrder, kind: 'bebida' | 'po
     countedRows.forEach((entry) => add(entry.label, entry.quantity))
   })
 
-  if (rows.size === 0 && orderTotal > 0) add(defaultLabel, orderTotal)
+  const countedTotal = [...rows.values()].reduce((sum, row) => sum + row.quantity, 0)
+  const missingTotal = orderTotal - countedTotal
+  if (missingTotal > 0) add(defaultLabel, missingTotal)
   return [...rows.values()]
 }
 

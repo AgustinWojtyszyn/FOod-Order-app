@@ -119,6 +119,33 @@ describe('daily report helpers', () => {
     expect(summary.byMenuOption).toContainEqual({ label: 'Opción 1 - Pollo', quantity: 20 })
   })
 
+  it('completa faltantes parciales de bebida y postre por unidad en el reporte diario', () => {
+    const order = normalizeOrder({
+      id: 'partial-1',
+      location: 'Genneia',
+      delivery_date: '2026-08-11',
+      service: 'lunch',
+      status: 'pending',
+      total_items: 5,
+      items: [{ name: 'Opción 1 - Pollo', quantity: 5 }],
+      custom_responses: [
+        { title: 'Bebida', quantities: { 'Coca cola': 2 } },
+        { title: 'Postre', quantities: { Flan: 1 } }
+      ]
+    })
+
+    const summary = buildDailySummary([order], '2026-08-11')
+
+    expect(summary.totalItems).toBe(5)
+    expect(summary.additionalByLocation[0]?.label).toBe('Genneia')
+    expect(summary.additionalByLocation[0]?.items).toEqual(expect.arrayContaining([
+      { label: 'Bebida: Coca cola', quantity: 2 },
+      { label: 'Bebida: Agua sin gas', quantity: 3 },
+      { label: 'Postre: Flan', quantity: 1 },
+      { label: 'Postre: Fruta', quantity: 4 }
+    ]))
+  })
+
   it('no duplica menú de cena como adicional pero lo conserva en detalle por empresa', () => {
     const summary = buildDailySummary([
       normalizeOrder({

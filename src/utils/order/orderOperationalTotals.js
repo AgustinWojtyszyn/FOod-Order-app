@@ -186,6 +186,7 @@ export const getOrderResponseBreakdown = (order = {}, kind) => {
   const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
   const menuTotal = getOrderMenuTotal(order)
   const totals = new Map()
+  const defaultLabel = kind === 'beverage' ? DEFAULT_BEVERAGE_LABEL : DEFAULT_DESSERT_LABEL
 
   ;(Array.isArray(normalizedCustomResponses) ? normalizedCustomResponses : []).forEach((response) => {
     getResponseRows(response, kind, menuTotal).forEach((row) => {
@@ -193,8 +194,10 @@ export const getOrderResponseBreakdown = (order = {}, kind) => {
     })
   })
 
-  if (totals.size === 0 && menuTotal > 0) {
-    incrementMap(totals, kind === 'beverage' ? DEFAULT_BEVERAGE_LABEL : DEFAULT_DESSERT_LABEL, menuTotal)
+  const countedTotal = [...totals.values()].reduce((sum, row) => sum + row.quantity, 0)
+  const missingTotal = menuTotal - countedTotal
+  if (missingTotal > 0) {
+    incrementMap(totals, defaultLabel, missingTotal)
   }
 
   return [...totals.values()]

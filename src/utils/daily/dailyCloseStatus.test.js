@@ -40,7 +40,7 @@ describe('daily close status', () => {
       lastUpdatedAt: '2026-07-01T21:55:00Z'
     })
 
-    expect(status.pendingCount).toBe(1)
+    expect(status.pendingCount).toBe(4)
     expect(status.canArchivePending).toBe(true)
     expect(status.checklist.find(item => item.id === 'archive')).toMatchObject({ status: 'warning' })
   })
@@ -60,14 +60,14 @@ describe('daily close status', () => {
     })
   })
 
-  it('uses normalized item totals instead of raw total_items', () => {
+  it('uses operational menu totals for multi-ration orders', () => {
     const status = getDailyOperationalStatus({
       orders: [baseOrder],
       reportRun: null,
       lastUpdatedAt: '2026-07-01T21:55:00Z'
     })
 
-    expect(status.totalItems).toBe(1)
+    expect(status.totalItems).toBe(4)
     expect(status.inconsistencyCount).toBeGreaterThan(0)
   })
 

@@ -442,16 +442,26 @@ const isBaseMenuAdditionalLabel = (label = '') => {
 
 const getAdditionalLabelsFromRow = (row) => {
   const labels = []
-  if (row.guarnicion) labels.push(`Guarnición: ${row.guarnicion}`)
-  if (row.bebida) labels.push(row.bebida)
+  if (row.guarnicion) labels.push({ label: `Guarnición: ${row.guarnicion}`, quantity: 1 })
+  if (row.original) {
+    getOrderBeverageBreakdown(row.original).forEach(({ label, quantity }) => {
+      labels.push({ label: `Bebida: ${label}`, quantity })
+    })
+    getOrderDessertBreakdown(row.original).forEach(({ label, quantity }) => {
+      labels.push({ label: `Postre: ${label}`, quantity })
+    })
+  } else {
+    if (row.bebida) labels.push({ label: row.bebida, quantity: 1 })
+    if (row.postre) labels.push({ label: row.postre, quantity: 1 })
+  }
   if (row.opcionesAdicionales) {
     row.opcionesAdicionales
       .split('|')
       .map(normalizeText)
       .filter(Boolean)
-      .forEach((label) => labels.push(label))
+      .forEach((label) => labels.push({ label, quantity: 1 }))
   }
-  return labels.filter((label) => !isBaseMenuAdditionalLabel(label))
+  return labels.filter((item) => !isBaseMenuAdditionalLabel(item.label))
 }
 
 const buildLocationAdditionalRows = (locationAdditional, byLocation) =>
@@ -555,7 +565,7 @@ export const buildDailyOrdersSummary = (orders = [], selectedStatus = 'pending')
     if (additionalLabels.length) {
       if (!locationAdditional.has(row.ubicacion)) locationAdditional.set(row.ubicacion, new Map())
       const scopedAdditional = locationAdditional.get(row.ubicacion)
-      additionalLabels.forEach((label) => incrementCounter(scopedAdditional, label, 1))
+      additionalLabels.forEach(({ label, quantity }) => incrementCounter(scopedAdditional, label, quantity))
     }
   })
 

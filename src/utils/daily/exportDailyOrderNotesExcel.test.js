@@ -155,6 +155,29 @@ describe('daily order notes Excel model', () => {
     }))
   })
 
+  it('completa faltantes de bebida y postre en remitos por unidad de menú', () => {
+    const products = summarizeProducts([
+      makeOrder({
+        total_items: 5,
+        items: [{ id: 'op-1', name: 'Opción 1 - Pollo', quantity: 5 }],
+        custom_responses: [
+          { title: 'Bebida', quantities: { 'Coca cola': 2 } },
+          { title: 'Postre', quantities: { Flan: 1 } }
+        ]
+      })
+    ])
+    const detailRows = getPrintableDetailRows(products)
+
+    expect(products).toEqual(expect.arrayContaining([
+      expect.objectContaining({ producto: 'Bebida: Coca cola', cantidad: 2, category: REMITO_ROW_CATEGORIES.drink }),
+      expect.objectContaining({ producto: 'Bebida: Agua sin gas', cantidad: 3, category: REMITO_ROW_CATEGORIES.drink }),
+      expect.objectContaining({ producto: 'Postre: Flan', cantidad: 1, category: REMITO_ROW_CATEGORIES.dessert }),
+      expect.objectContaining({ producto: 'Postre: Fruta', cantidad: 4, category: REMITO_ROW_CATEGORIES.dessert })
+    ]))
+    expect(detailRows.find((row) => row.producto === 'TOTAL BEBIDAS')).toMatchObject({ cantidad: 5 })
+    expect(detailRows.find((row) => row.producto === 'TOTAL POSTRES')).toMatchObject({ cantidad: 5 })
+  })
+
   it('places observations after operational products without counting them as products', () => {
     const products = summarizeProducts([
       makeOrder({

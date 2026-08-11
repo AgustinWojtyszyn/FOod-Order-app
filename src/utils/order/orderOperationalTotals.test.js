@@ -47,6 +47,57 @@ describe('orderOperationalTotals', () => {
     expect(getOrderDessertBreakdown(order)).toEqual([{ label: 'Fruta', quantity: 10 }])
   })
 
+  it('completa solo los postres faltantes con fruta', () => {
+    const order = baseOrder({
+      total_items: 4,
+      items: [{ name: 'Menú principal', quantity: 4 }],
+      custom_responses: [
+        { title: 'Bebida', quantities: { Agua: 4 } },
+        { title: 'Postre', quantities: { Flan: 1 } }
+      ]
+    })
+
+    expect(getOrderBeverageBreakdown(order)).toEqual([{ label: 'Agua', quantity: 4 }])
+    expect(getOrderDessertBreakdown(order)).toEqual([
+      { label: 'Flan', quantity: 1 },
+      { label: DEFAULT_DESSERT_LABEL, quantity: 3 }
+    ])
+  })
+
+  it('completa solo las bebidas faltantes con agua sin gas', () => {
+    const order = baseOrder({
+      total_items: 4,
+      items: [{ name: 'Menú principal', quantity: 4 }],
+      custom_responses: [
+        { title: 'Bebida', quantities: { 'Coca cola': 2 } },
+        { title: 'Postre', quantities: { Fruta: 4 } }
+      ]
+    })
+
+    expect(getOrderBeverageBreakdown(order)).toEqual([
+      { label: 'Coca cola', quantity: 2 },
+      { label: DEFAULT_BEVERAGE_LABEL, quantity: 2 }
+    ])
+    expect(getOrderDessertBreakdown(order)).toEqual([{ label: 'Fruta', quantity: 4 }])
+  })
+
+  it('completa bebida y postre por unidad cuando faltan ambos parcialmente', () => {
+    const order = baseOrder({
+      total_items: 3,
+      items: [{ name: 'Opción 1', quantity: 3 }],
+      custom_responses: [
+        { title: 'Bebida', response: ['Agua'] },
+        { title: 'Postre', quantities: { Flan: 2 } }
+      ]
+    })
+
+    expect(getOrderBeverageBreakdown(order)).toEqual([{ label: 'Agua', quantity: 3 }])
+    expect(getOrderDessertBreakdown(order)).toEqual([
+      { label: 'Flan', quantity: 2 },
+      { label: DEFAULT_DESSERT_LABEL, quantity: 1 }
+    ])
+  })
+
   it('C: respeta varios platos y aplica defaults por el total de menús', () => {
     const order = baseOrder({
       total_items: 12,
@@ -107,5 +158,18 @@ describe('orderOperationalTotals', () => {
       { label: 'Coca cola', quantity: 4 }
     ])
     expect(getOrderDessertBreakdown(order)).toEqual([{ label: 'Fruta', quantity: 10 }])
+  })
+
+  it('respeta cantidades explicitas mayores al total sin recortarlas ni sumar defaults', () => {
+    const order = baseOrder({
+      total_items: 2,
+      custom_responses: [
+        { title: 'Bebida', response: 'Agua', quantity: 3 },
+        { title: 'Postre', quantities: { Fruta: 2 } }
+      ]
+    })
+
+    expect(getOrderBeverageBreakdown(order)).toEqual([{ label: 'Agua', quantity: 3 }])
+    expect(getOrderDessertBreakdown(order)).toEqual([{ label: 'Fruta', quantity: 2 }])
   })
 })
