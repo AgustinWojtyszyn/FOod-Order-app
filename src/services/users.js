@@ -117,6 +117,37 @@ class UsersService {
     }
   }
 
+  async getUsersByIds(userIds = [], { force = false } = {}) {
+    try {
+      const ids = [...new Set((Array.isArray(userIds) ? userIds : [])
+        .map((id) => String(id || '').trim())
+        .filter(Boolean))]
+
+      if (ids.length === 0) {
+        return { data: [], error: null }
+      }
+
+      const cacheKey = `users_by_ids_${ids.sort().join('_')}`
+
+      const queryFn = async () => {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, email, full_name')
+          .in('id', ids)
+
+        if (error) throw error
+
+        return data || []
+      }
+
+      const data = await supabaseService.cachedQuery(cacheKey, queryFn, 300000, force)
+
+      return { data, error: null }
+    } catch (error) {
+      return { data: [], error: handleError(error, 'getUsersByIds') }
+    }
+  }
+
   async getAdminAccessContext() {
     try {
       const { data, error } = await supabase.rpc('get_admin_access_context')

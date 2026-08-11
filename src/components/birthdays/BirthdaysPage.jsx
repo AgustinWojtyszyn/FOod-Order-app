@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CakeSlice, CalendarDays, CheckCircle2, Edit3, Plus, Search, SlidersHorizontal, XCircle } from 'lucide-react'
 import { useAuthContext } from '../../contexts/authContextValue'
 import { birthdaysService } from '../../services/birthdays'
+import { usersService } from '../../services/users'
 import { ALL_COMPANY_LIST } from '../../constants/companyConfig'
 import {
   BIRTHDAY_STATUS_LABELS,
@@ -86,7 +87,19 @@ const getCountdownLabel = (days) => {
   return `Faltan ${Math.max(0, days - 1)} días`
 }
 
-const formatActor = (id) => id ? `Usuario ${String(id).slice(0, 8)}` : 'Sin dato'
+const getCreatedByIds = (birthdays = [], orders = []) => [...new Set([
+  ...birthdays.map((birthday) => birthday.created_by),
+  ...orders.map((order) => order.created_by)
+].map((id) => String(id || '').trim()).filter(Boolean))]
+
+const getActorDisplay = (user) => {
+  const name = String(user?.full_name || '').trim()
+  const email = String(user?.email || '').trim()
+  return {
+    primary: name || email || 'Usuario no disponible',
+    secondary: name && email ? email : ''
+  }
+}
 
 const SummaryCard = ({ label, value, tone = 'blue' }) => (
   <div className={`rounded-lg border bg-white px-4 py-3 shadow-sm ${tone === 'orange' ? 'border-orange-200' : tone === 'amber' ? 'border-amber-200' : 'border-blue-100'}`}>
@@ -115,6 +128,7 @@ const BirthdaysPage = () => {
   const [activeTab, setActiveTab] = useState('people')
   const [birthdays, setBirthdays] = useState([])
   const [orders, setOrders] = useState([])
+  const [usersById, setUsersById] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -164,8 +178,22 @@ const BirthdaysPage = () => {
     if (birthdaysResult.error || ordersResult.error) {
       setError(getUserFriendlyErrorMessage(birthdaysResult.error || ordersResult.error, 'No pudimos cargar cumpleaños.'))
     }
-    setBirthdays(birthdaysResult.data || [])
-    setOrders(ordersResult.data || [])
+    const nextBirthdays = birthdaysResult.data || []
+    const nextOrders = ordersResult.data || []
+    setBirthdays(nextBirthdays)
+    setOrders(nextOrders)
+
+    const createdByIds = getCreatedByIds(nextBirthdays, nextOrders)
+    if (createdByIds.length > 0) {
+      const usersResult = await usersService.getUsersByIds(createdByIds, { force: true })
+      if (!usersResult.error) {
+        setUsersById(Object.fromEntries((usersResult.data || []).map((user) => [user.id, user])))
+      } else {
+        setUsersById({})
+      }
+    } else {
+      setUsersById({})
+    }
     setLoading(false)
   }
 
@@ -419,7 +447,7 @@ const BirthdaysPage = () => {
                           <InfoLine label="Empresa" value={birthday.company_name} />
                           <InfoLine label="Ubicación" value={birthday.delivery_location} />
                           <InfoLine label="Tortitas" value={`${birthday.cake_quantity} tortita${Number(birthday.cake_quantity) === 1 ? '' : 's'}`} />
-                          <InfoLine label="Cargó" value={`${formatActor(birthday.created_by)} · ${new Date(birthday.created_at).toLocaleDateString('es-AR')}`} />
+                          <InfoLine label="Cargó" {...getActorDisplay(usersById[birthday.created_by])} detail={new Date(birthday.created_at).toLocaleDateString('es-AR')} />
                         </div>
                       </div>
                       <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
@@ -475,7 +503,7 @@ const BirthdaysPage = () => {
                           <InfoLine label="Empresa" value={order.company_name} />
                           <InfoLine label="Ubicación" value={order.delivery_location} />
                           <InfoLine label="Tortitas" value={`${order.cake_quantity} tortita${Number(order.cake_quantity) === 1 ? '' : 's'}`} />
-                          <InfoLine label="Cargó" value={`${formatActor(order.created_by)} · ${new Date(order.created_at).toLocaleDateString('es-AR')}`} />
+                          <InfoLine label="Cargó" {...getActorDisplay(usersById[order.created_by])} detail={new Date(order.created_at).toLocaleDateString('es-AR')} />
                         </div>
                       </div>
                       <div className="flex shrink-0 flex-wrap gap-2 lg:max-w-[260px] lg:justify-end">
@@ -575,10 +603,15 @@ const EmptyState = ({ text, action, onAction }) => (
   </div>
 )
 
-const InfoLine = ({ label, value, accent = false }) => (
+const InfoLine = ({ label, value, primary, secondary, detail, accent = false }) => (
   <div className="min-w-0 rounded-md bg-slate-50 px-3 py-2">
     <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">{label}</p>
-    <p className={`mt-0.5 min-w-0 truncate text-sm font-bold ${accent ? 'text-orange-700' : 'text-slate-800'}`}>{value || '-'}</p>
+    <p className={`mt-0.5 min-w-0 truncate text-sm font-bold ${accent ? 'text-orange-700' : 'text-slate-800'}`}>{primary || value || '-'}</p>
+    {(secondary || detail) && (
+      <p className="mt-0.5 min-w-0 truncate text-xs font-semibold text-slate-500">
+        {[secondary, detail].filter(Boolean).join(' · ')}
+      </p>
+    )}
   </div>
 )
 
