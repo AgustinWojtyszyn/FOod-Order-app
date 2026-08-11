@@ -106,12 +106,18 @@ export const auth = {
   },
 
   updateProfile: async (updates) => {
-    const { data, error } = await supabase.auth.updateUser({
-      email: updates.email,
+    const nextFullName = String(updates?.full_name || '').trim()
+    const nextEmail = String(updates?.email || '').trim().toLowerCase()
+    if (nextEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+      return { data: null, error: new Error('Ingresá un correo válido.') }
+    }
+    const payload = {
       data: {
-        full_name: updates.full_name
+        full_name: nextFullName
       }
-    })
+    }
+    if (nextEmail) payload.email = nextEmail
+    const { data, error } = await supabase.auth.updateUser(payload)
     return { data, error }
   },
 

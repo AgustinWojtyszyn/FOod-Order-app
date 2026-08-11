@@ -143,19 +143,25 @@ class AuthService {
   async updateProfile(updates) {
     try {
       const sanitizedUpdates = sanitizeQuery(updates)
+      const nextFullName = String(sanitizedUpdates.full_name || '').trim()
+      const nextEmail = String(sanitizedUpdates.email || '').trim().toLowerCase()
 
       const updatePayload = {
         data: {
-          full_name: sanitizedUpdates.full_name,
-          ...sanitizedUpdates
+          ...sanitizedUpdates,
+          full_name: nextFullName
         }
       }
-      if (sanitizedUpdates.email) {
-        updatePayload.email = sanitizedUpdates.email.toLowerCase().trim()
+      if (nextEmail) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+          throw new Error('Ingresá un correo válido.')
+        }
+        updatePayload.email = nextEmail
+        delete updatePayload.data.email
       }
 
       // No retry cuando hay cambio de email: no es idempotente y puede disparar múltiples emails
-      const { data, error } = sanitizedUpdates.email
+      const { data, error } = nextEmail
         ? await supabase.auth.updateUser(updatePayload)
         : await supabaseService.withRetry(
             () => supabase.auth.updateUser(updatePayload),

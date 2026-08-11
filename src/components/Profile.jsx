@@ -50,8 +50,11 @@ const Profile = ({ user, loading }) => {
 
     const ONE_DAY_MS = 24 * 60 * 60 * 1000
     const now = Date.now()
-    const nameChanged = formData.fullName !== (user.user_metadata?.full_name || '')
-    const emailChanged = formData.email !== user.email
+    const nextFullName = String(formData.fullName || '').trim()
+    const nextEmail = String(formData.email || '').trim().toLowerCase()
+    const currentEmail = String(user.email || '').trim().toLowerCase()
+    const nameChanged = nextFullName !== (user.user_metadata?.full_name || '')
+    const emailChanged = nextEmail !== currentEmail
     const lastNameChange = user.user_metadata?.full_name_last_changed_at ? new Date(user.user_metadata.full_name_last_changed_at).getTime() : null
     const lastEmailChange = user.user_metadata?.email_last_changed_at ? new Date(user.user_metadata.email_last_changed_at).getTime() : null
 
@@ -72,10 +75,16 @@ const Profile = ({ user, loading }) => {
       return
     }
 
+    if (!nextEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+      setMessage({ type: 'error', text: 'Ingresá un correo válido.' })
+      setSubmitting(false)
+      return
+    }
+
     try {
       const metadata = {
         ...(user.user_metadata || {}),
-        full_name: formData.fullName
+        full_name: nextFullName
       }
 
       if (nameChanged) {
@@ -87,7 +96,7 @@ const Profile = ({ user, loading }) => {
 
       const payload = { data: metadata }
       if (emailChanged) {
-        payload.email = formData.email
+        payload.email = nextEmail
       }
 
       const { error } = await supabase.auth.updateUser(payload)
@@ -102,7 +111,7 @@ const Profile = ({ user, loading }) => {
         setLastUpdateInfo({
           emailChanged,
           fullNameChanged: nameChanged,
-          email: formData.email
+          email: nextEmail
         })
         setMessage({
           type: 'success',
