@@ -155,6 +155,47 @@ describe('daily order notes Excel model', () => {
     }))
   })
 
+  it('sums real menu units in remito snapshots instead of counting distinct option rows', () => {
+    const snapshot = buildRemitoSnapshot({
+      group: {
+        slug: 'laja',
+        name: 'La Laja',
+        displayName: 'La Laja',
+        orders: [
+          makeOrder({
+            id: '10000000-0000-4000-8000-000000000001',
+            total_items: 10,
+            items: [{ id: 'op-1', name: 'Opción 1', quantity: 10 }]
+          }),
+          makeOrder({
+            id: '10000000-0000-4000-8000-000000000002',
+            total_items: 15,
+            items: [{ id: 'op-2', name: 'Opción 2', quantity: 15 }]
+          }),
+          makeOrder({
+            id: '10000000-0000-4000-8000-000000000003',
+            order_origin: 'admin_extra',
+            total_items: 23,
+            items: [{ id: 'op-4', name: 'Opción 4', quantity: 23 }]
+          })
+        ]
+      },
+      deliveryDate: '2026-08-11',
+      status: 'issued'
+    })
+
+    expect(snapshot.ordersCount).toBe(3)
+    expect(snapshot.totalMenus).toBe(48)
+    expect(snapshot.totalItems).toBe(48)
+    expect(snapshot.products).toEqual(expect.arrayContaining([
+      expect.objectContaining({ producto: 'Opción 1', cantidad: 10 }),
+      expect.objectContaining({ producto: 'Opción 2', cantidad: 15 }),
+      expect.objectContaining({ producto: 'Opción 4', cantidad: 23 })
+    ]))
+    expect(getPrintableDetailRows(snapshot.products).find((row) => row.producto === 'TOTAL MENÚS / VIANDAS'))
+      .toMatchObject({ cantidad: 48 })
+  })
+
   it('completa faltantes de bebida y postre en remitos por unidad de menú', () => {
     const products = summarizeProducts([
       makeOrder({

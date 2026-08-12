@@ -14,6 +14,7 @@ import {
 } from '../../utils/daily/exportDailyOrderNotesExcel'
 import { getUserFriendlyErrorMessage } from '../../utils'
 import { notifyError, notifyInfo, notifySuccess } from '../../utils/notice'
+import { confirmAction } from '../../utils/confirm'
 
 const normalizeText = (value = '') =>
   String(value || '')
@@ -33,6 +34,45 @@ const getRemitoStatus = (remito = {}) => {
 
 const getIssuerLabel = (remito = {}) =>
   remito.issued_by_name || remito.issued_by_email || remito.issued_by || '-'
+
+const getUpdaterLabel = (remito = {}) => {
+  const snapshotUpdater = remito?.snapshot?.updatedBy || remito?.snapshot?.refreshedBy || {}
+  return remito.updated_by_name ||
+    remito.updated_by_email ||
+    snapshotUpdater.name ||
+    snapshotUpdater.email ||
+    ''
+}
+
+const getUpdatedAt = (remito = {}) =>
+  remito.updated_at || remito?.snapshot?.updatedAt || remito?.snapshot?.refreshedAt || ''
+
+const formatDateTime = (value) => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleString('es-AR')
+}
+
+const getSnapshotOrderCount = (snapshot = {}, remito = {}) => {
+  const count = Number(snapshot?.ordersCount)
+  if (Number.isFinite(count)) return count
+  if (Array.isArray(snapshot?.orderIds)) return snapshot.orderIds.length
+  if (Array.isArray(remito?.order_ids)) return remito.order_ids.length
+  return 0
+}
+
+const getSnapshotMenuTotal = (snapshot = {}) => {
+  const total = Number(snapshot?.totalMenus ?? snapshot?.totalItems)
+  return Number.isFinite(total) ? total : 0
+}
+
+const arraysMatchAsSet = (left = [], right = []) => {
+  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false
+  const sortedLeft = left.map(String).sort()
+  const sortedRight = right.map(String).sort()
+  return sortedLeft.every((value, index) => value === sortedRight[index])
+}
 
 const buildLocationOptions = (orders = []) => {
   const locations = new Set()
@@ -84,12 +124,6 @@ const DailyRemitosPanel = ({
     companySlug: exportCompany,
     location: locationFilter
   }), [exportCompany, locationFilter, orders])
-
-  const buildGroupsForOrders = useCallback((orderRows = []) => buildCompanyGroups(filterOrdersForRemitos({
-    orders: orderRows,
-    companySlug: exportCompany,
-    location: locationFilter
-  })), [exportCompany, locationFilter])
 
   const groups = useMemo(() => buildCompanyGroups(filteredOrders), [filteredOrders])
   const remitosByCompany = useMemo(() => {
@@ -199,26 +233,49 @@ const DailyRemitosPanel = ({
   const refreshIssuedSnapshot = async (group, existing, { silent = false, manageBusy = true } = {}) => {
     if (!existing?.remito_id) return false
     const key = `${group.slug}:${locationKey || 'all'}`
-    if (manageBusy) setBusyKey(key)
-    try {
-      const issuedBy = existing?.snapshot?.issuedBy || {
+    if (manageBusy && busyKey) return false
+
+    const orderIds = getOrderIds(group.orders)
+    const liveDraft = buildRemitoSnapshot({
+      group,
+      remitoNumber: existing.remito_number,
+      deliveryDate: existing.delivery_date || deliveryDate,
+      issuedAt: existing.issued_at || null,
+      issuedBy: existing?.snapshot?.issuedBy || {
         id: existing?.issued_by || null,
         email: existing?.issued_by_email || null,
         name: existing?.issued_by_name || null
-      }
-      const snapshot = buildRemitoSnapshot({
-        group,
-        remitoNumber: existing.remito_number,
-        deliveryDate: existing.delivery_date || deliveryDate,
-        issuedAt: existing.issued_at || null,
-        issuedBy,
-        status: existing.status || 'issued'
+      },
+      status: existing.status || 'issued'
+    })
+    const currentSnapshot = existing?.snapshot && typeof existing.snapshot === 'object' ? existing.snapshot : {}
+    const sameOrders = arraysMatchAsSet(currentSnapshot.orderIds || existing.order_ids || [], orderIds)
+    const sameTotals =
+      getSnapshotOrderCount(currentSnapshot, existing) === liveDraft.ordersCount &&
+      getSnapshotMenuTotal(currentSnapshot) === liveDraft.totalMenus &&
+      Number(currentSnapshot.totalBeverages ?? 0) === Number(liveDraft.totalBeverages ?? 0) &&
+      Number(currentSnapshot.totalDesserts ?? 0) === Number(liveDraft.totalDesserts ?? 0)
+
+    if (sameOrders && sameTotals) {
+      if (!silent) notifyInfo('El remito ya coincide con los pedidos vigentes de la jornada.')
+      return false
+    }
+
+    if (!silent) {
+      const confirmed = await confirmAction({
+        title: `Actualizar remito N.º ${existing.remito_number}`,
+        message: `Se actualizará el remito N.º ${existing.remito_number} con los pedidos vigentes de ${group.displayName || group.name} para el ${existing.delivery_date || deliveryDate}. Se conservará el mismo número.`,
+        confirmText: 'Actualizar remito'
       })
-      const orderIds = getOrderIds(group.orders)
+      if (!confirmed) return false
+    }
+
+    if (manageBusy) setBusyKey(key)
+    try {
       const { data, error } = await db.refreshCompanyRemitoSnapshot({
         remitoId: existing.remito_id,
         orderIds,
-        snapshot,
+        snapshot: liveDraft,
         requestId: [
           'refresh-remito',
           existing.remito_id,
@@ -231,11 +288,11 @@ const DailyRemitosPanel = ({
       }
       if (data) {
         setRemitos((prev) => (Array.isArray(prev) ? prev.map((row) => (
-          row?.remito_id === data.remito_id ? data : row
+          row?.remito_id === data.remito_id ? { ...row, ...data } : row
         )) : prev))
       }
       if (!silent) {
-        notifySuccess(`Remito N° ${data?.remito_number || existing.remito_number} actualizado con ${snapshot.totalItems} viandas.`)
+        notifySuccess(`Remito N.º ${data?.remito_number || existing.remito_number} actualizado correctamente sin modificar su numeración.`)
       }
       return true
     } finally {
@@ -247,28 +304,9 @@ const DailyRemitosPanel = ({
     const key = '__refresh_visible_remitos__'
     setBusyKey(key)
     try {
-      const refreshedOrders = await onRefresh?.()
-      const currentGroups = buildGroupsForOrders(Array.isArray(refreshedOrders) ? refreshedOrders : orders)
-      const currentRemitos = await loadRemitos()
-      const currentRemitosByCompany = new Map()
-      ;(Array.isArray(currentRemitos) ? currentRemitos : []).forEach((remito) => {
-        currentRemitosByCompany.set(`${remito.company_slug || remito.companySlug || ''}:${remito.location_key || ''}`, remito)
-      })
-
-      let refreshedCount = 0
-      for (const group of currentGroups) {
-        const existing = currentRemitosByCompany.get(`${group.slug}:${locationKey}`)
-        if (!existing || String(existing.status || '').toLowerCase() === 'cancelled') continue
-        const updated = await refreshIssuedSnapshot(group, existing, { silent: true, manageBusy: false })
-        if (updated) refreshedCount += 1
-      }
-
+      await onRefresh?.()
       await loadRemitos()
-      if (refreshedCount > 0) {
-        notifySuccess(`Remitos actualizados: ${refreshedCount}. La numeración no avanzó.`)
-      } else {
-        notifyInfo('No hay remitos emitidos para actualizar con los filtros actuales.')
-      }
+      notifyInfo('Datos de remitos recargados.')
     } finally {
       setBusyKey('')
     }
@@ -324,7 +362,7 @@ const DailyRemitosPanel = ({
           </div>
           <button type="button" disabled={busyKey === '__refresh_visible_remitos__'} onClick={refreshVisibleIssuedSnapshots} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-60">
             <RotateCcw className="mr-2 h-4 w-4" />
-            Actualizar
+            Recargar
           </button>
         </div>
 
@@ -338,13 +376,31 @@ const DailyRemitosPanel = ({
               const existing = remitosByCompany.get(`${group.slug}:${locationKey}`)
               const status = getRemitoStatus(existing)
               const snapshot = existing?.snapshot && typeof existing.snapshot === 'object' ? existing.snapshot : null
-              const totalItems = snapshot?.totalItems ?? buildRemitoSnapshot({ group, deliveryDate }).totalItems
+              const liveSnapshot = buildRemitoSnapshot({ group, deliveryDate })
+              const snapshotOrderCount = existing ? getSnapshotOrderCount(snapshot || {}, existing) : group.orders.length
+              const totalItems = existing ? getSnapshotMenuTotal(snapshot || {}) : liveSnapshot.totalItems
+              const snapshotOrderIds = snapshot?.orderIds || existing?.order_ids || []
+              const hasPendingChanges = existing &&
+                (
+                  snapshotOrderCount !== liveSnapshot.ordersCount ||
+                  totalItems !== liveSnapshot.totalMenus ||
+                  Number(snapshot?.totalBeverages ?? 0) !== Number(liveSnapshot.totalBeverages ?? 0) ||
+                  Number(snapshot?.totalDesserts ?? 0) !== Number(liveSnapshot.totalDesserts ?? 0) ||
+                  !arraysMatchAsSet(snapshotOrderIds, liveSnapshot.orderIds)
+                )
               const busy = busyKey === `${group.slug}:${locationKey || 'all'}`
+              const updatedAt = getUpdatedAt(existing)
+              const updater = getUpdaterLabel(existing)
               return (
                 <div key={`${group.slug}:${locationKey || 'all'}`} className="grid gap-3 px-4 py-4 lg:grid-cols-[1.3fr_1fr_1fr_auto] lg:items-center">
                   <div className="min-w-0">
                     <p className="font-black text-slate-900">{group.displayName || group.name}</p>
-                    <p className="text-xs font-semibold text-slate-500">{group.orders.length} pedidos · {totalItems} viandas</p>
+                    <p className="text-xs font-semibold text-slate-500">{snapshotOrderCount} pedidos · {totalItems} viandas</p>
+                    {hasPendingChanges && (
+                      <p className="mt-1 text-xs font-bold text-orange-700">
+                        Hay cambios pendientes: {liveSnapshot.ordersCount} pedidos actuales · {totalItems} viandas en el remito
+                      </p>
+                    )}
                   </div>
                   <div className="text-sm font-semibold text-slate-700">
                     <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-black ${status.tone}`}>{status.label}</span>
@@ -352,8 +408,14 @@ const DailyRemitosPanel = ({
                   </div>
                   <div className="text-xs font-semibold text-slate-600">
                     <p>Servicio: {deliveryDate}</p>
-                    <p>Emisión: {existing?.issued_at ? new Date(existing.issued_at).toLocaleString('es-AR') : '-'}</p>
+                    <p>Emisión: {formatDateTime(existing?.issued_at)}</p>
                     <p>Emitió: {getIssuerLabel(existing)}</p>
+                    {updatedAt && (
+                      <>
+                        <p>Actualización: {formatDateTime(updatedAt)}</p>
+                        <p>Actualizó: {updater || '-'}</p>
+                      </>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2 lg:justify-end">
                     {!existing && (
