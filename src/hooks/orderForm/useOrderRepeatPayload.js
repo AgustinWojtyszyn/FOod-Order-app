@@ -10,6 +10,7 @@ export const useOrderRepeatPayload = ({
   menuItemsLength,
   dinnerMenuItemsLength,
   locations,
+  requireExplicitLocationSelection = false,
   dinnerEnabled,
   dinnerMenuEnabled,
   setSelectedItems,
@@ -50,7 +51,7 @@ export const useOrderRepeatPayload = ({
     setFormData(prev => ({
       ...prev,
       comments: draft.comments,
-      location: draft.location || locations[0] || prev.location
+      location: draft.location || (requireExplicitLocationSelection ? '' : locations[0]) || prev.location
     }))
 
     if (draft.service === 'dinner' && Object.keys(draft.selectedItemsDinner || {}).length > 0) {
@@ -67,6 +68,7 @@ export const useOrderRepeatPayload = ({
     dinnerEnabled,
     dinnerMenuEnabled,
     locations,
+    requireExplicitLocationSelection,
     setSelectedItems,
     setSelectedItemsDinner,
     setCustomResponses,

@@ -44,6 +44,77 @@ export const createUsersService = ({
       return { data: rows, error }
     },
 
+    getCompanyOrderLocations: async ({ companySlug = null } = {}) => {
+      const normalizedSlug = (companySlug || '').toString().trim().toLowerCase()
+      if (!normalizedSlug) return { data: [], error: null }
+      const organizationCode = normalizedSlug.toUpperCase()
+      const normalizeRows = (rows = []) => (Array.isArray(rows) ? rows : [])
+        .map((row) => ({
+          ...row,
+          name: row.name || row.display_name,
+          delivery_name: row.delivery_name || row.name || row.display_name
+        }))
+        .filter((row) => row.name)
+
+      const rpcResult = await supabase.rpc('get_company_order_locations', {
+        p_company_slug: normalizedSlug
+      })
+      if (!rpcResult.error) {
+        return { data: normalizeRows(rpcResult.data), error: null }
+      }
+
+      const { data, error } = await supabase
+        .from('order_locations')
+        .select(`
+          id,
+          code,
+          slug,
+          display_name,
+          default_delivery_location_id,
+          organization:order_organizations!inner(code, active)
+        `)
+        .eq('active', true)
+        .eq('organization.active', true)
+        .eq('organization.code', organizationCode)
+        .order('display_name', { ascending: true })
+
+      if (error) return { data: null, error }
+
+      const rows = Array.isArray(data) ? data : []
+      const deliveryIds = [...new Set(rows
+        .map((row) => row.default_delivery_location_id)
+        .filter(Boolean))]
+      let deliveryRowsById = new Map()
+
+      if (deliveryIds.length > 0) {
+        const { data: deliveryData, error: deliveryError } = await supabase
+          .from('order_locations')
+          .select('id, display_name, code, slug')
+          .in('id', deliveryIds)
+
+        if (deliveryError) return { data: null, error: deliveryError }
+        deliveryRowsById = new Map((Array.isArray(deliveryData) ? deliveryData : []).map((row) => [row.id, row]))
+      }
+
+      return {
+        data: rows
+          .map((row) => {
+            const deliveryRow = deliveryRowsById.get(row.default_delivery_location_id) || row
+            return {
+              id: row.id,
+              code: row.code,
+              slug: row.slug,
+              name: row.display_name,
+              delivery_name: deliveryRow?.display_name || row.display_name,
+              delivery_code: deliveryRow?.code || row.code,
+              delivery_slug: deliveryRow?.slug || row.slug
+            }
+          })
+          .filter((row) => row.name),
+        error: null
+      }
+    },
+
     // Usuarios
     getUsers: async (force = false) => {
       // Usar cache para reducir consultas repetidas

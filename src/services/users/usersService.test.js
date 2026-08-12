@@ -95,6 +95,108 @@ const createAdminPeopleFallbackSupabaseMock = () => {
 }
 
 describe('usersService role updates', () => {
+  it('obtiene sedes activas de empresa por RPC', async () => {
+    const calls = []
+    const service = createUsersService({
+      supabase: {
+        rpc(name, args) {
+          calls.push(['rpc', name, args])
+          return Promise.resolve({
+            data: [{ code: 'EPSE_PLANTA', name: 'EPSE - Planta', delivery_name: 'EPSE - Planta' }],
+            error: null
+          })
+        }
+      }
+    })
+
+    const result = await service.getCompanyOrderLocations({ companySlug: ' EPSE ' })
+
+    expect(result).toEqual({
+      data: [{ code: 'EPSE_PLANTA', name: 'EPSE - Planta', delivery_name: 'EPSE - Planta' }],
+      error: null
+    })
+    expect(calls).toEqual([
+      ['rpc', 'get_company_order_locations', { p_company_slug: 'epse' }]
+    ])
+  })
+
+  it('usa fallback directo y conserva la sede efectiva de entrega', async () => {
+    const calls = []
+    const locationRows = [
+      {
+        id: 'loc-estacion',
+        code: 'EPSE_ESTACION',
+        slug: 'epse_estacion',
+        display_name: 'EPSE - Estacion',
+        default_delivery_location_id: 'loc-planta'
+      },
+      {
+        id: 'loc-planta',
+        code: 'EPSE_PLANTA',
+        slug: 'epse_planta',
+        display_name: 'EPSE - Planta',
+        default_delivery_location_id: 'loc-planta'
+      }
+    ]
+    const deliveryRows = [
+      {
+        id: 'loc-planta',
+        code: 'EPSE_PLANTA',
+        slug: 'epse_planta',
+        display_name: 'EPSE - Planta'
+      }
+    ]
+    const query = {
+      select(columns) {
+        calls.push(['select', columns])
+        return this
+      },
+      eq(column, value) {
+        calls.push(['eq', column, value])
+        return this
+      },
+      order(column, options) {
+        calls.push(['order', column, options])
+        return Promise.resolve({ data: locationRows, error: null })
+      },
+      in(column, values) {
+        calls.push(['in', column, values])
+        return Promise.resolve({ data: deliveryRows, error: null })
+      }
+    }
+    const service = createUsersService({
+      supabase: {
+        rpc(name, args) {
+          calls.push(['rpc', name, args])
+          return Promise.resolve({
+            data: null,
+            error: { code: 'PGRST202', message: 'missing function' }
+          })
+        },
+        from(table) {
+          calls.push(['from', table])
+          return query
+        }
+      }
+    })
+
+    const result = await service.getCompanyOrderLocations({ companySlug: 'epse' })
+
+    expect(result.error).toBeNull()
+    expect(result.data).toEqual([
+      expect.objectContaining({
+        name: 'EPSE - Estacion',
+        delivery_name: 'EPSE - Planta'
+      }),
+      expect.objectContaining({
+        name: 'EPSE - Planta',
+        delivery_name: 'EPSE - Planta'
+      })
+    ])
+    expect(calls).toContainEqual(['eq', 'organization.code', 'EPSE'])
+    expect(calls).toContainEqual(['in', 'id', ['loc-planta']])
+  })
+
   it('usa la RPC administrativa y no actualiza public.users directamente', async () => {
     const { supabase, calls } = createSupabaseMock()
     const invalidateCache = vi.fn()

@@ -96,10 +96,10 @@ export const useOrderCompany = () => {
       }
       setAuthorizedLocationsLoading(true)
       setAuthorizedLocationsError(null)
-      const { data, error } = await db.getUserOrderLocations({ companySlug: companyConfig?.slug })
+      const { data, error } = await db.getCompanyOrderLocations({ companySlug: companyConfig?.slug })
       if (!mounted) return
       if (error) {
-        console.error('[EPSE locations] Error loading authorized locations from /rest/v1/rpc/get_user_order_locations', {
+        console.error('[EPSE locations] Error loading company order locations', {
           companySlug: companyConfig?.slug,
           error
         })

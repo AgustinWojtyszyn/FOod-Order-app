@@ -11,6 +11,7 @@ export const useOrderSuggestionHandlers = ({
   dinnerMenuItems,
   locations,
   isGenneia,
+  requireExplicitLocationSelection = false,
   setSelectedItems,
   setSelectedItemsDinner,
   setCustomResponses,
@@ -42,7 +43,7 @@ export const useOrderSuggestionHandlers = ({
     setFormData(prev => ({
       ...prev,
       comments: draft.comments,
-      location: draft.location || locations[0] || prev.location
+      location: draft.location || (requireExplicitLocationSelection ? '' : locations[0]) || prev.location
     }))
 
     if (draft.service === 'dinner' && !draft.hasDinnerOverride) {
@@ -56,6 +57,7 @@ export const useOrderSuggestionHandlers = ({
     dinnerMenuItems,
     locations,
     isGenneia,
+    requireExplicitLocationSelection,
     setSelectedItems,
     setSelectedItemsDinner,
     setCustomResponses,

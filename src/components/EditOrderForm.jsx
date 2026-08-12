@@ -84,7 +84,7 @@ export default function EditOrderForm({ user, loading }) {
     if (!isEpseOrder) return
     let mounted = true
     const load = async () => {
-      const { data, error } = await db.getUserOrderLocations({ companySlug: 'epse' })
+      const { data, error } = await db.getCompanyOrderLocations({ companySlug: 'epse' })
       if (!mounted) return
       setAuthorizedEpseLocationRows(error ? [] : (Array.isArray(data) ? data : []))
     }

@@ -78,7 +78,7 @@ export const COMPANY_CATALOG = {
       'EPSE – Los Caracoles',
       'EPSE – Obra Línea de Alta Tensión'
     ],
-    customHint: 'Solo se muestran locaciones autorizadas para tu correo.',
+    customHint: 'Seleccioná la sede EPSE donde solicitás el pedido.',
     optionsSourceSlug: 'epse',
     requiresAuthorizedLocations: true
   },

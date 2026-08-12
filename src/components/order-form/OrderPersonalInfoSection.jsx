@@ -9,7 +9,7 @@ const OrderPersonalInfoSection = ({
   requiresAuthorizedLocations = false,
   onChange
 }) => {
-  const hasSingleLocation = locations.length === 1
+  const hasSingleLocation = !requiresAuthorizedLocations && locations.length === 1
   const hasLocationsError = requiresAuthorizedLocations && !locationsLoading && Boolean(locationsError)
   const hasNoAuthorizedLocations = requiresAuthorizedLocations && !locationsLoading && !hasLocationsError && locations.length === 0
   const showDeliveryLocation = Boolean(formData.location && deliveryLocation)
@@ -57,7 +57,7 @@ const OrderPersonalInfoSection = ({
         )}
         {hasNoAuthorizedLocations && (
           <p className="mt-2 text-sm font-semibold text-red-700">
-            No tenés locaciones autorizadas para esta empresa.
+            No hay locaciones habilitadas para esta empresa.
           </p>
         )}
         {hasLocationsError && (
