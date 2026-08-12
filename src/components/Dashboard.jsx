@@ -216,7 +216,7 @@ const Dashboard = ({ user, loading }) => {
         canEditOrder={(order) => isOrderEditable(order.created_at, EDIT_WINDOW_MINUTES)}
         onEditOrder={handleEditOrder}
         onDeleteOrder={handleDeleteOrder}
-        deleteActionLabel={isAdmin ? 'Eliminar' : 'Cancelar pedido'}
+        deleteActionLabel="Cancelar pedido"
         onOpenChangeCompany={openChangeCompanyFlow}
         canOpenChangeCompany={canOpenChangeCompany}
         changeCompanyHint={changeCompanyHint}
@@ -242,7 +242,7 @@ const Dashboard = ({ user, loading }) => {
         getStatusBadgeClass={getStatusBadgeClass}
         onEditOrder={handleEditOrder}
         onDeleteOrder={handleDeleteOrder}
-        deleteActionLabel={isAdmin ? 'Eliminar' : 'Cancelar pedido'}
+        deleteActionLabel="Cancelar pedido"
         canEditOrder={(order) => isOrderEditable(order.created_at, EDIT_WINDOW_MINUTES)}
       />
 
@@ -272,7 +272,7 @@ const Dashboard = ({ user, loading }) => {
           onConfirm={confirmDeleteOrder}
           onClose={closeDeleteConfirm}
           submitting={deleteSubmitting}
-          mode={isAdmin ? 'delete' : 'cancel'}
+          mode="cancel"
         />
       )}
 

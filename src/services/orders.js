@@ -43,6 +43,13 @@ const resolveIsAdminForUser = async (user) => {
   }
 }
 
+const createRequestId = (prefix) => {
+  const random = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `${prefix}-${random}`
+}
+
 class OrdersService {
   // Crear pedido con validación
   async createOrder(orderData) {
@@ -239,7 +246,7 @@ class OrdersService {
   }
 
   // Actualizar pedido completo
-  async updateOrder(orderId, updates) {
+  async updateOrder(orderId, updates, { adminAudit = false, reason = null } = {}) {
     try {
       if (!orderId) {
         throw new Error('ID de pedido requerido')
@@ -274,6 +281,29 @@ class OrdersService {
       }
 
       const sanitizedUpdates = sanitizeQuery(updates)
+
+      if (adminAudit) {
+        if (!isAdmin) {
+          throw new Error('Solo un administrador puede usar edición administrativa')
+        }
+        const normalizedReason = String(reason || '').trim()
+        if (!normalizedReason) {
+          throw new Error('Motivo obligatorio para edición administrativa')
+        }
+        const { data, error } = await supabase.rpc('admin_update_order_with_reason', {
+          p_order_id: orderId,
+          p_updates: sanitizedUpdates,
+          p_reason: normalizedReason,
+          p_request_id: createRequestId('admin-order-update')
+        })
+        if (error) throw error
+
+        supabaseService.invalidateCache('orders')
+        supabaseService.invalidateCache(`order_${orderId}`)
+
+        return { data, error: null }
+      }
+
       const updateData = {
         ...sanitizedUpdates,
         updated_at: new Date().toISOString()

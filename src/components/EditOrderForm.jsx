@@ -10,6 +10,7 @@ import EditOrderPersonalInfoSection from './edit-order/EditOrderPersonalInfoSect
 import EditOrderSummarySection from './edit-order/EditOrderSummarySection'
 import EditOrderMenuSection from './edit-order/EditOrderMenuSection'
 import { Sound } from '../utils/Sound'
+import { useAuthContext } from '../contexts/authContextValue'
 import { useEditOrderBootstrap } from '../hooks/orderEdit/useEditOrderBootstrap'
 import { useEditOrderSelection } from '../hooks/orderEdit/useEditOrderSelection'
 import { useEditOrderSubmit } from '../hooks/orderEdit/useEditOrderSubmit'
@@ -26,6 +27,7 @@ export default function EditOrderForm({ user, loading }) {
   const navigate = useNavigate()
   const routerLocation = useLocation()
   const order = routerLocation.state?.order
+  const { isAdmin } = useAuthContext()
 
   const [authorizedEpseLocationRows, setAuthorizedEpseLocationRows] = useState([])
   const [canUseAdminServifoodInEdit, setCanUseAdminServifoodInEdit] = useState(false)
@@ -63,7 +65,7 @@ export default function EditOrderForm({ user, loading }) {
     setFormData,
     setCustomResponses,
     setSelectedItems
-  } = useEditOrderBootstrap({ order, user, navigate })
+  } = useEditOrderBootstrap({ order, user, navigate, isAdmin })
 
   const { handleItemSelect, getSelectedItemsList, total } = useEditOrderSelection({
     service: order?.service,
@@ -138,7 +140,8 @@ export default function EditOrderForm({ user, loading }) {
     formData,
     selectedItemsList,
     customOptions,
-    customResponses
+    customResponses,
+    isAdmin
   })
 
   useEffect(() => {

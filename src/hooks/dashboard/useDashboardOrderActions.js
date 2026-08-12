@@ -29,7 +29,17 @@ export const useDashboardOrderActions = ({
     })
     if (confirmed) {
       try {
-        const { error } = await db.updateOrderStatus(orderId, 'archived')
+        const reason = isAdmin && typeof window !== 'undefined'
+          ? String(window.prompt('Motivo obligatorio para la acción administrativa:') || '').trim()
+          : ''
+        if (isAdmin && !reason) {
+          notifyError('Indicá el motivo para continuar.')
+          return
+        }
+        const { error } = await db.updateOrderStatus(orderId, 'archived', {
+          adminAudit: isAdmin,
+          reason
+        })
         if (error) {
           notifyError('Error al actualizar el pedido')
         } else {
@@ -48,7 +58,7 @@ export const useDashboardOrderActions = ({
         notifyError('Error al actualizar el pedido')
       }
     }
-  }, [calculateStats, confirmAction, db, fetchOrders, notifyError, setOrders])
+  }, [calculateStats, confirmAction, db, fetchOrders, isAdmin, notifyError, setOrders])
 
   const handleStatusChange = useCallback(async (orderId, newStatus, currentStatus) => {
     if (currentStatus === newStatus) return
@@ -66,7 +76,17 @@ export const useDashboardOrderActions = ({
     })
     if (confirmed) {
       try {
-        const { error } = await db.updateOrderStatus(orderId, newStatus)
+        const reason = isAdmin && typeof window !== 'undefined'
+          ? String(window.prompt('Motivo obligatorio para la acción administrativa:') || '').trim()
+          : ''
+        if (isAdmin && !reason) {
+          notifyError('Indicá el motivo para continuar.')
+          return
+        }
+        const { error } = await db.updateOrderStatus(orderId, newStatus, {
+          adminAudit: isAdmin,
+          reason
+        })
         if (error) {
           notifyError('Error al actualizar el pedido')
         } else {
@@ -85,7 +105,7 @@ export const useDashboardOrderActions = ({
         notifyError('Error al actualizar el pedido')
       }
     }
-  }, [calculateStats, confirmAction, db, fetchOrders, notifyError, setOrders])
+  }, [calculateStats, confirmAction, db, fetchOrders, isAdmin, notifyError, setOrders])
 
   const handleArchiveAllPending = useCallback(async () => {
     const pendingOrders = (Array.isArray(orders) ? orders : []).filter(order => order.status === 'pending')
@@ -102,8 +122,18 @@ export const useDashboardOrderActions = ({
     })
     if (confirmed) {
       try {
+        const reason = isAdmin && typeof window !== 'undefined'
+          ? String(window.prompt('Motivo obligatorio para archivar pedidos administrativamente:') || '').trim()
+          : ''
+        if (isAdmin && !reason) {
+          notifyError('Indicá el motivo para continuar.')
+          return
+        }
         const promises = pendingOrders.map(order =>
-          db.updateOrderStatus(order.id, 'archived')
+          db.updateOrderStatus(order.id, 'archived', {
+            adminAudit: isAdmin,
+            reason
+          })
         )
 
         const results = await Promise.all(promises)
@@ -129,32 +159,42 @@ export const useDashboardOrderActions = ({
         notifyError('Error al actualizar los pedidos')
       }
     }
-  }, [calculateStats, confirmAction, db, fetchOrders, notifyError, notifyInfo, notifySuccess, notifyWarning, orders, setOrders])
+  }, [calculateStats, confirmAction, db, fetchOrders, isAdmin, notifyError, notifyInfo, notifySuccess, notifyWarning, orders, setOrders])
 
   const handleEditOrder = useCallback((order) => {
-    if (!isOrderEditable(order.created_at, EDIT_WINDOW_MINUTES)) {
+    if (!isAdmin && !isOrderEditable(order.created_at, EDIT_WINDOW_MINUTES)) {
       notifyInfo(`Solo puedes editar tu pedido dentro de los primeros ${EDIT_WINDOW_MINUTES} minutos.`)
       return
     }
     navigate('/edit-order', { state: { order } })
-  }, [EDIT_WINDOW_MINUTES, isOrderEditable, navigate, notifyInfo])
+  }, [EDIT_WINDOW_MINUTES, isAdmin, isOrderEditable, navigate, notifyInfo])
 
   const handleDeleteOrder = useCallback((order) => {
-    if (!isOrderEditable(order.created_at, EDIT_WINDOW_MINUTES)) {
+    if (!isAdmin && !isOrderEditable(order.created_at, EDIT_WINDOW_MINUTES)) {
       showToast(`Solo puedes cancelar tu pedido dentro de los primeros ${EDIT_WINDOW_MINUTES} minutos.`)
       return
     }
 
     setDeleteConfirmOrder(order)
-  }, [EDIT_WINDOW_MINUTES, isOrderEditable, showToast])
+  }, [EDIT_WINDOW_MINUTES, isAdmin, isOrderEditable, showToast])
 
   const confirmDeleteOrder = useCallback(async () => {
     if (!deleteConfirmOrder) return
     setDeleteSubmitting(true)
     try {
       const editableSince = new Date(Date.now() - EDIT_WINDOW_MINUTES * 60 * 1000).toISOString()
+      const adminReason = isAdmin && typeof window !== 'undefined'
+        ? String(window.prompt('Motivo obligatorio para la cancelación administrativa:') || '').trim()
+        : ''
+      if (isAdmin && !adminReason) {
+        showToast('Indicá el motivo para continuar.', 'error')
+        return
+      }
       const result = isAdmin
-        ? await db.deleteOrder(deleteConfirmOrder.id)
+        ? await db.updateOrderStatus(deleteConfirmOrder.id, 'cancelled', {
+            adminAudit: true,
+            reason: adminReason
+          })
         : await db.cancelOwnPendingOrder({
             orderId: deleteConfirmOrder.id,
             userId: deleteConfirmOrder.user_id,
@@ -163,7 +203,7 @@ export const useDashboardOrderActions = ({
       const { data, error } = result
       if (error) {
         showToast(
-          getUserFriendlyErrorMessage(error, `No pudimos ${isAdmin ? 'eliminar' : 'cancelar'} el pedido. Intentá nuevamente.`),
+          getUserFriendlyErrorMessage(error, 'No pudimos cancelar el pedido. Intentá nuevamente.'),
           'error'
         )
         return
@@ -172,7 +212,7 @@ export const useDashboardOrderActions = ({
         showToast(`No se pudo cancelar el pedido. Verificá que siga pendiente y dentro de los primeros ${EDIT_WINDOW_MINUTES} minutos.`, 'error')
         return
       }
-      showToast(isAdmin ? 'Pedido eliminado exitosamente' : 'Pedido cancelado exitosamente')
+      showToast('Pedido cancelado exitosamente')
       if (!isAdmin) {
         setOrders((prev) => {
           if (!Array.isArray(prev)) return prev
@@ -186,7 +226,7 @@ export const useDashboardOrderActions = ({
     } catch (err) {
       console.error('Error:', err)
       showToast(
-        getUserFriendlyErrorMessage(err, `No pudimos ${isAdmin ? 'eliminar' : 'cancelar'} el pedido. Intentá nuevamente.`),
+        getUserFriendlyErrorMessage(err, 'No pudimos cancelar el pedido. Intentá nuevamente.'),
         'error'
       )
     } finally {

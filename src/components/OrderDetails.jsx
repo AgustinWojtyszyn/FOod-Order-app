@@ -129,7 +129,7 @@ const OrderDetails = ({ user, loading }) => {
   const isExtra = isAdminExtraOrder(order)
   const adminCreator = resolveAdminExtraCreator(order)
   const canEditOrder = order?.created_at
-    ? isOrderEditable(order.created_at, EDIT_WINDOW_MINUTES)
+    ? isAdmin || isOrderEditable(order.created_at, EDIT_WINDOW_MINUTES)
     : false
   const canModifyPendingOrder = canEditOrder && status === 'pending'
 
@@ -175,8 +175,18 @@ const OrderDetails = ({ user, loading }) => {
     setDeleteSubmitting(true)
     try {
       const editableSince = new Date(Date.now() - EDIT_WINDOW_MINUTES * 60 * 1000).toISOString()
+      const adminReason = isAdmin && typeof window !== 'undefined'
+        ? String(window.prompt('Motivo obligatorio para la cancelación administrativa:') || '').trim()
+        : ''
+      if (isAdmin && !adminReason) {
+        notifyError('Indicá el motivo para continuar.')
+        return
+      }
       const result = isAdmin
-        ? await db.deleteOrder(order.id)
+        ? await db.updateOrderStatus(order.id, 'cancelled', {
+            adminAudit: true,
+            reason: adminReason
+          })
         : await db.cancelOwnPendingOrder({
             orderId: order.id,
             userId: user.id,
@@ -187,11 +197,11 @@ const OrderDetails = ({ user, loading }) => {
         notifyError(getUserFriendlyErrorMessage(deleteError))
         return
       }
-      if (!isAdmin && (!Array.isArray(data) || data.length === 0)) {
+      if (!isAdmin && (data == null || (Array.isArray(data) && data.length === 0))) {
         notifyError(`No se pudo cancelar el pedido. Verificá que siga pendiente y dentro de los primeros ${EDIT_WINDOW_MINUTES} minutos.`)
         return
       }
-      notifySuccess(isAdmin ? 'Pedido eliminado.' : 'Pedido cancelado.')
+      notifySuccess(isAdmin ? 'Pedido cancelado.' : 'Pedido cancelado.')
       if (isAdmin) {
         navigate('/dashboard', { replace: true })
       } else {

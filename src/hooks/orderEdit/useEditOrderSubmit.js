@@ -11,7 +11,8 @@ export const useEditOrderSubmit = ({
   formData,
   selectedItemsList,
   customOptions,
-  customResponses
+  customResponses,
+  isAdmin = false
 }) => {
   const [localLoading, setLocalLoading] = useState(false)
   const [error, setError] = useState('')
@@ -20,7 +21,7 @@ export const useEditOrderSubmit = ({
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault()
 
-    if (!isOrderEditable(order?.created_at, EDIT_WINDOW_MINUTES)) {
+    if (!isAdmin && !isOrderEditable(order?.created_at, EDIT_WINDOW_MINUTES)) {
       setError(`Solo puedes editar tu pedido dentro de los primeros ${EDIT_WINDOW_MINUTES} minutos de haberlo creado.`)
       return
     }
@@ -55,7 +56,18 @@ export const useEditOrderSubmit = ({
         originalOrder: order
       })
 
-      const { error } = await ordersService.updateOrder(order.id, orderData)
+      const adminReason = isAdmin && typeof window !== 'undefined'
+        ? String(window.prompt('Motivo obligatorio para la edición administrativa:') || '').trim()
+        : ''
+      if (isAdmin && !adminReason) {
+        setError('Indicá el motivo para continuar.')
+        return
+      }
+
+      const { error } = await ordersService.updateOrder(order.id, orderData, {
+        adminAudit: isAdmin,
+        reason: adminReason
+      })
 
       if (error) {
         setError(getUserFriendlyErrorMessage(error, 'No pudimos actualizar el pedido. Intentá nuevamente.'))
@@ -67,7 +79,7 @@ export const useEditOrderSubmit = ({
     } finally {
       setLocalLoading(false)
     }
-  }, [order, user, formData, selectedItemsList, customOptions, customResponses])
+  }, [isAdmin, order, user, formData, selectedItemsList, customOptions, customResponses])
 
   return { handleSubmit, localLoading, error, success, setSuccess }
 }

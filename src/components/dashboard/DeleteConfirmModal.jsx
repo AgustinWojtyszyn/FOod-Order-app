@@ -5,7 +5,7 @@ const DeleteConfirmModal = ({ order, onConfirm, onClose, submitting, mode = 'del
   const isCancel = mode === 'cancel'
   const title = isCancel ? 'Cancelar pedido' : 'Eliminar pedido'
   const message = isCancel
-    ? '¿Estás seguro de que querés cancelar este pedido? Quedará archivado para conservar el historial.'
+    ? '¿Estás seguro de que querés cancelar este pedido? Se solicitará un motivo cuando corresponda.'
     : '¿Estás seguro de que quieres eliminar este pedido? Esta acción no se puede deshacer.'
   const submitLabel = isCancel ? 'Cancelar pedido' : 'Eliminar pedido'
   const submittingLabel = isCancel ? 'Cancelando...' : 'Eliminando...'

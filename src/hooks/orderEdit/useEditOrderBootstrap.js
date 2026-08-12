@@ -26,7 +26,7 @@ const resolveOrderCompanySlug = (order = {}) => {
   return normalizeCompanySlug(resolveEditOrderCompanySlug(order) || order?.company_slug || order?.company || order?.company_id || '')
 }
 
-export const useEditOrderBootstrap = ({ order, user, navigate }) => {
+export const useEditOrderBootstrap = ({ order, user, navigate, isAdmin = false }) => {
   const [menuItems, setMenuItems] = useState([])
   const [customOptions, setCustomOptions] = useState([])
   const [dinnerMenuSpecial, setDinnerMenuSpecial] = useState(null)
@@ -165,7 +165,7 @@ export const useEditOrderBootstrap = ({ order, user, navigate }) => {
       return
     }
 
-    if (!isOrderEditable(order.created_at, EDIT_WINDOW_MINUTES)) {
+    if (!isAdmin && !isOrderEditable(order.created_at, EDIT_WINDOW_MINUTES)) {
       notifyInfo(
         `Solo puedes editar tu pedido dentro de los primeros ${EDIT_WINDOW_MINUTES} minutos de haberlo creado.`
       )
@@ -181,7 +181,7 @@ export const useEditOrderBootstrap = ({ order, user, navigate }) => {
     setFormData(formData)
     setSelectedItems(selectedItems)
     setCustomResponses(customResponses)
-  }, [order, user, navigate, fetchMenuItems, fetchCustomOptions, fetchDinnerMenuSpecial])
+  }, [isAdmin, order, user, navigate, fetchMenuItems, fetchCustomOptions, fetchDinnerMenuSpecial])
 
   useEffect(() => {
     const service = (order?.service || 'lunch').toLowerCase()

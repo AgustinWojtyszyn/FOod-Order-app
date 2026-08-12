@@ -25,6 +25,10 @@ const refreshCompanyRemitosMigration = readFileSync(
   new URL('./20260812133000_refresh_company_remito_snapshots.sql', import.meta.url),
   'utf8'
 )
+const adminOrderReasonAuditMigration = readFileSync(
+  new URL('./20260812150000_admin_order_reason_audit.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -111,5 +115,19 @@ describe('admin extra orders migration', () => {
     expect(refreshCompanyRemitosMigration).toContain('snapshot_version = coalesce(snapshot_version, 1) + 1')
     expect(refreshCompanyRemitosMigration).toContain("'delivery_note_updated'")
     expect(refreshCompanyRemitosMigration).not.toContain('next_remito_number')
+  })
+
+  it('requires reason and audits previous/new values for admin order edits and cancellations', () => {
+    expect(adminOrderReasonAuditMigration).toContain('create or replace function public.admin_update_order_with_reason')
+    expect(adminOrderReasonAuditMigration).toContain('create or replace function public.admin_cancel_order_with_reason')
+    expect(adminOrderReasonAuditMigration).toContain("raise exception 'reason_required'")
+    expect(adminOrderReasonAuditMigration).toContain('public.is_admin()')
+    expect(adminOrderReasonAuditMigration).toContain('for update')
+    expect(adminOrderReasonAuditMigration).toContain("'previous', to_jsonb(v_old)")
+    expect(adminOrderReasonAuditMigration).toContain("'new', to_jsonb(v_new)")
+    expect(adminOrderReasonAuditMigration).toContain("'responsible', jsonb_build_object")
+    expect(adminOrderReasonAuditMigration).toContain("'reason', v_reason")
+    expect(adminOrderReasonAuditMigration).toContain("'admin_order_updated'")
+    expect(adminOrderReasonAuditMigration).toContain("'admin_order_cancelled'")
   })
 })

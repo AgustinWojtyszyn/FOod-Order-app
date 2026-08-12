@@ -418,8 +418,31 @@ export const createOrdersService = ({ supabase, invalidateCache = () => {} } = {
       return { data, error }
     },
 
-    updateOrderStatus: async (orderId, status) => {
+    updateOrderStatus: async (orderId, status, { reason = null, adminAudit = false } = {}) => {
       invalidateCache()
+      if (adminAudit) {
+        const normalizedReason = String(reason || '').trim()
+        if (!normalizedReason) {
+          return { data: null, error: new Error('reason es requerido para acciones administrativas') }
+        }
+        const rpcName = status === 'cancelled'
+          ? 'admin_cancel_order_with_reason'
+          : 'admin_update_order_with_reason'
+        const rpcArgs = status === 'cancelled'
+          ? {
+              p_order_id: orderId,
+              p_reason: normalizedReason,
+              p_request_id: createRequestId('admin-order-cancel')
+            }
+          : {
+              p_order_id: orderId,
+              p_updates: { status },
+              p_reason: normalizedReason,
+              p_request_id: createRequestId('admin-order-status')
+            }
+        const { data, error } = await supabase.rpc(rpcName, rpcArgs)
+        return { data, error }
+      }
       const { data, error } = await supabase
         .from('orders')
         .update({ status, updated_at: new Date().toISOString() })
