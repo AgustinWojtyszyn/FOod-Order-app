@@ -168,7 +168,7 @@ export const useDashboardOrderActions = ({
         )
         return
       }
-      if (!isAdmin && (!Array.isArray(data) || data.length === 0)) {
+      if (!isAdmin && (data == null || (Array.isArray(data) && data.length === 0))) {
         showToast(`No se pudo cancelar el pedido. Verificá que siga pendiente y dentro de los primeros ${EDIT_WINDOW_MINUTES} minutos.`, 'error')
         return
       }
@@ -176,9 +176,7 @@ export const useDashboardOrderActions = ({
       if (!isAdmin) {
         setOrders((prev) => {
           if (!Array.isArray(prev)) return prev
-          const next = prev.map((order) =>
-            order?.id === deleteConfirmOrder.id ? { ...order, status: 'archived', displayStatus: 'archived' } : order
-          )
+          const next = prev.filter((order) => order?.id !== deleteConfirmOrder.id)
           calculateStats(next)
           return next
         })

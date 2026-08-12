@@ -10,6 +10,7 @@ const OrderHistorySection = ({
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const pastOrders = (Array.isArray(orders) ? orders : []).filter(order => {
+    if (String(order?.displayStatus || order?.status || '').toLowerCase() === 'cancelled') return false
     const orderDate = new Date(order.created_at)
     orderDate.setHours(0, 0, 0, 0)
     return orderDate.getTime() < today.getTime()

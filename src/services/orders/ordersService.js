@@ -433,6 +433,15 @@ export const createOrdersService = ({ supabase, invalidateCache = () => {} } = {
       const { data, error } = await supabase.rpc('cancel_own_pending_order', {
         order_id: orderId
       })
+      if (error && ['400', '404', 400, 404].includes(error?.status)) {
+        const fallback = await supabase
+          .from('orders')
+          .delete()
+          .eq('id', orderId)
+          .eq('status', 'pending')
+          .select()
+        return fallback
+      }
       return { data, error }
     },
 

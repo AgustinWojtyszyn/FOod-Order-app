@@ -13,20 +13,23 @@ const WeeklyOrdersSection = ({
   deleteActionLabel = 'Eliminar',
   canEditOrder
 }) => {
+  const visibleWeeklyOrders = (Array.isArray(weeklyOrders) ? weeklyOrders : [])
+    .filter((order) => String(order?.displayStatus || order?.status || '').toLowerCase() !== 'cancelled')
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 sm:px-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Tus pedidos de esta semana</h2>
       </div>
 
-      {weeklyOrders.length === 0 ? (
+      {visibleWeeklyOrders.length === 0 ? (
         <div className="space-y-1">
           <p className="text-gray-600 font-semibold">Sin pedidos esta semana.</p>
           <p className="text-sm text-gray-500 font-semibold">Cuando hagas un pedido, aparecerá acá.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {weeklyOrders.map((order) => {
+          {visibleWeeklyOrders.map((order) => {
             const status = order.displayStatus || order.status
             const showActions = status === 'pending' && (canEditOrder ? canEditOrder(order) : true)
             return (
