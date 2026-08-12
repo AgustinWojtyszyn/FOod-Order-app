@@ -16,7 +16,6 @@ import OrderCompanySelector from './components/OrderCompanySelector'
 import NoticeHost from './components/NoticeHost'
 import ConfirmHost from './components/ConfirmHost'
 import RequireAdmin from './components/RequireAdmin'
-import { RequireNonHumanResources } from './components/RequireBirthdayAccess'
 import InstallAppButton from './components/InstallAppButton'
 import CafeteriaDashboardPage from './components/cafeteria/CafeteriaDashboardPage'
 import TendenciasPage from './pages/TendenciasPage'
@@ -119,19 +118,19 @@ const RouteSwitch = ({ user, loading }) => {
             !loading && (user ? <Dashboard user={user} loading={loading} /> : <Navigate to="/login" />)
           } />
           <Route path="/order" element={
-            !loading && (user ? <RequireNonHumanResources><OrderCompanySelector user={user} loading={loading} /></RequireNonHumanResources> : <Navigate to="/login" />)
+            !loading && (user ? <OrderCompanySelector user={user} loading={loading} /> : <Navigate to="/login" />)
           } />
           <Route path="/order/:companySlug" element={
-            !loading && (user ? <RequireNonHumanResources><OrderForm user={user} loading={loading} /></RequireNonHumanResources> : <Navigate to="/login" />)
+            !loading && (user ? <OrderForm user={user} loading={loading} /> : <Navigate to="/login" />)
           } />
           <Route path="/edit-order" element={
-            !loading && (user ? <RequireNonHumanResources><EditOrderForm user={user} loading={loading} /></RequireNonHumanResources> : <Navigate to="/login" />)
+            !loading && (user ? <EditOrderForm user={user} loading={loading} /> : <Navigate to="/login" />)
           } />
           <Route path="/profile" element={
             !loading && (user ? <Profile user={user} loading={loading} /> : <Navigate to="/login" />)
           } />
           <Route path="/orders/:orderId" element={
-            !loading && (user ? <RequireNonHumanResources><OrderDetails user={user} loading={loading} /></RequireNonHumanResources> : <Navigate to="/login" />)
+            !loading && (user ? <OrderDetails user={user} loading={loading} /> : <Navigate to="/login" />)
           } />
         </Route>
 

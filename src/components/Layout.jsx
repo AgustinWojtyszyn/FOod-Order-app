@@ -16,7 +16,7 @@ const Layout = ({ children, user, loading }) => {
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [adminTutorialOpen, setAdminTutorialOpen] = useState(false)
   const [externalLocks, setExternalLocks] = useState(0)
-  const { isAdmin, canAccessAdminPanel, isHumanResources } = useAuthContext()
+  const { isAdmin, canAccessAdminPanel } = useAuthContext()
   const navigate = useNavigate()
   const location = useLocation()
   // Helpers de diagnóstico disponibles solo en dev o con flag explícito.
@@ -116,9 +116,7 @@ const Layout = ({ children, user, loading }) => {
     { name: 'Panel Principal', path: '/dashboard', icon: User }
   ]
 
-  if (!isHumanResources) {
-    menuItems.push({ name: 'Nuevo Pedido', path: '/order', icon: ShoppingCart })
-  }
+  menuItems.push({ name: 'Nuevo Pedido', path: '/order', icon: ShoppingCart })
 
   if (isAdmin) {
     menuItems.push({ name: 'Cafeteria', path: '/cafeteria', logoSrc: cafeteriaLogo })
