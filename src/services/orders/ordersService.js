@@ -190,6 +190,18 @@ export const createOrdersService = ({ supabase, invalidateCache = () => {} } = {
       return { data, error }
     },
 
+    createLateAdminExtraOrder: async (payload) => {
+      invalidateCache()
+      const idempotencyKey = payload?.idempotency_key || createRequestId('late-admin-extra-order')
+      const { data, error } = await supabase.rpc('create_late_admin_extra_order', {
+        p_payload: {
+          ...payload,
+          idempotency_key: idempotencyKey
+        }
+      })
+      return { data, error }
+    },
+
     getDailyOrdersForAdmin: async ({ deliveryDate, statuses = ['pending', 'archived'] } = {}) => {
       if (!deliveryDate) {
         return { data: null, error: new Error('deliveryDate es requerido para consultar pedidos diarios') }

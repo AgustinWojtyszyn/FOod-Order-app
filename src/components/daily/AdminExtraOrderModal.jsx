@@ -3,7 +3,7 @@ import { AlertTriangle, Loader2, X } from 'lucide-react'
 import { db } from '../../supabaseClient'
 import { ALL_COMPANY_LIST, COMPANY_CATALOG } from '../../constants/companyConfig'
 import { ORDER_CUTOFF_HOUR, ORDER_START_HOUR, ORDER_TIMEZONE } from '../../constants/orderRules'
-import { getTodayISOInTimeZone } from '../../utils/dateUtils'
+import { addDaysToISO, getTodayISOInTimeZone } from '../../utils/dateUtils'
 import { mergeCompanyMenuItems } from '../../utils/order/companyMenuMerge'
 import { filterOrderableMenuItems, getMenuDisplay, withMenuSlotIndex } from '../../utils/order/menuDisplay'
 import { sortMenuItems } from '../../utils/order/orderMenuHelpers'
@@ -18,6 +18,8 @@ const REASONS = [
   { value: 'otro', label: 'Otro' }
 ]
 
+const LATE_ADMIN_TIMEZONE = 'America/Argentina/San_Juan'
+
 const getArgentinaHour = () => {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: ORDER_TIMEZONE,
@@ -30,6 +32,54 @@ const getArgentinaHour = () => {
 const isOutsideOrderWindow = () => {
   const hour = getArgentinaHour()
   return hour < ORDER_START_HOUR || hour >= ORDER_CUTOFF_HOUR
+}
+
+const getLateWindowInfo = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: LATE_ADMIN_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).formatToParts(date)
+  const map = Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]))
+  const localDate = `${map.year}-${map.month}-${map.day}`
+  const seconds = Number(map.hour || 0) * 3600 + Number(map.minute || 0) * 60 + Number(map.second || 0)
+  if (seconds >= 22 * 3600) {
+    return {
+      open: true,
+      operationalDate: addDaysToISO(localDate, 1),
+      closesLabel: 'mañana a las 09:00',
+      startsNextDay: true
+    }
+  }
+  if (seconds < 9 * 3600) {
+    return {
+      open: true,
+      operationalDate: localDate,
+      closesLabel: 'hoy a las 09:00',
+      startsNextDay: false
+    }
+  }
+  return {
+    open: false,
+    operationalDate: '',
+    closesLabel: 'hoy a las 09:00',
+    startsNextDay: false
+  }
+}
+
+const formatOperationalDate = (isoDate = '') => {
+  if (!isoDate) return ''
+  return new Date(`${isoDate}T12:00:00`).toLocaleDateString('es-AR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  })
 }
 
 const normalizeText = (value = '') => String(value || '').trim()
@@ -52,6 +102,9 @@ const safeOptions = (option = {}) => {
 
 const mapErrorMessage = (error) => {
   const message = String(error?.message || error || '').toLowerCase()
+  if (message.includes('late_admin_extra_not_authorized')) return 'Tu cuenta no está autorizada para cargar pedidos fuera de término.'
+  if (message.includes('late_admin_extra_authorized_account_not_configured')) return 'No se configuró la cuenta autorizada para esta operación.'
+  if (message.includes('late_admin_extra_window_closed')) return 'La carga de pedidos fuera de término para esta jornada cerró a las 09:00.'
   if (message.includes('not_authorized')) return 'No tenés autorización para cargar pedidos extra en esa empresa.'
   if (message.includes('invalid_delivery_date')) return 'No se pueden cargar pedidos extra para fechas pasadas.'
   if (message.includes('menu_required')) return 'No existe un menú válido para esa fecha, empresa y turno.'
@@ -170,10 +223,12 @@ const AdminExtraOrderModal = ({
   onClose,
   onCreated,
   operationalDate,
+  lateWindowMode = false,
   isGlobalAdmin,
   adminCompanies = []
 }) => {
   const today = getTodayISOInTimeZone()
+  const lateWindowInfo = useMemo(() => getLateWindowInfo(), [open, lateWindowMode])
   const companyOptions = useMemo(() => {
     const scoped = isGlobalAdmin ? ALL_COMPANY_LIST : adminCompanies
     return (scoped || [])
@@ -213,12 +268,14 @@ const AdminExtraOrderModal = ({
     : (selectedCompany?.locations?.length ? selectedCompany.locations : [selectedCompany?.name].filter(Boolean))
   const outsideWindow = isOutsideOrderWindow()
   const resolvedReason = reason === 'otro' ? normalizeText(otherReason) : reason
+  const resolvedOperationalDate = lateWindowMode ? lateWindowInfo.operationalDate : deliveryDate
+  const operationalDateLabel = formatOperationalDate(resolvedOperationalDate)
 
   useEffect(() => {
     if (!open) return
-    setDeliveryDate(operationalDate || today)
+    setDeliveryDate(lateWindowMode ? lateWindowInfo.operationalDate : (operationalDate || today))
     setCompanySlug(companyOptions[0]?.slug || '')
-  }, [companyOptions, open, operationalDate, today])
+  }, [companyOptions, lateWindowInfo.operationalDate, lateWindowMode, open, operationalDate, today])
 
   useEffect(() => {
     if (!open || !isEpseCompany) return
@@ -254,7 +311,7 @@ const AdminExtraOrderModal = ({
   }, [isEpseCompany, locations, selectedCompany])
 
   useEffect(() => {
-    if (!open || !companySlug || !deliveryDate) return
+    if (!open || !companySlug || !resolvedOperationalDate) return
     let cancelled = false
     const loadMenu = async () => {
       setMenuLoading(true)
@@ -263,8 +320,8 @@ const AdminExtraOrderModal = ({
       setCustomResponses({})
       try {
         const [globalResult, companyResult] = await Promise.all([
-          db.getMenuItemsByDate(deliveryDate, 'global'),
-          companySlug === 'global' ? { data: [], error: null } : db.getMenuItemsByDate(deliveryDate, companySlug)
+          db.getMenuItemsByDate(resolvedOperationalDate, 'global'),
+          companySlug === 'global' ? { data: [], error: null } : db.getMenuItemsByDate(resolvedOperationalDate, companySlug)
         ])
         if (globalResult.error) throw globalResult.error
         if (companyResult.error) throw companyResult.error
@@ -274,14 +331,14 @@ const AdminExtraOrderModal = ({
         let nextMenuItems = baseMenuItems
 
         if (service === 'dinner') {
-          const { data: dinnerData, error: dinnerError } = await db.getDinnerMenuByDate({ date: deliveryDate, company: companySlug })
+          const { data: dinnerData, error: dinnerError } = await db.getDinnerMenuByDate({ date: resolvedOperationalDate, company: companySlug })
           if (dinnerError) throw dinnerError
           const dinnerOptions = dinnerData?.active && Array.isArray(dinnerData?.options)
             ? dinnerData.options
                 .map((option) => String(option || '').trim())
                 .filter(Boolean)
                 .map((option, index) => ({
-                  id: `dinner-special-${deliveryDate}-${companySlug}-${index}`,
+                  id: `dinner-special-${resolvedOperationalDate}-${companySlug}-${index}`,
                   name: `Cena: ${option}`,
                   description: option,
                   slotIndex: baseMenuItems.length + index
@@ -294,7 +351,7 @@ const AdminExtraOrderModal = ({
         const { data: optionsData, error: optionsError } = await db.getVisibleCustomOptions({
           company: sourceSlug,
           meal: service,
-          date: deliveryDate
+          date: resolvedOperationalDate
         })
         if (optionsError) throw optionsError
         if (!cancelled) {
@@ -319,7 +376,7 @@ const AdminExtraOrderModal = ({
     return () => {
       cancelled = true
     }
-  }, [companySlug, deliveryDate, open, selectedCompany, service])
+  }, [companySlug, open, resolvedOperationalDate, selectedCompany, service])
 
   const selectedItems = useMemo(
     () => menuItems
@@ -331,6 +388,9 @@ const AdminExtraOrderModal = ({
     [menuCounts, menuItems]
   )
   const totalMenuCount = selectedItems.reduce((sum, item) => sum + item.quantity, 0)
+  const selectedItemsLabel = selectedItems
+    .map((item) => `${item.name || item.description || 'Menú'} x${item.quantity}`)
+    .join(', ')
 
   const handleOptionChange = (option, value) => {
     setCustomResponses((prev) => ({ ...prev, [option.id]: value }))
@@ -355,7 +415,11 @@ const AdminExtraOrderModal = ({
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    if (deliveryDate < today) {
+    if (lateWindowMode && !lateWindowInfo.open) {
+      notifyError('La carga de pedidos fuera de término para esta jornada cerró a las 09:00.')
+      return
+    }
+    if (!lateWindowMode && deliveryDate < today) {
       notifyError('No se pueden cargar pedidos extra para fechas pasadas.')
       return
     }
@@ -395,7 +459,7 @@ const AdminExtraOrderModal = ({
       customer_name: null,
       customer_email: null,
       customer_phone: null,
-      delivery_date: deliveryDate,
+      delivery_date: resolvedOperationalDate,
       company_slug: companySlug,
       company_name: selectedCompany?.name || companySlug,
       location,
@@ -414,14 +478,16 @@ const AdminExtraOrderModal = ({
       duplicate_confirmed: false
     }
 
-    const { error } = await db.createAdminExtraOrder(payload)
+    const { data, error } = lateWindowMode
+      ? await db.createLateAdminExtraOrder(payload)
+      : await db.createAdminExtraOrder(payload)
     setSubmitting(false)
     if (error) {
       notifyError(mapErrorMessage(error))
       return
     }
-    notifySuccess('Pedido extra cargado correctamente.')
-    onCreated?.()
+    notifySuccess(lateWindowMode ? 'Pedido fuera de término cargado correctamente.' : 'Pedido extra cargado correctamente.')
+    onCreated?.(data)
     onClose()
   }
 
@@ -432,7 +498,7 @@ const AdminExtraOrderModal = ({
       <div className="max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 sm:px-5">
           <div>
-            <h2 className="text-lg font-black text-slate-900">Pedido extra</h2>
+            <h2 className="text-lg font-black text-slate-900">{lateWindowMode ? 'Agregar pedido fuera de término' : 'Pedido extra'}</h2>
             <p className="text-xs font-semibold text-slate-500">Carga administrativa para Pedidos Diarios</p>
           </div>
           <button
@@ -455,6 +521,18 @@ const AdminExtraOrderModal = ({
             </div>
           )}
 
+          {lateWindowMode && (
+            <div className={`rounded-lg border px-3 py-2 text-sm font-semibold ${lateWindowInfo.open ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-red-200 bg-red-50 text-red-800'}`}>
+              {lateWindowInfo.open ? (
+                <span>
+                  Podés agregar pedidos fuera de término para la jornada del {operationalDateLabel}. La carga cierra {lateWindowInfo.closesLabel}.
+                </span>
+              ) : (
+                <span>La carga de pedidos fuera de término para esta jornada cerró a las 09:00.</span>
+              )}
+            </div>
+          )}
+
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm font-bold text-slate-700">
               Fecha de entrega
@@ -463,8 +541,14 @@ const AdminExtraOrderModal = ({
                 min={today}
                 value={deliveryDate}
                 onChange={(event) => setDeliveryDate(event.target.value)}
+                disabled={lateWindowMode}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold"
               />
+              {lateWindowMode && (
+                <span className="mt-1 block text-xs font-semibold text-slate-500">
+                  La fecha operativa se calcula automáticamente en backend.
+                </span>
+              )}
             </label>
 
             <label className="text-sm font-bold text-slate-700">
@@ -626,6 +710,20 @@ const AdminExtraOrderModal = ({
             />
           </label>
 
+          {lateWindowMode && (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+              <h3 className="font-black text-slate-900">Revisá antes de confirmar</h3>
+              <dl className="mt-2 grid gap-2 sm:grid-cols-2">
+                <div><dt className="text-xs font-bold uppercase text-slate-500">Jornada</dt><dd className="font-semibold text-slate-800">{operationalDateLabel || '-'}</dd></div>
+                <div><dt className="text-xs font-bold uppercase text-slate-500">Empresa</dt><dd className="font-semibold text-slate-800">{selectedCompany?.name || companySlug || '-'}</dd></div>
+                <div><dt className="text-xs font-bold uppercase text-slate-500">Ubicación</dt><dd className="font-semibold text-slate-800">{location || '-'}</dd></div>
+                <div><dt className="text-xs font-bold uppercase text-slate-500">Turno</dt><dd className="font-semibold text-slate-800">{service === 'dinner' ? 'Cena' : 'Almuerzo'}</dd></div>
+                <div className="sm:col-span-2"><dt className="text-xs font-bold uppercase text-slate-500">Productos</dt><dd className="font-semibold text-slate-800">{selectedItemsLabel || '-'}</dd></div>
+                <div><dt className="text-xs font-bold uppercase text-slate-500">Cantidad total</dt><dd className="font-semibold text-slate-800">{totalMenuCount}</dd></div>
+              </dl>
+            </div>
+          )}
+
           <div className="flex flex-col-reverse gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">
             <button
               type="button"
@@ -636,11 +734,11 @@ const AdminExtraOrderModal = ({
             </button>
             <button
               type="submit"
-              disabled={submitting || menuLoading}
+              disabled={submitting || menuLoading || (lateWindowMode && !lateWindowInfo.open)}
               className="inline-flex justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Cargar pedido extra
+              {lateWindowMode ? 'Confirmar pedido fuera de término' : 'Cargar pedido extra'}
             </button>
           </div>
         </form>

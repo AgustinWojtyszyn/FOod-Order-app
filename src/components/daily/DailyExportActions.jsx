@@ -15,6 +15,7 @@ const DailyExportActions = ({
   onExportPdf,
   onArchiveAll,
   onAddExtraOrder,
+  onAddLateExtraOrder,
   sortedOrdersLength,
   pendingOrdersCount = 0,
   isAdmin
@@ -84,6 +85,17 @@ const DailyExportActions = ({
         >
           <Plus className="mr-2 h-4 w-4" />
           + Pedido extra
+        </button>
+      )}
+
+      {onAddLateExtraOrder && (
+        <button
+          type="button"
+          onClick={onAddLateExtraOrder}
+          className="inline-flex w-full items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800 shadow-sm hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 sm:w-auto"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Agregar pedido fuera de término
         </button>
       )}
 

@@ -227,6 +227,20 @@ describe('ordersService admin extra RPCs', () => {
     expect(calls[0][2].p_payload.customer_name).toBe('Visita Gerencia')
   })
 
+  it('creates late admin extra orders through the dedicated secure RPC with idempotency', async () => {
+    const { supabase, calls } = createRpcSupabaseMock({ data: { delivery_date: '2026-08-12', order: { id: 'late-1' } }, error: null })
+    const service = createOrdersService({ supabase })
+
+    await expect(service.createLateAdminExtraOrder({
+      company_slug: 'genneia'
+    })).resolves.toEqual({ data: { delivery_date: '2026-08-12', order: { id: 'late-1' } }, error: null })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0][1]).toBe('create_late_admin_extra_order')
+    expect(calls[0][2].p_payload.idempotency_key).toMatch(/^late-admin-extra-order-/)
+    expect(calls[0][2].p_payload.company_slug).toBe('genneia')
+  })
+
   it('deletes admin extra orders through the secure delete RPC with reason and request id', async () => {
     const { supabase, calls } = createRpcSupabaseMock({ data: { deleted: true }, error: null })
     const service = createOrdersService({ supabase })

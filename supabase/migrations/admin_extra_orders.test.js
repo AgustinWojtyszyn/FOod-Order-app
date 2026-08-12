@@ -17,6 +17,10 @@ const retroactiveRemitosMigration = readFileSync(
   new URL('./20260810143000_retroactive_company_remitos.sql', import.meta.url),
   'utf8'
 )
+const lateAdminExtraOrdersMigration = readFileSync(
+  new URL('./20260812100000_late_admin_extra_orders.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -72,5 +76,18 @@ describe('admin extra orders migration', () => {
     expect(retroactiveRemitosMigration).toContain('for update')
     expect(retroactiveRemitosMigration).toContain("'company_remito_issued'")
     expect(retroactiveRemitosMigration).toContain('public.is_company_admin(v_slug)')
+  })
+
+  it('adds Claudia-only late admin extra orders with backend date calculation', () => {
+    expect(lateAdminExtraOrdersMigration).toContain('admin_late_extra_order_authorized_accounts')
+    expect(lateAdminExtraOrdersMigration).toContain('sarmientoclaudia985@gmail.com')
+    expect(lateAdminExtraOrdersMigration).toContain('create or replace function public.create_late_admin_extra_order')
+    expect(lateAdminExtraOrdersMigration).toContain("America/Argentina/San_Juan")
+    expect(lateAdminExtraOrdersMigration).toContain("v_local_time >= time '22:00:00'")
+    expect(lateAdminExtraOrdersMigration).toContain("v_local_time < time '09:00:00'")
+    expect(lateAdminExtraOrdersMigration).toContain("raise exception 'late_admin_extra_window_closed'")
+    expect(lateAdminExtraOrdersMigration).toContain("'delivery_date', v_operational_date::text")
+    expect(lateAdminExtraOrdersMigration).toContain('public.create_admin_extra_order(v_payload)')
+    expect(lateAdminExtraOrdersMigration).toContain("'late_admin_extra_order_created'")
   })
 })

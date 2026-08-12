@@ -20,6 +20,7 @@ const DailyHeader = ({
   onExportPdf,
   onArchiveAll,
   onAddExtraOrder,
+  onAddLateExtraOrder,
   sortedOrdersLength,
   pendingOrdersCount,
   isAdmin
@@ -113,6 +114,7 @@ const DailyHeader = ({
             onExportPdf={onExportPdf}
             onArchiveAll={onArchiveAll}
             onAddExtraOrder={onAddExtraOrder}
+            onAddLateExtraOrder={onAddLateExtraOrder}
             sortedOrdersLength={sortedOrdersLength}
             pendingOrdersCount={pendingOrdersCount}
             isAdmin={isAdmin}

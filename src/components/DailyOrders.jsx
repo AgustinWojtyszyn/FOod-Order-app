@@ -37,6 +37,7 @@ const DailyOrders = ({ user, loading }) => {
   const [selectedSide, setSelectedSide] = useState('all')
   const [sortBy, setSortBy] = useState('recent')
   const [extraOrderOpen, setExtraOrderOpen] = useState(false)
+  const [extraOrderMode, setExtraOrderMode] = useState('standard')
   const [activeSubtab, setActiveSubtab] = useState('orders')
 
   const locations = COMPANY_LOCATIONS
@@ -210,7 +211,14 @@ const DailyOrders = ({ user, loading }) => {
           onRefresh={handleRefresh}
           onExportPdf={exportToPdf}
           onArchiveAll={handleArchiveAllPending}
-          onAddExtraOrder={() => setExtraOrderOpen(true)}
+          onAddExtraOrder={() => {
+            setExtraOrderMode('standard')
+            setExtraOrderOpen(true)
+          }}
+          onAddLateExtraOrder={() => {
+            setExtraOrderMode('late')
+            setExtraOrderOpen(true)
+          }}
           sortedOrdersLength={sortedOrdersUnits}
           pendingOrdersCount={dailyCloseStatus.pendingCount}
           isAdmin={isGlobalAdmin}
@@ -219,8 +227,16 @@ const DailyOrders = ({ user, loading }) => {
         <AdminExtraOrderModal
           open={extraOrderOpen}
           onClose={() => setExtraOrderOpen(false)}
-          onCreated={handleRefresh}
+          onCreated={(result) => {
+            const nextDate = result?.delivery_date || result?.order?.delivery_date || result?.deliveryDate
+            if (nextDate && nextDate !== operationalDate) {
+              handleDeliveryDateChange(nextDate)
+              return
+            }
+            handleRefresh()
+          }}
           operationalDate={operationalDate}
+          lateWindowMode={extraOrderMode === 'late'}
           isGlobalAdmin={isGlobalAdmin}
           adminCompanies={adminCompanies}
         />
