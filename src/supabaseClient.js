@@ -250,6 +250,16 @@ export const db = {
     return { data: Array.isArray(data) ? data[0] : data, error }
   },
 
+  refreshCompanyRemitoSnapshot: async ({ remitoId, orderIds, snapshot, requestId = null }) => {
+    const { data, error } = await supabase.rpc('refresh_company_remito_snapshot', {
+      p_remito_id: remitoId,
+      p_order_ids: Array.isArray(orderIds) ? orderIds : [],
+      p_snapshot: snapshot,
+      p_request_id: requestId
+    })
+    return { data: Array.isArray(data) ? data[0] : data, error }
+  },
+
   getAdminAccessContext: async () => {
     const { data, error } = await supabase.rpc('get_admin_access_context')
     return { data, error }

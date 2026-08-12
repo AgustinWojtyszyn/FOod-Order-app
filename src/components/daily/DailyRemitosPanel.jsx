@@ -85,6 +85,12 @@ const DailyRemitosPanel = ({
     location: locationFilter
   }), [exportCompany, locationFilter, orders])
 
+  const buildGroupsForOrders = useCallback((orderRows = []) => buildCompanyGroups(filterOrdersForRemitos({
+    orders: orderRows,
+    companySlug: exportCompany,
+    location: locationFilter
+  })), [exportCompany, locationFilter])
+
   const groups = useMemo(() => buildCompanyGroups(filteredOrders), [filteredOrders])
   const remitosByCompany = useMemo(() => {
     const map = new Map()
@@ -107,9 +113,11 @@ const DailyRemitosPanel = ({
       if (error) {
         notifyError(getUserFriendlyErrorMessage(error, 'No pudimos cargar los remitos de la fecha.'))
         setRemitos([])
-        return
+        return []
       }
-      setRemitos(Array.isArray(data) ? data : [])
+      const rows = Array.isArray(data) ? data : []
+      setRemitos(rows)
+      return rows
     } finally {
       setLoading(false)
     }
@@ -188,6 +196,84 @@ const DailyRemitosPanel = ({
     }
   }
 
+  const refreshIssuedSnapshot = async (group, existing, { silent = false, manageBusy = true } = {}) => {
+    if (!existing?.remito_id) return false
+    const key = `${group.slug}:${locationKey || 'all'}`
+    if (manageBusy) setBusyKey(key)
+    try {
+      const issuedBy = existing?.snapshot?.issuedBy || {
+        id: existing?.issued_by || null,
+        email: existing?.issued_by_email || null,
+        name: existing?.issued_by_name || null
+      }
+      const snapshot = buildRemitoSnapshot({
+        group,
+        remitoNumber: existing.remito_number,
+        deliveryDate: existing.delivery_date || deliveryDate,
+        issuedAt: existing.issued_at || null,
+        issuedBy,
+        status: existing.status || 'issued'
+      })
+      const orderIds = getOrderIds(group.orders)
+      const { data, error } = await db.refreshCompanyRemitoSnapshot({
+        remitoId: existing.remito_id,
+        orderIds,
+        snapshot,
+        requestId: [
+          'refresh-remito',
+          existing.remito_id,
+          orderIds.slice().sort().join(',')
+        ].join(':')
+      })
+      if (error) {
+        notifyError(getUserFriendlyErrorMessage(error, `No pudimos actualizar el remito N° ${existing.remito_number}.`))
+        return false
+      }
+      if (data) {
+        setRemitos((prev) => (Array.isArray(prev) ? prev.map((row) => (
+          row?.remito_id === data.remito_id ? data : row
+        )) : prev))
+      }
+      if (!silent) {
+        notifySuccess(`Remito N° ${data?.remito_number || existing.remito_number} actualizado con ${snapshot.totalItems} viandas.`)
+      }
+      return true
+    } finally {
+      if (manageBusy) setBusyKey('')
+    }
+  }
+
+  const refreshVisibleIssuedSnapshots = async () => {
+    const key = '__refresh_visible_remitos__'
+    setBusyKey(key)
+    try {
+      const refreshedOrders = await onRefresh?.()
+      const currentGroups = buildGroupsForOrders(Array.isArray(refreshedOrders) ? refreshedOrders : orders)
+      const currentRemitos = await loadRemitos()
+      const currentRemitosByCompany = new Map()
+      ;(Array.isArray(currentRemitos) ? currentRemitos : []).forEach((remito) => {
+        currentRemitosByCompany.set(`${remito.company_slug || remito.companySlug || ''}:${remito.location_key || ''}`, remito)
+      })
+
+      let refreshedCount = 0
+      for (const group of currentGroups) {
+        const existing = currentRemitosByCompany.get(`${group.slug}:${locationKey}`)
+        if (!existing || String(existing.status || '').toLowerCase() === 'cancelled') continue
+        const updated = await refreshIssuedSnapshot(group, existing, { silent: true, manageBusy: false })
+        if (updated) refreshedCount += 1
+      }
+
+      await loadRemitos()
+      if (refreshedCount > 0) {
+        notifySuccess(`Remitos actualizados: ${refreshedCount}. La numeración no avanzó.`)
+      } else {
+        notifyInfo('No hay remitos emitidos para actualizar con los filtros actuales.')
+      }
+    } finally {
+      setBusyKey('')
+    }
+  }
+
   return (
     <section className="space-y-4 print-hide">
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -236,7 +322,7 @@ const DailyRemitosPanel = ({
             <h2 className="text-lg font-black text-slate-900">Remitos de la jornada</h2>
             <p className="text-xs font-semibold text-slate-500">{filteredOrders.length} pedidos considerados por delivery_date</p>
           </div>
-          <button type="button" onClick={loadRemitos} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">
+          <button type="button" disabled={busyKey === '__refresh_visible_remitos__'} onClick={refreshVisibleIssuedSnapshots} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-60">
             <RotateCcw className="mr-2 h-4 w-4" />
             Actualizar
           </button>
@@ -284,6 +370,10 @@ const DailyRemitosPanel = ({
                     )}
                     {existing && (
                       <>
+                        <button type="button" disabled={busy} onClick={() => refreshIssuedSnapshot(group, existing)} className="inline-flex items-center rounded-lg border border-orange-200 px-3 py-2 text-sm font-bold text-orange-700 disabled:opacity-60">
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          Actualizar
+                        </button>
                         <button type="button" onClick={() => downloadIssued(existing, group)} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">
                           <Download className="mr-2 h-4 w-4" />
                           Descargar

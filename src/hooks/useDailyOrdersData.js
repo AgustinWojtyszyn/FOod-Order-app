@@ -141,6 +141,7 @@ export const useDailyOrdersData = (user) => {
         setStats(calculateStats(todayOrders))
         setLastUpdatedAt(new Date().toISOString())
         await fetchDailyReportRunStatus(nextOperationalDate)
+        return todayOrders
       }
     } catch (err) {
       console.error('Error:', err)
@@ -156,6 +157,7 @@ export const useDailyOrdersData = (user) => {
         setOrdersLoading(false)
       }
     }
+    return []
   }, [fetchDailyReportRunStatus, operationalDate, user])
 
   useEffect(() => {
@@ -173,8 +175,9 @@ export const useDailyOrdersData = (user) => {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
-    await fetchDailyOrders(false, operationalDate)
+    const refreshedOrders = await fetchDailyOrders(false, operationalDate)
     setRefreshing(false)
+    return refreshedOrders
   }, [fetchDailyOrders, operationalDate])
 
   const handleDeliveryDateChange = useCallback((nextDate) => {

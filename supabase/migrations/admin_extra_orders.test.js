@@ -21,6 +21,10 @@ const lateAdminExtraOrdersMigration = readFileSync(
   new URL('./20260812100000_late_admin_extra_orders.sql', import.meta.url),
   'utf8'
 )
+const refreshCompanyRemitosMigration = readFileSync(
+  new URL('./20260812133000_refresh_company_remito_snapshots.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -89,5 +93,17 @@ describe('admin extra orders migration', () => {
     expect(lateAdminExtraOrdersMigration).toContain("'delivery_date', v_operational_date::text")
     expect(lateAdminExtraOrdersMigration).toContain('public.create_admin_extra_order(v_payload)')
     expect(lateAdminExtraOrdersMigration).toContain("'late_admin_extra_order_created'")
+  })
+
+  it('refreshes issued remito snapshots without consuming a new number', () => {
+    expect(refreshCompanyRemitosMigration).toContain('create or replace function public.refresh_company_remito_snapshot')
+    expect(refreshCompanyRemitosMigration).toContain('for update')
+    expect(refreshCompanyRemitosMigration).toContain('public.is_company_admin(v_company.slug)')
+    expect(refreshCompanyRemitosMigration).toContain("v_existing.status <> 'issued'")
+    expect(refreshCompanyRemitosMigration).toContain("set_config('app.allow_issued_remito_snapshot_refresh', 'on', true)")
+    expect(refreshCompanyRemitosMigration).toContain('old.remito_number is distinct from new.remito_number')
+    expect(refreshCompanyRemitosMigration).toContain('set order_ids = coalesce(p_order_ids, array[]::uuid[])')
+    expect(refreshCompanyRemitosMigration).toContain("'company_remito_snapshot_refreshed'")
+    expect(refreshCompanyRemitosMigration).not.toContain('next_remito_number')
   })
 })

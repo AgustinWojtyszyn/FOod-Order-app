@@ -43,11 +43,13 @@ const getLateWindowInfo = (date = new Date()) => {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
+    hourCycle: 'h23',
     hour12: false
   }).formatToParts(date)
   const map = Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]))
   const localDate = `${map.year}-${map.month}-${map.day}`
-  const seconds = Number(map.hour || 0) * 3600 + Number(map.minute || 0) * 60 + Number(map.second || 0)
+  const localHour = Number(map.hour || 0) === 24 ? 0 : Number(map.hour || 0)
+  const seconds = localHour * 3600 + Number(map.minute || 0) * 60 + Number(map.second || 0)
   if (seconds >= 22 * 3600) {
     return {
       open: true,
@@ -228,7 +230,7 @@ const AdminExtraOrderModal = ({
   adminCompanies = []
 }) => {
   const today = getTodayISOInTimeZone()
-  const lateWindowInfo = useMemo(() => getLateWindowInfo(), [open, lateWindowMode])
+  const lateWindowInfo = getLateWindowInfo()
   const companyOptions = useMemo(() => {
     const scoped = isGlobalAdmin ? ALL_COMPANY_LIST : adminCompanies
     return (scoped || [])
