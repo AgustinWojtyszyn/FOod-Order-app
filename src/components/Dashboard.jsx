@@ -37,7 +37,7 @@ import { useDashboardDerived } from '../hooks/dashboard/useDashboardDerived'
 import { useDashboardOrderActions } from '../hooks/dashboard/useDashboardOrderActions'
 import OrderRegisteredCard from './dashboard/OrderRegisteredCard'
 import { useAuthContext } from '../contexts/authContextValue'
-import { BIRTHDAY_STATUS_LABELS } from '../utils/birthdays/birthdayUtils'
+import { BIRTHDAY_STATUS_LABELS, filterBirthdayCakeOrders } from '../utils/birthdays/birthdayUtils'
 
 const HumanResourcesDashboard = ({ user, loading }) => {
   const navigate = useNavigate()
@@ -64,7 +64,7 @@ const HumanResourcesDashboard = ({ user, loading }) => {
     }
   }, [])
 
-  const upcomingOrders = useMemo(() => orders.slice(0, 5), [orders])
+  const upcomingOrders = useMemo(() => filterBirthdayCakeOrders(orders, { status: 'all' }).slice(0, 5), [orders])
   const upcomingBirthdays = useMemo(() => birthdays.slice(0, 5), [birthdays])
 
   return (
@@ -88,9 +88,8 @@ const HumanResourcesDashboard = ({ user, loading }) => {
           canOpenChangeCompany={false}
           changeCompanyHint=""
           hideNewOrder
+          hideStatusCard
           description="Resumen de cumpleaños y tortitas de tus empresas"
-          emptyTitle="Gestión de cumpleaños"
-          emptyDescription="Los pedidos de tortitas se administran en el módulo independiente."
         />
 
         <section className="rounded-lg border border-white/20 bg-white/95 p-5 shadow-xl">
