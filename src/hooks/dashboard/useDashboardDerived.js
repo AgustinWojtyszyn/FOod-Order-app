@@ -1,18 +1,23 @@
 import { buildItemsSummary, formatHeaderStatus, getStartOfWeek, parseDeliveryDate } from '../../utils/dashboard/dashboardHelpers.jsx'
 
+const isVisibleDashboardOrder = (order = {}) =>
+  String(order?.displayStatus || order?.status || '').toLowerCase() !== 'cancelled'
+
 export const useDashboardDerived = ({ orders } = {}) => {
   const startOfWeek = getStartOfWeek(new Date())
   const endOfWeek = new Date(startOfWeek)
   endOfWeek.setDate(endOfWeek.getDate() + 7)
 
-  const weeklyOrders = (Array.isArray(orders) ? orders : [])
+  const visibleOrders = (Array.isArray(orders) ? orders : []).filter(isVisibleDashboardOrder)
+
+  const weeklyOrders = visibleOrders
     .filter((order) => {
       const deliveryDate = parseDeliveryDate(order.delivery_date)
       return deliveryDate && deliveryDate >= startOfWeek && deliveryDate < endOfWeek
     })
     .sort((a, b) => parseDeliveryDate(b.delivery_date) - parseDeliveryDate(a.delivery_date))
 
-  const sortedOrders = (Array.isArray(orders) ? [...orders] : []).sort(
+  const sortedOrders = [...visibleOrders].sort(
     (a, b) => new Date(b.created_at) - new Date(a.created_at)
   )
 

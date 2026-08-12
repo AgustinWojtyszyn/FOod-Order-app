@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+const isVisibleDashboardOrder = (order = {}) =>
+  String(order?.displayStatus || order?.status || '').toLowerCase() !== 'cancelled'
+
 export const useDashboardOrders = ({ user, db, usersService } = {}) => {
   const [orders, setOrders] = useState([])
   const [ordersLoading, setOrdersLoading] = useState(true)
@@ -17,6 +20,7 @@ export const useDashboardOrders = ({ user, db, usersService } = {}) => {
     today.setHours(0, 0, 0, 0)
 
     const todayOrders = (Array.isArray(ordersData) ? ordersData : []).filter(order => {
+      if (!isVisibleDashboardOrder(order)) return false
       const orderDate = new Date(order.created_at)
       orderDate.setHours(0, 0, 0, 0)
       return orderDate.getTime() === today.getTime()
@@ -50,7 +54,7 @@ export const useDashboardOrders = ({ user, db, usersService } = {}) => {
           (Array.isArray(peopleData) ? peopleData : []).map(person => [person.person_id, person])
         )
 
-        const ordersWithUserNames = (data || []).map(order => {
+        const ordersWithUserNames = (data || []).filter(isVisibleDashboardOrder).map(order => {
           const displayStatus = order.status
           const personId = order.person_key || (order.user_id ? String(order.user_id) : null)
           const person = personId ? personById.get(personId) : null
