@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { db } from '../supabaseClient'
 import { usersService } from '../services/users'
-import { birthdaysService } from '../services/birthdays'
 import { isOrderEditable } from '../utils'
 import { EDIT_WINDOW_MINUTES } from '../constants/orderRules'
 import RequireUser from './RequireUser'
@@ -37,35 +36,9 @@ import { useDashboardDerived } from '../hooks/dashboard/useDashboardDerived'
 import { useDashboardOrderActions } from '../hooks/dashboard/useDashboardOrderActions'
 import OrderRegisteredCard from './dashboard/OrderRegisteredCard'
 import { useAuthContext } from '../contexts/authContextValue'
-import { BIRTHDAY_STATUS_LABELS, filterBirthdayCakeOrders } from '../utils/birthdays/birthdayUtils'
 
 const HumanResourcesDashboard = ({ user, loading }) => {
   const navigate = useNavigate()
-  const [orders, setOrders] = useState([])
-  const [birthdays, setBirthdays] = useState([])
-  const [loadingData, setLoadingData] = useState(true)
-
-  useEffect(() => {
-    let mounted = true
-    const load = async () => {
-      setLoadingData(true)
-      const [birthdayResult, orderResult] = await Promise.all([
-        birthdaysService.getBirthdays({ activeOnly: true, force: true }),
-        birthdaysService.getCakeOrders({ force: true })
-      ])
-      if (!mounted) return
-      setBirthdays(birthdayResult.data || [])
-      setOrders(orderResult.data || [])
-      setLoadingData(false)
-    }
-    load()
-    return () => {
-      mounted = false
-    }
-  }, [])
-
-  const upcomingOrders = useMemo(() => filterBirthdayCakeOrders(orders, { status: 'all' }).slice(0, 5), [orders])
-  const upcomingBirthdays = useMemo(() => birthdays.slice(0, 5), [birthdays])
 
   return (
     <RequireUser user={user} loading={loading}>
@@ -75,7 +48,7 @@ const HumanResourcesDashboard = ({ user, loading }) => {
           countdownLabel="Recursos Humanos"
           countdownValue="Cumpleaños"
           countdownTone="info"
-          refreshing={loadingData}
+          refreshing={false}
           onRefresh={() => window.location.reload()}
           headerOrder={null}
           headerStatus={null}
@@ -89,47 +62,20 @@ const HumanResourcesDashboard = ({ user, loading }) => {
           changeCompanyHint=""
           hideNewOrder
           hideStatusCard
-          description="Resumen de cumpleaños y tortitas de tus empresas"
+          description="Acceso a cumpleaños del personal"
         />
 
         <section className="rounded-lg border border-white/20 bg-white/95 p-5 shadow-xl">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Próximos cumpleaños</p>
-              <h2 className="mt-1 text-2xl font-black text-slate-900">Cumpleaños de tus empresas</h2>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Cumpleaños</p>
+              <h2 className="mt-1 text-2xl font-black text-slate-900">Cumpleaños del personal</h2>
+              <p className="mt-2 text-sm font-semibold text-slate-600">Abrí el módulo para ver, registrar y administrar entregas de tortitas.</p>
             </div>
-            <button type="button" onClick={() => navigate('/birthdays')} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white">
+            <button type="button" onClick={() => navigate('/birthdays')} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white sm:shrink-0">
               Ir a Cumpleaños
             </button>
           </div>
-          {loadingData ? (
-            <div className="mt-4"><LoadingState variant="inline" message="Cargando cumpleaños..." /></div>
-          ) : (
-            <div className="mt-5 grid gap-4 lg:grid-cols-2">
-              <div className="rounded-lg border border-slate-200 p-4">
-                <h3 className="text-sm font-black text-slate-900">Personas</h3>
-                {upcomingBirthdays.length === 0 ? (
-                  <p className="mt-3 text-sm font-semibold text-slate-500">No hay cumpleaños activos cargados.</p>
-                ) : upcomingBirthdays.map((birthday) => (
-                  <div key={birthday.id} className="mt-3 border-t border-slate-100 pt-3">
-                    <p className="font-bold text-slate-900">{birthday.person_name}</p>
-                    <p className="text-xs font-semibold text-slate-500">{birthday.birth_day}/{birthday.birth_month} · {birthday.company_name}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-lg border border-slate-200 p-4">
-                <h3 className="text-sm font-black text-slate-900">Tortitas</h3>
-                {upcomingOrders.length === 0 ? (
-                  <p className="mt-3 text-sm font-semibold text-slate-500">No hay tortitas próximas.</p>
-                ) : upcomingOrders.map((order) => (
-                  <div key={order.id} className="mt-3 border-t border-slate-100 pt-3">
-                    <p className="font-bold text-slate-900">{order.person_name}</p>
-                    <p className="text-xs font-semibold text-slate-500">{new Date(`${order.planned_delivery_date}T00:00:00`).toLocaleDateString('es-AR')} · {BIRTHDAY_STATUS_LABELS[order.status] || order.status}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </section>
       </div>
     </RequireUser>
