@@ -20,7 +20,6 @@ const DashboardHeader = ({
   canOpenChangeCompany,
   changeCompanyHint,
   hideNewOrder = false,
-  hideStatusCard = false,
   description = 'Aquí está el resumen de tus pedidos',
   emptyTitle = 'Sin pedido activo',
   emptyDescription = 'Creá tu pedido para hoy en segundos'
@@ -124,7 +123,7 @@ const DashboardHeader = ({
         </div>
       </section>
 
-      {!hideStatusCard && <div className="rounded-2xl border border-white/30 bg-white/10 p-4 sm:p-5">
+      <div className="rounded-2xl border border-white/30 bg-white/10 p-4 sm:p-5">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-wide text-white/70 font-semibold">Estado del pedido</p>
@@ -202,7 +201,7 @@ const DashboardHeader = ({
             )}
           </div>
         </div>
-      </div>}
+      </div>
     </div>
   )
 }

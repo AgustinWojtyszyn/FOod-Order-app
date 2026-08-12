@@ -16,7 +16,7 @@ import OrderCompanySelector from './components/OrderCompanySelector'
 import NoticeHost from './components/NoticeHost'
 import ConfirmHost from './components/ConfirmHost'
 import RequireAdmin from './components/RequireAdmin'
-import RequireBirthdayAccess, { RequireNonHumanResources } from './components/RequireBirthdayAccess'
+import { RequireNonHumanResources } from './components/RequireBirthdayAccess'
 import InstallAppButton from './components/InstallAppButton'
 import CafeteriaDashboardPage from './components/cafeteria/CafeteriaDashboardPage'
 import TendenciasPage from './pages/TendenciasPage'
@@ -36,14 +36,12 @@ const OrderLabelsPage = lazy(() => import('./components/OrderLabelsPage'))
 const CafeteriaNewOrderPage = lazy(() => import('./components/cafeteria/CafeteriaNewOrderPage'))
 const CafeteriaCurrentOrderPage = lazy(() => import('./components/cafeteria/CafeteriaCurrentOrderPage'))
 const CafeteriaSuccessPage = lazy(() => import('./components/cafeteria/CafeteriaSuccessPage'))
-const BirthdaysPage = lazy(() => import('./components/birthdays/BirthdaysPage'))
 
 const ADMIN_ROUTE_PATHS = [
   '/cafeteria',
   '/cafeteria/new',
   '/cafeteria/order',
   '/cafeteria/confirm',
-  '/birthdays',
   '/admin',
   '/labels',
   '/daily-orders',
@@ -81,18 +79,6 @@ const AdminLayoutRoute = ({ user, loading }) => {
         <Outlet key={location.pathname} />
       </Layout>
     </RequireAdmin>
-  )
-}
-
-const BirthdayLayoutRoute = ({ user, loading }) => {
-  const location = useLocation()
-
-  return (
-    <RequireBirthdayAccess>
-      <Layout key={location.pathname} user={user} loading={loading}>
-        <Outlet key={location.pathname} />
-      </Layout>
-    </RequireBirthdayAccess>
   )
 }
 
@@ -146,10 +132,6 @@ const RouteSwitch = ({ user, loading }) => {
           <Route path="/orders/:orderId" element={
             !loading && (user ? <RequireNonHumanResources><OrderDetails user={user} loading={loading} /></RequireNonHumanResources> : <Navigate to="/login" />)
           } />
-        </Route>
-
-        <Route element={<BirthdayLayoutRoute user={user} loading={loading} />}>
-          <Route path="/birthdays" element={<BirthdaysPage user={user} loading={loading} />} />
         </Route>
 
         <Route element={<AdminLayoutRoute user={user} loading={loading} />}>

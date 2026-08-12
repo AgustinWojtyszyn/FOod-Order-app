@@ -35,54 +35,8 @@ import { useDashboardOrders } from '../hooks/dashboard/useDashboardOrders'
 import { useDashboardDerived } from '../hooks/dashboard/useDashboardDerived'
 import { useDashboardOrderActions } from '../hooks/dashboard/useDashboardOrderActions'
 import OrderRegisteredCard from './dashboard/OrderRegisteredCard'
-import { useAuthContext } from '../contexts/authContextValue'
 
-const HumanResourcesDashboard = ({ user, loading }) => {
-  const navigate = useNavigate()
-
-  return (
-    <RequireUser user={user} loading={loading}>
-      <div className="p-6 space-y-6 pb-8">
-        <DashboardHeader
-          user={user}
-          countdownLabel="Recursos Humanos"
-          countdownValue="Cumpleaños"
-          countdownTone="info"
-          refreshing={false}
-          onRefresh={() => window.location.reload()}
-          headerOrder={null}
-          headerStatus={null}
-          headerSummary=""
-          canEditOrder={() => false}
-          onEditOrder={() => {}}
-          onDeleteOrder={() => {}}
-          deleteActionLabel="Cancelar"
-          onOpenChangeCompany={() => {}}
-          canOpenChangeCompany={false}
-          changeCompanyHint=""
-          hideNewOrder
-          hideStatusCard
-          description="Acceso a cumpleaños del personal"
-        />
-
-        <section className="rounded-lg border border-white/20 bg-white/95 p-5 shadow-xl">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Cumpleaños</p>
-              <h2 className="mt-1 text-2xl font-black text-slate-900">Cumpleaños del personal</h2>
-              <p className="mt-2 text-sm font-semibold text-slate-600">Abrí el módulo para ver, registrar y administrar entregas de tortitas.</p>
-            </div>
-            <button type="button" onClick={() => navigate('/birthdays')} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white sm:shrink-0">
-              Ir a Cumpleaños
-            </button>
-          </div>
-        </section>
-      </div>
-    </RequireUser>
-  )
-}
-
-const OrdersDashboard = ({ user, loading }) => {
+const Dashboard = ({ user, loading }) => {
   const navigate = useNavigate()
   const [companyModalOpen, setCompanyModalOpen] = useState(false)
   const [companyModalStep, setCompanyModalStep] = useState(1)
@@ -344,11 +298,6 @@ const OrdersDashboard = ({ user, loading }) => {
       </div>
     </RequireUser>
   )
-}
-
-const Dashboard = (props) => {
-  const { isHumanResources } = useAuthContext()
-  return isHumanResources ? <HumanResourcesDashboard {...props} /> : <OrdersDashboard {...props} />
 }
 
 export default Dashboard

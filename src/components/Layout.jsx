@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { auth } from '../supabaseClient'
-import { Menu, X, User, LogOut, ShoppingCart, Settings, HelpCircle, UserCircle, Calendar, ClipboardList, BarChart3, Tags, CakeSlice } from 'lucide-react'
+import { Menu, X, User, LogOut, ShoppingCart, Settings, HelpCircle, UserCircle, Calendar, ClipboardList, BarChart3, Tags } from 'lucide-react'
 import cafeteriaLogo from '../assets/food-delivery (1).png'
 import Tutorial from './Tutorial'
 import AdminTutorial from './AdminTutorial'
@@ -16,7 +16,7 @@ const Layout = ({ children, user, loading }) => {
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [adminTutorialOpen, setAdminTutorialOpen] = useState(false)
   const [externalLocks, setExternalLocks] = useState(0)
-  const { isAdmin, canAccessAdminPanel, isHumanResources, canAccessBirthdays } = useAuthContext()
+  const { isAdmin, canAccessAdminPanel, isHumanResources } = useAuthContext()
   const navigate = useNavigate()
   const location = useLocation()
   // Helpers de diagnóstico disponibles solo en dev o con flag explícito.
@@ -122,7 +122,6 @@ const Layout = ({ children, user, loading }) => {
 
   if (isAdmin) {
     menuItems.push({ name: 'Cafeteria', path: '/cafeteria', logoSrc: cafeteriaLogo })
-    menuItems.push({ name: 'Cumpleaños', path: '/birthdays', icon: CakeSlice })
     menuItems.push({ 
       name: 'Pedidos Diarios', 
       path: '/daily-orders', 
@@ -134,13 +133,8 @@ const Layout = ({ children, user, loading }) => {
     menuItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
     menuItems.push({ name: 'Auditoría', path: '/auditoria', icon: ClipboardList })
   } else if (canAccessAdminPanel) {
-    if (canAccessBirthdays) {
-      menuItems.push({ name: 'Cumpleaños', path: '/birthdays', icon: CakeSlice })
-    }
     menuItems.push({ name: 'Etiquetas', path: '/labels', icon: Tags })
     menuItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
-  } else if (canAccessBirthdays) {
-    menuItems.push({ name: 'Cumpleaños', path: '/birthdays', icon: CakeSlice })
   }
 
   // Add Profile option for all users
