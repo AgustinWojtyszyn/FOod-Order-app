@@ -282,7 +282,7 @@ describe('daily order notes Excel model', () => {
     ]
 
     expect(summarizeProducts(orders)).toEqual(expect.arrayContaining([
-      expect.objectContaining({ producto: 'Menú principal: Pollo con Puré', cantidad: 1, category: REMITO_ROW_CATEGORIES.mainMenu }),
+      expect.objectContaining({ producto: 'Menú principal: Pollo - Puré', cantidad: 1, category: REMITO_ROW_CATEGORIES.mainMenu }),
       expect.objectContaining({ producto: 'Bebida: Agua', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }),
       expect.objectContaining({ producto: 'Bebida: Soda', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }),
       expect.objectContaining({ producto: 'Postre: Fruta', cantidad: 2, category: REMITO_ROW_CATEGORIES.dessert })
@@ -314,18 +314,50 @@ describe('daily order notes Excel model', () => {
 
     expect(products).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        producto: 'Opción 1 - Hamburguesas gratinadas con Puré',
+        producto: 'Opción 1 - Hamburguesas gratinadas - Puré',
         cantidad: 2,
         category: REMITO_ROW_CATEGORIES.numberedOption
       }),
       expect.objectContaining({
-        producto: 'Opción 1 - Hamburguesas gratinadas con Papas',
+        producto: 'Opción 1 - Hamburguesas gratinadas - Papas',
         cantidad: 2,
         category: REMITO_ROW_CATEGORIES.numberedOption
       })
     ]))
     expect(products.filter((row) => row.producto.startsWith('Opción 1 - Hamburguesas gratinadas'))).toHaveLength(2)
     expect(getRemitoMenuTotalFromRows(products)).toBe(4)
+  })
+
+  it('splits three units of the same option by per-unit side quantities', () => {
+    const products = summarizeProducts([
+      makeOrder({
+        total_items: 3,
+        items: [{ id: 'op-1', name: 'Opción 1 - Milanesa', quantity: 3 }],
+        custom_responses: [{
+          title: 'Guarnición',
+          quantities: {
+            Puré: 1,
+            'Papas fritas': 2
+          }
+        }]
+      })
+    ])
+
+    expect(products).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        producto: 'Opción 1 - Milanesa - Puré',
+        cantidad: 1,
+        category: REMITO_ROW_CATEGORIES.numberedOption
+      }),
+      expect.objectContaining({
+        producto: 'Opción 1 - Milanesa - Papas fritas',
+        cantidad: 2,
+        category: REMITO_ROW_CATEGORIES.numberedOption
+      })
+    ]))
+    expect(products.filter((row) => row.producto.startsWith('Opción 1 - Milanesa'))).toHaveLength(2)
+    expect(products.some((row) => row.producto.startsWith('Guarnición:'))).toBe(false)
+    expect(getRemitoMenuTotalFromRows(products)).toBe(3)
   })
 
   it('groups equivalent dinner labels into one Cena row without changing TOTAL MENU', () => {
@@ -428,10 +460,10 @@ describe('daily order notes Excel model', () => {
     expect(dessertRows.reduce((sum, row) => sum + row.cantidad, 0)).toBe(7)
     expect(sideRows).toHaveLength(0)
     expect(originalRows).toEqual(copyRows)
-    expect(originalRows.find((row) => row.producto === 'Menú principal con Papas fritas')).toMatchObject({ cantidad: 1 })
-    expect(originalRows.find((row) => row.producto === 'Opción 1 con Papas fritas')).toMatchObject({ cantidad: 1 })
+    expect(originalRows.find((row) => row.producto === 'Menú principal - Papas fritas')).toMatchObject({ cantidad: 1 })
+    expect(originalRows.find((row) => row.producto === 'Opción 1 - Papas fritas')).toMatchObject({ cantidad: 1 })
     expect(originalRows.find((row) => row.producto === 'Opción 1')).toMatchObject({ cantidad: 1 })
-    expect(originalRows.find((row) => row.producto === 'Opción 3 con Verduras')).toMatchObject({ cantidad: 2 })
+    expect(originalRows.find((row) => row.producto === 'Opción 3 - Verduras')).toMatchObject({ cantidad: 2 })
     expect(originalRows.findIndex((row) => row.producto === 'Bebida: Agua')).toBeGreaterThan(totalIndex)
     expect([REMITO_ROW_CATEGORIES.drink, REMITO_ROW_CATEGORIES.side, REMITO_ROW_CATEGORIES.dessert, REMITO_ROW_CATEGORIES.observation]
       .every((category) => !isMenuCountableCategory(category))

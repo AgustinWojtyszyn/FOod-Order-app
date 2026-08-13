@@ -270,7 +270,7 @@ const appendSideToMenuLabel = (label = '', side = '') => {
   const cleanSide = normalizeText(side)
   if (!cleanSide) return cleanLabel
   if (normalizeRemitoComparisonText(cleanLabel).includes(normalizeRemitoComparisonText(cleanSide))) return cleanLabel
-  return `${cleanLabel} con ${cleanSide}`
+  return `${cleanLabel} - ${cleanSide}`
 }
 
 const countLabels = (labels = []) => {
