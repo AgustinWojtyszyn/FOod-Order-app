@@ -25,6 +25,8 @@ const normalizeText = (value = '') =>
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
 
+const REMITO_PANEL_DEBUG_PREFIX = '[ServiFood remitos panel]'
+
 const getRemitoStatus = (remito = {}) => {
   const status = String(remito.status || '').toLowerCase()
   if (status === 'cancelled') return { label: 'ANULADO', tone: 'bg-red-50 text-red-700 border-red-200' }
@@ -490,7 +492,26 @@ const DailyRemitosPanel = ({
               const rowLocationKey = group.locationKey ?? locationKey
               const status = getRemitoStatus(existing)
               const snapshot = existing?.snapshot && typeof existing.snapshot === 'object' ? existing.snapshot : null
-              const liveSnapshot = buildRemitoSnapshot({ group, deliveryDate })
+              let liveSnapshot
+              try {
+                liveSnapshot = buildRemitoSnapshot({ group, deliveryDate })
+              } catch (error) {
+                console.error(`${REMITO_PANEL_DEBUG_PREFIX} Error renderizando fila de remito`, {
+                  error,
+                  rowKey: key,
+                  deliveryDate,
+                  locationKey: rowLocationKey,
+                  groupSlug: group?.slug,
+                  groupName: group?.name,
+                  ordersCount: Array.isArray(group?.orders) ? group.orders.length : null,
+                  orderIds: Array.isArray(group?.orders) ? group.orders.map((order) => order?.id) : [],
+                  remitoId: existing?.remito_id,
+                  remitoNumber: existing?.remito_number,
+                  existing,
+                  group
+                })
+                throw error
+              }
               const snapshotOrderCount = existing ? getSnapshotOrderCount(snapshot || {}, existing) : group.orders.length
               const totalItems = existing ? getSnapshotMenuTotal(snapshot || {}) : liveSnapshot.totalItems
               const snapshotOrderIds = snapshot?.orderIds || existing?.order_ids || []

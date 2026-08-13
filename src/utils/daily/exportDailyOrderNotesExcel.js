@@ -40,6 +40,7 @@ const INVALID_SHEET_CHARS = new Set(['[', ']', '*', '?', ':', '/', '\\', "'"])
 const INVALID_FILE_CHARS = new Set(['<', '>', ':', '"', '/', '\\', '|', '?', '*'])
 const EXCLUDED_REMITO_COMPANY_SLUGS = new Set(['administracion_servifood'])
 const UNSPECIFIED_BEVERAGE_LABEL = 'Bebida sin especificar'
+const REMITO_DEBUG_PREFIX = '[ServiFood remitos]'
 const REMITO_NUMBER_RANGES = {
   ccp: [10000, 19999],
   distro_cuyo: [20000, 29999],
@@ -285,43 +286,58 @@ const countLabels = (labels = []) => {
 }
 
 const getRemitoMenuRowsForOrder = (order = {}) => {
-  const summary = summarizeOperationalOrder(order)
-  const sideLabelsByMenu = new Map()
+  try {
+    const summary = summarizeOperationalOrder(order)
+    const sideLabelsByMenu = new Map()
 
-  getSideAssociationsForOrder(order)
-    .filter((association) => association.assigned && normalizeText(association.itemLabel))
-    .forEach((association) => {
-      const key = normalizeRemitoComparisonText(association.itemLabel)
-      const labels = sideLabelsByMenu.get(key) || []
-      labels.push(association.label)
-      sideLabelsByMenu.set(key, labels)
-    })
-
-  return summary.menuBreakdown.flatMap((row) => {
-    const quantity = Number(row.quantity || 0)
-    if (!quantity) return []
-    const sideRows = countLabels(sideLabelsByMenu.get(normalizeRemitoComparisonText(row.label)) || [])
-    if (sideRows.length === 0) return [row]
-    if (sideRows.length === 1) {
-      return [{
-        label: appendSideToMenuLabel(row.label, sideRows[0].label),
-        quantity
-      }]
-    }
-
-    const splitRows = sideRows.map((side) => ({
-      label: appendSideToMenuLabel(row.label, side.label),
-      quantity: side.quantity
-    }))
-    const assignedQuantity = splitRows.reduce((sum, side) => sum + side.quantity, 0)
-    if (assignedQuantity < quantity) {
-      splitRows.push({
-        label: row.label,
-        quantity: quantity - assignedQuantity
+    getSideAssociationsForOrder(order)
+      .filter((association) => association.assigned && normalizeText(association.itemLabel))
+      .forEach((association) => {
+        const key = normalizeRemitoComparisonText(association.itemLabel)
+        const labels = sideLabelsByMenu.get(key) || []
+        labels.push(association.label)
+        sideLabelsByMenu.set(key, labels)
       })
-    }
-    return splitRows
-  })
+
+    return summary.menuBreakdown.flatMap((row) => {
+      const quantity = Number(row.quantity || 0)
+      if (!quantity) return []
+      const sideRows = countLabels(sideLabelsByMenu.get(normalizeRemitoComparisonText(row.label)) || [])
+      if (sideRows.length === 0) return [row]
+      if (sideRows.length === 1) {
+        return [{
+          label: appendSideToMenuLabel(row.label, sideRows[0].label),
+          quantity
+        }]
+      }
+
+      const splitRows = sideRows.map((side) => ({
+        label: appendSideToMenuLabel(row.label, side.label),
+        quantity: side.quantity
+      }))
+      const assignedQuantity = splitRows.reduce((sum, side) => sum + side.quantity, 0)
+      if (assignedQuantity < quantity) {
+        splitRows.push({
+          label: row.label,
+          quantity: quantity - assignedQuantity
+        })
+      }
+      return splitRows
+    })
+  } catch (error) {
+    console.error(`${REMITO_DEBUG_PREFIX} Error agrupando menú/guarnición de pedido`, {
+      error,
+      orderId: order?.id,
+      orderOrigin: order?.order_origin,
+      service: order?.service,
+      status: order?.status,
+      deliveryDate: order?.delivery_date,
+      items: order?.items,
+      customResponses: order?.custom_responses,
+      order
+    })
+    throw error
+  }
 }
 
 const getResponseValues = (value) => {
@@ -414,49 +430,59 @@ export const getTotalMenuItemsForRemito = (orders = []) =>
   getRemitoMenuTotalFromRows(summarizeProducts(orders))
 
 export const summarizeProducts = (orders = []) => {
-  const totals = new Map()
-  const operationalSummary = summarizeOperationalOrders(orders)
-  const incrementCategorizedSummary = (label, quantity = 1, category = getRemitoCategoryForLabel(label)) => {
-    if (!normalizeText(label)) return
-    const { producto, groupKey } = buildRemitoProductSummaryRow(label, category)
-    const current = totals.get(groupKey) || { producto, cantidad: 0, category }
-    current.cantidad += quantity
-    totals.set(groupKey, current)
-  }
-
-  const remitoMenuRows = []
-  orders.forEach((order) => {
-    remitoMenuRows.push(...getRemitoMenuRowsForOrder(order))
-  })
-
-  remitoMenuRows.forEach((row) => {
-    incrementCategorizedSummary(row.label, row.quantity, getRemitoCategoryForLabel(row.label))
-  })
-  if (remitoMenuRows.length === 0 && operationalSummary.menuTotal > 0) {
-    incrementCategorizedSummary('Menú / vianda', operationalSummary.menuTotal, REMITO_ROW_CATEGORIES.mainMenu)
-  }
-  operationalSummary.beverageBreakdown.forEach((row) => {
-    incrementCategorizedSummary(`Bebida: ${row.label}`, row.quantity, REMITO_ROW_CATEGORIES.drink)
-  })
-  operationalSummary.dessertBreakdown.forEach((row) => {
-    incrementCategorizedSummary(`Postre: ${row.label}`, row.quantity, REMITO_ROW_CATEGORIES.dessert)
-  })
-
-  orders.forEach((order) => {
-    const custom = extractCustomResponses(order)
-    if (custom.additional) {
-      custom.additional
-        .split('|')
-        .map(normalizeText)
-        .filter(Boolean)
-        .forEach((label) => {
-          if (!hasObservationMarker(label)) {
-            incrementCategorizedSummary(label, 1)
-          }
-        })
+  try {
+    const totals = new Map()
+    const operationalSummary = summarizeOperationalOrders(orders)
+    const incrementCategorizedSummary = (label, quantity = 1, category = getRemitoCategoryForLabel(label)) => {
+      if (!normalizeText(label)) return
+      const { producto, groupKey } = buildRemitoProductSummaryRow(label, category)
+      const current = totals.get(groupKey) || { producto, cantidad: 0, category }
+      current.cantidad += quantity
+      totals.set(groupKey, current)
     }
-  })
-  return [...totals.values()].sort(sortRemitoRows)
+
+    const remitoMenuRows = []
+    orders.forEach((order) => {
+      remitoMenuRows.push(...getRemitoMenuRowsForOrder(order))
+    })
+
+    remitoMenuRows.forEach((row) => {
+      incrementCategorizedSummary(row.label, row.quantity, getRemitoCategoryForLabel(row.label))
+    })
+    if (remitoMenuRows.length === 0 && operationalSummary.menuTotal > 0) {
+      incrementCategorizedSummary('Menú / vianda', operationalSummary.menuTotal, REMITO_ROW_CATEGORIES.mainMenu)
+    }
+    operationalSummary.beverageBreakdown.forEach((row) => {
+      incrementCategorizedSummary(`Bebida: ${row.label}`, row.quantity, REMITO_ROW_CATEGORIES.drink)
+    })
+    operationalSummary.dessertBreakdown.forEach((row) => {
+      incrementCategorizedSummary(`Postre: ${row.label}`, row.quantity, REMITO_ROW_CATEGORIES.dessert)
+    })
+
+    orders.forEach((order) => {
+      const custom = extractCustomResponses(order)
+      if (custom.additional) {
+        custom.additional
+          .split('|')
+          .map(normalizeText)
+          .filter(Boolean)
+          .forEach((label) => {
+            if (!hasObservationMarker(label)) {
+              incrementCategorizedSummary(label, 1)
+            }
+          })
+      }
+    })
+    return [...totals.values()].sort(sortRemitoRows)
+  } catch (error) {
+    console.error(`${REMITO_DEBUG_PREFIX} Error resumiendo productos de remito`, {
+      error,
+      ordersCount: Array.isArray(orders) ? orders.length : null,
+      orderIds: Array.isArray(orders) ? orders.map((order) => order?.id) : [],
+      orders
+    })
+    throw error
+  }
 }
 
 const configurePrintPage = (worksheet, printArea = 'A1:M33') => {
@@ -831,10 +857,11 @@ export const buildRemitoSnapshot = ({
   issuedBy = null,
   status = 'draft'
 } = {}) => {
-  const products = summarizeProducts(group?.orders || [])
-  const operationalSummary = summarizeOperationalOrders(group?.orders || [])
-  const orderIds = getOrderIds(group?.orders || [])
-  return {
+  try {
+    const products = summarizeProducts(group?.orders || [])
+    const operationalSummary = summarizeOperationalOrders(group?.orders || [])
+    const orderIds = getOrderIds(group?.orders || [])
+    return {
     version: 1,
     status,
     companySlug: group?.slug || '',
@@ -873,6 +900,21 @@ export const buildRemitoSnapshot = ({
       company_name: order?.company_name || null,
       comments: order?.comments || null
     }))
+    }
+  } catch (error) {
+    console.error(`${REMITO_DEBUG_PREFIX} Error construyendo snapshot de remito`, {
+      error,
+      groupSlug: group?.slug,
+      groupName: group?.name,
+      groupDisplayName: group?.displayName,
+      remitoNumber,
+      deliveryDate,
+      status,
+      ordersCount: Array.isArray(group?.orders) ? group.orders.length : null,
+      orderIds: getOrderIds(group?.orders || []),
+      group
+    })
+    throw error
   }
 }
 
