@@ -12,6 +12,7 @@ import DailySummary from './daily/DailySummary'
 import DailyPrintStyles from './daily/DailyPrintStyles'
 import AdminExtraOrderModal from './daily/AdminExtraOrderModal'
 import DailyRemitosPanel from './daily/DailyRemitosPanel'
+import DailySearchPanel from './daily/DailySearchPanel'
 import { useDailyOrdersData } from '../hooks/useDailyOrdersData'
 import { matchesDailyOrderStatusFilter, useDailyOrdersFilters } from '../hooks/useDailyOrdersFilters'
 import {
@@ -254,7 +255,8 @@ const DailyOrders = ({ user, loading }) => {
         <div className="mb-4 flex max-w-full gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 print-hide">
           {[
             ['orders', 'Pedidos'],
-            ['remitos', 'Remitos']
+            ['remitos', 'Remitos'],
+            ['search', 'Buscar']
           ].map(([value, label]) => (
             <button
               key={value}
@@ -316,6 +318,16 @@ const DailyOrders = ({ user, loading }) => {
             companyOptions={remitoCompanyOptions}
             onDeliveryDateChange={handleDeliveryDateChange}
             onRefresh={handleRefresh}
+          />
+        )}
+
+        {activeSubtab === 'search' && (
+          <DailySearchPanel
+            companyOptions={(Array.isArray(adminCompanies) ? adminCompanies : []).map((company) => ({
+              value: company.slug,
+              label: company.name
+            }))}
+            onViewOrder={(orderId) => navigate(`/orders/${orderId}`)}
           />
         )}
       </div>

@@ -215,6 +215,39 @@ export const createOrdersService = ({ supabase, invalidateCache = () => {} } = {
       }, { context: 'admin daily orders rpc' })
     },
 
+    searchHistoricalDailyOrders: async ({
+      search = '',
+      email = '',
+      companySlug = '',
+      fromDate = null,
+      toDate = null,
+      remitoNumber = null,
+      status = '',
+      origin = '',
+      page = 1,
+      pageSize = 25
+    } = {}) => {
+      const safePage = Math.max(Number(page) || 1, 1)
+      const safePageSize = Math.min(Math.max(Number(pageSize) || 25, 1), 100)
+      const safeRemitoNumber = Number(remitoNumber)
+
+      return withSupabaseRetry(async () => {
+        const { data, error } = await supabase.rpc('search_historical_daily_orders', {
+          p_search: String(search || '').trim(),
+          p_email: String(email || '').trim(),
+          p_company_slug: companySlug && companySlug !== 'all' ? companySlug : null,
+          p_from_date: fromDate || null,
+          p_to_date: toDate || null,
+          p_remito_number: Number.isFinite(safeRemitoNumber) && safeRemitoNumber > 0 ? safeRemitoNumber : null,
+          p_status: status && status !== 'all' ? status : null,
+          p_origin: origin && origin !== 'all' ? origin : null,
+          p_page: safePage,
+          p_page_size: safePageSize
+        })
+        return { data, error }
+      }, { context: 'historical daily orders search rpc' })
+    },
+
     deleteAdminExtraOrder: async ({ orderId, reason, requestId = null } = {}) => {
       invalidateCache()
       if (!orderId) {
