@@ -15,11 +15,11 @@ import {
 const EMPTY = ''
 
 const toArray = (value) => {
-  if (Array.isArray(value)) return value
+  if (Array.isArray(value)) return value.filter(Boolean)
   if (typeof value === 'string') {
     try {
       const parsed = JSON.parse(value)
-      return Array.isArray(parsed) ? parsed : []
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : []
     } catch {
       return []
     }

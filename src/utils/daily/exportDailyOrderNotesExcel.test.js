@@ -360,6 +360,25 @@ describe('daily order notes Excel model', () => {
     expect(getRemitoMenuTotalFromRows(products)).toBe(3)
   })
 
+  it('ignores null historical items and side responses without crashing remitos', () => {
+    const products = summarizeProducts([
+      makeOrder({
+        total_items: 1,
+        items: [null, { id: 'op-1', name: 'Opción 1 - Milanesa', quantity: 1 }],
+        custom_responses: [null, { title: 'Guarnición', response: 'Puré' }]
+      })
+    ])
+
+    expect(products).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        producto: 'Opción 1 - Milanesa - Puré',
+        cantidad: 1,
+        category: REMITO_ROW_CATEGORIES.numberedOption
+      })
+    ]))
+    expect(getRemitoMenuTotalFromRows(products)).toBe(1)
+  })
+
   it('groups equivalent dinner labels into one Cena row without changing TOTAL MENU', () => {
     const orders = [
       makeOrder({ items: [{ id: 'main', name: 'Menú principal', quantity: 1 }] }),

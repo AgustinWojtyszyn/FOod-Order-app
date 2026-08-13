@@ -6,11 +6,11 @@ const normalizeKey = (value) =>
   normalizeText(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
 const toArray = (value) => {
-  if (Array.isArray(value)) return value
+  if (Array.isArray(value)) return value.filter(Boolean)
   if (typeof value === 'string') {
     try {
       const parsed = JSON.parse(value)
-      return Array.isArray(parsed) ? parsed : []
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : []
     } catch {
       return []
     }
@@ -58,7 +58,9 @@ const getSideLabels = (response = {}) => {
   if (response?.quantities && typeof response.quantities === 'object') {
     return Object.entries(response.quantities).flatMap(([label, quantity]) => {
       const count = Number(quantity) || 0
-      return count > 0 ? Array.from({ length: count }, () => normalizeText(label)).filter(Boolean) : []
+      return Number.isFinite(count) && count > 0
+        ? Array.from({ length: Math.floor(count) }, () => normalizeText(label)).filter(Boolean)
+        : []
     })
   }
   const answer = valueToText(response.answer ?? response.response ?? response.value)
