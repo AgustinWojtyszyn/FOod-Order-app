@@ -29,6 +29,10 @@ const adminOrderReasonAuditMigration = readFileSync(
   new URL('./20260812150000_admin_order_reason_audit.sql', import.meta.url),
   'utf8'
 )
+const newAccountOrderFixMigration = readFileSync(
+  new URL('./20260813143000_fix_new_account_order_creation.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -129,5 +133,17 @@ describe('admin extra orders migration', () => {
     expect(adminOrderReasonAuditMigration).toContain("'reason', v_reason")
     expect(adminOrderReasonAuditMigration).toContain("'admin_order_updated'")
     expect(adminOrderReasonAuditMigration).toContain("'admin_order_cancelled'")
+  })
+
+  it('keeps new Auth accounts able to create regular orders', () => {
+    expect(newAccountOrderFixMigration).toContain('create or replace function public.create_order_idempotent')
+    expect(newAccountOrderFixMigration).toContain('insert into public.users (id, email, full_name, role, created_at, updated_at)')
+    expect(newAccountOrderFixMigration).toContain('on conflict (id) do update')
+    expect(newAccountOrderFixMigration).toContain('auth.jwt()->>\'email\'')
+    expect(newAccountOrderFixMigration).toContain('v_requires_contact_authorization := upper(coalesce(v_organization.code, \'\')) <> \'EPSE\'')
+    expect(newAccountOrderFixMigration).toContain('from public.authorized_order_contacts c')
+    expect(newAccountOrderFixMigration).toContain('if not public.is_admin() and v_requires_contact_authorization')
+    expect(newAccountOrderFixMigration).toContain('create or replace function public.resolve_order_delivery_snapshot')
+    expect(newAccountOrderFixMigration).toContain("notify pgrst, 'reload schema'")
   })
 })
