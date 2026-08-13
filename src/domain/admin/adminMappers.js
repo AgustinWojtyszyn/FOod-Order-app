@@ -9,7 +9,6 @@ const normalizeEmail = (value) => (value || '').toString().trim().toLowerCase()
 
 const resolveDominantRole = (roles = []) => {
   if (roles.includes('admin')) return 'admin'
-  if (roles.includes('human_resources')) return 'human_resources'
   return 'user'
 }
 

@@ -160,7 +160,7 @@ export const createUsersService = ({
       page = 1,
       pageSize = 40
     } = {}) => {
-      const normalizedRole = ['all', 'admin', 'user', 'human_resources'].includes(role) ? role : 'all'
+      const normalizedRole = ['all', 'admin', 'user'].includes(role) ? role : 'all'
       const normalizedSort = ['name_asc', 'name_desc', 'newest', 'oldest'].includes(sort) ? sort : 'name_asc'
       const normalizedPage = Math.max(1, Number(page) || 1)
       const normalizedPageSize = Math.max(1, Number(pageSize) || 40)
@@ -195,7 +195,7 @@ export const createUsersService = ({
           const accounts = userIds.map((id) => accountsById.get(id)).filter(Boolean)
           const role = accounts.some((account) => account.role === 'admin')
             ? 'admin'
-            : (accounts.some((account) => account.role === 'human_resources') ? 'human_resources' : 'user')
+            : 'user'
           return {
             ...person,
             full_name: person.display_name || emails[0] || 'Sin nombre',

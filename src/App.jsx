@@ -111,8 +111,6 @@ const RouteSwitch = ({ user, loading }) => {
         } />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/birthdays" element={<Navigate to="/dashboard" replace />} />
-
         <Route element={<AuthenticatedLayoutRoute user={user} loading={loading} />}>
           <Route path="/dashboard" element={
             !loading && (user ? <Dashboard user={user} loading={loading} /> : <Navigate to="/login" />)

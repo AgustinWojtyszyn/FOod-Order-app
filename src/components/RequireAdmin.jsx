@@ -103,7 +103,7 @@ export default function RequireAdmin({ children }) {
     return <AccessDeniedScreen />
   }
 
-  const companyAdminAllowedPaths = ['/admin', '/labels', '/daily-orders', '/birthdays']
+  const companyAdminAllowedPaths = ['/admin', '/labels', '/daily-orders']
 
   if (!isAdmin && isCompanyAdmin && !companyAdminAllowedPaths.includes(location.pathname)) {
     return <AccessDeniedScreen />
