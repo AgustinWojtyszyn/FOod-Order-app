@@ -1,12 +1,14 @@
 const SummaryCard = ({ label, value, accent, sublabel }) => (
-  <div className="card bg-white/95 backdrop-blur-sm shadow-md border border-slate-200 rounded-2xl p-4 sm:p-5">
-    <div className="flex items-center justify-between gap-2">
-      <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500 font-semibold">{label}</p>
-      <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${accent}`}>
+  <div className="card min-w-0 bg-white/95 backdrop-blur-sm shadow-md border border-slate-200 rounded-2xl p-4 sm:p-5">
+    <div className="flex min-w-0 items-start justify-between gap-2">
+      <p className="min-w-0 text-[11px] uppercase tracking-[0.14em] text-slate-500 font-semibold leading-snug break-words">
+        {label}
+      </p>
+      <span className={`shrink-0 px-2 py-0.5 text-xs font-semibold rounded-full ${accent}`}>
         {sublabel}
       </span>
     </div>
-    <p className="mt-2 text-xl sm:text-2xl font-bold text-slate-900 leading-tight break-words" title={value}>
+    <p className="mt-2 min-w-0 text-xl sm:text-2xl font-bold text-slate-900 leading-tight break-words [overflow-wrap:anywhere]" title={value}>
       {value}
     </p>
   </div>

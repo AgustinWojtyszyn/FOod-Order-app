@@ -160,6 +160,19 @@ describe('orderOperationalTotals', () => {
     expect(getOrderDessertBreakdown(order)).toEqual([{ label: 'Fruta', quantity: 10 }])
   })
 
+  it('expande respuestas serializadas como JSON en unidades individuales', () => {
+    const order = baseOrder({
+      total_items: 4,
+      custom_responses: [
+        { title: 'Bebida', response: '["Agua","Agua","Agua","Agua"]' },
+        { title: 'Postre', response: '"Fruta"', quantity: 4 }
+      ]
+    })
+
+    expect(getOrderBeverageBreakdown(order)).toEqual([{ label: 'Agua', quantity: 4 }])
+    expect(getOrderDessertBreakdown(order)).toEqual([{ label: 'Fruta', quantity: 4 }])
+  })
+
   it('respeta cantidades explicitas mayores al total sin recortarlas ni sumar defaults', () => {
     const order = baseOrder({
       total_items: 2,

@@ -137,9 +137,23 @@ const getPrimaryResponseValue = (response = {}) =>
 const getLabelFromObject = (value = {}) =>
   value?.label ?? value?.name ?? value?.title ?? value?.value ?? value?.response ?? value?.answer
 
+const parseJsonLikeValue = (value) => {
+  if (typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  if (!['[', '{', '"'].includes(trimmed[0])) return trimmed
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    return trimmed
+  }
+}
+
 const flattenResponseValues = (value) => {
-  if (Array.isArray(value)) return value.flatMap(flattenResponseValues)
-  if (value && typeof value === 'object') return flattenResponseValues(getLabelFromObject(value))
+  const parsed = parseJsonLikeValue(value)
+  if (Array.isArray(parsed)) return parsed.flatMap(flattenResponseValues)
+  if (parsed && typeof parsed === 'object') return flattenResponseValues(getLabelFromObject(parsed))
+  if (parsed !== value) return flattenResponseValues(parsed)
   const text = normalizeText(value)
   if (!text) return []
   return text.split(',').map(normalizeText).filter(Boolean)
@@ -148,7 +162,10 @@ const flattenResponseValues = (value) => {
 const validQuantityEntries = (response = {}) => {
   if (!response?.quantities || typeof response.quantities !== 'object') return []
   return Object.entries(response.quantities)
-    .map(([label, quantity]) => ({ label: normalizeText(label), quantity: safePositiveNumber(quantity) }))
+    .flatMap(([label, quantity]) => flattenResponseValues(label).map((entryLabel) => ({
+      label: entryLabel,
+      quantity: safePositiveNumber(quantity)
+    })))
     .filter((entry) => entry.label && entry.quantity > 0)
 }
 

@@ -1,8 +1,14 @@
 import { supabase } from '../../supabaseClient'
 import { COUNTABLE_STATUSES } from '../monthly/monthlyOrderConstants'
-import { addSideItem, createSideBuckets, isOptionName } from '../monthly/monthlyOrderCalculations'
+import { createSideBuckets, isOptionName } from '../monthly/monthlyOrderCalculations'
 import { normalizeLabel, toDisplayString } from '../monthly/monthlyOrderFormatters'
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
+import {
+  getOrderBeverageBreakdown,
+  getOrderMenuBreakdown,
+  isBeverageLabel,
+  isDessertLabel
+} from '../order/orderOperationalTotals'
 
 const PAGE_SIZE = 1000
 
@@ -53,9 +59,8 @@ const normalizeMenuLabel = (name = '') => {
 export const buildMenuCounts = (orders = []) => {
   const counts = {}
   orders.forEach(order => {
-    const { normalizedItems } = normalizeOrderForReadOnly(order)
-    normalizedItems.forEach(item => {
-      const label = normalizeMenuLabel(item?.name || '')
+    getOrderMenuBreakdown(order).forEach(item => {
+      const label = normalizeMenuLabel(item?.label || '')
       if (!label) return
       const qty = Number(item?.quantity || 1)
       counts[label] = (counts[label] || 0) + qty
@@ -90,20 +95,94 @@ const isMainDishResponse = (value = '', title = '') => {
   return false
 }
 
+const isSideQuestion = (resp = {}) => {
+  const normalizedTitle = normalizeLabel(resp?.title || resp?.label || resp?.question || resp?.name || '')
+  return normalizedTitle.includes('guarnicion') || normalizedTitle.includes('guarn')
+}
+
+const parseJsonLikeValue = (value) => {
+  if (typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  if (!['[', '{', '"'].includes(trimmed[0])) return trimmed
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    return trimmed
+  }
+}
+
+const getObjectLabel = (value = {}) =>
+  value?.label ?? value?.name ?? value?.title ?? value?.value ?? value?.response ?? value?.answer
+
+const splitTextValues = (value = '') => String(value)
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean)
+
+const expandRawValues = (value) => {
+  const parsed = parseJsonLikeValue(value)
+  if (Array.isArray(parsed)) return parsed.flatMap(expandRawValues)
+  if (parsed && typeof parsed === 'object') return expandRawValues(getObjectLabel(parsed))
+  const text = toDisplayString(parsed)
+  if (!text) return []
+  const reparsed = parseJsonLikeValue(text)
+  if (reparsed !== text) return expandRawValues(reparsed)
+  return splitTextValues(text)
+}
+
+const getQuantityRows = (resp = {}) => {
+  if (!resp?.quantities || typeof resp.quantities !== 'object') return []
+  return Object.entries(resp.quantities)
+    .flatMap(([rawLabel, rawQuantity]) => {
+      const quantity = Number(rawQuantity) || 0
+      if (quantity <= 0) return []
+      return expandRawValues(rawLabel).map((label) => ({ label, quantity }))
+    })
+    .filter((row) => row.label && row.quantity > 0)
+}
+
+const expandResponseUnits = (resp = {}) => {
+  const quantityRows = getQuantityRows(resp)
+  if (quantityRows.length) return quantityRows
+
+  const values = [
+    ...expandRawValues(resp?.response ?? resp?.answer ?? resp?.value),
+    ...expandRawValues(resp?.options)
+  ].filter(Boolean)
+
+  if (!values.length) return []
+
+  const explicitQuantity = Number(resp?.quantity ?? resp?.qty ?? resp?.count)
+  if (values.length === 1 && Number.isFinite(explicitQuantity) && explicitQuantity > 0) {
+    return [{ label: values[0], quantity: explicitQuantity }]
+  }
+
+  return values.map((label) => ({ label, quantity: 1 }))
+}
+
 export const buildSideBucketsFromOrders = (orders = []) => {
   const buckets = createSideBuckets()
   orders.forEach(order => {
     const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
+
+    getOrderBeverageBreakdown(order).forEach(({ label, quantity }) => {
+      const cleanLabel = toDisplayString(label)
+      const cleanQuantity = Number(quantity) || 0
+      if (!cleanLabel || cleanQuantity <= 0) return
+      buckets.tiposBebidas[cleanLabel] = (buckets.tiposBebidas[cleanLabel] || 0) + cleanQuantity
+      buckets.totalBebidas += cleanQuantity
+    })
+
     normalizedCustomResponses.forEach(resp => {
-      const respValue = toDisplayString(resp?.response)
       const respTitle = toDisplayString(resp?.title)
-      if (respValue && !isMainDishResponse(respValue, respTitle)) addSideItem(respValue, buckets)
-      if (Array.isArray(resp?.options)) {
-        resp.options.forEach(opt => {
-          const value = toDisplayString(opt)
-          if (value && !isMainDishResponse(value, respTitle)) addSideItem(value, buckets)
-        })
-      }
+      const sideQuestion = isSideQuestion(resp)
+      expandResponseUnits(resp).forEach(({ label, quantity }) => {
+        if (!label || quantity <= 0 || isMainDishResponse(label, respTitle)) return
+        if (!sideQuestion && (isBeverageLabel(label) || isDessertLabel(label))) return
+        buckets.tiposGuarniciones[label] = (buckets.tiposGuarniciones[label] || 0) + quantity
+        buckets.totalGuarniciones += quantity
+      })
     })
   })
   return buckets
@@ -112,9 +191,8 @@ export const buildSideBucketsFromOrders = (orders = []) => {
 export const buildBifeCounts = (orders = []) => {
   const counts = {}
   orders.forEach(order => {
-    const { normalizedItems } = normalizeOrderForReadOnly(order)
-    normalizedItems.forEach(item => {
-      const rawName = toDisplayString(item?.name)
+    getOrderMenuBreakdown(order).forEach(item => {
+      const rawName = toDisplayString(item?.label)
       const normalized = normalizeLabel(rawName)
       if (!normalized || !normalized.includes('bife')) return
       const baseName = rawName.replace(/^\s*opci[oó]n\s*\d+\s*-\s*/i, '').trim()
