@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildComparisonMetrics,
   buildMenuCounts,
+  buildRankingComparisonItems,
   buildRanking,
   buildSideBucketsFromOrders,
   buildTrendsSnapshot,
@@ -100,5 +101,47 @@ describe('trendsHelpers', () => {
       ppDelta: 80,
       leaderChanged: true
     })
+  })
+
+  it('enriquece rankings actuales con variaciones por item sin recalcular conteos', () => {
+    const currentItems = [
+      { label: 'Papas fritas', count: 309, percent: 33.6 },
+      { label: 'Puré', count: 80, percent: 8.7 }
+    ]
+    const previousRanking = {
+      items: [
+        { label: 'Papas fritas', count: 333, percent: 36.7 }
+      ]
+    }
+
+    expect(buildRankingComparisonItems(currentItems, previousRanking)).toEqual([
+      {
+        label: 'Papas fritas',
+        count: 309,
+        percent: 33.6,
+        comparison: {
+          isNew: false,
+          previousCount: 333,
+          previousPercent: 36.7,
+          countDelta: -24,
+          ppDelta: expect.closeTo(-3.1, 5)
+        }
+      },
+      {
+        label: 'Puré',
+        count: 80,
+        percent: 8.7,
+        comparison: {
+          isNew: true,
+          previousCount: 0,
+          previousPercent: 0,
+          countDelta: 80,
+          ppDelta: 8.7
+        }
+      }
+    ])
+
+    expect(buildRankingComparisonItems(currentItems, previousRanking, true)[0].comparison)
+      .toEqual({ noPreviousData: true })
   })
 })

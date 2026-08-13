@@ -2,13 +2,61 @@ import DonutChartPro from './DonutChartPro'
 import { shouldUseDonut } from './donutChartRules'
 const formatPercent = (value) => `${value.toFixed(1)}%`
 
-const BarRow = ({ label, count, percent, max, accent }) => {
+export const getPreferenceIndicator = (value) => {
+  const number = Number(value || 0)
+  if (number > 0) return '▲'
+  if (number < 0) return '▼'
+  return '='
+}
+
+export const formatSignedUnits = (value) => {
+  const number = Number(value || 0)
+  const sign = number > 0 ? '+' : ''
+  return `${sign}${number.toFixed(0)}`
+}
+
+export const formatSignedPp = (value) => {
+  const number = Number(value || 0)
+  const sign = number > 0 ? '+' : ''
+  return `${sign}${number.toFixed(1)} pp`
+}
+
+export const RankingComparisonText = ({ comparison }) => {
+  if (!comparison) return null
+  if (comparison.noPreviousData) {
+    return (
+      <span className="text-xs font-semibold text-slate-600">
+        Sin base comparable
+      </span>
+    )
+  }
+  if (comparison.isNew) {
+    return (
+      <span className="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700">
+        Nuevo
+      </span>
+    )
+  }
+  return (
+    <span className="text-xs font-semibold text-slate-700">
+      <span className="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5">
+        {getPreferenceIndicator(comparison.countDelta)} {formatSignedUnits(comparison.countDelta)} · {formatSignedPp(comparison.ppDelta)}
+      </span>
+    </span>
+  )
+}
+
+const BarRow = ({ label, count, percent, max, accent, comparison }) => {
   const width = max ? `${(count / max) * 100}%` : '0%'
   return (
     <div className="group space-y-2">
-      <div className="flex items-center justify-between text-sm text-slate-700">
-        <span className="font-semibold text-slate-800 truncate">{label}</span>
-        <span className="text-slate-500">{count} · {formatPercent(percent)}</span>
+      <div className="flex flex-col gap-1 text-sm text-slate-700 sm:flex-row sm:items-start sm:justify-between">
+        <span className="font-semibold text-slate-800 whitespace-normal break-normal overflow-hidden">{label}</span>
+        <span className="flex shrink-0 flex-wrap items-center gap-1 text-slate-500 sm:justify-end">
+          <span>{count} · {formatPercent(percent)}</span>
+          {comparison && <span className="text-slate-400">|</span>}
+          <RankingComparisonText comparison={comparison} />
+        </span>
       </div>
       <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden">
         <div
@@ -63,6 +111,7 @@ const ChartCard = ({
             percent={item.percent}
             max={max}
             accent={accent}
+            comparison={item.comparison}
           />
         ))}
         {items.length > 0 && chartType === 'donut' && !useDonut && (

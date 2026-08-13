@@ -322,6 +322,48 @@ const getParticipationForLabel = (ranking = {}, label = '') => {
   return Number(item?.percent || 0)
 }
 
+export const buildRankingComparisonItems = (currentItems = [], previousRanking = null, noPreviousData = false) => {
+  if (!previousRanking) return currentItems
+  const previousItems = previousRanking.items || []
+  const previousByLabel = new Map(previousItems.map((item) => [item.label, item]))
+
+  return currentItems.map((item) => {
+    if (noPreviousData) {
+      return {
+        ...item,
+        comparison: {
+          noPreviousData: true
+        }
+      }
+    }
+
+    const previous = previousByLabel.get(item.label)
+    if (!previous) {
+      return {
+        ...item,
+        comparison: {
+          isNew: true,
+          previousCount: 0,
+          previousPercent: 0,
+          countDelta: Number(item.count || 0),
+          ppDelta: Number(item.percent || 0)
+        }
+      }
+    }
+
+    return {
+      ...item,
+      comparison: {
+        isNew: false,
+        previousCount: Number(previous.count || 0),
+        previousPercent: Number(previous.percent || 0),
+        countDelta: Number(item.count || 0) - Number(previous.count || 0),
+        ppDelta: Number(item.percent || 0) - Number(previous.percent || 0)
+      }
+    }
+  })
+}
+
 export const buildComparisonMetrics = (current = {}, previous = null) => {
   if (!previous) return null
   const previousTotal = Number(previous.totalOrders || 0)

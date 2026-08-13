@@ -6,8 +6,8 @@ import excelLogo from '../assets/logoexcel.png'
 import { useTrendsData } from '../hooks/analytics/useTrendsData'
 import TrendsFilters from '../components/analytics/TrendsFilters'
 import TrendsSummaryCards from '../components/analytics/TrendsSummaryCards'
-import TrendsCharts from '../components/analytics/TrendsCharts'
-import { COMPARISON_MODES, getComparisonRange } from '../utils/analytics/trendsHelpers'
+import TrendsCharts, { RankingComparisonText } from '../components/analytics/TrendsCharts'
+import { buildRankingComparisonItems, COMPARISON_MODES, getComparisonRange } from '../utils/analytics/trendsHelpers'
 
 const getDefaultRange = () => {
   const now = new Date()
@@ -54,7 +54,8 @@ const TendenciasPage = () => {
     topBife,
     topSide,
     topBeverage,
-    comparison
+    comparison,
+    comparisonSnapshot
   } = useTrendsData({
     company: filtersApplied.company,
     dateRange: filtersApplied.range,
@@ -119,6 +120,33 @@ const TendenciasPage = () => {
     })
   }, [menuRanking.items])
 
+  const hasComparison = Boolean(comparison)
+  const noPreviousData = Boolean(comparison?.total?.noPreviousData)
+  const comparedMenuItems = useMemo(
+    () => (hasComparison
+      ? buildRankingComparisonItems(menuRanking.items, comparisonSnapshot?.menuRanking, noPreviousData)
+      : menuRanking.items),
+    [comparisonSnapshot?.menuRanking, hasComparison, menuRanking.items, noPreviousData]
+  )
+  const comparedOptionItems = useMemo(
+    () => (hasComparison
+      ? buildRankingComparisonItems(optionRanking.items, comparisonSnapshot?.optionRanking, noPreviousData)
+      : optionRanking.items),
+    [comparisonSnapshot?.optionRanking, hasComparison, noPreviousData, optionRanking.items]
+  )
+  const comparedSideItems = useMemo(
+    () => (hasComparison
+      ? buildRankingComparisonItems(sidesRanking.items, comparisonSnapshot?.sidesRanking, noPreviousData)
+      : sidesRanking.items),
+    [comparisonSnapshot?.sidesRanking, hasComparison, noPreviousData, sidesRanking.items]
+  )
+  const comparedBeverageItems = useMemo(
+    () => (hasComparison
+      ? buildRankingComparisonItems(beveragesRanking.items, comparisonSnapshot?.beveragesRanking, noPreviousData)
+      : beveragesRanking.items),
+    [beveragesRanking.items, comparisonSnapshot?.beveragesRanking, hasComparison, noPreviousData]
+  )
+
   const comparisonModeLabel = (mode) => {
     if (mode === COMPARISON_MODES.PREVIOUS_PERIOD) return 'Período anterior'
     if (mode === COMPARISON_MODES.PREVIOUS_YEAR) return 'Mismo período del año anterior'
@@ -141,6 +169,8 @@ const TendenciasPage = () => {
     const sign = value > 0 ? '+' : ''
     return `${sign}${value.toFixed(1)}%`
   }
+
+  const formatPercentValue = (value) => `${Number(value || 0).toFixed(1)}%`
 
   const leaderExportValue = (metric) => {
     if (!metric) return '—'
@@ -208,6 +238,41 @@ const TendenciasPage = () => {
         detail: metric?.leaderChanged ? `Antes lideraba ${metric.previousLabel}` : ''
       })
     })
+
+    const addItemRows = (title, items) => {
+      if (!items?.length) return
+      ws.addRow({})
+      ws.addRow({ metric: title })
+      items.forEach((item) => {
+        const itemComparison = item.comparison
+        ws.addRow({
+          metric: item.label,
+          current: `${item.count} (${formatPercentValue(item.percent)})`,
+          previous: itemComparison?.noPreviousData
+            ? 'Sin datos'
+            : `${itemComparison?.previousCount ?? 0} (${formatPercentValue(itemComparison?.previousPercent)})`,
+          delta: itemComparison?.noPreviousData
+            ? 'Sin base comparable'
+            : itemComparison?.isNew
+              ? 'Nuevo'
+              : `${formatSigned(itemComparison?.countDelta || 0)} · ${formatSigned(itemComparison?.ppDelta || 0, ' pp')}`,
+          detail: ''
+        })
+      })
+    }
+
+    if (filtersApplied.analysisType === 'all' || filtersApplied.analysisType === 'menus') {
+      addItemRows('Variaciones por item - Menús/Opciones', comparedMenuItems.slice(0, 8))
+    }
+    if (filtersApplied.analysisType === 'options') {
+      addItemRows('Variaciones por item - Opciones', comparedOptionItems.slice(0, 8))
+    }
+    if (filtersApplied.analysisType === 'all' || filtersApplied.analysisType === 'sides') {
+      addItemRows('Variaciones por item - Guarniciones', comparedSideItems.slice(0, 5))
+    }
+    if (filtersApplied.analysisType === 'all' || filtersApplied.analysisType === 'beverages') {
+      addItemRows('Variaciones por item - Bebidas', comparedBeverageItems.slice(0, 5))
+    }
   }
 
   const handleExport = async () => {
@@ -385,7 +450,6 @@ const TendenciasPage = () => {
 
         <TrendsSummaryCards
           totalOrders={loading ? '—' : totalOrders}
-          companyLabel={companyLabel}
           topMenu={loading ? '—' : topMenu}
           topBife={loading ? '—' : topBife}
           topSide={loading ? '—' : topSide}
@@ -401,7 +465,7 @@ const TendenciasPage = () => {
 
         <section className="grid gap-6">
           <TrendsCharts
-            menuRanking={showMenus ? menuRanking.items.slice(0, 8) : []}
+            menuRanking={showMenus ? comparedMenuItems.slice(0, 8) : []}
             sidesRanking={[]}
             beveragesRanking={[]}
             showMenus={showMenus}
@@ -425,7 +489,7 @@ const TendenciasPage = () => {
                   <span className="text-xs font-semibold text-slate-500">Top 5</span>
                 </div>
                 <div className="mt-4 space-y-3">
-                  {buildRankingRows(sidesRanking.items, 5).map((item) => (
+                  {buildRankingRows(comparedSideItems, 5).map((item) => (
                     <div key={item.label} className="space-y-2">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
@@ -434,8 +498,10 @@ const TendenciasPage = () => {
                           </span>
                           <span className="font-semibold text-slate-900 truncate">{item.label}</span>
                         </div>
-                        <span className="text-sm font-semibold text-slate-700">
-                          {item.count} · {(Number.isFinite(item.percent) ? item.percent.toFixed(1) : '0.0')}%
+                        <span className="flex shrink-0 flex-wrap items-center justify-end gap-1 text-sm font-semibold text-slate-700">
+                          <span>{item.count} · {(Number.isFinite(item.percent) ? item.percent.toFixed(1) : '0.0')}%</span>
+                          {item.comparison && <span className="text-slate-400">|</span>}
+                          <RankingComparisonText comparison={item.comparison} />
                         </span>
                       </div>
                       <div className="flex items-center gap-3 min-w-0">
@@ -461,7 +527,7 @@ const TendenciasPage = () => {
                   <span className="text-xs font-semibold text-slate-500">Top 5</span>
                 </div>
                 <div className="mt-4 space-y-3">
-                  {buildRankingRows(beveragesRanking.items, 5).map((item) => (
+                  {buildRankingRows(comparedBeverageItems, 5).map((item) => (
                     <div key={item.label} className="space-y-2">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
@@ -470,8 +536,10 @@ const TendenciasPage = () => {
                           </span>
                           <span className="font-semibold text-slate-900 truncate">{item.label}</span>
                         </div>
-                        <span className="text-sm font-semibold text-slate-700">
-                          {item.count} · {(Number.isFinite(item.percent) ? item.percent.toFixed(1) : '0.0')}%
+                        <span className="flex shrink-0 flex-wrap items-center justify-end gap-1 text-sm font-semibold text-slate-700">
+                          <span>{item.count} · {(Number.isFinite(item.percent) ? item.percent.toFixed(1) : '0.0')}%</span>
+                          {item.comparison && <span className="text-slate-400">|</span>}
+                          <RankingComparisonText comparison={item.comparison} />
                         </span>
                       </div>
                       <div className="flex items-center gap-3 min-w-0">
@@ -496,7 +564,7 @@ const TendenciasPage = () => {
         {analysisType === 'options' && (
           <div className="grid gap-6">
             <TrendsCharts
-              menuRanking={optionRanking.items.slice(0, 8)}
+              menuRanking={comparedOptionItems.slice(0, 8)}
               sidesRanking={[]}
               beveragesRanking={[]}
               showMenus

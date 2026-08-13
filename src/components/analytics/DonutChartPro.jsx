@@ -13,6 +13,43 @@ const defaultColors = [
 ]
 
 const formatPercent = (value) => `${value.toFixed(1)}%`
+const preferenceIndicator = (value) => {
+  const number = Number(value || 0)
+  if (number > 0) return '▲'
+  if (number < 0) return '▼'
+  return '='
+}
+
+const formatSignedUnits = (value) => {
+  const number = Number(value || 0)
+  const sign = number > 0 ? '+' : ''
+  return `${sign}${number.toFixed(0)}`
+}
+
+const formatSignedPp = (value) => {
+  const number = Number(value || 0)
+  const sign = number > 0 ? '+' : ''
+  return `${sign}${number.toFixed(1)} pp`
+}
+
+const ComparisonText = ({ comparison }) => {
+  if (!comparison) return null
+  if (comparison.noPreviousData) {
+    return <span className="text-xs font-semibold text-slate-600">Sin base comparable</span>
+  }
+  if (comparison.isNew) {
+    return (
+      <span className="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700">
+        Nuevo
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700">
+      {preferenceIndicator(comparison.countDelta)} {formatSignedUnits(comparison.countDelta)} · {formatSignedPp(comparison.ppDelta)}
+    </span>
+  )
+}
 
 const buildSlices = (items, maxSlices = 6) => {
   const sorted = [...items].sort((a, b) => b.count - a.count)
@@ -159,17 +196,19 @@ const DonutChartPro = ({
 
       <div className="w-full grid gap-3">
         {slices.map((slice, index) => (
-          <div key={`${slice.label}-${index}`} className="flex items-center justify-between text-sm text-slate-700">
+          <div key={`${slice.label}-${index}`} className="flex flex-col gap-1 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 min-w-0">
               <span
                 className="h-3.5 w-3.5 rounded-full"
                 style={{ backgroundColor: colors[index % colors.length] }}
               />
-              <span className="font-semibold text-slate-800 truncate">{slice.label}</span>
+              <span className="font-semibold text-slate-800 whitespace-normal break-normal overflow-hidden">{slice.label}</span>
             </div>
-            <span className="flex items-baseline gap-1 text-slate-900">
+            <span className="flex shrink-0 flex-wrap items-center gap-1 text-slate-900 sm:justify-end">
               <span className="font-bold">{slice.count}</span>
               <span className="font-medium text-slate-700">· {formatPercent(slice.percent || 0)}</span>
+              {slice.comparison && <span className="text-slate-400">|</span>}
+              <ComparisonText comparison={slice.comparison} />
             </span>
           </div>
         ))}
