@@ -219,10 +219,11 @@ describe('daily order notes Excel model', () => {
     expect(detailRows.find((row) => row.producto === 'TOTAL POSTRES')).toMatchObject({ cantidad: 5 })
   })
 
-  it('places observations after operational products without counting them as products', () => {
+  it('excludes observations from remito product rows', () => {
     const products = summarizeProducts([
       makeOrder({
         items: [{ id: 'op-10', name: 'Opción 10 - Pasta', quantity: 1 }],
+        custom_responses: [{ title: 'Adicional', response: 'Observación: entregar separado' }],
         comments: 'Saludos 👋'
       }),
       makeOrder({
@@ -232,14 +233,13 @@ describe('daily order notes Excel model', () => {
       })
     ])
 
-    expect(products).toContainEqual({
-      producto: 'Observación: Saludos 👋',
-      cantidad: '',
-      category: REMITO_ROW_CATEGORIES.observation
-    })
-    expect(products.filter((row) => row.producto === 'Observación: Saludos 👋')).toHaveLength(1)
-    expect(products.map((row) => row.producto).indexOf('Observación: Saludos 👋'))
-      .toBeGreaterThan(products.map((row) => row.producto).indexOf('Opción 2 - Carne'))
+    expect(products).toEqual(expect.arrayContaining([
+      expect.objectContaining({ producto: 'Opción 2 - Carne', cantidad: 1 }),
+      expect.objectContaining({ producto: 'Opción 10 - Pasta', cantidad: 1 })
+    ]))
+    expect(products.some((row) => row.category === REMITO_ROW_CATEGORIES.observation)).toBe(false)
+    expect(products.some((row) => row.producto.includes('Observación'))).toBe(false)
+    expect(products.some((row) => row.producto.includes('Saludos'))).toBe(false)
   })
 
   it('calculates TOTAL MENU only from main food rations', () => {
@@ -265,9 +265,9 @@ describe('daily order notes Excel model', () => {
       expect.objectContaining({ producto: 'Bebida: Agua', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }),
       expect.objectContaining({ producto: 'Bebida: Soda', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }),
       expect.objectContaining({ producto: 'Postre: Fruta', cantidad: 2, category: REMITO_ROW_CATEGORIES.dessert }),
-      expect.objectContaining({ producto: 'Guarnición: Puré', cantidad: 1, category: REMITO_ROW_CATEGORIES.side }),
-      expect.objectContaining({ producto: 'Observación: No sumar', cantidad: '', category: REMITO_ROW_CATEGORIES.observation })
+      expect.objectContaining({ producto: 'Guarnición: Puré', cantidad: 1, category: REMITO_ROW_CATEGORIES.side })
     ]))
+    expect(summarizeProducts(orders).some((row) => row.category === REMITO_ROW_CATEGORIES.observation)).toBe(false)
     expect(getTotalMenuItemsForRemito(orders)).toBe(2)
   })
 

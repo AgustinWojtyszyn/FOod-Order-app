@@ -183,6 +183,11 @@ export const isObservationLabel = (label = '') => {
   return text.startsWith('observacion') || text.startsWith('comentario') || text.startsWith('leyenda')
 }
 
+const hasObservationMarker = (label = '') => {
+  const text = normalizeRemitoComparisonText(label)
+  return isObservationLabel(label) || /\b(observacion|comentario|leyenda)\b/.test(text)
+}
+
 export const REMITO_ROW_CATEGORIES = {
   mainMenu: 'main_menu',
   numberedOption: 'numbered_option',
@@ -350,7 +355,6 @@ export const getTotalMenuItemsForRemito = (orders = []) =>
 
 export const summarizeProducts = (orders = []) => {
   const totals = new Map()
-  const observations = new Map()
   const operationalSummary = summarizeOperationalOrders(orders)
   const incrementCategorizedSummary = (label, quantity = 1, category = getRemitoCategoryForLabel(label)) => {
     if (!normalizeText(label)) return
@@ -383,26 +387,13 @@ export const summarizeProducts = (orders = []) => {
         .map(normalizeText)
         .filter(Boolean)
         .forEach((label) => {
-          if (isObservationLabel(label)) {
-            observations.set(normalizeRemitoComparisonText(label), label)
-          } else {
+          if (!hasObservationMarker(label)) {
             incrementCategorizedSummary(label, 1)
           }
         })
     }
-    if (normalizeText(order.comments)) {
-      const label = `Observación: ${normalizeText(order.comments)}`
-      observations.set(normalizeRemitoComparisonText(label), label)
-    }
   })
-  return [
-    ...totals.values(),
-    ...[...observations.values()].map((producto) => ({
-      producto,
-      cantidad: '',
-      category: REMITO_ROW_CATEGORIES.observation
-    }))
-  ].sort(sortRemitoRows)
+  return [...totals.values()].sort(sortRemitoRows)
 }
 
 const configurePrintPage = (worksheet, printArea = 'A1:M33') => {
