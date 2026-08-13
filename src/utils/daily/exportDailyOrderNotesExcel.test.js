@@ -242,6 +242,26 @@ describe('daily order notes Excel model', () => {
     expect(products.some((row) => row.producto.includes('Saludos'))).toBe(false)
   })
 
+  it('excludes stored observation rows from printable original and copy detail rows', () => {
+    const products = [
+      { producto: 'Opción 1 - Pollo', cantidad: 2, category: REMITO_ROW_CATEGORIES.numberedOption },
+      { producto: 'Observación: Saludos 👍', cantidad: '', category: REMITO_ROW_CATEGORIES.observation },
+      { producto: 'Observación: solo cena', cantidad: '', category: REMITO_ROW_CATEGORIES.additional }
+    ]
+
+    const originalRows = getPrintableDetailRows(products, 2)
+    const copyRows = getPrintableDetailRows(products, 2)
+
+    expect(originalRows).toEqual(copyRows)
+    expect(originalRows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ producto: 'Opción 1 - Pollo', cantidad: 2 }),
+      expect.objectContaining({ producto: 'TOTAL MENÚS / VIANDAS', cantidad: 2 })
+    ]))
+    expect(originalRows.some((row) => row.producto.includes('Observación'))).toBe(false)
+    expect(originalRows.some((row) => row.producto.includes('Saludos'))).toBe(false)
+    expect(originalRows.some((row) => row.producto.includes('solo cena'))).toBe(false)
+  })
+
   it('calculates TOTAL MENU only from main food rations', () => {
     const orders = [
       makeOrder({

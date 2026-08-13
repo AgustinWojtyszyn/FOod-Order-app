@@ -500,10 +500,14 @@ const collapseOverflowRows = (products = [], maxRows = DETAIL_ROWS_PER_COPY) => 
 }
 
 export const getPrintableDetailRows = (products = [], totalItems = getRemitoMenuTotalFromRows(products)) => {
-  const menuRows = products.filter((product) => isMenuCountableCategory(product?.category))
-  const beverageRows = products.filter((product) => product?.category === REMITO_ROW_CATEGORIES.drink)
-  const dessertRows = products.filter((product) => product?.category === REMITO_ROW_CATEGORIES.dessert)
-  const additionalRows = products.filter((product) => (
+  const printableProducts = products.filter((product) => (
+    product?.category !== REMITO_ROW_CATEGORIES.observation &&
+    !hasObservationMarker(product?.producto)
+  ))
+  const menuRows = printableProducts.filter((product) => isMenuCountableCategory(product?.category))
+  const beverageRows = printableProducts.filter((product) => product?.category === REMITO_ROW_CATEGORIES.drink)
+  const dessertRows = printableProducts.filter((product) => product?.category === REMITO_ROW_CATEGORIES.dessert)
+  const additionalRows = printableProducts.filter((product) => (
     !isMenuCountableCategory(product?.category) &&
     product?.category !== REMITO_ROW_CATEGORIES.drink &&
     product?.category !== REMITO_ROW_CATEGORIES.dessert
