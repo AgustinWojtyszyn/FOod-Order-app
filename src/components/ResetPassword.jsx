@@ -35,15 +35,19 @@ const ResetPassword = () => {
         type,
         tokenHash,
         accessToken,
+        refreshToken,
         error,
         errorCode,
         errorDescription
       } = getAuthLinkParams()
       const hasRecoveryHints = Boolean(code || type === 'recovery' || tokenHash || accessToken)
 
-      console.debug('[auth-recovery] enter /reset-password', {
+      console.info('[auth-recovery] enter /reset-password', {
         hasCode: Boolean(code),
         type: type || null,
+        hasTokenHash: Boolean(tokenHash),
+        hasAccessToken: Boolean(accessToken),
+        hasRefreshToken: Boolean(refreshToken),
         hasRecoveryHints
       })
 
@@ -60,12 +64,32 @@ const ResetPassword = () => {
         // PKCE: el link trae `code` y requiere exchange explícito para obtener sesión válida.
         if (code) {
           const { error: exchangeError } = await exchangeCodeForSessionOnce(supabase, code)
-          console.debug('[auth-recovery] exchangeCodeForSession', {
+          console.info('[auth-recovery] exchangeCodeForSession', {
             ok: !exchangeError,
             hasError: Boolean(exchangeError)
           })
 
           if (exchangeError) {
+            if (!isMounted) return
+            setHasRecoverySession(false)
+            setError('El enlace de recuperación es inválido o expiró. Pedí uno nuevo.')
+            return
+          }
+
+          clearAuthLinkFromUrl()
+        }
+        // Implicit recovery: algunos links llegan con access_token/refresh_token en el hash.
+        else if (accessToken && refreshToken && (!type || type === 'recovery')) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          })
+          console.info('[auth-recovery] setSession(access_token)', {
+            ok: !sessionError,
+            hasError: Boolean(sessionError)
+          })
+
+          if (sessionError) {
             if (!isMounted) return
             setHasRecoverySession(false)
             setError('El enlace de recuperación es inválido o expiró. Pedí uno nuevo.')
@@ -80,7 +104,7 @@ const ResetPassword = () => {
             type: 'recovery',
             token_hash: tokenHash
           })
-          console.debug('[auth-recovery] verifyOtp(recovery)', {
+          console.info('[auth-recovery] verifyOtp(recovery)', {
             ok: !verifyError,
             hasError: Boolean(verifyError)
           })
@@ -96,7 +120,7 @@ const ResetPassword = () => {
         }
 
         const { data: { session } } = await supabase.auth.getSession()
-        console.debug('[auth-recovery] getSession', { hasSession: Boolean(session) })
+        console.info('[auth-recovery] getSession', { hasSession: Boolean(session) })
 
         if (!isMounted) return
         if (!session) {
@@ -106,7 +130,8 @@ const ResetPassword = () => {
         }
 
         setHasRecoverySession(true)
-      } catch (_) {
+      } catch (err) {
+        console.error('[auth-recovery] initializeRecoverySession error', err)
         if (!isMounted) return
         setHasRecoverySession(false)
         setError('No se pudo validar el enlace de recuperación. Pedí uno nuevo.')
@@ -157,7 +182,7 @@ const ResetPassword = () => {
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      console.debug('[auth-recovery] pre-update getSession', { hasSession: Boolean(session) })
+      console.info('[auth-recovery] pre-update getSession', { hasSession: Boolean(session) })
       if (!session) {
         setError('La sesión de recuperación no es válida o expiró. Pedí un nuevo enlace.')
         setLoading(false)
@@ -165,7 +190,7 @@ const ResetPassword = () => {
       }
 
       const { error: updErr } = await supabase.auth.updateUser({ password: formData.password })
-      console.debug('[auth-recovery] updateUser', { ok: !updErr, hasError: Boolean(updErr) })
+      console.info('[auth-recovery] updateUser', { ok: !updErr, hasError: Boolean(updErr) })
 
       if (updErr) {
         setError(getUserFriendlyErrorMessage(updErr, 'No pudimos actualizar la contraseña. Intentá nuevamente.'))

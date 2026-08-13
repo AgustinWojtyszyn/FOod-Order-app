@@ -9,6 +9,7 @@ export const getAuthLinkParams = () => {
     type: queryParams.get('type') || hashParams.get('type'),
     tokenHash: queryParams.get('token_hash') || hashParams.get('token_hash'),
     accessToken: queryParams.get('access_token') || hashParams.get('access_token'),
+    refreshToken: queryParams.get('refresh_token') || hashParams.get('refresh_token'),
     error: queryParams.get('error') || hashParams.get('error'),
     errorCode: queryParams.get('error_code') || hashParams.get('error_code'),
     errorDescription: queryParams.get('error_description') || hashParams.get('error_description')

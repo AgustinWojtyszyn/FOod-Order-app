@@ -84,13 +84,13 @@ class ErrorFallback extends Component {
 }
 
 const logError = (error, errorInfo) => {
-  // Log to console in development
-  if (import.meta.env.DEV) {
-    console.group('🚨 Error Boundary')
-    console.error('Error:', error)
-    console.error('Error Info:', errorInfo)
-    console.groupEnd()
-  }
+  console.group('[ServiFood ErrorBoundary]')
+  console.error('Error:', error)
+  console.error('Message:', error?.message)
+  console.error('Stack:', error?.stack)
+  console.error('Component stack:', errorInfo?.componentStack)
+  console.error('Error info:', errorInfo)
+  console.groupEnd()
 
   // Here you could send to error reporting service
   // Example: Sentry, LogRocket, etc.

@@ -100,15 +100,14 @@ class AuthService {
         throw new Error('Correo electrónico inválido')
       }
       const redirectTo = `${window.location.origin}/reset-password`
-      if (import.meta.env.DEV) {
-        console.debug('[auth-recovery] resetPassword redirectTo', redirectTo)
-      }
+      console.info('[auth-recovery] resetPassword redirectTo', redirectTo)
 
       // No retry: resetPasswordForEmail no es idempotente y puede enviar múltiples emails
       const { data, error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
         redirectTo
       })
 
+      console.info('[auth-recovery] resetPasswordForEmail', { ok: !error, hasError: Boolean(error) })
       if (error) throw error
 
       return { data, error: null }
