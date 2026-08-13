@@ -105,6 +105,27 @@ const buildRequestId = ({ group, deliveryDate, locationKey }) =>
     getOrderIds(group?.orders || []).sort().join(',')
   ].join(':')
 
+const getRemitoIdentityKey = ({ deliveryDate = '', companySlug = '', locationKey = '' } = {}) =>
+  [deliveryDate, companySlug, locationKey || ''].join(':')
+
+const getRemitoCompanySlug = (remito = {}) =>
+  remito.company_slug || remito.companySlug || ''
+
+const getRemitoLocationKey = (remito = {}) =>
+  String(remito.location_key ?? remito.locationKey ?? '').trim()
+
+const buildSyntheticGroupFromRemito = (remito = {}) => {
+  const companySlug = getRemitoCompanySlug(remito)
+  const companyName = remito.company_name || remito.companyName || companySlug || 'Empresa'
+  return {
+    slug: companySlug,
+    name: companyName,
+    displayName: companyName,
+    locationKey: getRemitoLocationKey(remito),
+    orders: []
+  }
+}
+
 const buildFreshGroupForRemito = ({
   orders = [],
   existing = {},
@@ -159,11 +180,57 @@ const DailyRemitosPanel = ({
   const remitosByCompany = useMemo(() => {
     const map = new Map()
     remitos.forEach((remito) => {
-      const key = `${remito.company_slug || remito.companySlug || ''}:${remito.location_key || ''}`
+      const key = getRemitoIdentityKey({
+        deliveryDate: String(remito.delivery_date || remito.deliveryDate || deliveryDate || '').slice(0, 10),
+        companySlug: getRemitoCompanySlug(remito),
+        locationKey: getRemitoLocationKey(remito)
+      })
       map.set(key, remito)
     })
     return map
-  }, [remitos])
+  }, [deliveryDate, remitos])
+
+  const remitoRows = useMemo(() => {
+    const rows = []
+    const seenKeys = new Set()
+
+    groups.forEach((group) => {
+      const rowLocationKey = group.locationKey ?? locationKey
+      const key = getRemitoIdentityKey({
+        deliveryDate,
+        companySlug: group.slug,
+        locationKey: rowLocationKey
+      })
+      rows.push({
+        key,
+        group: { ...group, locationKey: rowLocationKey },
+        existing: remitosByCompany.get(key) || null
+      })
+      seenKeys.add(key)
+    })
+
+    remitos.forEach((remito) => {
+      const companySlug = getRemitoCompanySlug(remito)
+      const remitoDate = String(remito.delivery_date || remito.deliveryDate || deliveryDate || '').slice(0, 10)
+      const rowLocationKey = getRemitoLocationKey(remito)
+      const key = getRemitoIdentityKey({
+        deliveryDate: remitoDate,
+        companySlug,
+        locationKey: rowLocationKey
+      })
+      if (seenKeys.has(key)) return
+      if (!remito.remito_number && String(remito.status || '').toLowerCase() !== 'issued') return
+
+      rows.push({
+        key,
+        group: buildSyntheticGroupFromRemito(remito),
+        existing: remito
+      })
+      seenKeys.add(key)
+    })
+
+    return rows
+  }, [deliveryDate, groups, locationKey, remitos, remitosByCompany])
 
   const loadRemitos = useCallback(async () => {
     if (!deliveryDate) return
@@ -262,7 +329,8 @@ const DailyRemitosPanel = ({
 
   const refreshIssuedSnapshot = async (group, existing, { silent = false, manageBusy = true } = {}) => {
     if (!existing?.remito_id) return false
-    const key = `${group.slug}:${locationKey || 'all'}`
+    const rowLocationKey = group.locationKey ?? locationKey
+    const key = `${group.slug}:${rowLocationKey || 'all'}`
     if (manageBusy && busyKey) return false
 
     if (!silent) {
@@ -328,9 +396,14 @@ const DailyRemitosPanel = ({
         return false
       }
       if (data) {
-        setRemitos((prev) => (Array.isArray(prev) ? prev.map((row) => (
-          row?.remito_id === data.remito_id ? { ...row, ...data } : row
-        )) : prev))
+        setRemitos((prev) => {
+          if (!Array.isArray(prev)) return [data]
+          const found = prev.some((row) => row?.remito_id === data.remito_id)
+          if (!found) return [...prev, data]
+          return prev.map((row) => (
+            row?.remito_id === data.remito_id ? { ...row, ...data } : row
+          ))
+        })
       }
       if (!silent) {
         notifySuccess(`Remito N.º ${data?.remito_number || existing.remito_number} actualizado correctamente sin modificar su numeración.`)
@@ -408,13 +481,13 @@ const DailyRemitosPanel = ({
         </div>
 
         {loading && <p className="px-4 py-4 text-sm font-semibold text-slate-500">Cargando remitos...</p>}
-        {!loading && groups.length === 0 && (
+        {!loading && remitoRows.length === 0 && (
           <p className="px-4 py-4 text-sm font-semibold text-slate-500">No hay pedidos emitibles para los filtros seleccionados.</p>
         )}
-        {!loading && groups.length > 0 && (
+        {!loading && remitoRows.length > 0 && (
           <div className="divide-y divide-slate-100">
-            {groups.map((group) => {
-              const existing = remitosByCompany.get(`${group.slug}:${locationKey}`)
+            {remitoRows.map(({ key, group, existing }) => {
+              const rowLocationKey = group.locationKey ?? locationKey
               const status = getRemitoStatus(existing)
               const snapshot = existing?.snapshot && typeof existing.snapshot === 'object' ? existing.snapshot : null
               const liveSnapshot = buildRemitoSnapshot({ group, deliveryDate })
@@ -429,11 +502,11 @@ const DailyRemitosPanel = ({
                   Number(snapshot?.totalDesserts ?? 0) !== Number(liveSnapshot.totalDesserts ?? 0) ||
                   !arraysMatchAsSet(snapshotOrderIds, liveSnapshot.orderIds)
                 )
-              const busy = busyKey === `${group.slug}:${locationKey || 'all'}`
+              const busy = busyKey === `${group.slug}:${rowLocationKey || 'all'}`
               const updatedAt = getUpdatedAt(existing)
               const updater = getUpdaterLabel(existing)
               return (
-                <div key={`${group.slug}:${locationKey || 'all'}`} className="grid gap-3 px-4 py-4 lg:grid-cols-[1.3fr_1fr_1fr_auto] lg:items-center">
+                <div key={key} className="grid gap-3 px-4 py-4 lg:grid-cols-[1.3fr_1fr_1fr_auto] lg:items-center">
                   <div className="min-w-0">
                     <p className="font-black text-slate-900">{group.displayName || group.name}</p>
                     <p className="text-xs font-semibold text-slate-500">{snapshotOrderCount} pedidos · {totalItems} viandas</p>
