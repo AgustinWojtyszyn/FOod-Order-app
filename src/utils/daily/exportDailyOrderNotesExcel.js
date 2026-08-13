@@ -11,10 +11,11 @@ import {
 import { notifyError, notifyInfo, notifySuccess } from '../notice'
 import { getUserFriendlyErrorMessage } from '../index'
 import {
-  getOrderMenuTotal,
+  summarizeOperationalOrder,
   summarizeOperationalOrders
 } from '../order/orderOperationalTotals'
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
+import { getSideAssociationsForOrder } from './dailyOrderSideAssociations'
 
 const DETAIL_ROWS_PER_COPY = 16
 const DETAIL_START_ROW = 9
@@ -264,6 +265,65 @@ const buildRemitoProductSummaryRow = (label, category = getRemitoCategoryForLabe
   }
 }
 
+const appendSideToMenuLabel = (label = '', side = '') => {
+  const cleanLabel = normalizeText(label)
+  const cleanSide = normalizeText(side)
+  if (!cleanSide) return cleanLabel
+  if (normalizeRemitoComparisonText(cleanLabel).includes(normalizeRemitoComparisonText(cleanSide))) return cleanLabel
+  return `${cleanLabel} con ${cleanSide}`
+}
+
+const countLabels = (labels = []) => {
+  const map = new Map()
+  labels.map(normalizeText).filter(Boolean).forEach((label) => {
+    const key = normalizeRemitoComparisonText(label)
+    const current = map.get(key) || { label, quantity: 0 }
+    current.quantity += 1
+    map.set(key, current)
+  })
+  return [...map.values()]
+}
+
+const getRemitoMenuRowsForOrder = (order = {}) => {
+  const summary = summarizeOperationalOrder(order)
+  const sideLabelsByMenu = new Map()
+
+  getSideAssociationsForOrder(order)
+    .filter((association) => association.assigned && normalizeText(association.itemLabel))
+    .forEach((association) => {
+      const key = normalizeRemitoComparisonText(association.itemLabel)
+      const labels = sideLabelsByMenu.get(key) || []
+      labels.push(association.label)
+      sideLabelsByMenu.set(key, labels)
+    })
+
+  return summary.menuBreakdown.flatMap((row) => {
+    const quantity = Number(row.quantity || 0)
+    if (!quantity) return []
+    const sideRows = countLabels(sideLabelsByMenu.get(normalizeRemitoComparisonText(row.label)) || [])
+    if (sideRows.length === 0) return [row]
+    if (sideRows.length === 1) {
+      return [{
+        label: appendSideToMenuLabel(row.label, sideRows[0].label),
+        quantity
+      }]
+    }
+
+    const splitRows = sideRows.map((side) => ({
+      label: appendSideToMenuLabel(row.label, side.label),
+      quantity: side.quantity
+    }))
+    const assignedQuantity = splitRows.reduce((sum, side) => sum + side.quantity, 0)
+    if (assignedQuantity < quantity) {
+      splitRows.push({
+        label: row.label,
+        quantity: quantity - assignedQuantity
+      })
+    }
+    return splitRows
+  })
+}
+
 const getResponseValues = (value) => {
   if (Array.isArray(value)) return value.flatMap(getResponseValues)
   if (value && typeof value === 'object') {
@@ -364,10 +424,15 @@ export const summarizeProducts = (orders = []) => {
     totals.set(groupKey, current)
   }
 
-  operationalSummary.menuBreakdown.forEach((row) => {
+  const remitoMenuRows = []
+  orders.forEach((order) => {
+    remitoMenuRows.push(...getRemitoMenuRowsForOrder(order))
+  })
+
+  remitoMenuRows.forEach((row) => {
     incrementCategorizedSummary(row.label, row.quantity, getRemitoCategoryForLabel(row.label))
   })
-  if (operationalSummary.menuBreakdown.length === 0 && operationalSummary.menuTotal > 0) {
+  if (remitoMenuRows.length === 0 && operationalSummary.menuTotal > 0) {
     incrementCategorizedSummary('Menú / vianda', operationalSummary.menuTotal, REMITO_ROW_CATEGORIES.mainMenu)
   }
   operationalSummary.beverageBreakdown.forEach((row) => {
@@ -379,8 +444,6 @@ export const summarizeProducts = (orders = []) => {
 
   orders.forEach((order) => {
     const custom = extractCustomResponses(order)
-    const menuTotal = getOrderMenuTotal(order)
-    if (custom.side) incrementCategorizedSummary(`Guarnición: ${custom.side}`, menuTotal || 1, REMITO_ROW_CATEGORIES.side)
     if (custom.additional) {
       custom.additional
         .split('|')

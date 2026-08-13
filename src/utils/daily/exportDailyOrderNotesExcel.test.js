@@ -282,13 +282,50 @@ describe('daily order notes Excel model', () => {
     ]
 
     expect(summarizeProducts(orders)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ producto: 'Menú principal: Pollo con Puré', cantidad: 1, category: REMITO_ROW_CATEGORIES.mainMenu }),
       expect.objectContaining({ producto: 'Bebida: Agua', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }),
       expect.objectContaining({ producto: 'Bebida: Soda', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }),
-      expect.objectContaining({ producto: 'Postre: Fruta', cantidad: 2, category: REMITO_ROW_CATEGORIES.dessert }),
-      expect.objectContaining({ producto: 'Guarnición: Puré', cantidad: 1, category: REMITO_ROW_CATEGORIES.side })
+      expect.objectContaining({ producto: 'Postre: Fruta', cantidad: 2, category: REMITO_ROW_CATEGORIES.dessert })
     ]))
+    expect(summarizeProducts(orders).some((row) => row.category === REMITO_ROW_CATEGORIES.side)).toBe(false)
     expect(summarizeProducts(orders).some((row) => row.category === REMITO_ROW_CATEGORIES.observation)).toBe(false)
     expect(getTotalMenuItemsForRemito(orders)).toBe(2)
+  })
+
+  it('separates the same option into different remito rows by selected side', () => {
+    const products = summarizeProducts([
+      makeOrder({
+        items: [{ id: 'op-1', name: 'Opción 1 - Hamburguesas gratinadas', quantity: 1 }],
+        custom_responses: [{ title: 'Guarnición', response: 'Puré' }]
+      }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        items: [{ id: 'op-1', name: 'Opción 1 - Hamburguesas gratinadas', quantity: 2 }],
+        custom_responses: [{ title: 'Guarnición', response: 'Papas' }]
+      }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        order_origin: 'admin_extra',
+        total_items: 1,
+        items: [{ id: 'op-1', name: 'Opción 1 - Hamburguesas gratinadas', quantity: 1 }],
+        custom_responses: [{ title: 'Guarnición', response: 'Puré' }]
+      })
+    ])
+
+    expect(products).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        producto: 'Opción 1 - Hamburguesas gratinadas con Puré',
+        cantidad: 2,
+        category: REMITO_ROW_CATEGORIES.numberedOption
+      }),
+      expect.objectContaining({
+        producto: 'Opción 1 - Hamburguesas gratinadas con Papas',
+        cantidad: 2,
+        category: REMITO_ROW_CATEGORIES.numberedOption
+      })
+    ]))
+    expect(products.filter((row) => row.producto.startsWith('Opción 1 - Hamburguesas gratinadas'))).toHaveLength(2)
+    expect(getRemitoMenuTotalFromRows(products)).toBe(4)
   })
 
   it('groups equivalent dinner labels into one Cena row without changing TOTAL MENU', () => {
@@ -389,16 +426,19 @@ describe('daily order notes Excel model', () => {
     expect(originalRows[totalIndex]).toMatchObject({ producto: 'TOTAL MENÚS / VIANDAS', cantidad: 7 })
     expect(beverageRows.reduce((sum, row) => sum + row.cantidad, 0)).toBe(16)
     expect(dessertRows.reduce((sum, row) => sum + row.cantidad, 0)).toBe(7)
-    expect(sideRows.reduce((sum, row) => sum + row.cantidad, 0)).toBe(5)
+    expect(sideRows).toHaveLength(0)
     expect(originalRows).toEqual(copyRows)
+    expect(originalRows.find((row) => row.producto === 'Menú principal con Papas fritas')).toMatchObject({ cantidad: 1 })
+    expect(originalRows.find((row) => row.producto === 'Opción 1 con Papas fritas')).toMatchObject({ cantidad: 1 })
+    expect(originalRows.find((row) => row.producto === 'Opción 1')).toMatchObject({ cantidad: 1 })
+    expect(originalRows.find((row) => row.producto === 'Opción 3 con Verduras')).toMatchObject({ cantidad: 2 })
     expect(originalRows.findIndex((row) => row.producto === 'Bebida: Agua')).toBeGreaterThan(totalIndex)
-    expect(originalRows.findIndex((row) => row.producto === 'Guarnición: Papas fritas')).toBeGreaterThan(totalIndex)
     expect([REMITO_ROW_CATEGORIES.drink, REMITO_ROW_CATEGORIES.side, REMITO_ROW_CATEGORIES.dessert, REMITO_ROW_CATEGORIES.observation]
       .every((category) => !isMenuCountableCategory(category))
     ).toBe(true)
     expect(products
       .filter((row) => !isMenuCountableCategory(row.category))
       .reduce((sum, row) => sum + Number(row.cantidad || 0), 0)
-    ).toBe(28)
+    ).toBe(23)
   })
 })
