@@ -3,6 +3,26 @@ import { ErrorBoundary as ReactErrorBoundary } from 'react-error-boundary'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
 import Button from './Button'
 
+const isChunkLoadError = (error) => {
+  const text = `${error?.name || ''} ${error?.message || ''} ${error?.stack || ''}`.toLowerCase()
+  return text.includes('loading chunk') ||
+    text.includes('chunkloaderror') ||
+    text.includes('failed to fetch dynamically imported module') ||
+    text.includes('importing a module script failed') ||
+    text.includes('module script load')
+}
+
+const clearRuntimeCaches = async () => {
+  if ('serviceWorker' in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations()
+    await Promise.all(registrations.map((registration) => registration.unregister()))
+  }
+  if ('caches' in window) {
+    const keys = await caches.keys()
+    await Promise.all(keys.map((key) => caches.delete(key)))
+  }
+}
+
 class ErrorFallback extends Component {
   constructor(props) {
     super(props)
@@ -36,26 +56,29 @@ class ErrorFallback extends Component {
               No pudimos cargar esta parte de la aplicación. Intentá nuevamente o volvé al inicio.
             </p>
 
-            {import.meta.env.DEV && (
-              <details className="mb-6 text-left">
-                <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
-                  Detalles técnicos
-                </summary>
-                <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto">
-                  {error.message}
-                  {error.stack && (
-                    <>
-                      {'\n\n'}
-                      {error.stack}
-                    </>
-                  )}
-                </pre>
-              </details>
-            )}
+            <details className="mb-6 text-left">
+              <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
+                Detalles técnicos
+              </summary>
+              <pre className="mt-2 max-h-48 overflow-auto rounded bg-gray-100 p-2 text-xs">
+                {error?.name && `${error.name}: `}
+                {error?.message || 'Error sin mensaje'}
+                {error?.stack && (
+                  <>
+                    {'\n\n'}
+                    {error.stack}
+                  </>
+                )}
+              </pre>
+            </details>
 
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
-                onClick={resetErrorBoundary}
+                onClick={() => {
+                  clearRuntimeCaches()
+                    .catch((cacheError) => console.error('[ServiFood ErrorBoundary] cache cleanup failed', cacheError))
+                    .finally(resetErrorBoundary)
+                }}
                 className="flex-1"
                 variant="primary"
               >
@@ -91,6 +114,13 @@ const logError = (error, errorInfo) => {
   console.error('Component stack:', errorInfo?.componentStack)
   console.error('Error info:', errorInfo)
   console.groupEnd()
+
+  if (isChunkLoadError(error) && !sessionStorage.getItem('servifood_chunk_recovered')) {
+    sessionStorage.setItem('servifood_chunk_recovered', '1')
+    clearRuntimeCaches()
+      .catch((cacheError) => console.error('[ServiFood ErrorBoundary] cache cleanup failed', cacheError))
+      .finally(() => window.location.reload())
+  }
 
   // Here you could send to error reporting service
   // Example: Sentry, LogRocket, etc.
