@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { buildMenuCounts, buildRanking, buildSideBucketsFromOrders } from './trendsHelpers'
+import {
+  buildComparisonMetrics,
+  buildMenuCounts,
+  buildRanking,
+  buildSideBucketsFromOrders,
+  buildTrendsSnapshot,
+  COMPARISON_MODES,
+  getComparisonRange
+} from './trendsHelpers'
 
 describe('trendsHelpers', () => {
   it('cuenta arrays historicos de bebidas como unidades, no como categoria literal', () => {
@@ -41,5 +49,56 @@ describe('trendsHelpers', () => {
     ])
 
     expect(counts).toEqual({ 'Opción 2': 8 })
+  })
+
+  it('calcula el periodo anterior con la misma cantidad inclusiva de dias', () => {
+    expect(getComparisonRange(
+      { start: '2026-08-10', end: '2026-08-13' },
+      COMPARISON_MODES.PREVIOUS_PERIOD
+    )).toEqual({ start: '2026-08-06', end: '2026-08-09' })
+  })
+
+  it('desplaza el mismo periodo del año anterior contemplando años bisiestos', () => {
+    expect(getComparisonRange(
+      { start: '2024-02-29', end: '2024-03-02' },
+      COMPARISON_MODES.PREVIOUS_YEAR
+    )).toEqual({ start: '2023-02-28', end: '2023-03-02' })
+  })
+
+  it('calcula variaciones absolutas, porcentuales y de participacion', () => {
+    const current = buildTrendsSnapshot([
+      {
+        items: [{ name: 'Plato principal', quantity: 4 }],
+        custom_responses: [
+          { title: 'Bebida', response: '["Agua","Agua","Agua","Coca"]' },
+          { title: 'Guarnición', response: ['Arroz', 'Arroz', 'Puré', 'Puré'] }
+        ]
+      },
+      {
+        items: [{ name: 'Bife de chorizo', quantity: 1 }],
+        custom_responses: [{ title: 'Bebida', response: 'Agua' }]
+      }
+    ])
+    const previous = buildTrendsSnapshot([
+      {
+        items: [{ name: 'Plato principal', quantity: 1 }],
+        custom_responses: [
+          { title: 'Bebida', response: 'Coca' },
+          { title: 'Guarnición', response: 'Puré' }
+        ]
+      }
+    ])
+
+    const metrics = buildComparisonMetrics(current, previous)
+
+    expect(metrics.total).toMatchObject({ current: 2, previous: 1, delta: 1, percent: 100 })
+    expect(metrics.leaders.beverage).toMatchObject({
+      label: 'Agua',
+      previousLabel: 'Coca',
+      currentShare: 80,
+      previousShare: 0,
+      ppDelta: 80,
+      leaderChanged: true
+    })
   })
 })

@@ -7,6 +7,7 @@ import { useTrendsData } from '../hooks/analytics/useTrendsData'
 import TrendsFilters from '../components/analytics/TrendsFilters'
 import TrendsSummaryCards from '../components/analytics/TrendsSummaryCards'
 import TrendsCharts from '../components/analytics/TrendsCharts'
+import { COMPARISON_MODES, getComparisonRange } from '../utils/analytics/trendsHelpers'
 
 const getDefaultRange = () => {
   const now = new Date()
@@ -31,9 +32,14 @@ const TendenciasPage = () => {
   const [filtersDraft, setFiltersDraft] = useState({
     company: 'all',
     range: getDefaultRange(),
-    analysisType: 'all'
+    analysisType: 'all',
+    comparisonMode: COMPARISON_MODES.NONE
   })
   const [filtersApplied, setFiltersApplied] = useState(filtersDraft)
+  const comparisonRange = useMemo(
+    () => getComparisonRange(filtersApplied.range, filtersApplied.comparisonMode),
+    [filtersApplied.comparisonMode, filtersApplied.range]
+  )
 
   const {
     loading,
@@ -47,8 +53,14 @@ const TendenciasPage = () => {
     topMenu,
     topBife,
     topSide,
-    topBeverage
-  } = useTrendsData({ company: filtersApplied.company, dateRange: filtersApplied.range })
+    topBeverage,
+    comparison
+  } = useTrendsData({
+    company: filtersApplied.company,
+    dateRange: filtersApplied.range,
+    comparisonMode: filtersApplied.comparisonMode,
+    comparisonRange
+  })
 
   const companyLabel = filtersApplied.company === 'all'
     ? 'Todas'
@@ -68,7 +80,8 @@ const TendenciasPage = () => {
     const cleared = {
       company: 'all',
       range: { start: '', end: '' },
-      analysisType: 'all'
+      analysisType: 'all',
+      comparisonMode: COMPARISON_MODES.NONE
     }
     setFiltersDraft(cleared)
     setFiltersApplied(cleared)
@@ -105,6 +118,97 @@ const TendenciasPage = () => {
       return matched ? colorMap[matched] : '#94a3b8'
     })
   }, [menuRanking.items])
+
+  const comparisonModeLabel = (mode) => {
+    if (mode === COMPARISON_MODES.PREVIOUS_PERIOD) return 'Período anterior'
+    if (mode === COMPARISON_MODES.PREVIOUS_YEAR) return 'Mismo período del año anterior'
+    return 'Sin comparación'
+  }
+
+  const formatRangeLabel = (range = {}) => {
+    if (!range?.start && !range?.end) return 'Sin rango'
+    return `${range.start || 'inicio'} a ${range.end || 'fin'}`
+  }
+
+  const formatSigned = (value, suffix = '') => {
+    const number = Number(value || 0)
+    const sign = number > 0 ? '+' : ''
+    return `${sign}${number.toFixed(suffix === ' pp' ? 1 : 0)}${suffix}`
+  }
+
+  const formatPercentDelta = (value) => {
+    if (!Number.isFinite(value)) return 'Sin base comparable'
+    const sign = value > 0 ? '+' : ''
+    return `${sign}${value.toFixed(1)}%`
+  }
+
+  const leaderExportValue = (metric) => {
+    if (!metric) return '—'
+    return `${metric.label} (${Number(metric.currentShare || 0).toFixed(1)}%)`
+  }
+
+  const previousLeaderExportValue = (metric) => {
+    if (!metric) return '—'
+    if (metric.noPreviousData) return 'Sin datos'
+    return `${metric.previousLabel} (${Number(metric.previousLeaderShare || 0).toFixed(1)}%)`
+  }
+
+  const addComparisonSheet = (wb) => {
+    const ws = wb.addWorksheet('Comparación')
+    ws.columns = [
+      { header: 'Métrica', key: 'metric', width: 28 },
+      { header: 'Actual', key: 'current', width: 34 },
+      { header: 'Comparado', key: 'previous', width: 34 },
+      { header: 'Variación', key: 'delta', width: 22 },
+      { header: 'Detalle', key: 'detail', width: 48 }
+    ]
+
+    const noComparison = filtersApplied.comparisonMode === COMPARISON_MODES.NONE || !comparisonRange
+    ws.addRows([
+      {
+        metric: 'Modo',
+        current: comparisonModeLabel(filtersApplied.comparisonMode),
+        previous: noComparison ? 'No aplica' : comparisonModeLabel(filtersApplied.comparisonMode),
+        delta: '',
+        detail: noComparison ? 'Exportación sin comparación activa.' : ''
+      },
+      {
+        metric: 'Rango',
+        current: formatRangeLabel(filtersApplied.range),
+        previous: noComparison ? 'No aplica' : formatRangeLabel(comparisonRange),
+        delta: '',
+        detail: ''
+      }
+    ])
+
+    if (!comparison) return
+
+    ws.addRow({
+      metric: 'Pedidos analizados',
+      current: comparison.total.current,
+      previous: comparison.total.noPreviousData ? 'Sin datos' : comparison.total.previous,
+      delta: comparison.total.noPreviousData
+        ? 'Sin base comparable'
+        : `${formatSigned(comparison.total.delta)} (${formatPercentDelta(comparison.total.percent)})`,
+      detail: comparison.total.noPreviousData ? 'El período comparado no tiene pedidos.' : ''
+    })
+
+    const leaderRows = [
+      ['Menú principal', comparison.leaders.menu],
+      ['Bife principal', comparison.leaders.bife],
+      ['Guarnición principal', comparison.leaders.side],
+      ['Bebida principal', comparison.leaders.beverage]
+    ]
+    leaderRows.forEach(([label, metric]) => {
+      ws.addRow({
+        metric: label,
+        current: leaderExportValue(metric),
+        previous: previousLeaderExportValue(metric),
+        delta: metric?.noPreviousData ? 'Sin base comparable' : formatSigned(metric?.ppDelta || 0, ' pp'),
+        detail: metric?.leaderChanged ? `Antes lideraba ${metric.previousLabel}` : ''
+      })
+    })
+  }
 
   const handleExport = async () => {
     const wb = new ExcelJS.Workbook()
@@ -146,6 +250,7 @@ const TendenciasPage = () => {
     if (type === 'all' || type === 'options') addRankingSheet('Opciones', optionRanking.items)
     if (type === 'all' || type === 'sides') addRankingSheet('Guarniciones', sidesRanking.items)
     if (type === 'all' || type === 'beverages') addRankingSheet('Bebidas', beveragesRanking.items)
+    addComparisonSheet(wb)
 
     const buffer = await wb.xlsx.writeBuffer()
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
@@ -166,6 +271,16 @@ const TendenciasPage = () => {
   const insights = useMemo(() => {
     if (loading) return []
     const items = []
+    const signedPercent = (value) => {
+      if (!Number.isFinite(value)) return null
+      const sign = value > 0 ? '+' : ''
+      return `${sign}${value.toFixed(1)}%`
+    }
+    const signedPp = (value) => {
+      const number = Number(value || 0)
+      const sign = number > 0 ? '+' : ''
+      return `${sign}${number.toFixed(1)} pp`
+    }
     const topMain = mainMenuRanking.items[0]
     if (topMain?.label) {
       const label = topMain.label
@@ -185,8 +300,24 @@ const TendenciasPage = () => {
     if (topSideItem?.label) {
       items.push(`${topSideItem.label} es la guarnición más elegida`)
     }
-    return items.slice(0, 4)
-  }, [loading, mainMenuRanking.items, beveragesRanking.items, sidesRanking.items])
+    if (comparison) {
+      if (comparison.total.noPreviousData) {
+        items.push('El período comparado no tiene datos para contrastar.')
+      } else {
+        const totalPct = signedPercent(comparison.total.percent)
+        items.push(`Pedidos analizados: ${comparison.total.delta >= 0 ? '+' : ''}${comparison.total.delta}${totalPct ? ` (${totalPct})` : ''} vs. período comparado.`)
+        const changedLeader = Object.values(comparison.leaders || {}).find((metric) => metric?.leaderChanged)
+        if (changedLeader) {
+          items.push(`${changedLeader.label} lidera ahora; antes lideraba ${changedLeader.previousLabel}.`)
+        }
+        const beverageDelta = comparison.leaders?.beverage
+        if (beverageDelta?.label && beverageDelta.label !== '—') {
+          items.push(`${beverageDelta.label} cambió ${signedPp(beverageDelta.ppDelta)} en bebidas.`)
+        }
+      }
+    }
+    return items.slice(0, 6)
+  }, [loading, mainMenuRanking.items, beveragesRanking.items, sidesRanking.items, comparison])
 
   const buildRankingRows = (items, limit = 5) => (items || [])
     .slice(0, limit)
@@ -220,6 +351,8 @@ const TendenciasPage = () => {
           onDateToChange={(value) => setFiltersDraft(prev => ({ ...prev, range: { ...prev.range, end: value } }))}
           analysisType={filtersDraft.analysisType}
           onAnalysisTypeChange={(value) => setFiltersDraft(prev => ({ ...prev, analysisType: value }))}
+          comparisonMode={filtersDraft.comparisonMode}
+          onComparisonModeChange={(value) => setFiltersDraft(prev => ({ ...prev, comparisonMode: value }))}
           chartType={chartType}
           onChartTypeChange={handleChartTypeChange}
           onApply={handleApply}
@@ -257,6 +390,7 @@ const TendenciasPage = () => {
           topBife={loading ? '—' : topBife}
           topSide={loading ? '—' : topSide}
           topBeverage={loading ? '—' : topBeverage}
+          comparison={loading ? null : comparison}
         />
 
         {error && (

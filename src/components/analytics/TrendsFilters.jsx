@@ -1,4 +1,5 @@
 import { Calendar, Filter } from 'lucide-react'
+import { COMPARISON_MODES } from '../../utils/analytics/trendsHelpers'
 
 const TrendsFilters = ({
   companies = [],
@@ -10,6 +11,8 @@ const TrendsFilters = ({
   onDateToChange,
   analysisType,
   onAnalysisTypeChange,
+  comparisonMode,
+  onComparisonModeChange,
   chartType,
   onChartTypeChange,
   onApply,
@@ -51,7 +54,7 @@ const TrendsFilters = ({
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-5">
           <div>
             <label className="text-xs font-semibold text-slate-600">Empresa</label>
             <select
@@ -104,6 +107,19 @@ const TrendsFilters = ({
               <option value="options">Opciones</option>
               <option value="sides">Guarniciones</option>
               <option value="beverages">Bebidas</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-600">Comparar con</label>
+            <select
+              value={comparisonMode}
+              onChange={(e) => onComparisonModeChange(e.target.value)}
+              className="mt-1 w-full border border-slate-300 rounded-md px-2.5 py-2 text-sm bg-white"
+            >
+              <option value={COMPARISON_MODES.NONE}>Sin comparación</option>
+              <option value={COMPARISON_MODES.PREVIOUS_PERIOD}>Período anterior</option>
+              <option value={COMPARISON_MODES.PREVIOUS_YEAR}>Mismo período del año anterior</option>
             </select>
           </div>
         </div>

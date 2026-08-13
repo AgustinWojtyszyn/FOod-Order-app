@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { filterOrdersByCompany } from '../../utils/daily/dailyOrderCalculations'
 import {
-  buildBifeCounts,
-  buildMenuCounts,
-  buildRanking,
-  buildSideBucketsFromOrders,
+  buildComparisonMetrics,
+  buildTrendsSnapshot,
+  COMPARISON_MODES,
   fetchOrdersByRange
 } from '../../utils/analytics/trendsHelpers'
 
-export const useTrendsData = ({ company, dateRange }) => {
+export const useTrendsData = ({ company, dateRange, comparisonMode = COMPARISON_MODES.NONE, comparisonRange = null }) => {
   const [orders, setOrders] = useState([])
+  const [comparisonOrders, setComparisonOrders] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const fetchId = useRef(0)
+  const hasComparison = comparisonMode !== COMPARISON_MODES.NONE && comparisonRange?.start && comparisonRange?.end
 
   useEffect(() => {
     let mounted = true
@@ -25,11 +26,19 @@ export const useTrendsData = ({ company, dateRange }) => {
           start: dateRange?.start || '',
           end: dateRange?.end || ''
         })
+        const comparisonData = hasComparison
+          ? await fetchOrdersByRange({
+              start: comparisonRange.start,
+              end: comparisonRange.end
+            })
+          : []
         if (!mounted || currentId !== fetchId.current) return
         setOrders(data || [])
+        setComparisonOrders(comparisonData || [])
       } catch (err) {
         if (!mounted || currentId !== fetchId.current) return
         setError(err)
+        setComparisonOrders([])
       } finally {
         if (mounted && currentId === fetchId.current) {
           setLoading(false)
@@ -41,7 +50,7 @@ export const useTrendsData = ({ company, dateRange }) => {
     return () => {
       mounted = false
     }
-  }, [dateRange?.start, dateRange?.end])
+  }, [comparisonRange?.end, comparisonRange?.start, dateRange?.end, dateRange?.start, hasComparison])
 
   const filteredOrders = useMemo(() => {
     let list = orders || []
@@ -51,41 +60,40 @@ export const useTrendsData = ({ company, dateRange }) => {
     return list
   }, [orders, company])
 
-  const menuRanking = useMemo(() => buildRanking(buildMenuCounts(filteredOrders)), [filteredOrders])
-  const bifeRanking = useMemo(() => buildRanking(buildBifeCounts(filteredOrders)), [filteredOrders])
+  const filteredComparisonOrders = useMemo(() => {
+    let list = comparisonOrders || []
+    if (company && company !== 'all') {
+      list = filterOrdersByCompany(list, company)
+    }
+    return list
+  }, [comparisonOrders, company])
 
-  const sideBuckets = useMemo(() => buildSideBucketsFromOrders(filteredOrders), [filteredOrders])
-  const sidesRanking = useMemo(() => buildRanking(sideBuckets.tiposGuarniciones), [sideBuckets])
-  const beveragesRanking = useMemo(() => buildRanking(sideBuckets.tiposBebidas), [sideBuckets])
-
-  const topMenu = menuRanking.items[0]?.label || '—'
-  const topBife = bifeRanking.items[0]?.label || '—'
-  const topSide = sidesRanking.items[0]?.label || '—'
-  const topBeverage = beveragesRanking.items[0]?.label || '—'
-
-  const optionRanking = useMemo(() => {
-    const optionItems = menuRanking.items.filter(item => /^Opción\s+\d+/i.test(item.label))
-    return { items: optionItems }
-  }, [menuRanking.items])
-
-  const mainMenuRanking = useMemo(() => {
-    const mainItems = menuRanking.items.filter(item => !/^Opción\s+\d+/i.test(item.label))
-    return { items: mainItems }
-  }, [menuRanking.items])
+  const snapshot = useMemo(() => buildTrendsSnapshot(filteredOrders), [filteredOrders])
+  const comparisonSnapshot = useMemo(
+    () => (hasComparison ? buildTrendsSnapshot(filteredComparisonOrders) : null),
+    [filteredComparisonOrders, hasComparison]
+  )
+  const comparison = useMemo(
+    () => buildComparisonMetrics(snapshot, comparisonSnapshot),
+    [comparisonSnapshot, snapshot]
+  )
 
   return {
     loading,
     error,
-    totalOrders: filteredOrders.length,
-    menuRanking,
-    optionRanking,
-    mainMenuRanking,
-    bifeRanking,
-    sidesRanking,
-    beveragesRanking,
-    topMenu,
-    topBife,
-    topSide,
-    topBeverage
+    totalOrders: snapshot.totalOrders,
+    menuRanking: snapshot.menuRanking,
+    optionRanking: snapshot.optionRanking,
+    mainMenuRanking: snapshot.mainMenuRanking,
+    bifeRanking: snapshot.bifeRanking,
+    sidesRanking: snapshot.sidesRanking,
+    beveragesRanking: snapshot.beveragesRanking,
+    topMenu: snapshot.topMenu,
+    topBife: snapshot.topBife,
+    topSide: snapshot.topSide,
+    topBeverage: snapshot.topBeverage,
+    comparison,
+    comparisonSnapshot,
+    comparisonOrdersCount: filteredComparisonOrders.length
   }
 }

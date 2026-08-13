@@ -11,6 +11,76 @@ import {
 } from '../order/orderOperationalTotals'
 
 const PAGE_SIZE = 1000
+export const COMPARISON_MODES = {
+  NONE: 'none',
+  PREVIOUS_PERIOD: 'previous_period',
+  PREVIOUS_YEAR: 'previous_year'
+}
+
+const parseISODateParts = (value = '') => {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return null
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3])
+  }
+}
+
+const toISODate = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return ''
+  return date.toISOString().slice(0, 10)
+}
+
+const dateFromParts = ({ year, month, day }) => new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+
+const addDays = (value, days) => {
+  const parts = parseISODateParts(value)
+  if (!parts) return ''
+  const date = dateFromParts(parts)
+  date.setUTCDate(date.getUTCDate() + days)
+  return toISODate(date)
+}
+
+const inclusiveDayCount = (start, end) => {
+  const startParts = parseISODateParts(start)
+  const endParts = parseISODateParts(end)
+  if (!startParts || !endParts) return 0
+  const startMs = dateFromParts(startParts).getTime()
+  const endMs = dateFromParts(endParts).getTime()
+  if (endMs < startMs) return 0
+  return Math.floor((endMs - startMs) / 86400000) + 1
+}
+
+const daysInMonth = (year, month) => new Date(Date.UTC(year, month, 0, 12, 0, 0)).getUTCDate()
+
+const shiftOneYearBack = (value) => {
+  const parts = parseISODateParts(value)
+  if (!parts) return ''
+  const year = parts.year - 1
+  const day = Math.min(parts.day, daysInMonth(year, parts.month))
+  return toISODate(dateFromParts({ year, month: parts.month, day }))
+}
+
+export const getComparisonRange = ({ start = '', end = '' } = {}, mode = COMPARISON_MODES.NONE) => {
+  if (!start || !end || start > end || mode === COMPARISON_MODES.NONE) return null
+
+  if (mode === COMPARISON_MODES.PREVIOUS_PERIOD) {
+    const days = inclusiveDayCount(start, end)
+    if (days <= 0) return null
+    const previousEnd = addDays(start, -1)
+    const previousStart = addDays(previousEnd, -(days - 1))
+    return previousStart && previousEnd ? { start: previousStart, end: previousEnd } : null
+  }
+
+  if (mode === COMPARISON_MODES.PREVIOUS_YEAR) {
+    const previousStart = shiftOneYearBack(start)
+    const previousEnd = shiftOneYearBack(end)
+    return previousStart && previousEnd ? { start: previousStart, end: previousEnd } : null
+  }
+
+  return null
+}
 
 export const fetchOrdersByRange = async ({ start, end }) => {
   let from = 0
@@ -214,4 +284,83 @@ export const buildRanking = (counts = {}) => {
     percent: total ? (Number(count || 0) / total) * 100 : 0
   }))
   return { items, total }
+}
+
+export const buildTrendsSnapshot = (orders = []) => {
+  const menuRanking = buildRanking(buildMenuCounts(orders))
+  const bifeRanking = buildRanking(buildBifeCounts(orders))
+  const sideBuckets = buildSideBucketsFromOrders(orders)
+  const sidesRanking = buildRanking(sideBuckets.tiposGuarniciones)
+  const beveragesRanking = buildRanking(sideBuckets.tiposBebidas)
+  const optionRanking = {
+    items: menuRanking.items.filter(item => /^Opción\s+\d+/i.test(item.label))
+  }
+  const mainMenuRanking = {
+    items: menuRanking.items.filter(item => !/^Opción\s+\d+/i.test(item.label))
+  }
+
+  return {
+    totalOrders: orders.length,
+    menuRanking,
+    optionRanking,
+    mainMenuRanking,
+    bifeRanking,
+    sidesRanking,
+    beveragesRanking,
+    topMenu: menuRanking.items[0]?.label || '—',
+    topBife: bifeRanking.items[0]?.label || '—',
+    topSide: sidesRanking.items[0]?.label || '—',
+    topBeverage: beveragesRanking.items[0]?.label || '—'
+  }
+}
+
+const getLeader = (ranking = {}) => ranking?.items?.[0] || null
+
+const getParticipationForLabel = (ranking = {}, label = '') => {
+  if (!label || label === '—') return 0
+  const item = (ranking.items || []).find((entry) => entry.label === label)
+  return Number(item?.percent || 0)
+}
+
+export const buildComparisonMetrics = (current = {}, previous = null) => {
+  if (!previous) return null
+  const previousTotal = Number(previous.totalOrders || 0)
+  const currentTotal = Number(current.totalOrders || 0)
+  const totalDelta = currentTotal - previousTotal
+  const totalPercent = previousTotal > 0 ? (totalDelta / previousTotal) * 100 : null
+
+  const leaderMetric = (key, currentRanking, previousRanking) => {
+    const currentLeader = getLeader(currentRanking)
+    const previousLeader = getLeader(previousRanking)
+    const currentLabel = currentLeader?.label || '—'
+    const previousLabel = previousLeader?.label || '—'
+    const previousShareForCurrentLeader = getParticipationForLabel(previousRanking, currentLabel)
+    return {
+      key,
+      label: currentLabel,
+      previousLabel,
+      currentShare: Number(currentLeader?.percent || 0),
+      previousLeaderShare: Number(previousLeader?.percent || 0),
+      previousShare: previousShareForCurrentLeader,
+      ppDelta: Number(currentLeader?.percent || 0) - previousShareForCurrentLeader,
+      leaderChanged: previousTotal > 0 && currentLabel !== previousLabel && currentLabel !== '—' && previousLabel !== '—',
+      noPreviousData: previousTotal === 0
+    }
+  }
+
+  return {
+    total: {
+      current: currentTotal,
+      previous: previousTotal,
+      delta: totalDelta,
+      percent: totalPercent,
+      noPreviousData: previousTotal === 0
+    },
+    leaders: {
+      menu: leaderMetric('menu', current.mainMenuRanking, previous.mainMenuRanking),
+      bife: leaderMetric('bife', current.bifeRanking, previous.bifeRanking),
+      side: leaderMetric('side', current.sidesRanking, previous.sidesRanking),
+      beverage: leaderMetric('beverage', current.beveragesRanking, previous.beveragesRanking)
+    }
+  }
 }
