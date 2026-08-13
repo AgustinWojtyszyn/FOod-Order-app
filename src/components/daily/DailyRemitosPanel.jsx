@@ -83,6 +83,9 @@ const buildLocationOptions = (orders = []) => {
   return [...locations].sort((a, b) => a.localeCompare(b))
 }
 
+const getOrderLocationKey = (order = {}) =>
+  normalizeText(order?.location || order?.delivery_location || '')
+
 const filterOrdersForRemitos = ({ orders = [], companySlug = 'all', location = 'all' } = {}) => {
   const companyFiltered = filterOrdersByCompany(orders, companySlug)
   return companyFiltered.filter((order) => {
@@ -101,6 +104,33 @@ const buildRequestId = ({ group, deliveryDate, locationKey }) =>
     locationKey || 'all',
     getOrderIds(group?.orders || []).sort().join(',')
   ].join(':')
+
+const buildFreshGroupForRemito = ({
+  orders = [],
+  existing = {},
+  fallbackGroup = {},
+  deliveryDate = ''
+} = {}) => {
+  const targetSlug = existing.company_slug || existing.companySlug || fallbackGroup.slug || ''
+  const targetDate = String(existing.delivery_date || existing.deliveryDate || deliveryDate || '').slice(0, 10)
+  const targetLocationKey = String(existing.location_key ?? fallbackGroup.locationKey ?? '').trim()
+  const freshOrders = (Array.isArray(orders) ? orders : []).filter((order) => {
+    const status = String(order?.status || '').toLowerCase()
+    if (!['pending', 'archived'].includes(status)) return false
+    if (targetDate && String(order?.delivery_date || '').slice(0, 10) !== targetDate) return false
+    if (targetLocationKey && getOrderLocationKey(order) !== targetLocationKey) return false
+    return true
+  })
+  const freshGroup = buildCompanyGroups(freshOrders).find((candidate) => candidate.slug === targetSlug)
+  if (freshGroup) return freshGroup
+
+  return {
+    slug: targetSlug || fallbackGroup.slug || '',
+    name: existing.company_name || existing.companyName || fallbackGroup.name || targetSlug || 'Empresa',
+    displayName: existing.company_name || existing.companyName || fallbackGroup.displayName || fallbackGroup.name || targetSlug || 'Empresa',
+    orders: []
+  }
+}
 
 const DailyRemitosPanel = ({
   orders,
@@ -177,8 +207,8 @@ const DailyRemitosPanel = ({
 
   const downloadIssued = async (remito, group = null) => {
     const snapshot = remito.snapshot && typeof remito.snapshot === 'object' ? remito.snapshot : {}
-    const hasSnapshotProducts = Array.isArray(snapshot.products) && snapshot.products.length > 0
-    const legacySnapshot = !hasSnapshotProducts && group
+    const hasSnapshot = Array.isArray(snapshot.products) || Array.isArray(snapshot.orderIds)
+    const legacySnapshot = !hasSnapshot && group
       ? buildRemitoSnapshot({
         group,
         remitoNumber: remito.remito_number,
@@ -190,7 +220,7 @@ const DailyRemitosPanel = ({
       : snapshot
     const printable = remitoFromSnapshot(legacySnapshot, remito)
     await downloadRemitoWorkbook([printable], printable.deliveryDate || deliveryDate)
-    notifySuccess(hasSnapshotProducts
+    notifySuccess(hasSnapshot
       ? 'Remito descargado desde snapshot emitido.'
       : 'Remito histórico descargado reconstruyendo el detalle desde los pedidos de esa fecha.')
   }
@@ -235,32 +265,6 @@ const DailyRemitosPanel = ({
     const key = `${group.slug}:${locationKey || 'all'}`
     if (manageBusy && busyKey) return false
 
-    const orderIds = getOrderIds(group.orders)
-    const liveDraft = buildRemitoSnapshot({
-      group,
-      remitoNumber: existing.remito_number,
-      deliveryDate: existing.delivery_date || deliveryDate,
-      issuedAt: existing.issued_at || null,
-      issuedBy: existing?.snapshot?.issuedBy || {
-        id: existing?.issued_by || null,
-        email: existing?.issued_by_email || null,
-        name: existing?.issued_by_name || null
-      },
-      status: existing.status || 'issued'
-    })
-    const currentSnapshot = existing?.snapshot && typeof existing.snapshot === 'object' ? existing.snapshot : {}
-    const sameOrders = arraysMatchAsSet(currentSnapshot.orderIds || existing.order_ids || [], orderIds)
-    const sameTotals =
-      getSnapshotOrderCount(currentSnapshot, existing) === liveDraft.ordersCount &&
-      getSnapshotMenuTotal(currentSnapshot) === liveDraft.totalMenus &&
-      Number(currentSnapshot.totalBeverages ?? 0) === Number(liveDraft.totalBeverages ?? 0) &&
-      Number(currentSnapshot.totalDesserts ?? 0) === Number(liveDraft.totalDesserts ?? 0)
-
-    if (sameOrders && sameTotals) {
-      if (!silent) notifyInfo('El remito ya coincide con los pedidos vigentes de la jornada.')
-      return false
-    }
-
     if (!silent) {
       const confirmed = await confirmAction({
         title: `Actualizar remito N.º ${existing.remito_number}`,
@@ -272,6 +276,43 @@ const DailyRemitosPanel = ({
 
     if (manageBusy) setBusyKey(key)
     try {
+      const refreshedOrders = await onRefresh?.()
+      if (!Array.isArray(refreshedOrders)) {
+        notifyError('No pudimos obtener los pedidos vigentes para actualizar el remito. Intentá nuevamente.')
+        return false
+      }
+      const freshGroup = buildFreshGroupForRemito({
+        orders: refreshedOrders,
+        existing,
+        fallbackGroup: group,
+        deliveryDate
+      })
+      const orderIds = getOrderIds(freshGroup.orders)
+      const liveDraft = buildRemitoSnapshot({
+        group: freshGroup,
+        remitoNumber: existing.remito_number,
+        deliveryDate: existing.delivery_date || deliveryDate,
+        issuedAt: existing.issued_at || null,
+        issuedBy: existing?.snapshot?.issuedBy || {
+          id: existing?.issued_by || null,
+          email: existing?.issued_by_email || null,
+          name: existing?.issued_by_name || null
+        },
+        status: existing.status || 'issued'
+      })
+      const currentSnapshot = existing?.snapshot && typeof existing.snapshot === 'object' ? existing.snapshot : {}
+      const sameOrders = arraysMatchAsSet(currentSnapshot.orderIds || existing.order_ids || [], orderIds)
+      const sameTotals =
+        getSnapshotOrderCount(currentSnapshot, existing) === liveDraft.ordersCount &&
+        getSnapshotMenuTotal(currentSnapshot) === liveDraft.totalMenus &&
+        Number(currentSnapshot.totalBeverages ?? 0) === Number(liveDraft.totalBeverages ?? 0) &&
+        Number(currentSnapshot.totalDesserts ?? 0) === Number(liveDraft.totalDesserts ?? 0)
+
+      if (sameOrders && sameTotals) {
+        if (!silent) notifyInfo('El remito ya coincide con los pedidos vigentes de la jornada.')
+        return false
+      }
+
       const { data, error } = await db.refreshCompanyRemitoSnapshot({
         remitoId: existing.remito_id,
         orderIds,
