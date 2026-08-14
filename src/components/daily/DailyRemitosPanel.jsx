@@ -27,27 +27,36 @@ const normalizeText = (value = '') =>
 
 const REMITO_PANEL_DEBUG_PREFIX = '[ServiFood remitos panel]'
 
+const getSafeRemito = (remito) =>
+  remito && typeof remito === 'object' ? remito : {}
+
 const getRemitoStatus = (remito = {}) => {
-  const status = String(remito.status || '').toLowerCase()
+  const safeRemito = getSafeRemito(remito)
+  const status = String(safeRemito.status || '').toLowerCase()
   if (status === 'cancelled') return { label: 'ANULADO', tone: 'bg-red-50 text-red-700 border-red-200' }
-  if (remito.remito_number || status === 'issued') return { label: 'EMITIDO', tone: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+  if (safeRemito.remito_number || status === 'issued') return { label: 'EMITIDO', tone: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
   return { label: 'SIN EMITIR', tone: 'bg-amber-50 text-amber-700 border-amber-200' }
 }
 
-const getIssuerLabel = (remito = {}) =>
-  remito.issued_by_name || remito.issued_by_email || remito.issued_by || '-'
+const getIssuerLabel = (remito = {}) => {
+  const safeRemito = getSafeRemito(remito)
+  return safeRemito.issued_by_name || safeRemito.issued_by_email || safeRemito.issued_by || '-'
+}
 
 const getUpdaterLabel = (remito = {}) => {
-  const snapshotUpdater = remito?.snapshot?.updatedBy || remito?.snapshot?.refreshedBy || {}
-  return remito.updated_by_name ||
-    remito.updated_by_email ||
+  const safeRemito = getSafeRemito(remito)
+  const snapshotUpdater = safeRemito?.snapshot?.updatedBy || safeRemito?.snapshot?.refreshedBy || {}
+  return safeRemito.updated_by_name ||
+    safeRemito.updated_by_email ||
     snapshotUpdater.name ||
     snapshotUpdater.email ||
     ''
 }
 
-const getUpdatedAt = (remito = {}) =>
-  remito.updated_at || remito?.snapshot?.updatedAt || remito?.snapshot?.refreshedAt || ''
+const getUpdatedAt = (remito = {}) => {
+  const safeRemito = getSafeRemito(remito)
+  return safeRemito.updated_at || safeRemito?.snapshot?.updatedAt || safeRemito?.snapshot?.refreshedAt || ''
+}
 
 const formatDateTime = (value) => {
   if (!value) return '-'
@@ -110,15 +119,20 @@ const buildRequestId = ({ group, deliveryDate, locationKey }) =>
 const getRemitoIdentityKey = ({ deliveryDate = '', companySlug = '', locationKey = '' } = {}) =>
   [deliveryDate, companySlug, locationKey || ''].join(':')
 
-const getRemitoCompanySlug = (remito = {}) =>
-  remito.company_slug || remito.companySlug || ''
+const getRemitoCompanySlug = (remito = {}) => {
+  const safeRemito = getSafeRemito(remito)
+  return safeRemito.company_slug || safeRemito.companySlug || ''
+}
 
-const getRemitoLocationKey = (remito = {}) =>
-  String(remito.location_key ?? remito.locationKey ?? '').trim()
+const getRemitoLocationKey = (remito = {}) => {
+  const safeRemito = getSafeRemito(remito)
+  return String(safeRemito.location_key ?? safeRemito.locationKey ?? '').trim()
+}
 
 const buildSyntheticGroupFromRemito = (remito = {}) => {
-  const companySlug = getRemitoCompanySlug(remito)
-  const companyName = remito.company_name || remito.companyName || companySlug || 'Empresa'
+  const safeRemito = getSafeRemito(remito)
+  const companySlug = getRemitoCompanySlug(safeRemito)
+  const companyName = safeRemito.company_name || safeRemito.companyName || companySlug || 'Empresa'
   return {
     slug: companySlug,
     name: companyName,
@@ -134,9 +148,10 @@ const buildFreshGroupForRemito = ({
   fallbackGroup = {},
   deliveryDate = ''
 } = {}) => {
-  const targetSlug = existing.company_slug || existing.companySlug || fallbackGroup.slug || ''
-  const targetDate = String(existing.delivery_date || existing.deliveryDate || deliveryDate || '').slice(0, 10)
-  const targetLocationKey = String(existing.location_key ?? fallbackGroup.locationKey ?? '').trim()
+  const safeExisting = getSafeRemito(existing)
+  const targetSlug = safeExisting.company_slug || safeExisting.companySlug || fallbackGroup.slug || ''
+  const targetDate = String(safeExisting.delivery_date || safeExisting.deliveryDate || deliveryDate || '').slice(0, 10)
+  const targetLocationKey = String(safeExisting.location_key ?? fallbackGroup.locationKey ?? '').trim()
   const freshOrders = (Array.isArray(orders) ? orders : []).filter((order) => {
     const status = String(order?.status || '').toLowerCase()
     if (!['pending', 'archived'].includes(status)) return false
@@ -149,8 +164,8 @@ const buildFreshGroupForRemito = ({
 
   return {
     slug: targetSlug || fallbackGroup.slug || '',
-    name: existing.company_name || existing.companyName || fallbackGroup.name || targetSlug || 'Empresa',
-    displayName: existing.company_name || existing.companyName || fallbackGroup.displayName || fallbackGroup.name || targetSlug || 'Empresa',
+    name: safeExisting.company_name || safeExisting.companyName || fallbackGroup.name || targetSlug || 'Empresa',
+    displayName: safeExisting.company_name || safeExisting.companyName || fallbackGroup.displayName || fallbackGroup.name || targetSlug || 'Empresa',
     orders: []
   }
 }
@@ -181,7 +196,7 @@ const DailyRemitosPanel = ({
   const groups = useMemo(() => buildCompanyGroups(filteredOrders), [filteredOrders])
   const remitosByCompany = useMemo(() => {
     const map = new Map()
-    remitos.forEach((remito) => {
+    remitos.filter(Boolean).forEach((remito) => {
       const key = getRemitoIdentityKey({
         deliveryDate: String(remito.delivery_date || remito.deliveryDate || deliveryDate || '').slice(0, 10),
         companySlug: getRemitoCompanySlug(remito),
@@ -211,7 +226,7 @@ const DailyRemitosPanel = ({
       seenKeys.add(key)
     })
 
-    remitos.forEach((remito) => {
+    remitos.filter(Boolean).forEach((remito) => {
       const companySlug = getRemitoCompanySlug(remito)
       const remitoDate = String(remito.delivery_date || remito.deliveryDate || deliveryDate || '').slice(0, 10)
       const rowLocationKey = getRemitoLocationKey(remito)
@@ -248,7 +263,7 @@ const DailyRemitosPanel = ({
         setRemitos([])
         return []
       }
-      const rows = Array.isArray(data) ? data : []
+      const rows = Array.isArray(data) ? data.filter(Boolean) : []
       setRemitos(rows)
       return rows
     } finally {
@@ -453,7 +468,7 @@ const DailyRemitosPanel = ({
             Empresa
             <select value={exportCompany} onChange={(event) => onExportCompanyChange(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">
               <option value="all">Todas</option>
-              {companyOptions.map((company) => (
+              {(Array.isArray(companyOptions) ? companyOptions : []).filter(Boolean).map((company) => (
                 <option key={company.value} value={company.value}>{company.label}</option>
               ))}
             </select>
