@@ -409,6 +409,19 @@ const DailyRemitosPanel = ({
         ].join(':')
       })
       if (error) {
+        if (import.meta.env.DEV) {
+          console.error('[refreshCompanyRemitoSnapshot] failed', {
+            message: error?.message,
+            code: error?.code,
+            details: error?.details,
+            hint: error?.hint,
+            error,
+            remitoId: existing?.remito_id,
+            remitoNumber: existing?.remito_number,
+            orderIds,
+            snapshot: liveDraft
+          })
+        }
         notifyError(getUserFriendlyErrorMessage(error, `No pudimos actualizar el remito N° ${existing.remito_number}.`))
         return false
       }
