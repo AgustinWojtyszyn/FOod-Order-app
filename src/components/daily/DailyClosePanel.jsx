@@ -61,14 +61,15 @@ const getArchiveLabel = (pendingCount = 0) => {
 const getInconsistencyLabel = (inconsistencyCount = 0) => `Inconsistencias: ${inconsistencyCount}`
 
 const getChecklistItemLabel = (item, status) => {
-  if (item.id === 'report') return getReportLabel(status.reportStatus)
-  if (item.id === 'archive') return getArchiveLabel(status.pendingCount)
-  if (item.id === 'inconsistencies') return getInconsistencyLabel(status.inconsistencyCount)
-  return item.label
+  if (item?.id === 'report') return getReportLabel(status.reportStatus)
+  if (item?.id === 'archive') return getArchiveLabel(status.pendingCount)
+  if (item?.id === 'inconsistencies') return getInconsistencyLabel(status.inconsistencyCount)
+  return item?.label || 'Control pendiente'
 }
 
 const ChecklistItem = ({ item, label }) => {
-  const styles = statusStyles[item.status] || statusStyles.warning
+  const safeItem = item && typeof item === 'object' ? item : {}
+  const styles = statusStyles[safeItem.status] || statusStyles.warning
   const Icon = styles.icon
 
   return (
@@ -76,24 +77,26 @@ const ChecklistItem = ({ item, label }) => {
       <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${styles.iconClassName}`} />
       <div className="min-w-0">
         <p className="text-sm font-bold">{label}</p>
-        <p className="text-xs font-semibold opacity-80">{item.detail}</p>
+        <p className="text-xs font-semibold opacity-80">{safeItem.detail || 'Sin detalle disponible'}</p>
       </div>
     </li>
   )
 }
 
 const DailyClosePanel = ({ status }) => {
+  const safeStatus = status && typeof status === 'object' ? status : {}
   const [expanded, setExpanded] = useState(false)
-  const overallStatus = status.overallStatus || { state: 'attention', label: 'Atención', tone: 'warning' }
+  const overallStatus = safeStatus.overallStatus || { state: 'attention', label: 'Atención', tone: 'warning' }
   const OverallIcon = overallIconByState[overallStatus.state] || AlertTriangle
-  const reportTone = status.reportStatus?.tone || 'warning'
-  const autoArchiveStatus = status.archiveStatus || null
-  const archiveTone = status.pendingCount > 0 ? 'warning' : 'success'
-  const inconsistencyTone = status.inconsistencyCount > 0 ? 'error' : 'success'
-  const hasContextWarning = status.isExportFiltered || status.totalOrders === 0
-  const reportLabel = getReportLabel(status.reportStatus)
-  const archiveLabel = getArchiveLabel(status.pendingCount)
-  const inconsistencyLabel = getInconsistencyLabel(status.inconsistencyCount)
+  const reportTone = safeStatus.reportStatus?.tone || 'warning'
+  const autoArchiveStatus = safeStatus.archiveStatus || null
+  const archiveTone = safeStatus.pendingCount > 0 ? 'warning' : 'success'
+  const inconsistencyTone = safeStatus.inconsistencyCount > 0 ? 'error' : 'success'
+  const hasContextWarning = safeStatus.isExportFiltered || safeStatus.totalOrders === 0
+  const reportLabel = getReportLabel(safeStatus.reportStatus)
+  const archiveLabel = getArchiveLabel(safeStatus.pendingCount)
+  const inconsistencyLabel = getInconsistencyLabel(safeStatus.inconsistencyCount)
+  const checklist = (Array.isArray(safeStatus.checklist) ? safeStatus.checklist : []).filter(Boolean)
 
   return (
     <section className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm print-hide">
@@ -107,7 +110,7 @@ const DailyClosePanel = ({ status }) => {
             <h2 className="text-sm font-black text-slate-900">Cierre diario operativo</h2>
             <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
               <Clock3 className="h-3.5 w-3.5" />
-              {status.lastUpdatedLabel}
+              {safeStatus.lastUpdatedLabel || 'Sin actualización'}
             </span>
           </div>
         </div>
@@ -147,25 +150,25 @@ const DailyClosePanel = ({ status }) => {
 
       {hasContextWarning && !expanded && (
         <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
-          {status.totalOrders === 0 && <span>Sin pedidos para esta fecha.</span>}
-          {status.isExportFiltered && <span>Exportación filtrada por {status.exportCompany}.</span>}
+          {safeStatus.totalOrders === 0 && <span>Sin pedidos para esta fecha.</span>}
+          {safeStatus.isExportFiltered && <span>Exportación filtrada por {safeStatus.exportCompany}.</span>}
         </div>
       )}
 
       {expanded && (
         <div className="mt-3 border-t border-slate-100 pt-3">
           <ul className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-            {(status.checklist || []).map(item => (
+            {checklist.map((item, index) => (
               <ChecklistItem
-                key={item.id}
+                key={item.id || `checklist-${index}`}
                 item={item}
-                label={getChecklistItemLabel(item, status)}
+                label={getChecklistItemLabel(item, safeStatus)}
               />
             ))}
           </ul>
-          {status.isExportFiltered && (
+          {safeStatus.isExportFiltered && (
             <p className="mt-2 text-xs font-semibold text-slate-600">
-              Las exportaciones manuales están filtradas por empresa: {status.exportCompany}.
+              Las exportaciones manuales están filtradas por empresa: {safeStatus.exportCompany}.
             </p>
           )}
         </div>

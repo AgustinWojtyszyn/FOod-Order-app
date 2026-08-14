@@ -10,13 +10,16 @@ const DailyOrdersTable = ({
   onArchiveOrder,
   onDeleteExtraOrder,
   onViewOrder
-}) => (
-  <div className="rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-200/50 print-hide">
+}) => {
+  const safeSortedOrders = (Array.isArray(sortedOrders) ? sortedOrders : []).filter(Boolean)
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-200/50 print-hide">
     <div className="border-b border-slate-200 px-6 py-4 sm:px-8 xl:px-9">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-xl font-black text-slate-900">
-            Pedidos del día ({sortedOrders.length})
+            Pedidos del día ({safeSortedOrders.length})
           </h3>
           <p className="text-sm font-semibold text-slate-600">
             Orden: {
@@ -30,7 +33,7 @@ const DailyOrdersTable = ({
       </div>
     </div>
 
-    {sortedOrders.length === 0 ? (
+    {safeSortedOrders.length === 0 ? (
       <div className="px-4 py-12 text-center sm:px-6 xl:px-7.5">
         <Package className="mx-auto h-12 w-12 text-gray-400" />
         <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
@@ -81,9 +84,9 @@ const DailyOrdersTable = ({
               </tr>
             </thead>
             <tbody>
-              {sortedOrders.map((order, index) => (
+              {safeSortedOrders.map((order, index) => (
                 <DailyOrderRow
-                  key={order.id}
+                  key={order.id || `order-${index}`}
                   order={order}
                   index={index}
                   onArchiveOrder={onArchiveOrder}
@@ -95,9 +98,9 @@ const DailyOrdersTable = ({
         </div>
 
         <div className="md:hidden px-4 pb-6 space-y-4">
-          {sortedOrders.map(order => (
+          {safeSortedOrders.map((order, index) => (
             <DailyOrderRow
-              key={order.id}
+              key={order.id || `order-card-${index}`}
               order={order}
               variant="card"
               onArchiveOrder={onArchiveOrder}
@@ -109,6 +112,7 @@ const DailyOrdersTable = ({
       </>
     )}
   </div>
-)
+  )
+}
 
 export default DailyOrdersTable

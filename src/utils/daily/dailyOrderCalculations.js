@@ -393,8 +393,8 @@ export const calculateStats = (ordersData = []) => {
   let archived = 0
   let pending = 0
 
-  Array.isArray(ordersData) && ordersData.forEach(order => {
-    const operational = summarizeOperationalOrder(order || {})
+  Array.isArray(ordersData) && ordersData.filter(Boolean).forEach(order => {
+    const operational = summarizeOperationalOrder(order)
     const units = getOperationalOrderUnits(order)
     const location = order.location || 'Sin ubicación'
     if (!byLocation[location]) {
@@ -423,7 +423,7 @@ export const calculateStats = (ordersData = []) => {
 
   return {
     total: Array.isArray(ordersData)
-      ? ordersData.reduce((sum, order) => sum + getOperationalOrderUnits(order), 0)
+      ? ordersData.filter(Boolean).reduce((sum, order) => sum + getOperationalOrderUnits(order), 0)
       : 0,
     byLocation,
     byDish,
