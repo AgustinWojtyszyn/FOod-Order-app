@@ -26,6 +26,8 @@ const normalizeText = (value = '') =>
     .replace(/^_+|_+$/g, '')
 
 const REMITO_PANEL_DEBUG_PREFIX = '[ServiFood remitos panel]'
+const REFRESH_VISIBLE_REMITOS_KEY = '__refresh_visible_remitos__'
+const REFRESH_ALL_REMITOS_KEY = '__refresh_all_remitos__'
 
 const getSafeRemito = (remito) =>
   remito && typeof remito === 'object' ? remito : {}
@@ -344,7 +346,7 @@ const DailyRemitosPanel = ({
     }
   }
 
-  const refreshIssuedSnapshot = async (group, existing, { silent = false, manageBusy = true } = {}) => {
+  const refreshIssuedSnapshot = async (group, existing, { silent = false, manageBusy = true, force = false } = {}) => {
     if (!existing?.remito_id) return false
     const rowLocationKey = group.locationKey ?? locationKey
     const key = `${group.slug}:${rowLocationKey || 'all'}`
@@ -363,7 +365,9 @@ const DailyRemitosPanel = ({
     try {
       const refreshedOrders = await onRefresh?.()
       if (!Array.isArray(refreshedOrders)) {
-        notifyError('No pudimos obtener los pedidos vigentes para actualizar el remito. Intentá nuevamente.')
+        if (!silent) {
+          notifyError('No pudimos obtener los pedidos vigentes para actualizar el remito. Intentá nuevamente.')
+        }
         return false
       }
       const freshGroup = buildFreshGroupForRemito({
@@ -393,7 +397,7 @@ const DailyRemitosPanel = ({
         Number(currentSnapshot.totalBeverages ?? 0) === Number(liveDraft.totalBeverages ?? 0) &&
         Number(currentSnapshot.totalDesserts ?? 0) === Number(liveDraft.totalDesserts ?? 0)
 
-      if (sameOrders && sameTotals) {
+      if (!force && sameOrders && sameTotals) {
         if (!silent) notifyInfo('El remito ya coincide con los pedidos vigentes de la jornada.')
         return false
       }
@@ -422,7 +426,9 @@ const DailyRemitosPanel = ({
             snapshot: liveDraft
           })
         }
-        notifyError(getUserFriendlyErrorMessage(error, `No pudimos actualizar el remito N° ${existing.remito_number}.`))
+        if (!silent) {
+          notifyError(getUserFriendlyErrorMessage(error, `No pudimos actualizar el remito N° ${existing.remito_number}.`))
+        }
         return false
       }
       if (data) {
@@ -444,8 +450,52 @@ const DailyRemitosPanel = ({
     }
   }
 
+  const refreshAllVisibleIssuedSnapshots = async () => {
+    if (busyKey) return
+
+    const issuedRows = remitoRows.filter(({ existing }) => (
+      existing?.remito_id && String(existing?.status || '').toLowerCase() === 'issued'
+    ))
+
+    if (issuedRows.length === 0) {
+      notifyInfo('No hay remitos emitidos visibles para actualizar.')
+      return
+    }
+
+    setBusyKey(REFRESH_ALL_REMITOS_KEY)
+    const updated = []
+    const failed = []
+
+    try {
+      for (const { group, existing } of issuedRows) {
+        const ok = await refreshIssuedSnapshot(group, existing, {
+          silent: true,
+          manageBusy: false,
+          force: true
+        })
+        const label = `N° ${existing.remito_number || existing.remito_id}`
+        if (ok) {
+          updated.push(label)
+        } else {
+          failed.push(label)
+        }
+      }
+
+      await loadRemitos()
+
+      if (failed.length > 0) {
+        notifyError(`Se actualizaron ${updated.length} remito(s). Fallaron: ${failed.join(', ')}.`)
+      } else {
+        notifySuccess(`Remitos actualizados correctamente: ${updated.length}.`)
+      }
+    } finally {
+      setBusyKey('')
+    }
+  }
+
   const refreshVisibleIssuedSnapshots = async () => {
-    const key = '__refresh_visible_remitos__'
+    const key = REFRESH_VISIBLE_REMITOS_KEY
+    if (busyKey) return
     setBusyKey(key)
     try {
       await onRefresh?.()
@@ -455,6 +505,10 @@ const DailyRemitosPanel = ({
       setBusyKey('')
     }
   }
+
+  const isPanelBusy = Boolean(busyKey)
+  const isRefreshingVisible = busyKey === REFRESH_VISIBLE_REMITOS_KEY
+  const isRefreshingAll = busyKey === REFRESH_ALL_REMITOS_KEY
 
   return (
     <section className="space-y-4 print-hide">
@@ -504,10 +558,16 @@ const DailyRemitosPanel = ({
             <h2 className="text-lg font-black text-slate-900">Remitos de la jornada</h2>
             <p className="text-xs font-semibold text-slate-500">{filteredOrders.length} pedidos considerados por delivery_date</p>
           </div>
-          <button type="button" disabled={busyKey === '__refresh_visible_remitos__'} onClick={refreshVisibleIssuedSnapshots} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-60">
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Recargar
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={isPanelBusy} onClick={refreshVisibleIssuedSnapshots} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-60">
+              <RotateCcw className="mr-2 h-4 w-4" />
+              {isRefreshingVisible ? 'Recargando...' : 'Recargar'}
+            </button>
+            <button type="button" disabled={isPanelBusy} onClick={refreshAllVisibleIssuedSnapshots} className="inline-flex items-center rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-bold text-orange-700 disabled:opacity-60">
+              <RotateCcw className="mr-2 h-4 w-4" />
+              {isRefreshingAll ? 'Actualizando...' : 'Actualizar todos'}
+            </button>
+          </div>
         </div>
 
         {loading && <p className="px-4 py-4 text-sm font-semibold text-slate-500">Cargando remitos...</p>}
@@ -542,15 +602,6 @@ const DailyRemitosPanel = ({
               }
               const snapshotOrderCount = existing ? getSnapshotOrderCount(snapshot || {}, existing) : group.orders.length
               const totalItems = existing ? getSnapshotMenuTotal(snapshot || {}) : liveSnapshot.totalItems
-              const snapshotOrderIds = snapshot?.orderIds || existing?.order_ids || []
-              const hasPendingChanges = existing &&
-                (
-                  snapshotOrderCount !== liveSnapshot.ordersCount ||
-                  totalItems !== liveSnapshot.totalMenus ||
-                  Number(snapshot?.totalBeverages ?? 0) !== Number(liveSnapshot.totalBeverages ?? 0) ||
-                  Number(snapshot?.totalDesserts ?? 0) !== Number(liveSnapshot.totalDesserts ?? 0) ||
-                  !arraysMatchAsSet(snapshotOrderIds, liveSnapshot.orderIds)
-                )
               const busy = busyKey === `${group.slug}:${rowLocationKey || 'all'}`
               const updatedAt = getUpdatedAt(existing)
               const updater = getUpdaterLabel(existing)
@@ -559,11 +610,6 @@ const DailyRemitosPanel = ({
                   <div className="min-w-0">
                     <p className="font-black text-slate-900">{group.displayName || group.name}</p>
                     <p className="text-xs font-semibold text-slate-500">{snapshotOrderCount} pedidos · {totalItems} viandas</p>
-                    {hasPendingChanges && (
-                      <p className="mt-1 text-xs font-bold text-orange-700">
-                        Hay cambios pendientes: {liveSnapshot.ordersCount} pedidos actuales · {totalItems} viandas en el remito
-                      </p>
-                    )}
                   </div>
                   <div className="text-sm font-semibold text-slate-700">
                     <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-black ${status.tone}`}>{status.label}</span>
@@ -583,11 +629,11 @@ const DailyRemitosPanel = ({
                   <div className="flex flex-wrap gap-2 lg:justify-end">
                     {!existing && (
                       <>
-                        <button type="button" onClick={() => previewGroup(group)} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">
+                        <button type="button" disabled={isPanelBusy} onClick={() => previewGroup(group)} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-60">
                           <Eye className="mr-2 h-4 w-4" />
                           Vista previa
                         </button>
-                        <button type="button" disabled={busy} onClick={() => issueGroup(group)} className="inline-flex items-center rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white disabled:opacity-60">
+                        <button type="button" disabled={isPanelBusy || busy} onClick={() => issueGroup(group)} className="inline-flex items-center rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white disabled:opacity-60">
                           <FileText className="mr-2 h-4 w-4" />
                           Emitir
                         </button>
@@ -595,15 +641,15 @@ const DailyRemitosPanel = ({
                     )}
                     {existing && (
                       <>
-                        <button type="button" disabled={busy} onClick={() => refreshIssuedSnapshot(group, existing)} className="inline-flex items-center rounded-lg border border-orange-200 px-3 py-2 text-sm font-bold text-orange-700 disabled:opacity-60">
+                        <button type="button" disabled={isPanelBusy || busy} onClick={() => refreshIssuedSnapshot(group, existing)} className="inline-flex items-center rounded-lg border border-orange-200 px-3 py-2 text-sm font-bold text-orange-700 disabled:opacity-60">
                           <RotateCcw className="mr-2 h-4 w-4" />
                           Actualizar
                         </button>
-                        <button type="button" onClick={() => downloadIssued(existing, group)} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">
+                        <button type="button" disabled={isPanelBusy} onClick={() => downloadIssued(existing, group)} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-60">
                           <Download className="mr-2 h-4 w-4" />
                           Descargar
                         </button>
-                        <button type="button" onClick={() => downloadIssued(existing, group)} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">
+                        <button type="button" disabled={isPanelBusy} onClick={() => downloadIssued(existing, group)} className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-60">
                           <Printer className="mr-2 h-4 w-4" />
                           Reimprimir
                         </button>
