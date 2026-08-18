@@ -129,6 +129,20 @@ as $$
     where i.location_key is not null
       and c.slug <> 'global'
   ),
+  explicit_location_alias_candidates as (
+    select distinct
+      c.slug,
+      c.name,
+      'location'::text as source,
+      45 as priority
+    from input_values i
+    join public.companies c
+      on c.slug = case i.location_key
+        when 'genneia_o_m' then 'genneia'
+        else null
+      end
+    where i.location_key is not null
+  ),
   candidates as (
     select * from profile_candidates
     union all
@@ -137,6 +151,8 @@ as $$
     select * from catalog_location_candidates
     union all
     select * from organization_candidates
+    union all
+    select * from explicit_location_alias_candidates
     union all
     select * from legacy_location_candidates
   ),
