@@ -63,8 +63,13 @@ const DailyOrderRow = ({
             </span>
           )}
           {isPostReportExtra && (
-            <span className="inline-flex rounded-full border border-fuchsia-300 bg-fuchsia-50 px-2.5 py-1 text-xs font-black text-fuchsia-900">
-              EXTRA POSTERIOR AL REPORTE
+            <span className="inline-flex flex-col items-start gap-0.5">
+              <span className="inline-flex rounded-full border border-fuchsia-300 bg-fuchsia-50 px-2.5 py-1 text-xs font-black text-fuchsia-900">
+                EXTRA POSTERIOR AL REPORTE
+              </span>
+              <span className="text-[11px] font-semibold text-slate-500">
+                No incluido en el correo diario.
+              </span>
             </span>
           )}
           <p className="text-xs font-mono font-semibold text-slate-700 ml-2">
@@ -196,8 +201,13 @@ const DailyOrderRow = ({
               </span>
             )}
             {isPostReportExtra && (
-              <span className="mt-1 inline-flex rounded-full border border-fuchsia-300 bg-fuchsia-50 px-2 py-0.5 text-xs font-black text-fuchsia-900">
-                EXTRA POSTERIOR AL REPORTE
+              <span className="mt-1 inline-flex flex-col items-start gap-0.5">
+                <span className="inline-flex rounded-full border border-fuchsia-300 bg-fuchsia-50 px-2 py-0.5 text-xs font-black text-fuchsia-900">
+                  EXTRA POSTERIOR AL REPORTE
+                </span>
+                <span className="text-[11px] font-semibold text-slate-500">
+                  No incluido en el correo diario.
+                </span>
               </span>
             )}
           </div>

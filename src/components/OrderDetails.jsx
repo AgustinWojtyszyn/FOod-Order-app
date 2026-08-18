@@ -262,8 +262,15 @@ const OrderDetails = ({ user, loading }) => {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-bold ${statusInfo.className}`}>
-                    {statusInfo.label}
+                  <span className="inline-flex flex-col items-start gap-0.5">
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-bold ${statusInfo.className}`}>
+                      {statusInfo.label}
+                    </span>
+                    {status === 'post_report_extra' && (
+                      <span className="text-[11px] font-semibold text-slate-500">
+                        No incluido en el correo diario.
+                      </span>
+                    )}
                   </span>
                   <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
                     {serviceIcon}
