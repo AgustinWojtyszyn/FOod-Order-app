@@ -39,6 +39,7 @@ const THICK_BORDER = {
 const INVALID_SHEET_CHARS = new Set(['[', ']', '*', '?', ':', '/', '\\', "'"])
 const INVALID_FILE_CHARS = new Set(['<', '>', ':', '"', '/', '\\', '|', '?', '*'])
 const EXCLUDED_REMITO_COMPANY_SLUGS = new Set(['administracion_servifood'])
+const REMITO_BEVERAGE_COMPANY_SLUG = 'genneia'
 const UNSPECIFIED_BEVERAGE_LABEL = 'Bebida sin especificar'
 const REMITO_DEBUG_PREFIX = '[ServiFood remitos]'
 const REMITO_NUMBER_RANGES = {
@@ -134,6 +135,26 @@ export const resolveCompanyForOrder = (order = {}) => {
 
 export const isRemitoEligibleCompany = (company = {}) =>
   company?.slug && !EXCLUDED_REMITO_COMPANY_SLUGS.has(company.slug)
+
+const allowsRemitoBeverages = (order = {}) =>
+  resolveCompanyForOrder(order).slug === REMITO_BEVERAGE_COMPANY_SLUG
+
+const summarizeRemitoOperationalOrders = (orders = []) => {
+  const operationalSummary = summarizeOperationalOrders(orders)
+  const beverageOrders = (orders || []).filter(allowsRemitoBeverages)
+
+  if (beverageOrders.length === (orders || []).length) return operationalSummary
+
+  const beverageSummary = beverageOrders.length > 0
+    ? summarizeOperationalOrders(beverageOrders)
+    : { beverageTotal: 0, beverageBreakdown: [] }
+
+  return {
+    ...operationalSummary,
+    beverageTotal: beverageSummary.beverageTotal,
+    beverageBreakdown: beverageSummary.beverageBreakdown
+  }
+}
 
 export const buildCompanyGroups = (orders = []) => {
   const groups = new Map()
@@ -378,6 +399,8 @@ const getBeverageSummaryKey = (value = '') =>
     .replace(/\s+/g, ' ')
 
 export const getOrderRemitoBeverages = (order = {}) => {
+  if (!allowsRemitoBeverages(order)) return []
+
   const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
   const responses = Array.isArray(normalizedCustomResponses) ? normalizedCustomResponses : []
   const beverages = []
@@ -432,7 +455,7 @@ export const getTotalMenuItemsForRemito = (orders = []) =>
 export const summarizeProducts = (orders = []) => {
   try {
     const totals = new Map()
-    const operationalSummary = summarizeOperationalOrders(orders)
+    const operationalSummary = summarizeRemitoOperationalOrders(orders)
     const incrementCategorizedSummary = (label, quantity = 1, category = getRemitoCategoryForLabel(label)) => {
       if (!normalizeText(label)) return
       const { producto, groupKey } = buildRemitoProductSummaryRow(label, category)
@@ -859,7 +882,7 @@ export const buildRemitoSnapshot = ({
 } = {}) => {
   try {
     const products = summarizeProducts(group?.orders || [])
-    const operationalSummary = summarizeOperationalOrders(group?.orders || [])
+    const operationalSummary = summarizeRemitoOperationalOrders(group?.orders || [])
     const orderIds = getOrderIds(group?.orders || [])
     return {
     version: 1,

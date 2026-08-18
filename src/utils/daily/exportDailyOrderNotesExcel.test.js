@@ -4,6 +4,7 @@ import {
   buildRemitoSnapshot,
   getRemitoMenuTotalFromRows,
   getRemitoRowPriority,
+  getOrderRemitoBeverages,
   getTotalMenuItemsForRemito,
   isMenuCountableCategory,
   normalizeBeverageLabel,
@@ -40,6 +41,40 @@ describe('daily order notes Excel model', () => {
       expect.objectContaining({ producto: 'Bebida: Coca Zero', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink }),
       expect.objectContaining({ producto: 'Bebida: Soda', cantidad: 1, category: REMITO_ROW_CATEGORIES.drink })
     ]))
+  })
+
+  it('omits beverages from non-Genneia remitos even when defaulted or selected', () => {
+    const orders = [
+      makeOrder({
+        location: 'La Laja',
+        company_slug: 'laja',
+        custom_responses: []
+      }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        location: 'La Laja',
+        company_slug: 'laja',
+        custom_responses: [{ title: 'Bebida', response: 'Coca cola' }]
+      })
+    ]
+
+    const products = summarizeProducts(orders)
+    const snapshot = buildRemitoSnapshot({
+      group: {
+        slug: 'laja',
+        name: 'La Laja',
+        displayName: 'La Laja',
+        orders
+      },
+      deliveryDate: '2026-08-10',
+      status: 'draft'
+    })
+
+    expect(getOrderRemitoBeverages(orders[1])).toEqual([])
+    expect(products.some((row) => row.category === REMITO_ROW_CATEGORIES.drink)).toBe(false)
+    expect(snapshot.totalBeverages).toBe(0)
+    expect(snapshot.beverageBreakdown).toEqual([])
+    expect(snapshot.products.some((row) => row.category === REMITO_ROW_CATEGORIES.drink)).toBe(false)
   })
 
   it('does not duplicate the same beverage when it appears in response and options', () => {
