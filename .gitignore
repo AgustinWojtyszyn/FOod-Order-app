@@ -35,6 +35,7 @@ dist-ssr
 !supabase/migrations/20260812120000_epse_all_active_locations.sql
 !supabase/migrations/20260813143000_fix_new_account_order_creation.sql
 !supabase/migrations/20260818120000_post_report_extra_orders.sql
+!supabase/migrations/20260818130000_normal_order_company_snapshot.sql
 !supabase/diagnostics/*.sql
 # Python
 __pycache__/
