@@ -69,12 +69,14 @@ describe('daily order notes Excel model', () => {
       deliveryDate: '2026-08-10',
       status: 'draft'
     })
+    const detailRows = getPrintableDetailRows(snapshot.products, snapshot.totalItems)
 
     expect(getOrderRemitoBeverages(orders[1])).toEqual([])
     expect(products.some((row) => row.category === REMITO_ROW_CATEGORIES.drink)).toBe(false)
     expect(snapshot.totalBeverages).toBe(0)
     expect(snapshot.beverageBreakdown).toEqual([])
     expect(snapshot.products.some((row) => row.category === REMITO_ROW_CATEGORIES.drink)).toBe(false)
+    expect(detailRows.some((row) => row.producto === 'TOTAL BEBIDAS')).toBe(false)
   })
 
   it('does not duplicate the same beverage when it appears in response and options', () => {

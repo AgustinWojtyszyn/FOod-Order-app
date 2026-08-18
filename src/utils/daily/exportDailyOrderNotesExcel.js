@@ -626,6 +626,17 @@ export const getPrintableDetailRows = (products = [], totalItems = getRemitoMenu
   ))
   const beverageTotal = beverageRows.reduce((sum, product) => sum + Number(product?.cantidad || 0), 0)
   const dessertTotal = dessertRows.reduce((sum, product) => sum + Number(product?.cantidad || 0), 0)
+  const beverageDetailRows = beverageRows.length > 0
+    ? [
+        ...collapseOverflowRows(beverageRows),
+        {
+          cantidad: beverageTotal,
+          producto: 'TOTAL BEBIDAS',
+          category: 'total_beverages'
+        }
+      ]
+    : []
+
   return [
     ...collapseOverflowRows(menuRows),
     {
@@ -633,12 +644,7 @@ export const getPrintableDetailRows = (products = [], totalItems = getRemitoMenu
       producto: 'TOTAL MENÚS / VIANDAS',
       category: 'total_menu'
     },
-    ...collapseOverflowRows(beverageRows),
-    {
-      cantidad: beverageTotal,
-      producto: 'TOTAL BEBIDAS',
-      category: 'total_beverages'
-    },
+    ...beverageDetailRows,
     ...collapseOverflowRows(dessertRows),
     {
       cantidad: dessertTotal,
