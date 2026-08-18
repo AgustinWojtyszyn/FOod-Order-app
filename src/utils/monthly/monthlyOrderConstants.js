@@ -1,1 +1,1 @@
-export const COUNTABLE_STATUSES = ['pending', 'preparing', 'ready', 'archived', 'cancelled']
+export const COUNTABLE_STATUSES = ['pending', 'post_report_extra', 'preparing', 'ready', 'archived', 'cancelled']

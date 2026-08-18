@@ -27,8 +27,8 @@ const createInitialFilters = () => ({
 })
 
 const getStatusesForLabels = (statusFilter) => {
-  if (statusFilter === 'active') return ['pending', 'archived']
-  if (statusFilter === 'all') return ['pending', 'archived', 'cancelled']
+  if (statusFilter === 'active') return ['pending', 'archived', 'post_report_extra']
+  if (statusFilter === 'all') return ['pending', 'archived', 'post_report_extra', 'cancelled']
   return [statusFilter]
 }
 

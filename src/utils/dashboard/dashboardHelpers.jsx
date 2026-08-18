@@ -119,6 +119,7 @@ const getStatusLabel = (status = 'pending') => {
   const normalized = normalizeOrderStatus(status)
   if (normalized === 'archived') return 'Archivado'
   if (normalized === 'pending') return 'Pendiente'
+  if (normalized === 'post_report_extra') return 'EXTRA POSTERIOR AL REPORTE'
   if (normalized === 'cancelled') return 'Cancelado'
   return 'Estado desconocido'
 }
@@ -127,6 +128,7 @@ const getStatusBadgeClass = (status = 'pending') => {
   const normalized = normalizeOrderStatus(status)
   if (normalized === 'archived') return 'bg-green-100 text-green-800 border border-green-300'
   if (normalized === 'pending') return 'bg-yellow-100 text-yellow-800 border border-yellow-300'
+  if (normalized === 'post_report_extra') return 'bg-fuchsia-100 text-fuchsia-900 border border-fuchsia-300'
   if (normalized === 'cancelled') return 'bg-red-100 text-red-800 border border-red-300'
   return 'bg-slate-100 text-slate-700 border border-slate-300'
 }

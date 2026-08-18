@@ -182,6 +182,7 @@ const DailySearchPanel = ({ companyOptions = [], onViewOrder }) => {
             >
               <option value="all">Todos</option>
               <option value="pending">Pending</option>
+              <option value="post_report_extra">Extra posterior al reporte</option>
               <option value="archived">Archived</option>
               <option value="cancelled">Cancelled</option>
             </select>

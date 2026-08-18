@@ -89,6 +89,7 @@ const OrderLabelsFilters = ({
           <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" value={filters.status} onChange={event => onFilterChange('status', event.target.value)}>
             <option value="active">Vigentes</option>
             <option value="pending">Pendiente</option>
+            <option value="post_report_extra">Extra posterior al reporte</option>
             <option value="archived">Archivado</option>
             <option value="cancelled">Cancelado</option>
             <option value="all">Todos</option>

@@ -6,6 +6,7 @@ export const matchesDailyOrderStatusFilter = (order, selectedStatus) => {
   if (selectedStatus === 'all') return true
   if (selectedStatus === 'archived') return order.status === 'archived'
   if (selectedStatus === 'pending') return order.status === 'pending'
+  if (selectedStatus === 'post_report_extra') return order.status === 'post_report_extra'
   return false
 }
 

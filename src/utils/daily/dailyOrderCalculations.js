@@ -392,6 +392,7 @@ export const calculateStats = (ordersData = []) => {
   let totalItems = 0
   let archived = 0
   let pending = 0
+  let postReportExtra = 0
 
   Array.isArray(ordersData) && ordersData.filter(Boolean).forEach(order => {
     const operational = summarizeOperationalOrder(order)
@@ -418,6 +419,8 @@ export const calculateStats = (ordersData = []) => {
       archived += units
     } else if (order.status === 'pending') {
       pending += units
+    } else if (order.status === 'post_report_extra') {
+      postReportExtra += units
     }
   })
 
@@ -429,7 +432,8 @@ export const calculateStats = (ordersData = []) => {
     byDish,
     totalItems,
     archived,
-    pending
+    pending,
+    postReportExtra
   }
 }
 

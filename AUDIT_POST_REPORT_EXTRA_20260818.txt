@@ -1,0 +1,155 @@
+Auditoria de cambios locales: estado post_report_extra
+Fecha: 2026-08-18
+Alcance: 25 archivos con cambios locales. No se ejecuto SQL remoto, tests, commit, push ni deploy durante esta auditoria.
+
+Resumen de volumen
+- Total observado: +771 / -18.
+- SQL nuevo: +686 / -0 en supabase/migrations/20260818120000_post_report_extra_orders.sql.
+- Tests: +40 / -5.
+- Codigo productivo frontend/servicios/utils: +44 / -13.
+- Config: +1 / -0.
+
+Tabla por archivo
+| archivo | +/- | motivo concreto del cambio | clasificacion | riesgo funcional |
+|---|---:|---|---|---|
+| .gitignore | +1/-0 | Permitir trackear la migracion SQL nueva pese al ignore global *.sql. | Obligatorio si se mantiene nueva migracion como archivo versionado. | Bajo: excepcion especifica, no habilita todos los SQL. |
+| src/components/OrderDetails.jsx | +1/-0 | Evitar que post_report_extra se vea como estado desconocido en detalle. | Justificable. | Bajo: solo metadata visual. |
+| src/components/daily/DailyFilters.jsx | +1/-0 | Agregar filtro explicito de extras post reporte y conteo separado. | Obligatorio para no mezclarlo con pendientes y poder verlo. | Bajo. |
+| src/components/daily/DailyHeader.jsx | +2/-1 | Mostrar metrica separada Extras post reporte; ajustar grid a 5 columnas. | Justificable. | Bajo/medio: cambio de layout menor; revisar responsive visual. |
+| src/components/daily/DailyOrderRow.jsx | +12/-1 | Mostrar badge EXTRA POSTERIOR AL REPORTE y no rotular todo no-pending como Archivado. | Obligatorio para badge y para no mentir estado. | Bajo: UI condicional; mejora bug previo. |
+| src/components/daily/DailyRemitosPanel.jsx | +2/-2 | Incluir post_report_extra al generar/refrescar remitos desde pedidos cargados. | Obligatorio por requerimiento de remitos. | Medio: lista manual duplicada; riesgo de omision futura. |
+| src/components/daily/DailySearchPanel.jsx | +1/-0 | Permitir filtrar historico por post_report_extra. | Obligatorio por busqueda historica. | Bajo. |
+| src/components/labels/OrderLabelsFilters.jsx | +1/-0 | Permitir filtrar etiquetas por post_report_extra. | Justificable si labels entran en "mantener visible". | Bajo. |
+| src/hooks/labels/useOrderLabels.js | +2/-2 | Incluir post_report_extra en filtros active/all para etiquetas. | Justificable. | Medio: cambia alcance de "Vigentes"; podria imprimir etiquetas para extras post reporte. |
+| src/hooks/useDailyOrdersData.js | +3/-2 | Cargar post_report_extra en Pedidos Diarios y agregar contador inicial. | Obligatorio. | Bajo/medio: amplia dataset visible diario sin afectar autoarchivo. |
+| src/hooks/useDailyOrdersData.test.js | +1/-1 | Actualizar test de fuente para nueva lista de estados diarios. | Justificable. | Bajo. |
+| src/hooks/useDailyOrdersFilters.js | +1/-0 | Agregar filtro de estado post_report_extra. | Obligatorio. | Bajo. |
+| src/hooks/useDailyOrdersFilters.test.js | +9/-4 | Verificar que pending no incluye post_report_extra y que el total lo cuenta. | Justificable. | Bajo. |
+| src/services/analytics/analyticsService.js | +1/-1 | Incluir post_report_extra como pedido real en tendencias. | Obligatorio por tendencias/totales reales. | Bajo/medio: lista duplicada respecto mensual. |
+| src/services/orders/ordersService.js | +2/-2 | Defaults de consultas diarias/person-key incluyen post_report_extra. | Justificable/obligatorio para pantallas que usen defaults. | Medio: default mas amplio puede mostrar extras donde antes solo pending/archived; no toca correo ni autoarchivo. |
+| src/types/index.js | +1/-0 | Agregar constante ORDER_STATUS.POST_REPORT_EXTRA. | Justificable; deberia aprovecharse mas para centralizar. | Bajo. |
+| src/utils/daily/dailyCloseStatus.test.js | +12/-0 | Verifica que post_report_extra no cuente como pendiente a archivar. | Justificable. | Bajo. |
+| src/utils/daily/dailyOrderCalculations.js | +5/-1 | Contador separado postReportExtra sin sumarlo a pending; total operativo lo conserva. | Obligatorio. | Bajo. |
+| src/utils/daily/dailyOrderConstants.js | +2/-0 | Label/color central para estado en daily. | Obligatorio para badge/formatters. | Bajo. |
+| src/utils/daily/dailyOrderFormatters.js | +2/-0 | Resolver texto/color de post_report_extra. | Obligatorio. | Bajo. |
+| src/utils/daily/dailyOrdersExportModel.js | +2/-0 | Nombre de archivo/display para export Excel cuando se filtra por post_report_extra. | Justificable. | Bajo. |
+| src/utils/dashboard/dashboardHelpers.jsx | +2/-0 | Label/color del nuevo estado en helpers de dashboard. | Prescindible si dashboard no muestra estos extras; justificable por consistencia. | Bajo. |
+| src/utils/monthly/monthlyOrderConstants.js | +1/-1 | Incluir post_report_extra como estado contable mensual. | Obligatorio por mensual/tendencias como pedido real. | Bajo. |
+| supabase/migrations/admin_extra_orders.test.js | +18/-0 | Test estatico de migracion: helper, guard conteo 12, sent_at <= created_at, estado en defaults. | Justificable, pero no detecta sintaxis SQL. | Medio: cobertura superficial. |
+| supabase/migrations/20260818120000_post_report_extra_orders.sql | +686/-0 | Constraint status, helper de estado, redefinicion create_admin_extra_order, get_daily_orders_for_admin, search_historical_daily_orders, parche dinamico remitos, backfill guardado por conteo 12. | Obligatorio conceptualmente, pero debe ajustarse. | Alto: se detectan errores de sintaxis/duplicacion y riesgo operativo por guard exacto. |
+
+Revision de puntos pedidos
+
+1. Duplicacion manual de post_report_extra
+Si, esta duplicado en demasiadas listas/manual branches:
+- Listas de consulta: useDailyOrdersData, ordersService, useOrderLabels, DailyRemitosPanel, analyticsService, monthlyOrderConstants, SQL get_daily_orders_for_admin.
+- Formateo visual: dailyOrderConstants/dailyOrderFormatters, OrderDetails, dashboardHelpers, DailyOrderRow.
+- Filtros UI: DailyFilters, DailySearchPanel, OrderLabelsFilters, useDailyOrdersFilters.
+Centralizacion posible sin refactor grande:
+- Crear constantes compartidas en frontend, por ejemplo ORDER_STATUS_VALUES, DAILY_VISIBLE_STATUSES, REMITO_VISIBLE_STATUSES, COUNTABLE_ORDER_STATUSES, ACTIVE_LABEL_STATUSES.
+- Reusar ORDER_STATUS.POST_REPORT_EXTRA en vez de strings sueltos.
+- Para SQL no se puede compartir constante JS, pero se puede reducir duplicacion creando helper SQL o usando comentarios/tests mas especificos.
+No conviene un refactor grande ahora, pero si conviene un ajuste chico para centralizar listas frontend.
+
+2. De las +771 lineas
+- SQL: 686 lineas, 89.0%.
+- Tests: 40 lineas, 5.2%.
+- Codigo productivo frontend/servicios/utils: 44 lineas, 5.7%.
+- Config: 1 linea, 0.1%.
+La percepcion de cambio grande viene casi toda de re-declarar funciones SQL completas.
+
+3. Reemplazos indiscriminados de pending
+No se observa reemplazo indiscriminado. Los puntos criticos que deben seguir pending se mantienen:
+- daily-orders-report fetchOrders: .eq('status', 'pending').
+- daily-orders-report fetchOrdersForRealTestEmail: .eq('status', 'pending').
+- getArchiveOrdersRpcCall: p_statuses: ['pending'].
+- isOrderEligibleForReportArchive: order.status === 'pending'.
+- UI de archivar sigue condicionada a order.status === 'pending'.
+- handleArchiveAllPending sigue contando y enviando statuses: ['pending'].
+Los cambios agregan post_report_extra principalmente a visibilidad/consulta/totales/remitos, no al flujo de reporte enviado o autoarchivo.
+
+4. Correo y autoarchivado exclusivamente pending
+Confirmado por lectura de diff y busqueda:
+- Correo automatico sigue trayendo solo pending en supabase/functions/daily-orders-report/index.ts.
+- Autoarchivado compartido sigue usando p_statuses: ['pending'] en supabase/functions/_shared/daily_report.ts.
+- Botones/acciones de archivar pendientes en frontend siguen usando pending.
+Riesgo residual: ninguno por los cambios actuales.
+
+5. Pedidos Diarios, remitos, Excel, busqueda y totales incluyen post_report_extra
+- Pedidos Diarios: si, useDailyOrdersData pide ['pending', 'archived', 'post_report_extra'].
+- Remitos: si en frontend DailyRemitosPanel; SQL intenta parchear funciones de remito dinamicamente en la migracion nueva.
+- Excel: si, porque exporta sortedOrders/manualExportOrders desde la vista diaria, y formatStatusForDisplay/Filename reconoce el filtro.
+- Busqueda historica: UI permite filtro y SQL search_historical_daily_orders acepta post_report_extra.
+- Totales: calculateStats suma totalItems/byLocation/byDish y separa postReportExtra.
+Riesgo: el SQL nuevo de busqueda tiene errores sintacticos observados, por lo que esta parte no esta aprobable hasta corregir migracion.
+
+6. Tendencias/mensual como pedido real sin pendiente
+- Tendencias: analyticsService COUNTABLE_STATUSES incluye post_report_extra.
+- Mensual: monthlyOrderConstants COUNTABLE_STATUSES incluye post_report_extra.
+- Pendiente comun: calculateStats solo incrementa pending cuando status === 'pending', y test nuevo cubre que post_report_extra no se suma a pending.
+Riesgo: listas duplicadas entre analyticsService y monthlyOrderConstants.
+
+7. Los 9 pedidos de 2026-08-19
+La migracion no tiene UPDATE por fecha literal 2026-08-19.
+El backfill solo toca:
+- status = 'pending'
+- order_origin = 'admin_extra'
+- existe daily_report_runs report_type daily_orders
+- status sent
+- sent_at no nulo
+- sent_at <= orders.created_at
+Si el 2026-08-19 todavia no tiene reporte enviado, esos 9 no coinciden y permanecen pending.
+Riesgo: si antes de aplicar la migracion aparece un daily_report_runs sent para 2026-08-19 con sent_at anterior a esos pedidos, entonces ya no permanecerian intactos. Segun la regla de negocio eso seria correcto, pero contradice el dato operativo esperado si ocurre antes de aplicar.
+
+8. Riesgo del guard conteo = 12
+Si aparece otro extra que cumple la regla antes de aplicar la migracion, el conteo sera 13 o mas y la migracion abortara con post_report_extra_backfill_count_mismatch.
+Efecto operativo probable: Supabase/Postgres ejecuta la migracion en transaccion; al abortar, no queda aplicado el constraint nuevo, la funcion nueva ni el backfill. El despliegue de migraciones queda bloqueado hasta ajustar el conteo o acotar el backfill.
+Esto protege contra tocar datos inesperados, pero es fragil frente a cambios legitimos de datos entre ahora y la aplicacion.
+Alternativa mas robusta: acotar por created_by_admin_email de Claudia y rango 2026-08-10 a 2026-08-18, o separar validacion informativa de backfill con criterio mas estable.
+
+9. Excepcion .gitignore
+La excepcion es especifica:
+!supabase/migrations/20260818120000_post_report_extra_orders.sql
+No habilita todos los SQL. Correcto.
+
+Hallazgos criticos
+- La migracion nueva no debe aplicarse como esta. En el archivo SQL auditado se observan errores de sintaxis/duplicacion:
+  - jsonb_set contiene dos veces '{quantity}' antes de to_jsonb(...).
+  - En search_historical_daily_orders aparece un "and (" duplicado antes de v_company_slug.
+- El test de migracion es estatico y no detecta esos errores.
+- La migracion re-declara funciones largas copiadas; eso explica casi todo el volumen y aumenta riesgo de drift con SQL existente.
+
+Cantidad minima real de archivos necesarios
+- Minimo estricto para cumplir backend + visibilidad diaria/remitos/excel/busqueda/totales/mensual: aprox. 15 archivos:
+  1. .gitignore
+  2. supabase/migrations/20260818120000_post_report_extra_orders.sql
+  3. src/hooks/useDailyOrdersData.js
+  4. src/services/orders/ordersService.js
+  5. src/hooks/useDailyOrdersFilters.js
+  6. src/components/daily/DailyFilters.jsx
+  7. src/components/daily/DailyOrderRow.jsx
+  8. src/components/daily/DailyRemitosPanel.jsx
+  9. src/components/daily/DailySearchPanel.jsx
+  10. src/utils/daily/dailyOrderCalculations.js
+  11. src/utils/daily/dailyOrderConstants.js
+  12. src/utils/daily/dailyOrderFormatters.js
+  13. src/utils/daily/dailyOrdersExportModel.js
+  14. src/utils/monthly/monthlyOrderConstants.js
+  15. src/services/analytics/analyticsService.js
+- Con cobertura minima razonable: sumar tests focalizados, quedando aprox. 19 archivos.
+
+Archivos que podrian revertirse
+- src/types/index.js: prescindible si no se reutiliza la constante; mejor alternativa seria usarla mas.
+- src/utils/dashboard/dashboardHelpers.jsx: prescindible si dashboard no muestra estos pedidos.
+- src/components/OrderDetails.jsx: prescindible para el flujo pedido, aunque evita estado desconocido.
+- src/components/labels/OrderLabelsFilters.jsx y src/hooks/labels/useOrderLabels.js: prescindibles si "labels" no entra en alcance real de visibilidad.
+- src/components/daily/DailyHeader.jsx: prescindible si basta con filtro/badge y no hace falta metrica separada en header.
+- src/hooks/useDailyOrdersData.test.js, src/hooks/useDailyOrdersFilters.test.js, src/utils/daily/dailyCloseStatus.test.js, supabase/migrations/admin_extra_orders.test.js: revertibles solo si se acepta menos cobertura. No recomendado.
+
+Veredicto
+AJUSTAR.
+
+Motivo del veredicto:
+- El alcance funcional es coherente: no se reemplazo pending indiscriminadamente; correo y autoarchivado siguen solo pending; post_report_extra se intenta incluir en vistas/totales/remitos/historico.
+- Pero la migracion SQL nueva tiene errores de sintaxis visibles y concentra 686 lineas. No debe aprobarse ni aplicarse hasta corregirla.
+- Tambien conviene centralizar listas frontend de estados para reducir duplicacion manual sin un refactor grande.

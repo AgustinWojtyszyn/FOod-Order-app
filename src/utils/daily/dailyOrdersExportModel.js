@@ -71,12 +71,14 @@ export const formatTimeOnly = (value) => {
 const formatStatusForFilename = (selectedStatus) => {
   if (selectedStatus === 'archived') return 'archived'
   if (selectedStatus === 'pending') return 'pending'
+  if (selectedStatus === 'post_report_extra') return 'post_report_extra'
   return 'all'
 }
 
 export const formatStatusForDisplay = (selectedStatus) => {
   if (selectedStatus === 'archived') return 'Archivados'
   if (selectedStatus === 'pending') return 'Pendientes'
+  if (selectedStatus === 'post_report_extra') return 'Extras posteriores al reporte'
   return 'Todos'
 }
 

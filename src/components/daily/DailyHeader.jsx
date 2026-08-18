@@ -81,10 +81,11 @@ const DailyHeader = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
               {[
                 { label: 'Total del día', value: stats.total },
                 { label: 'Pendientes', value: stats.pending },
+                { label: 'Extras post reporte', value: stats.postReportExtra || 0 },
                 { label: 'Archivados', value: stats.archived },
                 { label: 'Ubicaciones activas', value: activeLocationsCount }
               ].map(metric => (

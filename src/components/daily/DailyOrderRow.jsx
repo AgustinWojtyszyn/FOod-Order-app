@@ -26,6 +26,7 @@ const DailyOrderRow = ({
   const deliveryLocation = order.delivery_location || order.location
   const deliveryDiffers = deliveryLocation && deliveryLocation !== order.location
   const isExtra = isAdminExtraOrder(order)
+  const isPostReportExtra = String(order?.status || '').toLowerCase() === 'post_report_extra'
   const adminCreator = resolveAdminExtraCreator(order)
   const displayName = isExtra ? adminCreator.label : order.user_name
   const displayEmail = isExtra ? adminCreator.email : order.user_email
@@ -59,6 +60,11 @@ const DailyOrderRow = ({
           {isExtra && (
             <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-black text-violet-800">
               Extra
+            </span>
+          )}
+          {isPostReportExtra && (
+            <span className="inline-flex rounded-full border border-fuchsia-300 bg-fuchsia-50 px-2.5 py-1 text-xs font-black text-fuchsia-900">
+              EXTRA POSTERIOR AL REPORTE
             </span>
           )}
           <p className="text-xs font-mono font-semibold text-slate-700 ml-2">
@@ -142,7 +148,7 @@ const DailyOrderRow = ({
               Archivar pedido
             </button>
           ) : (
-            <span className="text-xs text-slate-400">Archivado</span>
+            <span className="text-xs text-slate-400">{getStatusText(order.status)}</span>
           )}
           <button
             className="text-sm font-semibold text-primary-700 hover:text-primary-900"
@@ -187,6 +193,11 @@ const DailyOrderRow = ({
             {isExtra && (
               <span className="mt-1 inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-black text-violet-800">
                 Extra
+              </span>
+            )}
+            {isPostReportExtra && (
+              <span className="mt-1 inline-flex rounded-full border border-fuchsia-300 bg-fuchsia-50 px-2 py-0.5 text-xs font-black text-fuchsia-900">
+                EXTRA POSTERIOR AL REPORTE
               </span>
             )}
           </div>

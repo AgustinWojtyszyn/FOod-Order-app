@@ -103,7 +103,7 @@ const filterOrdersForRemitos = ({ orders = [], companySlug = 'all', location = '
   const companyFiltered = filterOrdersByCompany(orders, companySlug)
   return companyFiltered.filter((order) => {
     const status = String(order?.status || '').toLowerCase()
-    if (!['pending', 'archived'].includes(status)) return false
+    if (!['pending', 'archived', 'post_report_extra'].includes(status)) return false
     if (location === 'all') return true
     return String(order?.location || order?.delivery_location || '').trim() === location
   })
@@ -156,7 +156,7 @@ const buildFreshGroupForRemito = ({
   const targetLocationKey = String(safeExisting.location_key ?? fallbackGroup.locationKey ?? '').trim()
   const freshOrders = (Array.isArray(orders) ? orders : []).filter((order) => {
     const status = String(order?.status || '').toLowerCase()
-    if (!['pending', 'archived'].includes(status)) return false
+    if (!['pending', 'archived', 'post_report_extra'].includes(status)) return false
     if (targetDate && String(order?.delivery_date || '').slice(0, 10) !== targetDate) return false
     if (targetLocationKey && getOrderLocationKey(order) !== targetLocationKey) return false
     return true

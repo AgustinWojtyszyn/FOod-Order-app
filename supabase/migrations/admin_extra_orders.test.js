@@ -33,6 +33,10 @@ const newAccountOrderFixMigration = readFileSync(
   new URL('./20260813143000_fix_new_account_order_creation.sql', import.meta.url),
   'utf8'
 )
+const postReportExtraOrdersMigration = readFileSync(
+  new URL('./20260818120000_post_report_extra_orders.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -145,5 +149,19 @@ describe('admin extra orders migration', () => {
     expect(newAccountOrderFixMigration).toContain('if not public.is_admin() and v_requires_contact_authorization')
     expect(newAccountOrderFixMigration).toContain('create or replace function public.resolve_order_delivery_snapshot')
     expect(newAccountOrderFixMigration).toContain("notify pgrst, 'reload schema'")
+  })
+
+  it('adds post-report extra status with guarded historical backfill', () => {
+    expect(postReportExtraOrdersMigration).toContain("'post_report_extra'")
+    expect(postReportExtraOrdersMigration).toContain('create or replace function public.resolve_admin_extra_order_status')
+    expect(postReportExtraOrdersMigration).toContain('drr.report_type = \'daily_orders\'')
+    expect(postReportExtraOrdersMigration).toContain('drr.status = \'sent\'')
+    expect(postReportExtraOrdersMigration).toContain('drr.sent_at <= p_created_at')
+    expect(postReportExtraOrdersMigration).toContain('v_status := public.resolve_admin_extra_order_status(v_delivery_date, v_created_at)')
+    expect(postReportExtraOrdersMigration).not.toContain('v_count <> 12')
+    expect(postReportExtraOrdersMigration).not.toContain('post_report_extra_backfill_count_mismatch')
+    expect(postReportExtraOrdersMigration).toContain('drr.sent_at <= o.created_at')
+    expect(postReportExtraOrdersMigration).toContain("array['pending', 'archived', 'post_report_extra']")
+    expect(postReportExtraOrdersMigration).not.toContain("delivery_date = '2026-08-19'")
   })
 })

@@ -202,7 +202,7 @@ export const createOrdersService = ({ supabase, invalidateCache = () => {} } = {
       return { data, error }
     },
 
-    getDailyOrdersForAdmin: async ({ deliveryDate, statuses = ['pending', 'archived'] } = {}) => {
+    getDailyOrdersForAdmin: async ({ deliveryDate, statuses = ['pending', 'archived', 'post_report_extra'] } = {}) => {
       if (!deliveryDate) {
         return { data: null, error: new Error('deliveryDate es requerido para consultar pedidos diarios') }
       }
@@ -353,7 +353,7 @@ export const createOrdersService = ({ supabase, invalidateCache = () => {} } = {
 
     getOrdersWithPersonKeyByDate: async ({
       deliveryDate,
-      statuses = ['pending', 'archived'],
+      statuses = ['pending', 'archived', 'post_report_extra'],
       userId = null,
       personKey = null
     } = {}) => {

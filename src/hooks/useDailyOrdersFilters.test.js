@@ -9,15 +9,18 @@ describe('daily orders status filtering', () => {
       { id: '2', status: 'archived' },
       { id: '3', status: 'cancelled' },
       { id: '4', status: 'preparing' },
-      { id: '5', status: 'ready' }
+      { id: '5', status: 'ready' },
+      { id: '6', status: 'post_report_extra' }
     ]
 
     expect(orders.filter(order => matchesDailyOrderStatusFilter(order, 'pending')).map(order => order.id))
       .toEqual(['1'])
     expect(orders.filter(order => matchesDailyOrderStatusFilter(order, 'archived')).map(order => order.id))
       .toEqual(['2'])
+    expect(orders.filter(order => matchesDailyOrderStatusFilter(order, 'post_report_extra')).map(order => order.id))
+      .toEqual(['6'])
     expect(orders.filter(order => matchesDailyOrderStatusFilter(order, 'all')).map(order => order.id))
-      .toEqual(['1', '2', '3', '4', '5'])
+      .toEqual(['1', '2', '3', '4', '5', '6'])
   })
 
   it('calculateStats no cuenta estados legacy como pendientes', () => {
@@ -25,12 +28,14 @@ describe('daily orders status filtering', () => {
       { id: '1', status: 'pending', location: 'A', total_items: 1, items: [] },
       { id: '2', status: 'archived', location: 'A', total_items: 1, items: [] },
       { id: '3', status: 'cancelled', location: 'A', total_items: 1, items: [] },
-      { id: '4', status: 'ready', location: 'A', total_items: 1, items: [] }
+      { id: '4', status: 'ready', location: 'A', total_items: 1, items: [] },
+      { id: '5', status: 'post_report_extra', location: 'A', total_items: 2, items: [] }
     ])
 
     expect(stats.pending).toBe(1)
+    expect(stats.postReportExtra).toBe(2)
     expect(stats.archived).toBe(1)
-    expect(stats.total).toBe(4)
+    expect(stats.total).toBe(6)
   })
 
   it('calculateStats cuenta pedidos extra por cantidad real de menús', () => {

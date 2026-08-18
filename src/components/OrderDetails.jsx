@@ -54,6 +54,7 @@ const formatDateOnly = (value) => {
 
 const statusMeta = {
   pending: { label: 'Pendiente', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  post_report_extra: { label: 'EXTRA POSTERIOR AL REPORTE', className: 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-200' },
   archived: { label: 'Archivado', className: 'bg-green-100 text-green-800 border-green-200' },
   cancelled: { label: 'Cancelado', className: 'bg-red-100 text-red-800 border-red-200' },
   unknown: { label: 'Estado desconocido', className: 'bg-slate-100 text-slate-700 border-slate-300' }

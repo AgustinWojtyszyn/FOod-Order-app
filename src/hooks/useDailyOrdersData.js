@@ -30,7 +30,8 @@ export const useDailyOrdersData = (user) => {
     byDish: {},
     totalItems: 0,
     archived: 0,
-    pending: 0
+    pending: 0,
+    postReportExtra: 0
   })
   const isFetchingRef = useRef(false)
   const hasAdminAccess = isGlobalAdmin || isCompanyAdmin
@@ -68,7 +69,7 @@ export const useDailyOrdersData = (user) => {
 
       const { data: ordersData, error } = await db.getDailyOrdersForAdmin({
         deliveryDate: nextOperationalDate,
-        statuses: ['pending', 'archived']
+        statuses: ['pending', 'archived', 'post_report_extra']
       })
 
       if (error) {

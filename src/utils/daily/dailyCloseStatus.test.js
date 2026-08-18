@@ -83,6 +83,18 @@ describe('daily close status', () => {
     expect(status.checklist.find(item => item.id === 'archive')).toMatchObject({ status: 'ok' })
   })
 
+  it('does not treat post-report extras as pending archive work', () => {
+    const status = getDailyOperationalStatus({
+      orders: [{ ...baseOrder, status: 'post_report_extra' }],
+      reportRun: { status: 'sent' },
+      lastUpdatedAt: '2026-07-01T21:55:00Z'
+    })
+
+    expect(status.pendingCount).toBe(0)
+    expect(status.canArchivePending).toBe(false)
+    expect(status.checklist.find(item => item.id === 'archive')).toMatchObject({ status: 'ok' })
+  })
+
   it('marks the compact state as ok only when report is sent and nothing is pending', () => {
     const status = getDailyOperationalStatus({
       orders: [{ ...baseOrder, status: 'archived', total_items: 1, items: [{ name: 'Menú principal', quantity: 1 }] }],

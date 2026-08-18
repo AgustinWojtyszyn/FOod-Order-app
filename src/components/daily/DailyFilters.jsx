@@ -51,6 +51,7 @@ const DailyFilters = ({
         >
           <option value="all">Todos</option>
           <option value="pending">Pendientes ({stats.pending})</option>
+          <option value="post_report_extra">Extras post reporte ({stats.postReportExtra || 0})</option>
           <option value="archived">Archivados ({stats.archived})</option>
         </select>
       </div>
