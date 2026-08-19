@@ -613,7 +613,7 @@ const AdminExtraOrderModal = ({
             {!menuLoading && menuItems.length > 0 && (
               <div className="mt-3 divide-y divide-slate-100 rounded-lg border border-slate-200">
                 {menuItems.map((item, index) => {
-                  const display = getMenuDisplay(item, index)
+                  const display = getMenuDisplay(item, index, companySlug)
                   const text = [display.label, display.dish].filter(Boolean).join(' - ') || item.name || 'Menú'
                   return (
                     <div key={item.id} className="flex items-center justify-between gap-3 px-3 py-2">
