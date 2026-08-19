@@ -20,6 +20,7 @@ dist-ssr
 # SQL scripts generados
 *.sql
 !supabase/migrations/20260819090000_add_greif_company.sql
+!supabase/migrations/20260819100000_add_molinos_company.sql
 !supabase/migrations/20260619093000_admin_order_cleanup_and_order_guards.sql
 !supabase/migrations/20260625090000_archive_orders_by_delivery_date_and_report_locks.sql
 !supabase/migrations/20260626091500_daily_orders_report_archive_cron.sql

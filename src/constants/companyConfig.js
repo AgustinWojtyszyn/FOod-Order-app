@@ -92,6 +92,16 @@ export const COMPANY_CATALOG = {
     customHint: 'Seleccioná Greif para cargar tu pedido.',
     optionsSourceSlug: 'laja'
   },
+  molinos: {
+    slug: 'molinos',
+    name: 'Molinos',
+    description: 'Pedidos para equipos operativos de Molinos.',
+    accent: 'from-orange-500 to-amber-700',
+    badgeClass: 'bg-orange-100 text-orange-700',
+    locations: ['Molinos'],
+    customHint: 'Seleccioná Molinos para cargar tu pedido.',
+    optionsSourceSlug: 'laja'
+  },
   administracion_servifood: {
     slug: 'administracion_servifood',
     name: 'Administración ServiFood',

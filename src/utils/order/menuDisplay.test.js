@@ -9,6 +9,10 @@ describe('company-specific menu display', () => {
     })
   })
 
+  it('shows Dieta for Molinos using the same company rule', () => {
+    expect(getMenuDisplay({ name: 'Opción 4', description: 'BIFE DEL DÍA CARNE' }, 4, 'molinos').dish).toBe('Dieta')
+  })
+
   it('keeps the original dish for other companies', () => {
     const item = { name: 'Opción 4', description: 'BIFE DEL DÍA CARNE' }
     expect(getMenuDisplay(item, 4, 'epse').dish).toBe('BIFE DEL DÍA CARNE')

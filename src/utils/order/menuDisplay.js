@@ -2,7 +2,7 @@ const normalizeText = (value = '') => (value || '').toString().trim()
 const normalizeSlotTitle = (value = '') => normalizeText(value).toLowerCase()
 const HIDDEN_ORDER_MENU_SLOT_INDEX = 4
 const HIDDEN_ORDER_MENU_COMPANY_SLUG = 'epse'
-const DIETA_COMPANY_SLUG = 'greif'
+const DIETA_COMPANY_SLUGS = new Set(['greif', 'molinos'])
 
 const getMenuLabelByIndex = (index = 0) => (index === 0 ? 'Menú principal' : `Opción ${index}`)
 
@@ -64,18 +64,18 @@ const getMenuSlotIndex = (item = {}, fallbackIndex = null) => {
 
 const normalizeCompanySlug = (value = '') => (value || '').toString().trim().toLowerCase()
 
-const replaceGreifBifeLabel = (value, companySlug) => {
+const replaceDietaLabel = (value, companySlug) => {
   const text = normalizeText(value)
-  if (normalizeCompanySlug(companySlug) !== DIETA_COMPANY_SLUG || !/bife\s+del\s+d[ií]a/i.test(text)) return value
+  if (!DIETA_COMPANY_SLUGS.has(normalizeCompanySlug(companySlug)) || !/bife\s+del\s+d[ií]a/i.test(text)) return value
   return 'Dieta'
 }
 
 const getCompanyMenuDisplay = (display, companySlug) => {
-  if (normalizeCompanySlug(companySlug) !== DIETA_COMPANY_SLUG) return display
+  if (!DIETA_COMPANY_SLUGS.has(normalizeCompanySlug(companySlug))) return display
   return {
     ...display,
-    label: replaceGreifBifeLabel(display.label, companySlug),
-    dish: replaceGreifBifeLabel(display.dish, companySlug)
+    label: replaceDietaLabel(display.label, companySlug),
+    dish: replaceDietaLabel(display.dish, companySlug)
   }
 }
 
