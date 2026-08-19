@@ -20,9 +20,9 @@ const DailyExportActions = ({
   pendingOrdersCount = 0,
   isAdmin
 }) => (
-  <div className="flex flex-col gap-3 xl:min-w-[420px]">
+  <div className="flex flex-col gap-3 xl:min-w-105">
     <div className="flex flex-wrap items-end gap-3">
-      <div className="min-w-[200px]">
+      <div className="min-w-50">
         <label htmlFor="export-company" className="text-xs font-semibold text-slate-600">
           Empresa (para exportar)
         </label>
