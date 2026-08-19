@@ -87,4 +87,16 @@ describe('labelOrderUtils', () => {
       delivery_location: 'Otra sede'
     }).companyLabel).toBe('La Laja')
   })
+
+  it('oculta las bebidas en todas las etiquetas EPSE y las mantiene para otras empresas', () => {
+    const orderWithDrink = {
+      company_slug: 'epse',
+      company_name: 'EPSE',
+      location: 'EPSE – Anchipurac',
+      custom_responses: [{ title: 'Bebida', response: 'Agua' }]
+    }
+
+    expect(buildLabelOrder(orderWithDrink).beverages).toEqual([])
+    expect(buildLabelOrder({ ...orderWithDrink, company_slug: 'laja', company_name: 'La Laja' }).beverages).toEqual(['Agua'])
+  })
 })

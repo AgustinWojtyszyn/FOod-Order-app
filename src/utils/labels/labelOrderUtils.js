@@ -199,7 +199,8 @@ export const getOrderNotesText = (order = {}) =>
 export const buildLabelOrder = (order = {}) => {
   const normalized = normalizeOrderForReadOnly(order)
   const preview = buildOrderPreview(order)
-  const beverages = getOrderBeverageLabels(order)
+  const companySlug = String(order.company_slug || '').trim().toLowerCase()
+  const beverages = companySlug === 'epse' ? [] : getOrderBeverageLabels(order)
   const responses = getRelevantResponses(order)
   const fruitDessertChoice = getFruitDessertChoice(order)
   const notes = getOrderNotesText(order)
