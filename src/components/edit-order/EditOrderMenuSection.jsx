@@ -32,7 +32,7 @@ const EditOrderMenuSection = ({
               onClick={() => onToggleItem(item.id, !isSelected)}
               aria-pressed={isSelected}
               className={`card text-left bg-white border-2 rounded-2xl p-5
-                         transition-all duration-300 flex flex-col justify-between min-h-[260px] cursor-pointer
+                         transition-all duration-300 flex flex-col justify-between min-h-65 cursor-pointer
                          focus:outline-none focus:ring-2 focus:ring-blue-400
                          ${isSelected ? 'border-blue-500 bg-blue-50/60 shadow-xl' : 'border-gray-200 hover:border-blue-400 hover:shadow-xl'}`}
             >

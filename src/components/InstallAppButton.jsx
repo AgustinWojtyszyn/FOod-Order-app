@@ -55,6 +55,7 @@ const InstallAppButton = () => {
 
     const handleBeforeInstallPrompt = (event) => {
       event.preventDefault()
+      pwaState.deferredPrompt = event
       setInstallPrompt(event)
       setVisible(true)
       setHelpVisible(false)
@@ -108,9 +109,7 @@ const InstallAppButton = () => {
     }))
     console.info('[PWA] userChoice', choice)
 
-    if (choice?.outcome === 'accepted') {
-      setVisible(false)
-    }
+    setVisible(choice?.outcome !== 'accepted' ? true : false)
 
     if (pwaState) {
       pwaState.deferredPrompt = null
