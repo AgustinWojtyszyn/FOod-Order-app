@@ -56,15 +56,15 @@ const OrderLabelsResults = ({
             <thead>
               <tr className="bg-slate-900 text-left text-xs font-bold uppercase tracking-wide text-slate-100">
                 <th className="px-4 py-3">Sel.</th>
-                <th className="min-w-[220px] px-4 py-3">Cliente</th>
-                <th className="min-w-[160px] px-4 py-3">Empresa</th>
-                <th className="min-w-[150px] px-4 py-3">Locación / entrega</th>
-                <th className="min-w-[110px] px-4 py-3">Fecha</th>
-                <th className="min-w-[100px] px-4 py-3">Servicio</th>
-                <th className="min-w-[280px] px-4 py-3">Resumen</th>
-                <th className="min-w-[110px] px-4 py-3">Estado</th>
-                <th className="min-w-[170px] px-4 py-3">Copias</th>
-                <th className="min-w-[150px] px-4 py-3">Acción</th>
+                <th className="min-w-55 px-4 py-3">Cliente</th>
+                <th className="min-w-40 px-4 py-3">Empresa</th>
+                <th className="min-w-37.5 px-4 py-3">Locación / entrega</th>
+                <th className="min-w-27.5 px-4 py-3">Fecha</th>
+                <th className="min-w-25 px-4 py-3">Servicio</th>
+                <th className="min-w-70 px-4 py-3">Resumen</th>
+                <th className="min-w-27.5 px-4 py-3">Estado</th>
+                <th className="min-w-42.5 px-4 py-3">Copias</th>
+                <th className="min-w-37.5 px-4 py-3">Acción</th>
               </tr>
             </thead>
             <tbody>

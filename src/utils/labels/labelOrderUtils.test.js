@@ -51,4 +51,40 @@ describe('labelOrderUtils', () => {
       ]
     }).fruitDessertChoice).toBe('')
   })
+
+  it('agrega la sede de origen a las etiquetas EPSE', () => {
+    expect(buildLabelOrder({
+      company_slug: 'epse',
+      company_name: 'EPSE',
+      location: 'EPSE – Anchipurac',
+      delivery_location: 'EPSE – Planta Fotovoltaica'
+    }).companyLabel).toBe('EPSE – Anchipurac')
+
+    expect(buildLabelOrder({
+      company_slug: 'epse',
+      company_name: 'EPSE',
+      location: 'EPSE – Planta Fotovoltaica',
+      delivery_location: 'EPSE – Planta Fotovoltaica'
+    }).companyLabel).toBe('EPSE – Planta FV')
+  })
+
+  it('usa el snapshot de origen y deja EPSE solo si falta la locación', () => {
+    expect(buildLabelOrder({
+      company_slug: 'epse',
+      company_name: 'EPSE',
+      requesting_location_code: 'EPSE_ESTACION',
+      delivery_location: 'EPSE – Planta Fotovoltaica'
+    }).companyLabel).toBe('EPSE – Estación')
+
+    expect(buildLabelOrder({ company_slug: 'epse', company_name: 'EPSE' }).companyLabel).toBe('EPSE')
+  })
+
+  it('mantiene sin cambios las etiquetas de otras empresas', () => {
+    expect(buildLabelOrder({
+      company_slug: 'laja',
+      company_name: 'La Laja',
+      location: 'La Laja',
+      delivery_location: 'Otra sede'
+    }).companyLabel).toBe('La Laja')
+  })
 })

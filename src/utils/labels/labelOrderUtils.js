@@ -78,10 +78,34 @@ export const getOrderCustomerName = (order = {}) =>
 export const getOrderCustomerEmail = (order = {}) =>
   firstNonBlank(order.customer_email, order.email, order.user_email)
 
+const getOrderOriginLocation = (order = {}) => firstNonBlank(
+  order.location,
+  order.requesting_location,
+  order.requesting_location_name,
+  order.requesting_location_code,
+  order.order_location?.display_name,
+  order.order_location?.name,
+  order.location_snapshot?.display_name,
+  order.location_snapshot?.name,
+  order.location_snapshot?.code
+)
+
+const getEpseLocationLabel = (location = '') => {
+  const normalized = normalizeText(location)
+  if (!normalized) return ''
+  if (normalized.includes('planta fotovoltaica') || normalized.includes('planta fv')) return 'Planta FV'
+  if (normalized.includes('estacion transformadora') || normalized.includes('estacion')) return 'Estación'
+  if (normalized.includes('obra') || normalized.includes('linea de alta tension')) return 'Obra'
+  return String(location).trim().replace(/^EPSE\s*[–-]\s*/i, '')
+}
+
 export const getOrderCompanyLabel = (order = {}) => {
-  const location = order.location || order.delivery_location || ''
-  const configured = getCompanyByLocationOrSlug(order.company_slug || order.company || location)
-  return order.company_name || configured?.name || order.company || location || 'Sin empresa'
+  const originLocation = getOrderOriginLocation(order)
+  const configured = getCompanyByLocationOrSlug(order.company_slug || order.company || originLocation)
+  const companyLabel = order.company_name || configured?.name || order.company || originLocation || 'Sin empresa'
+  if (configured?.slug !== 'epse' && String(order.company_slug || '').trim().toLowerCase() !== 'epse') return companyLabel
+  const epseLocation = getEpseLocationLabel(originLocation)
+  return epseLocation ? `EPSE – ${epseLocation}` : 'EPSE'
 }
 
 export const getOrderDeliveryLocation = (order = {}) =>
