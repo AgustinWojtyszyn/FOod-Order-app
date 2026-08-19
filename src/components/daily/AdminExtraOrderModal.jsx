@@ -184,7 +184,7 @@ const CounterControl = ({ value = 0, onChange, min = 0, max = 99, ariaLabel }) =
 
   return (
     <div
-      className="sf-admin-extra-counter grid h-11 min-w-[144px] shrink-0 grid-cols-[44px_56px_44px] rounded-lg border border-slate-300 bg-white shadow-sm"
+      className="sf-admin-extra-counter grid h-11 min-w-36nk-0 grid-cols-[44px_56px_44px] rounded-lg border border-slate-300 bg-white shadow-sm"
       role="group"
       aria-label={ariaLabel}
     >

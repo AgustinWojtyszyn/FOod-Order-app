@@ -279,12 +279,14 @@ export default function EditOrderForm({ user, loading }) {
             items={menuItems}
             selectedItems={selectedItems}
             onToggleItem={handleItemSelect}
+            companySlug={originalCompany?.slug}
           />
 
           <EditOrderSummarySection
             items={selectedItemsList}
             total={total}
             onRemove={(itemId) => handleItemSelect(itemId, false)}
+            companySlug={originalCompany?.slug}
           />
 
           <EditOrderCustomOptionsSection

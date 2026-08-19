@@ -8,7 +8,8 @@ const OrderConfirmModal = ({
   submitting,
   onClose,
   onConfirm,
-  formatResponseValue
+  formatResponseValue,
+  companySlug
 }) => {
   if (!open || !confirmData) return null
 
@@ -51,7 +52,7 @@ const OrderConfirmModal = ({
                   <p className="text-sm font-semibold text-gray-700 mb-1">Menús</p>
                   <div className="space-y-1">
                     {confirmData.lunchItems.map((item, index) => {
-                      const { label, dish } = getMenuDisplay(item, Number.isFinite(item?.slotIndex) ? item.slotIndex : index)
+                      const { label, dish } = getMenuDisplay(item, Number.isFinite(item?.slotIndex) ? item.slotIndex : index, companySlug)
                       return (
                       <div key={item.id} className="text-sm sm:text-base">
                         <p className="font-semibold text-gray-900">{label}</p>
@@ -96,7 +97,7 @@ const OrderConfirmModal = ({
                           </div>
                         )
                       }
-                      const { label, dish } = getMenuDisplay(item, Number.isFinite(item?.slotIndex) ? item.slotIndex : index)
+                      const { label, dish } = getMenuDisplay(item, Number.isFinite(item?.slotIndex) ? item.slotIndex : index, companySlug)
                       return (
                       <div key={item.id} className="text-sm sm:text-base">
                         <p className="font-semibold text-gray-900">{label}</p>

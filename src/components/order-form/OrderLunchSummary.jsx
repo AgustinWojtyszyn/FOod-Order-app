@@ -1,7 +1,7 @@
 import { ShoppingCart, X } from 'lucide-react'
 import { getMenuDisplay } from '../../utils/order/menuDisplay'
 
-const OrderLunchSummary = ({ items, total, onRemove }) => {
+const OrderLunchSummary = ({ items, total, onRemove, companySlug }) => {
   if (!items || items.length === 0) return null
 
   return (
@@ -18,7 +18,7 @@ const OrderLunchSummary = ({ items, total, onRemove }) => {
 
       <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
         {items.map((item, index) => {
-          const { label, dish } = getMenuDisplay(item, Number.isFinite(item?.slotIndex) ? item.slotIndex : index)
+          const { label, dish } = getMenuDisplay(item, Number.isFinite(item?.slotIndex) ? item.slotIndex : index, companySlug)
           return (
           <div key={item.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 py-2 border-b border-gray-100">
             <div className="flex items-center justify-between sm:justify-start">

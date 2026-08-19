@@ -2,6 +2,7 @@ const normalizeText = (value = '') => (value || '').toString().trim()
 const normalizeSlotTitle = (value = '') => normalizeText(value).toLowerCase()
 const HIDDEN_ORDER_MENU_SLOT_INDEX = 4
 const HIDDEN_ORDER_MENU_COMPANY_SLUG = 'epse'
+const DIETA_COMPANY_SLUG = 'greif'
 
 const getMenuLabelByIndex = (index = 0) => (index === 0 ? 'Menú principal' : `Opción ${index}`)
 
@@ -27,7 +28,7 @@ const getMenuDish = (item = {}, labelUsesTitle = false) => {
   return normalizeText(item.name)
 }
 
-const getMenuDisplay = (item = {}, index = 0) => {
+const getMenuDisplay = (item = {}, index = 0, companySlug = '') => {
   const title = normalizeText(item?.displayName || item?.name)
   const inferredSlot = getSlotIndexFromTitle(title)
   const slotIndex = Number.isFinite(item?.slotIndex)
@@ -35,12 +36,12 @@ const getMenuDisplay = (item = {}, index = 0) => {
     : (Number.isFinite(inferredSlot) ? inferredSlot : index)
   const label = title || getMenuLabelByIndex(slotIndex)
   const dish = getMenuDish(item, Boolean(title))
-  return {
+  return getCompanyMenuDisplay({
     label,
     dish,
     slotIndex,
     isMainMenu: slotIndex === 0
-  }
+  }, companySlug)
 }
 
 const withMenuSlotIndex = (items = []) => {
@@ -62,6 +63,21 @@ const getMenuSlotIndex = (item = {}, fallbackIndex = null) => {
 }
 
 const normalizeCompanySlug = (value = '') => (value || '').toString().trim().toLowerCase()
+
+const replaceGreifBifeLabel = (value, companySlug) => {
+  const text = normalizeText(value)
+  if (normalizeCompanySlug(companySlug) !== DIETA_COMPANY_SLUG || !/bife\s+del\s+d[ií]a/i.test(text)) return value
+  return 'Dieta'
+}
+
+const getCompanyMenuDisplay = (display, companySlug) => {
+  if (normalizeCompanySlug(companySlug) !== DIETA_COMPANY_SLUG) return display
+  return {
+    ...display,
+    label: replaceGreifBifeLabel(display.label, companySlug),
+    dish: replaceGreifBifeLabel(display.dish, companySlug)
+  }
+}
 
 const isHiddenOrderMenuSlot = (item = {}, companySlug = '') =>
   normalizeCompanySlug(companySlug) === HIDDEN_ORDER_MENU_COMPANY_SLUG &&

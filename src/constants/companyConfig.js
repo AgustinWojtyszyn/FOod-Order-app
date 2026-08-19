@@ -82,6 +82,16 @@ export const COMPANY_CATALOG = {
     optionsSourceSlug: 'epse',
     requiresAuthorizedLocations: true
   },
+  greif: {
+    slug: 'greif',
+    name: 'Greif',
+    description: 'Pedidos para equipos operativos de Greif.',
+    accent: 'from-rose-500 to-red-700',
+    badgeClass: 'bg-rose-100 text-rose-700',
+    locations: ['Greif'],
+    customHint: 'Seleccioná Greif para cargar tu pedido.',
+    optionsSourceSlug: 'laja'
+  },
   administracion_servifood: {
     slug: 'administracion_servifood',
     name: 'Administración ServiFood',
