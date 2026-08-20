@@ -257,7 +257,7 @@ export const getRemitoIssueFallbackMessage = (companyName, error) => {
     error?.code
   ].map((value) => normalizeText(value)).filter(Boolean).join(' | ')
   const suffix = raw ? ` Detalle técnico: ${raw}` : ''
-  return `No pudimos emitir la nota de pedido para ${companyName}. Verificá que la empresa tenga número inicial configurado.${suffix}`
+  return `No pudimos emitir la nota de pedido para ${companyName}.${suffix}`
 }
 
 const normalizeRemitoComparisonText = (value = '') =>

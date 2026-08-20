@@ -4,6 +4,7 @@ import {
   getPrintableDetailRows,
   buildRemitoSnapshot,
   getRemitoMenuTotalFromRows,
+  getRemitoIssueFallbackMessage,
   getRemitoRowPriority,
   getOrderRemitoBeverages,
   getTotalMenuItemsForRemito,
@@ -28,6 +29,18 @@ const makeOrder = (overrides = {}) => ({
 })
 
 describe('daily order notes Excel model', () => {
+  it('does not blame remito start-number config for unrelated RPC errors', () => {
+    const message = getRemitoIssueFallbackMessage('EPSE – Los Caracoles', {
+      code: '42702',
+      message: 'column reference "status" is ambiguous'
+    })
+
+    expect(message).toContain('No pudimos emitir la nota de pedido para EPSE – Los Caracoles.')
+    expect(message).toContain('42702')
+    expect(message).toContain('status')
+    expect(message).not.toContain('número inicial')
+  })
+
   it('normalizes Genneia beverages and keeps each beverage separated', () => {
     const products = summarizeProducts([
       makeOrder({ custom_responses: [{ title: 'Bebidas (solo Genneia)', response: 'Agua' }] }),

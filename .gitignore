@@ -40,6 +40,7 @@ dist-ssr
 !supabase/migrations/20260818120000_post_report_extra_orders.sql
 !supabase/migrations/20260818130000_normal_order_company_snapshot.sql
 !supabase/migrations/20260820120000_cancel_epse_30005_duplicate_remito.sql
+!supabase/migrations/20260820130000_fix_issue_company_remito_status_ambiguity.sql
 !supabase/diagnostics/*.sql
 # Python
 __pycache__/

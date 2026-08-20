@@ -45,6 +45,10 @@ const cancelEpseDuplicateRemitoMigration = readFileSync(
   new URL('./20260820120000_cancel_epse_30005_duplicate_remito.sql', import.meta.url),
   'utf8'
 )
+const issueCompanyRemitoAmbiguityFixMigration = readFileSync(
+  new URL('./20260820130000_fix_issue_company_remito_status_ambiguity.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -208,5 +212,25 @@ describe('admin extra orders migration', () => {
     expect(cancelEpseDuplicateRemitoMigration).toContain("and status = 'issued'")
     expect(cancelEpseDuplicateRemitoMigration).not.toContain('delete from public.orders')
     expect(cancelEpseDuplicateRemitoMigration).not.toContain('update public.orders')
+  })
+
+  it('qualifies issue_company_remito status references to avoid PL/pgSQL output ambiguity', () => {
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain('create or replace function public.issue_company_remito')
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain('returns table (')
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain('status text')
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain('language plpgsql')
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain('security definer')
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain('set search_path = public, pg_temp')
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain('from public.company_remitos as cr')
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain('cr.request_id = v_request_id')
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain("cr.status = 'issued'")
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain('cr.company_id = v_company.id')
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain('cr.delivery_date = p_delivery_date')
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain('cr.location_key = v_location_key')
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain('returning public.company_remitos.*')
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain('v_existing.status as status')
+    expect(issueCompanyRemitoAmbiguityFixMigration).toContain('grant execute on function public.issue_company_remito(text, text, date, uuid[], text, jsonb, text) to authenticated')
+    expect(issueCompanyRemitoAmbiguityFixMigration).not.toMatch(/where\s+request_id\s*=\s*v_request_id\s+and\s+status\s*=\s*'issued'/i)
+    expect(issueCompanyRemitoAmbiguityFixMigration).not.toMatch(/and\s+status\s*=\s*'issued'/i)
   })
 })
