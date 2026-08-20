@@ -75,6 +75,41 @@ describe('daily order notes Excel model', () => {
     }
   })
 
+  it('keeps reserved empty detail rows blank without removing real quantity 11 values', async () => {
+    const previousFetch = globalThis.fetch
+    globalThis.fetch = async () => ({
+      arrayBuffer: async () => new ArrayBuffer(8)
+    })
+
+    try {
+      const { workbook } = await buildRemitoWorkbook([{
+        companySlug: 'epse',
+        companyName: 'EPSE',
+        companyDisplayName: 'EPSE – Quebrada de Ullum',
+        remitoNumber: 30015,
+        deliveryDate: '2026-08-20',
+        totalItems: 11,
+        products: [
+          { cantidad: 11, producto: 'Menú principal - Carne braseada', category: REMITO_ROW_CATEGORIES.mainMenu },
+          { cantidad: 11, producto: 'Postre: Fruta', category: REMITO_ROW_CATEGORIES.dessert }
+        ]
+      }])
+      const worksheet = workbook.getWorksheet('EPSE – Quebrada de Ullum 30015')
+
+      expect(worksheet.getCell('B9').value).toBe(11)
+      expect(worksheet.getCell('C9').value).toBe('Menú principal - Carne braseada')
+      expect(worksheet.getCell('I9').value).toBe(11)
+      expect(worksheet.getCell('J9').value).toBe('Menú principal - Carne braseada')
+
+      expect(worksheet.getCell('B13').value).toBeNull()
+      expect(worksheet.getCell('C13').value).toBeNull()
+      expect(worksheet.getCell('I13').value).toBeNull()
+      expect(worksheet.getCell('J13').value).toBeNull()
+    } finally {
+      globalThis.fetch = previousFetch
+    }
+  })
+
   it('normalizes Genneia beverages and keeps each beverage separated', () => {
     const products = summarizeProducts([
       makeOrder({ custom_responses: [{ title: 'Bebidas (solo Genneia)', response: 'Agua' }] }),

@@ -853,11 +853,11 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
   })
   for (let index = detailRows.length; index < DETAIL_ROWS_PER_COPY; index += 1) {
     const rowNumber = DETAIL_START_ROW + index
-    copyCell(worksheet, rowNumber, startCol, '', {
+    copyCell(worksheet, rowNumber, startCol, null, {
       font: { size: 8 },
       alignment: { vertical: 'middle', horizontal: 'center' }
     })
-    mergeAndSet(worksheet, rowNumber, startCol + 1, rowNumber, endCol, '', {
+    mergeAndSet(worksheet, rowNumber, startCol + 1, rowNumber, endCol, null, {
       font: { size: 8 },
       alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
     })
