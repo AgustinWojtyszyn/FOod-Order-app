@@ -30,6 +30,7 @@ const normalizeText = (value = '') =>
 const REMITO_PANEL_DEBUG_PREFIX = '[ServiFood remitos panel]'
 const REFRESH_VISIBLE_REMITOS_KEY = '__refresh_visible_remitos__'
 const REFRESH_ALL_REMITOS_KEY = '__refresh_all_remitos__'
+const MULTILOCATION_REMITO_COMPANY_SLUGS = new Set(['epse'])
 
 const getSafeRemito = (remito) =>
   remito && typeof remito === 'object' ? remito : {}
@@ -80,6 +81,30 @@ const getSnapshotOrderCount = (snapshot = {}, remito = {}) => {
 const getSnapshotMenuTotal = (snapshot = {}) => {
   const total = Number(snapshot?.totalMenus ?? snapshot?.totalItems)
   return Number.isFinite(total) ? total : 0
+}
+
+const isMultiLocationRemitoCompany = (companySlug = '') =>
+  MULTILOCATION_REMITO_COMPANY_SLUGS.has(normalizeText(companySlug))
+
+const getRemitoSnapshot = (remito = {}) =>
+  remito?.snapshot && typeof remito.snapshot === 'object' ? remito.snapshot : {}
+
+const hasRemitoNumberOrIssuedStatus = (remito = {}) =>
+  Boolean(remito?.remito_number || String(remito?.status || '').toLowerCase() === 'issued')
+
+const getRemitoOrderIdCount = (remito = {}) => {
+  const snapshot = getRemitoSnapshot(remito)
+  if (Array.isArray(snapshot.orderIds)) return snapshot.orderIds.length
+  if (Array.isArray(remito?.order_ids)) return remito.order_ids.length
+  return 0
+}
+
+const isEmptyIssuedRemito = (remito = {}) => {
+  const snapshot = getRemitoSnapshot(remito)
+  return hasRemitoNumberOrIssuedStatus(remito) &&
+    getRemitoOrderIdCount(remito) === 0 &&
+    getSnapshotOrderCount(snapshot, remito) === 0 &&
+    getSnapshotMenuTotal(snapshot) === 0
 }
 
 const arraysMatchAsSet = (left = [], right = []) => {
@@ -140,14 +165,78 @@ const getRemitoLocationKey = (remito = {}) => {
 const buildSyntheticGroupFromRemito = (remito = {}) => {
   const safeRemito = getSafeRemito(remito)
   const companySlug = getRemitoCompanySlug(safeRemito)
-  const companyName = safeRemito.company_name || safeRemito.companyName || companySlug || 'Empresa'
+  const snapshot = getRemitoSnapshot(safeRemito)
+  const companyName = safeRemito.company_name || safeRemito.companyName || snapshot.companyName || companySlug || 'Empresa'
+  const companyDisplayName = snapshot.companyDisplayName || safeRemito.company_name || safeRemito.companyName || companyName
   return {
     slug: companySlug,
     name: companyName,
-    displayName: companyName,
+    displayName: companyDisplayName,
     locationKey: getRemitoLocationKey(remito),
+    locationLabel: snapshot.locationLabel || '',
     orders: []
   }
+}
+
+export const buildDailyRemitoRows = ({
+  groups = [],
+  remitos = [],
+  deliveryDate = '',
+  locationKey = ''
+} = {}) => {
+  const remitosByCompany = new Map()
+  remitos.filter(Boolean).forEach((remito) => {
+    const companySlug = getRemitoCompanySlug(remito)
+    const remitoLocationKey = getRemitoLocationKey(remito)
+    if (isMultiLocationRemitoCompany(companySlug) && !remitoLocationKey) return
+    const key = getRemitoIdentityKey({
+      deliveryDate: String(remito.delivery_date || remito.deliveryDate || deliveryDate || '').slice(0, 10),
+      companySlug,
+      locationKey: remitoLocationKey
+    })
+    remitosByCompany.set(key, remito)
+  })
+
+  const rows = []
+  const seenKeys = new Set()
+
+  groups.forEach((group) => {
+    const rowLocationKey = group.locationKey ?? locationKey
+    const key = getRemitoIdentityKey({
+      deliveryDate,
+      companySlug: group.slug,
+      locationKey: rowLocationKey
+    })
+    rows.push({
+      key,
+      group: { ...group, locationKey: rowLocationKey },
+      existing: remitosByCompany.get(key) || null
+    })
+    seenKeys.add(key)
+  })
+
+  remitos.filter(Boolean).forEach((remito) => {
+    const companySlug = getRemitoCompanySlug(remito)
+    const remitoDate = String(remito.delivery_date || remito.deliveryDate || deliveryDate || '').slice(0, 10)
+    const rowLocationKey = getRemitoLocationKey(remito)
+    const key = getRemitoIdentityKey({
+      deliveryDate: remitoDate,
+      companySlug,
+      locationKey: rowLocationKey
+    })
+    if (seenKeys.has(key)) return
+    if (!hasRemitoNumberOrIssuedStatus(remito)) return
+    if (isEmptyIssuedRemito(remito)) return
+
+    rows.push({
+      key,
+      group: buildSyntheticGroupFromRemito(remito),
+      existing: remito
+    })
+    seenKeys.add(key)
+  })
+
+  return rows
 }
 
 const buildFreshGroupForRemito = ({
@@ -160,6 +249,16 @@ const buildFreshGroupForRemito = ({
   const targetSlug = safeExisting.company_slug || safeExisting.companySlug || fallbackGroup.slug || ''
   const targetDate = String(safeExisting.delivery_date || safeExisting.deliveryDate || deliveryDate || '').slice(0, 10)
   const targetLocationKey = String(safeExisting.location_key ?? fallbackGroup.locationKey ?? '').trim()
+  if (isMultiLocationRemitoCompany(targetSlug) && !targetLocationKey) {
+    return {
+      slug: targetSlug || fallbackGroup.slug || '',
+      name: safeExisting.company_name || safeExisting.companyName || fallbackGroup.name || targetSlug || 'Empresa',
+      displayName: safeExisting.company_name || safeExisting.companyName || fallbackGroup.displayName || fallbackGroup.name || targetSlug || 'Empresa',
+      locationKey: '',
+      locationLabel: fallbackGroup.locationLabel || '',
+      orders: []
+    }
+  }
   const freshOrders = (Array.isArray(orders) ? orders : []).filter((order) => {
     const status = String(order?.status || '').toLowerCase()
     if (!['pending', 'archived', 'post_report_extra'].includes(status)) return false
@@ -207,60 +306,12 @@ const DailyRemitosPanel = ({
   }), [exportCompany, locationFilter, orders])
 
   const groups = useMemo(() => buildCompanyGroups(filteredOrders), [filteredOrders])
-  const remitosByCompany = useMemo(() => {
-    const map = new Map()
-    remitos.filter(Boolean).forEach((remito) => {
-      const key = getRemitoIdentityKey({
-        deliveryDate: String(remito.delivery_date || remito.deliveryDate || deliveryDate || '').slice(0, 10),
-        companySlug: getRemitoCompanySlug(remito),
-        locationKey: getRemitoLocationKey(remito)
-      })
-      map.set(key, remito)
-    })
-    return map
-  }, [deliveryDate, remitos])
-
-  const remitoRows = useMemo(() => {
-    const rows = []
-    const seenKeys = new Set()
-
-    groups.forEach((group) => {
-      const rowLocationKey = group.locationKey ?? locationKey
-      const key = getRemitoIdentityKey({
-        deliveryDate,
-        companySlug: group.slug,
-        locationKey: rowLocationKey
-      })
-      rows.push({
-        key,
-        group: { ...group, locationKey: rowLocationKey },
-        existing: remitosByCompany.get(key) || null
-      })
-      seenKeys.add(key)
-    })
-
-    remitos.filter(Boolean).forEach((remito) => {
-      const companySlug = getRemitoCompanySlug(remito)
-      const remitoDate = String(remito.delivery_date || remito.deliveryDate || deliveryDate || '').slice(0, 10)
-      const rowLocationKey = getRemitoLocationKey(remito)
-      const key = getRemitoIdentityKey({
-        deliveryDate: remitoDate,
-        companySlug,
-        locationKey: rowLocationKey
-      })
-      if (seenKeys.has(key)) return
-      if (!remito.remito_number && String(remito.status || '').toLowerCase() !== 'issued') return
-
-      rows.push({
-        key,
-        group: buildSyntheticGroupFromRemito(remito),
-        existing: remito
-      })
-      seenKeys.add(key)
-    })
-
-    return rows
-  }, [deliveryDate, groups, locationKey, remitos, remitosByCompany])
+  const remitoRows = useMemo(() => buildDailyRemitoRows({
+    groups,
+    remitos,
+    deliveryDate,
+    locationKey
+  }), [deliveryDate, groups, locationKey, remitos])
 
   const loadRemitos = useCallback(async () => {
     if (!deliveryDate) return
@@ -324,6 +375,10 @@ const DailyRemitosPanel = ({
 
   const issueGroup = async (group) => {
     const rowLocationKey = group.locationKey ?? locationKey
+    if (!Array.isArray(group?.orders) || group.orders.length === 0) {
+      notifyError('No se puede emitir un remito sin pedidos.')
+      return
+    }
     const key = `${group.slug}:${rowLocationKey || 'all'}`
     setBusyKey(key)
     try {
@@ -389,6 +444,10 @@ const DailyRemitosPanel = ({
         deliveryDate
       })
       const orderIds = getOrderIds(freshGroup.orders)
+      if (!Array.isArray(freshGroup.orders) || freshGroup.orders.length === 0) {
+        if (!silent) notifyError('No se puede actualizar un remito con cero pedidos vigentes.')
+        return false
+      }
       const liveDraft = buildRemitoSnapshot({
         group: freshGroup,
         remitoNumber: existing.remito_number,

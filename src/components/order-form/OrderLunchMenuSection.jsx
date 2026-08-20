@@ -8,7 +8,7 @@ const OrderLunchMenuSection = ({ items, selectedItems, onToggleItem, companySlug
         <ChefHat className="h-6 w-6" />
       </div>
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Seleccioná tu Menú</h2>
+        <h2 className="text-2xl font-boldd text-gray-900">Seleccioná tu Menú</h2>
         <p className="text-sm text-gray-600 font-semibold mt-1">
           Elegí uno o más platos disponibles
         </p>
