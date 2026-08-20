@@ -162,7 +162,7 @@ describe('daily orders export model', () => {
     expect(row['Menú elegido']).toContain('Opción 2 - Pollo')
     expect(summary.rows[0].bebida).toBe('Coca Cola (x2), Agua sin gas (x3)')
     expect(summary.rows[0].postre).toBe('Flan (x2), Fruta (x3)')
-    expect(row['Respuestas personalizadas']).toContain('Postre: Flan (x2), Fruta')
+    expect(row).not.toHaveProperty('Respuestas personalizadas')
     expect(whatsapp).toContain('TOTAL GENERAL: 5 pedidos')
     expect(whatsapp).toContain('Extras cargados por admin: 1')
   })
@@ -233,7 +233,6 @@ describe('daily orders export model', () => {
       'Guarniciones',
       'Bebidas',
       'Postres',
-      'Respuestas personalizadas',
       'Origen',
       'Comentarios'
     ])
@@ -247,11 +246,11 @@ describe('daily orders export model', () => {
       Guarniciones: 'Puré',
       Bebidas: 'Coca cola (x3)',
       Postres: 'Fruta (x3)',
-      'Respuestas personalizadas': 'Bebida: Coca cola | Pan: Sin pan',
       Origen: 'Normal',
       Comentarios: 'Sin sal'
     })
     expect(rows[0]).not.toHaveProperty('Opción elegida')
+    expect(rows[0]).not.toHaveProperty('Respuestas personalizadas')
     expect(rows[0]).not.toHaveProperty('Estado')
   })
 
@@ -364,8 +363,10 @@ describe('daily orders export model', () => {
     })
     expect(rows[0]).toMatchObject({
       'Ubicación / empresa': 'DistroCuyo',
-      'Respuestas personalizadas': 'Bebida: Coca Zero | Fruta: Fruta'
+      Bebidas: 'Coca Zero',
+      Postres: 'Fruta'
     })
+    expect(rows[0]).not.toHaveProperty('Respuestas personalizadas')
     expect(text).toContain('DistroCuyo')
     expect(text).toContain('Opción 1 - POLLO: 1')
     expect(text).toContain('Adicionales:')

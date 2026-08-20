@@ -19,7 +19,6 @@ import {
   createMockOrders,
   formatDateEs,
   getArchiveOrdersRpcCall,
-  getCustomResponsesText,
   getCustomSide,
   getDefaultReportDate,
   getEmailSubject,
@@ -89,12 +88,6 @@ const getMenuNames = (order: ReturnType<typeof normalizeOrder>) =>
     .map((item) => String(item.name || item.title || item.menu || '').trim())
     .filter(Boolean)
     .join('; ') || 'Sin menú'
-
-const getOptionNames = (order: ReturnType<typeof normalizeOrder>) =>
-  order.items
-    .map((item) => String(item.option || item.selected_option || item.choice || '').trim())
-    .filter(Boolean)
-    .join('; ') || getMenuOptionText(order)
 
 const addHeaderStyle = (worksheet: ExcelJS.Worksheet) => {
   worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
@@ -168,11 +161,8 @@ const buildWorkbook = async ({
     { header: 'Fecha de entrega', key: 'fechaEntrega', width: 18 },
     { header: 'Turno / servicio', key: 'turno', width: 16 },
     { header: 'Menú elegido', key: 'menu', width: 36 },
-    { header: 'Opción elegida', key: 'opcion', width: 36 },
     { header: 'Guarniciones', key: 'guarniciones', width: 24 },
-    { header: 'Respuestas personalizadas', key: 'respuestas', width: 42 },
-    { header: 'Comentarios', key: 'comentarios', width: 36 },
-    { header: 'Estado', key: 'estado', width: 14 }
+    { header: 'Comentarios', key: 'comentarios', width: 36 }
   ]
 
   if (isTest) {
@@ -184,11 +174,8 @@ const buildWorkbook = async ({
       fechaEntrega: formatDateEs(reportDate),
       turno: '',
       menu: '',
-      opcion: '',
       guarniciones: '',
-      respuestas: '',
-      comentarios: '',
-      estado: ''
+      comentarios: ''
     })
   }
 
@@ -201,11 +188,8 @@ const buildWorkbook = async ({
       fechaEntrega: formatDateEs(String(order.delivery_date || reportDate)),
       turno: getServiceLabel(order.service),
       menu: getMenuNames(order),
-      opcion: getOptionNames(order),
       guarniciones: getCustomSide(order) || 'Sin guarnición',
-      respuestas: getCustomResponsesText(order),
-      comentarios: order.comments || 'Sin comentarios',
-      estado: order.status === 'pending' ? 'Pendiente' : String(order.status || 'Sin estado')
+      comentarios: order.comments || 'Sin comentarios'
     })
   })
   addHeaderStyle(details)

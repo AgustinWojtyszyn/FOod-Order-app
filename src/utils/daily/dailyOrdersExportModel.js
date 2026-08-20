@@ -214,24 +214,6 @@ const getMenuNames = (items = []) =>
     .filter(Boolean)
     .join('; ') || 'Sin menú'
 
-const getCustomResponsesTextForExcel = (order = {}) => {
-  const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
-  const responses = toArray(normalizedCustomResponses)
-  const side = extractCustomResponses(order).side
-  const lines = responses
-    .filter((response) => !normalizeText(response.title || response.label).toLowerCase().includes('guarn'))
-    .map((response) => {
-      const title = normalizeText(response.title || response.label || 'Respuesta')
-      const answer = quantitiesToText(response.quantities) || valueToText(response.answer ?? response.response ?? response.value)
-      const optionText = valueToText(response.options)
-      const value = [answer, optionText].filter(Boolean).join(', ')
-      return value ? `${title}: ${value}` : ''
-    })
-    .filter(Boolean)
-
-  return lines.join(' | ') || (side ? 'Sin otras respuestas' : 'Sin respuestas')
-}
-
 export const buildDailyOrdersExcelDetailRow = (order = {}) => {
   const items = extractOrderItems(order)
   const custom = extractCustomResponses(order)
@@ -249,7 +231,6 @@ export const buildDailyOrdersExcelDetailRow = (order = {}) => {
     Guarniciones: custom.side || 'Sin guarnición',
     Bebidas: custom.beverage || 'Sin bebida',
     Postres: custom.dessert || 'Sin postre',
-    'Respuestas personalizadas': getCustomResponsesTextForExcel(order),
     Origen: getAdminExtraOrderLabel(order),
     Comentarios: normalizeText(order.comments) || 'Sin comentarios'
   }

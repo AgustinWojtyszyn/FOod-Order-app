@@ -91,7 +91,6 @@ const addDetailsSheet = (workbook, summary) => {
     'Turno / servicio': '',
     'Menú elegido': '',
     Guarniciones: '',
-    'Respuestas personalizadas': '',
     Comentarios: ''
   }).map((key) => ({ header: key, key }))
   worksheet.addRows(rows)
