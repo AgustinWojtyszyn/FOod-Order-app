@@ -214,22 +214,6 @@ const getMenuNames = (items = []) =>
     .filter(Boolean)
     .join('; ') || 'Sin menú'
 
-const getMenuOptionText = (items = []) =>
-  items
-    .map((item) => item.label && item.label !== 'Sin menú / opción'
-      ? `${item.label} (x${item.quantity})`
-      : '')
-    .filter(Boolean)
-    .join('; ') || 'Sin menú/opción'
-
-const getOptionNames = (items = []) => {
-  const options = items
-    .map((item) => normalizeText(item.raw?.option || item.raw?.selected_option || item.raw?.choice))
-    .filter(Boolean)
-    .join('; ')
-  return options || getMenuOptionText(items)
-}
-
 const getCustomResponsesTextForExcel = (order = {}) => {
   const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
   const responses = toArray(normalizedCustomResponses)
@@ -252,7 +236,6 @@ export const buildDailyOrdersExcelDetailRow = (order = {}) => {
   const items = extractOrderItems(order)
   const custom = extractCustomResponses(order)
   const deliveryDate = normalizeText(order.delivery_date || '').slice(0, 10)
-  const status = String(order.status || '').trim().toLowerCase()
 
   return {
     Cliente: getOrderCustomer(order).replace(/^Sin cliente$/, 'Sin nombre'),
@@ -263,14 +246,12 @@ export const buildDailyOrdersExcelDetailRow = (order = {}) => {
     'Fecha de entrega': formatDateOnly(deliveryDate),
     'Turno / servicio': getOrderServiceLabel(order),
     'Menú elegido': getMenuNames(items),
-    'Opción elegida': getOptionNames(items),
     Guarniciones: custom.side || 'Sin guarnición',
     Bebidas: custom.beverage || 'Sin bebida',
     Postres: custom.dessert || 'Sin postre',
     'Respuestas personalizadas': getCustomResponsesTextForExcel(order),
     Origen: getAdminExtraOrderLabel(order),
-    Comentarios: normalizeText(order.comments) || 'Sin comentarios',
-    Estado: status === 'pending' ? 'Pendiente' : getStatusText(order.status)
+    Comentarios: normalizeText(order.comments) || 'Sin comentarios'
   }
 }
 

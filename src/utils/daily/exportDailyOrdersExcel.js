@@ -90,11 +90,9 @@ const addDetailsSheet = (workbook, summary) => {
     'Fecha de entrega': '',
     'Turno / servicio': '',
     'Menú elegido': '',
-    'Opción elegida': '',
     Guarniciones: '',
     'Respuestas personalizadas': '',
-    Comentarios: '',
-    Estado: ''
+    Comentarios: ''
   }).map((key) => ({ header: key, key }))
   worksheet.addRows(rows)
   applyHeaderStyle(worksheet)

@@ -230,14 +230,12 @@ describe('daily orders export model', () => {
       'Fecha de entrega',
       'Turno / servicio',
       'Menú elegido',
-      'Opción elegida',
       'Guarniciones',
       'Bebidas',
       'Postres',
       'Respuestas personalizadas',
       'Origen',
-      'Comentarios',
-      'Estado'
+      'Comentarios'
     ])
     expect(rows[0]).toMatchObject({
       Cliente: 'Nombre Desde Vista',
@@ -246,15 +244,15 @@ describe('daily orders export model', () => {
       'Fecha de entrega': '25/06/2026',
       'Turno / servicio': 'Almuerzo',
       'Menú elegido': 'Opción 1 - BIDE DEL DIA',
-      'Opción elegida': 'Opción 1 - BIDE DEL DIA (x1)',
       Guarniciones: 'Puré',
       Bebidas: 'Coca cola (x3)',
       Postres: 'Fruta (x3)',
       'Respuestas personalizadas': 'Bebida: Coca cola | Pan: Sin pan',
       Origen: 'Normal',
-      Comentarios: 'Sin sal',
-      Estado: 'Pendiente'
+      Comentarios: 'Sin sal'
     })
+    expect(rows[0]).not.toHaveProperty('Opción elegida')
+    expect(rows[0]).not.toHaveProperty('Estado')
   })
 
   it('genera WhatsApp agrupando guarniciones debajo de cada menú por empresa', () => {
