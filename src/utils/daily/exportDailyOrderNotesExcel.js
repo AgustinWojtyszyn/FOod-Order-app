@@ -766,19 +766,20 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
 export const addRemitoSheet = async (workbook, remito, sheetName) => {
   const worksheet = workbook.addWorksheet(sheetName)
   worksheet.columns = [
-    { key: 'margin', width: 1.6 },
-    { key: 'originalCantidad', width: 7.5 },
-    { key: 'originalDetalleA', width: 10 },
-    { key: 'originalDetalleB', width: 10 },
-    { key: 'originalDetalleC', width: 10 },
-    { key: 'originalDetalleD', width: 11 },
-    { key: 'originalDetalleE', width: 11 },
-    { key: 'duplicadoCantidad', width: 7.5 },
-    { key: 'duplicadoDetalleA', width: 10 },
-    { key: 'duplicadoDetalleB', width: 10 },
-    { key: 'duplicadoDetalleC', width: 10 },
-    { key: 'duplicadoDetalleD', width: 11 },
-    { key: 'duplicadoDetalleE', width: 11 }
+    { key: 'margin', width: 1.4 },
+    { key: 'originalCantidad', width: 7 },
+    { key: 'originalDetalleA', width: 9.4 },
+    { key: 'originalDetalleB', width: 9.4 },
+    { key: 'originalDetalleC', width: 9.4 },
+    { key: 'originalDetalleD', width: 10.2 },
+    { key: 'originalDetalleE', width: 10.2 },
+    { key: 'copySeparator', width: 2.8 },
+    { key: 'duplicadoCantidad', width: 7 },
+    { key: 'duplicadoDetalleA', width: 9.4 },
+    { key: 'duplicadoDetalleB', width: 9.4 },
+    { key: 'duplicadoDetalleC', width: 9.4 },
+    { key: 'duplicadoDetalleD', width: 10.2 },
+    { key: 'duplicadoDetalleE', width: 10.2 }
   ]
   worksheet.properties.showGridLines = false
   worksheet.views = [{ showGridLines: false }]
@@ -787,7 +788,7 @@ export const addRemitoSheet = async (workbook, remito, sheetName) => {
   }
 
   const originalEndRow = await addCopySheetBlock(workbook, worksheet, remito, 2, 'ORIGINAL')
-  const duplicateEndRow = await addCopySheetBlock(workbook, worksheet, remito, 8, 'DUPLICADO')
+  const duplicateEndRow = await addCopySheetBlock(workbook, worksheet, remito, 9, 'DUPLICADO')
   const sheetEndRow = Math.max(originalEndRow, duplicateEndRow)
 
   worksheet.getCell(`A${sheetEndRow + 2}`).value = {
@@ -797,7 +798,7 @@ export const addRemitoSheet = async (workbook, remito, sheetName) => {
   worksheet.getCell(`A${sheetEndRow + 2}`).font = { color: { argb: 'FF2563EB' }, underline: true, size: 8 }
   worksheet.getCell(`A${sheetEndRow + 2}`).alignment = { vertical: 'middle', horizontal: 'left' }
 
-  configurePrintPage(worksheet, `A1:M${sheetEndRow}`)
+  configurePrintPage(worksheet, `A1:N${sheetEndRow}`)
   return worksheet
 }
 
