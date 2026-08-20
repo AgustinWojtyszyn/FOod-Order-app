@@ -927,10 +927,9 @@ export const shouldSendEmailForMode = (mode: DailyReportMode) =>
   mode === 'send' || mode === 'testEmail' || mode === 'testEmailReal'
 
 export const getArchiveOrdersRpcCall = (reportDate: string) => ({
-  rpcName: 'archive_orders_bulk_by_delivery_date',
+  rpcName: 'archive_orders_after_daily_report',
   args: {
-    p_delivery_date: reportDate,
-    p_statuses: ['pending']
+    p_delivery_date: reportDate
   }
 })
 
@@ -971,6 +970,7 @@ export const buildDailyReportRunPayload = ({
   ordersCount,
   recipients,
   error = null,
+  sentAt = null,
   now = new Date()
 }: {
   reportDate: string
@@ -979,6 +979,7 @@ export const buildDailyReportRunPayload = ({
   ordersCount: number
   recipients: string[]
   error?: string | null
+  sentAt?: string | null
   now?: Date
 }) => {
   const sent = status === DAILY_REPORT_SEND_STATUSES.SENT || status === DAILY_REPORT_SEND_STATUSES.SENT_EMPTY
@@ -988,7 +989,7 @@ export const buildDailyReportRunPayload = ({
     status,
     orders_count: ordersCount,
     recipients,
-    sent_at: sent ? now.toISOString() : null,
+    sent_at: sent ? (sentAt || now.toISOString()) : null,
     error: error || null,
     archive_status: status === DAILY_REPORT_SEND_STATUSES.SENT
       ? DAILY_REPORT_ARCHIVE_STATUSES.PENDING
@@ -1007,6 +1008,7 @@ export const buildDailyReportFailurePayload = ({
   error,
   emailAccepted = false,
   sentStatus,
+  sentAt = null,
   now = new Date()
 }: {
   reportDate: string
@@ -1016,6 +1018,7 @@ export const buildDailyReportFailurePayload = ({
   error: string
   emailAccepted?: boolean
   sentStatus?: string
+  sentAt?: string | null
   now?: Date
 }) => {
   if (emailAccepted) {
@@ -1026,6 +1029,7 @@ export const buildDailyReportFailurePayload = ({
       ordersCount,
       recipients,
       error,
+      sentAt,
       now
     })
   }

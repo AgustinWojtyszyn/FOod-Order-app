@@ -28,6 +28,18 @@ import {
   usesRealOrdersForMode
 } from './daily_report'
 
+const simulateArchiveReconciliation = (orders, reportDate, sentAt) => {
+  if (!sentAt) return orders
+  const cutoff = new Date(sentAt).getTime()
+  return orders.map((order) => {
+    if (order.delivery_date !== reportDate || order.status !== 'pending') return order
+    if (order.order_origin === 'admin_extra' && new Date(order.created_at).getTime() >= cutoff) {
+      return { ...order, status: 'post_report_extra' }
+    }
+    return { ...order, status: 'archived' }
+  })
+}
+
 describe('daily report helpers', () => {
   it('calcula por defecto el día siguiente en America/Argentina/Buenos_Aires', () => {
     const runAt2210Art = new Date('2026-06-23T01:10:00.000Z')
@@ -521,10 +533,9 @@ describe('daily report helpers', () => {
 
   it('archivado post reporte usa RPC seguro por delivery_date y status pending', () => {
     expect(getArchiveOrdersRpcCall('2026-06-26')).toEqual({
-      rpcName: 'archive_orders_bulk_by_delivery_date',
+      rpcName: 'archive_orders_after_daily_report',
       args: {
-        p_delivery_date: '2026-06-26',
-        p_statuses: ['pending']
+        p_delivery_date: '2026-06-26'
       }
     })
   })
@@ -591,6 +602,20 @@ describe('daily report helpers', () => {
       archive_error: null,
       archived_at: null
     })
+  })
+
+  it('persiste el corte capturado antes del envío', () => {
+    const payload = buildDailyReportRunPayload({
+      reportDate: '2026-06-26',
+      reportType: 'daily_orders',
+      status: DAILY_REPORT_SEND_STATUSES.SENT,
+      ordersCount: 2,
+      recipients: ['ops@example.com'],
+      sentAt: '2026-06-25T22:04:59.000Z',
+      now: new Date('2026-06-25T22:05:10.000Z')
+    })
+
+    expect(payload.sent_at).toBe('2026-06-25T22:04:59.000Z')
   })
 
   it('deja archivado nulo para envío exitoso sin pedidos', () => {
@@ -727,6 +752,47 @@ describe('daily report helpers', () => {
 
     expect(firstRun).toHaveLength(1)
     expect(secondRun).toHaveLength(0)
+  })
+
+  it('reclasifica extras posteriores al corte y archiva extras anteriores', () => {
+    const orders = [
+      { id: 'before', delivery_date: '2026-06-26', status: 'pending', order_origin: 'admin_extra', created_at: '2026-06-25T22:04:00.000Z' },
+      { id: 'after', delivery_date: '2026-06-26', status: 'pending', order_origin: 'admin_extra', created_at: '2026-06-25T22:05:00.000Z' },
+      { id: 'normal', delivery_date: '2026-06-26', status: 'pending', order_origin: 'user', created_at: '2026-06-25T22:06:00.000Z' }
+    ]
+
+    expect(simulateArchiveReconciliation(orders, '2026-06-26', '2026-06-25T22:05:00.000Z')).toMatchObject([
+      { id: 'before', status: 'archived' },
+      { id: 'after', status: 'post_report_extra' },
+      { id: 'normal', status: 'archived' }
+    ])
+  })
+
+  it('protege el extra creado durante Resend antes del upsert', () => {
+    const order = {
+      id: 'during-resend',
+      delivery_date: '2026-06-26',
+      status: 'pending',
+      order_origin: 'admin_extra',
+      created_at: '2026-06-25T22:05:01.000Z'
+    }
+
+    expect(simulateArchiveReconciliation([order], '2026-06-26', '2026-06-25T22:05:00.000Z')[0].status)
+      .toBe('post_report_extra')
+  })
+
+  it('no archiva si Resend falla o no existe un reporte sent', () => {
+    const orders = [{ id: 'pending', delivery_date: '2026-06-26', status: 'pending', order_origin: 'user' }]
+    expect(simulateArchiveReconciliation(orders, '2026-06-26', null)).toEqual(orders)
+    expect(simulateArchiveReconciliation(orders, '2026-06-26', undefined)).toEqual(orders)
+  })
+
+  it('nunca archiva automáticamente post_report_extra y reintentar no cambia nada', () => {
+    const order = { id: 'extra', delivery_date: '2026-06-26', status: 'post_report_extra', order_origin: 'admin_extra' }
+    const firstRun = simulateArchiveReconciliation([order], '2026-06-26', '2026-06-25T22:05:00.000Z')
+    const secondRun = simulateArchiveReconciliation(firstRun, '2026-06-26', '2026-06-25T22:05:00.000Z')
+    expect(firstRun[0].status).toBe('post_report_extra')
+    expect(secondRun).toEqual(firstRun)
   })
 
   it('testEmailReal envía solo a destinatario de prueba', () => {

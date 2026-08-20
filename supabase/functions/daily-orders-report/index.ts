@@ -81,6 +81,7 @@ type ReportFailureContext = {
   recipients?: string[]
   emailAccepted?: boolean
   sentStatus?: string
+  sentAt?: string
 }
 
 const getMenuNames = (order: ReturnType<typeof normalizeOrder>) =>
@@ -444,6 +445,7 @@ const upsertRun = async ({
   ordersCount,
   recipients,
   error,
+  sentAt,
 }: {
   reportDate: string
   reportType: string
@@ -451,6 +453,7 @@ const upsertRun = async ({
   ordersCount: number
   recipients: string[]
   error?: string | null
+  sentAt?: string | null
 }) => {
   const payload = buildDailyReportRunPayload({
     reportDate,
@@ -458,7 +461,8 @@ const upsertRun = async ({
     status,
     ordersCount,
     recipients,
-    error
+    error,
+    sentAt
   })
   const { error: upsertError } = await supabase
     .from('daily_report_runs')
@@ -474,7 +478,8 @@ const upsertFailureRun = async ({
   recipients,
   error,
   emailAccepted,
-  sentStatus
+  sentStatus,
+  sentAt
 }: {
   reportDate: string
   reportType: string
@@ -483,6 +488,7 @@ const upsertFailureRun = async ({
   error: string
   emailAccepted?: boolean
   sentStatus?: string
+  sentAt?: string | null
 }) => {
   const payload = buildDailyReportFailurePayload({
     reportDate,
@@ -491,7 +497,8 @@ const upsertFailureRun = async ({
     recipients,
     error,
     emailAccepted,
-    sentStatus
+    sentStatus,
+    sentAt
   })
   const { error: upsertError } = await supabase
     .from('daily_report_runs')
@@ -523,7 +530,14 @@ const archiveReportedOrders = async (reportDate: string) => {
   const { data, error } = await supabase.rpc(rpcName, args)
 
   if (error) throw error
-  return Array.isArray(data) ? data.length : 0
+  const result = Array.isArray(data) ? data[0] : data
+  return {
+    reportFound: Boolean(result?.report_found),
+    reportStatus: result?.report_status || null,
+    sentAt: result?.sent_at || null,
+    reclassifiedOrdersCount: Number(result?.reclassified_count || 0),
+    archivedOrdersCount: Number(result?.archived_count || 0)
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -589,17 +603,31 @@ Deno.serve(async (req: Request) => {
       }
 
       try {
-        const archivedOrdersCount = await archiveReportedOrders(reportDate)
+        const archiveResult = await archiveReportedOrders(reportDate)
+        if (!archiveResult.reportFound) {
+          return toResponse({
+            ok: true,
+            mode,
+            skipped: true,
+            reason: 'report_not_sent',
+            reportDate,
+            reportStatus: archiveResult.reportStatus,
+            sentAt: archiveResult.sentAt,
+            reclassifiedOrdersCount: 0,
+            archivedOrdersCount: 0
+          })
+        }
         await updateArchiveRun({
           reportDate,
           reportType: DAILY_REPORT_TYPE,
-          patch: buildArchiveCompletedPayload(archivedOrdersCount)
+          patch: buildArchiveCompletedPayload(archiveResult.archivedOrdersCount)
         })
 
         console.log('[daily-orders-report] archivado post reporte', {
           mode,
           reportDate,
-          archivedOrdersCount
+          reclassifiedOrdersCount: archiveResult.reclassifiedOrdersCount,
+          archivedOrdersCount: archiveResult.archivedOrdersCount
         })
 
         return toResponse({
@@ -607,7 +635,8 @@ Deno.serve(async (req: Request) => {
           mode,
           skipped: false,
           reportDate,
-          archivedOrdersCount
+          reclassifiedOrdersCount: archiveResult.reclassifiedOrdersCount,
+          archivedOrdersCount: archiveResult.archivedOrdersCount
         })
       } catch (archiveError) {
         const message = safeError(archiveError)
@@ -682,6 +711,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const workbookBuffer = await buildWorkbook({ orders, reportDate, isTest })
+    const reportCutoffAt = new Date().toISOString()
     const emailResult = await sendEmail({
       to: recipients,
       subject: getEmailSubject(reportDate, isTest),
@@ -691,15 +721,17 @@ Deno.serve(async (req: Request) => {
       attachment: workbookBuffer
     })
     failureContext.emailAccepted = true
-    failureContext.sentStatus = orders.length > 0 ? DAILY_REPORT_SEND_STATUSES.SENT : DAILY_REPORT_SEND_STATUSES.SENT_EMPTY
+    failureContext.sentStatus = DAILY_REPORT_SEND_STATUSES.SENT
+    failureContext.sentAt = reportCutoffAt
 
     if (shouldWriteDailyReportRun(mode)) {
       await upsertRun({
         reportDate,
         reportType,
-        status: orders.length > 0 ? DAILY_REPORT_SEND_STATUSES.SENT : DAILY_REPORT_SEND_STATUSES.SENT_EMPTY,
+        status: DAILY_REPORT_SEND_STATUSES.SENT,
         ordersCount: summary.totalOrders,
-        recipients
+        recipients,
+        sentAt: reportCutoffAt
       })
     }
 
@@ -735,7 +767,8 @@ Deno.serve(async (req: Request) => {
           recipients: failureContext.recipients || [],
           error: message,
           emailAccepted: Boolean(failureContext.emailAccepted),
-          sentStatus: failureContext.sentStatus
+          sentStatus: failureContext.sentStatus,
+          sentAt: failureContext.sentAt
         })
       }
     } catch {

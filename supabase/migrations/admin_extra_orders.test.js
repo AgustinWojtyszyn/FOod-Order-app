@@ -37,6 +37,10 @@ const postReportExtraOrdersMigration = readFileSync(
   new URL('./20260818120000_post_report_extra_orders.sql', import.meta.url),
   'utf8'
 )
+const reportArchiveReconciliationMigration = readFileSync(
+  new URL('./20260819110000_reconcile_and_archive_daily_report_orders.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -163,5 +167,21 @@ describe('admin extra orders migration', () => {
     expect(postReportExtraOrdersMigration).toContain('drr.sent_at <= o.created_at')
     expect(postReportExtraOrdersMigration).toContain("array['pending', 'archived', 'post_report_extra']")
     expect(postReportExtraOrdersMigration).not.toContain("delivery_date = '2026-08-19'")
+  })
+
+  it('reconciles post-report extras before archiving pending orders in one RPC', () => {
+    expect(reportArchiveReconciliationMigration).toContain('create or replace function public.archive_orders_after_daily_report')
+    expect(reportArchiveReconciliationMigration).toContain("drr.report_type = 'daily_orders'")
+    expect(reportArchiveReconciliationMigration).toContain("drr.status = 'sent'")
+    expect(reportArchiveReconciliationMigration).toContain('drr.sent_at is not null')
+    expect(reportArchiveReconciliationMigration).toContain('for update')
+    expect(reportArchiveReconciliationMigration).toContain("lower(coalesce(order_origin, 'user')) = 'admin_extra'")
+    expect(reportArchiveReconciliationMigration).toContain("status = 'post_report_extra'")
+    expect(reportArchiveReconciliationMigration).toContain('created_at >= v_sent_at')
+    expect(reportArchiveReconciliationMigration).toContain("status = 'archived'")
+    expect(reportArchiveReconciliationMigration).toContain('return query select false')
+    expect(reportArchiveReconciliationMigration).toContain('revoke all on function public.archive_orders_after_daily_report(date)')
+    expect(reportArchiveReconciliationMigration).toContain('created_at >= v_sent_at')
+    expect(reportArchiveReconciliationMigration).toContain("and status = 'pending'")
   })
 })
