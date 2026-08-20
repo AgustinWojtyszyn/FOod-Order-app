@@ -3,6 +3,7 @@ import {
   buildCompanyGroups,
   getPrintableDetailRows,
   buildRemitoSnapshot,
+  buildRemitoWorkbook,
   getRemitoMenuTotalFromRows,
   getRemitoIssueFallbackMessage,
   getRemitoRowPriority,
@@ -39,6 +40,38 @@ describe('daily order notes Excel model', () => {
     expect(message).toContain('42702')
     expect(message).toContain('status')
     expect(message).not.toContain('número inicial')
+  })
+
+  it('centers the ServiFood logos equally in original and duplicate header blocks', async () => {
+    const previousFetch = globalThis.fetch
+    globalThis.fetch = async () => ({
+      arrayBuffer: async () => new ArrayBuffer(8)
+    })
+
+    try {
+      const { workbook } = await buildRemitoWorkbook([{
+        companySlug: 'epse',
+        companyName: 'EPSE',
+        companyDisplayName: 'EPSE – Los Caracoles',
+        remitoNumber: 30007,
+        deliveryDate: '2026-08-20',
+        totalItems: 1,
+        products: [{ cantidad: 1, producto: 'Menú', category: 'menu' }]
+      }])
+      const worksheet = workbook.getWorksheet('EPSE – Los Caracoles 30007')
+      const images = worksheet.getImages()
+
+      expect(images).toHaveLength(2)
+      expect(images[0].range.ext).toEqual(images[1].range.ext)
+      expect(images[0].range.ext).toEqual({ width: 42, height: 42 })
+      expect(images[0].range.tl.nativeCol).toBe(1)
+      expect(images[1].range.tl.nativeCol).toBe(8)
+      expect(images[0].range.tl.nativeColOff).toBe(images[1].range.tl.nativeColOff)
+      expect(images[0].range.tl.nativeRow).toBe(images[1].range.tl.nativeRow)
+      expect(images[0].range.tl.nativeRowOff).toBe(images[1].range.tl.nativeRowOff)
+    } finally {
+      globalThis.fetch = previousFetch
+    }
   })
 
   it('normalizes Genneia beverages and keeps each beverage separated', () => {

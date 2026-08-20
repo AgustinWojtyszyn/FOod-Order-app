@@ -618,15 +618,69 @@ const applyOuterBorder = (worksheet, fromRow, toRow, fromCol, toCol) => {
   }
 }
 
+const DEFAULT_COLUMN_WIDTH = 8.43
+const DEFAULT_ROW_HEIGHT = 15
+const EXCEL_COLUMN_PADDING_PX = 5
+const EXCEL_COLUMN_CHAR_PX = 7
+const POINTS_TO_PIXELS = 96 / 72
+const REMITO_LOGO_BLOCK_START_ROW = 1
+const REMITO_LOGO_BLOCK_END_ROW = 4
+const REMITO_LOGO_BLOCK_FILL_RATIO = 0.78
+
+const getColumnWidthPx = (worksheet, colNumber) => {
+  const width = Number(worksheet.getColumn(colNumber)?.width || DEFAULT_COLUMN_WIDTH)
+  return Math.floor(width * EXCEL_COLUMN_CHAR_PX + EXCEL_COLUMN_PADDING_PX)
+}
+
+const getRowHeightPx = (worksheet, rowNumber) => {
+  const height = Number(worksheet.getRow(rowNumber)?.height || DEFAULT_ROW_HEIGHT)
+  return height * POINTS_TO_PIXELS
+}
+
+const getBlockHeightPx = (worksheet, fromRow, toRow) => {
+  let height = 0
+  for (let rowNumber = fromRow; rowNumber <= toRow; rowNumber += 1) {
+    height += getRowHeightPx(worksheet, rowNumber)
+  }
+  return height
+}
+
+const getRowAnchorFromOffset = (worksheet, fromRow, offsetPx) => {
+  let remainingOffset = Math.max(0, offsetPx)
+  for (let rowNumber = fromRow; rowNumber <= REMITO_LOGO_BLOCK_END_ROW; rowNumber += 1) {
+    const rowHeight = getRowHeightPx(worksheet, rowNumber)
+    if (remainingOffset <= rowHeight) {
+      return (rowNumber - 1) + (remainingOffset / rowHeight)
+    }
+    remainingOffset -= rowHeight
+  }
+  return REMITO_LOGO_BLOCK_END_ROW - 1
+}
+
+const getCenteredLogoAnchor = (worksheet, colNumber) => {
+  const blockWidth = getColumnWidthPx(worksheet, colNumber)
+  const blockHeight = getBlockHeightPx(worksheet, REMITO_LOGO_BLOCK_START_ROW, REMITO_LOGO_BLOCK_END_ROW)
+  const logoSize = Math.floor(Math.min(blockWidth, blockHeight) * REMITO_LOGO_BLOCK_FILL_RATIO)
+  const xOffset = (blockWidth - logoSize) / 2
+  const yOffset = (blockHeight - logoSize) / 2
+  return {
+    tl: {
+      col: (colNumber - 1) + (xOffset / blockWidth),
+      row: getRowAnchorFromOffset(worksheet, REMITO_LOGO_BLOCK_START_ROW, yOffset)
+    },
+    ext: {
+      width: logoSize,
+      height: logoSize
+    }
+  }
+}
+
 const addLogoAt = async (workbook, worksheet, startCol) => {
   try {
     const response = await fetch(logoUrl)
     const buffer = await response.arrayBuffer()
     const imageId = workbook.addImage({ buffer, extension: 'jpeg' })
-    worksheet.addImage(imageId, {
-      tl: { col: startCol - 0.85, row: 0.35 },
-      ext: { width: 58, height: 58 }
-    })
+    worksheet.addImage(imageId, getCenteredLogoAnchor(worksheet, startCol))
   } catch (error) {
     if (import.meta.env.DEV) {
       console.warn('No se pudo agregar el logo al Excel:', error)
