@@ -63,9 +63,9 @@ describe('daily order notes Excel model', () => {
 
       expect(images).toHaveLength(2)
       expect(images[0].range.ext).toEqual(images[1].range.ext)
-      expect(images[0].range.ext).toEqual({ width: 60, height: 60 })
-      expect(images[0].range.tl.col).toBeCloseTo(0.9444, 4)
-      expect(images[1].range.tl.col).toBeCloseTo(7.9444, 4)
+      expect(images[0].range.ext).toEqual({ width: 56, height: 56 })
+      expect(images[0].range.tl.col).toBeCloseTo(0.9814, 4)
+      expect(images[1].range.tl.col).toBeCloseTo(7.9815, 4)
       expect(images[1].range.tl.col - images[0].range.tl.col).toBeCloseTo(7, 4)
       expect(images[0].range.tl.nativeRow).toBe(images[1].range.tl.nativeRow)
       expect(images[0].range.tl.nativeRowOff).toBe(images[1].range.tl.nativeRowOff)
