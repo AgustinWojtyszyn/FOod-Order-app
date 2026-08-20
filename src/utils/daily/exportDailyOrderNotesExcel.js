@@ -625,7 +625,7 @@ const EXCEL_COLUMN_CHAR_PX = 7
 const POINTS_TO_PIXELS = 96 / 72
 const REMITO_LOGO_BLOCK_START_ROW = 1
 const REMITO_LOGO_BLOCK_END_ROW = 4
-const REMITO_LOGO_SIZE_PX = 78
+const REMITO_LOGO_SIZE_PX = 60
 
 const getColumnWidthPx = (worksheet, colNumber) => {
   const width = Number(worksheet.getColumn(colNumber)?.width || DEFAULT_COLUMN_WIDTH)
