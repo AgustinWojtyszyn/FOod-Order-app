@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildCompanyGroups,
   getPrintableDetailRows,
   buildRemitoSnapshot,
   getRemitoMenuTotalFromRows,
@@ -528,5 +529,187 @@ describe('daily order notes Excel model', () => {
       .filter((row) => !isMenuCountableCategory(row.category))
       .reduce((sum, row) => sum + Number(row.cantidad || 0), 0)
     ).toBe(23)
+  })
+
+  it('separates EPSE requesting locations with different delivery locations', () => {
+    const orders = [
+      makeOrder({
+        id: '10000000-0000-4000-8000-000000000101',
+        company_slug: 'epse',
+        company_name: 'EPSE',
+        requesting_location_code: 'EPSE_ESTACION_TRANSFORMADORA',
+        requesting_location: 'EPSE – Estación Transformadora',
+        location: 'EPSE – Estación Transformadora',
+        delivery_location: 'EPSE – Estación Transformadora',
+        total_items: 12,
+        items: [{ id: 'op-1', name: 'Opción 1', quantity: 12 }]
+      }),
+      makeOrder({
+        id: '10000000-0000-4000-8000-000000000102',
+        company_slug: 'epse',
+        company_name: 'EPSE',
+        requesting_location_code: 'EPSE_PLANTA_FOTOVOLTAICA',
+        requesting_location: 'EPSE – Planta Fotovoltaica',
+        location: 'EPSE – Planta Fotovoltaica',
+        delivery_location: 'EPSE – Planta Fotovoltaica',
+        total_items: 8,
+        items: [{ id: 'op-1', name: 'Opción 1', quantity: 8 }]
+      })
+    ]
+
+    const groups = buildCompanyGroups(orders)
+
+    expect(groups).toHaveLength(2)
+    expect(groups.map((group) => group.locationKey).sort()).toEqual([
+      'epse_estacion_transformadora',
+      'epse_planta_fotovoltaica'
+    ])
+    expect(groups.map((group) => buildRemitoSnapshot({ group }).totalMenus).sort((a, b) => a - b)).toEqual([8, 12])
+  })
+
+  it('separates EPSE requesting locations even when they share delivery location', () => {
+    const orders = [
+      makeOrder({
+        id: '10000000-0000-4000-8000-000000000201',
+        company_slug: 'epse',
+        company_name: 'EPSE',
+        requesting_location_code: 'EPSE_ANCHIPURAC',
+        requesting_location: 'EPSE – Anchipurac',
+        location: 'EPSE – Anchipurac',
+        delivery_location: 'EPSE – Estación Transformadora',
+        total_items: 5,
+        items: [{ id: 'op-1', name: 'Opción 1', quantity: 5 }]
+      }),
+      makeOrder({
+        id: '10000000-0000-4000-8000-000000000202',
+        company_slug: 'epse',
+        company_name: 'EPSE',
+        requesting_location_code: 'EPSE_OBRA_LINEA_ALTA_TENSION',
+        requesting_location: 'EPSE – Obra Línea de Alta Tensión',
+        location: 'EPSE – Obra Línea de Alta Tensión',
+        delivery_location: 'EPSE – Estación Transformadora',
+        total_items: 7,
+        items: [{ id: 'op-2', name: 'Opción 2', quantity: 7 }]
+      })
+    ]
+
+    const groups = buildCompanyGroups(orders)
+
+    expect(groups).toHaveLength(2)
+    expect(groups.map((group) => group.locationKey).sort()).toEqual([
+      'epse_anchipurac',
+      'epse_obra_linea_alta_tension'
+    ])
+    expect(new Set(groups.flatMap((group) => group.orders.map((order) => order.id))).size).toBe(2)
+  })
+
+  it('falls back to original EPSE location for old orders without requesting_location_code', () => {
+    const orders = [
+      makeOrder({
+        id: '10000000-0000-4000-8000-000000000301',
+        company_slug: 'epse',
+        company_name: 'EPSE',
+        location: 'EPSE – Estación Transformadora',
+        delivery_location: 'EPSE – Planta Fotovoltaica',
+        total_items: 4,
+        items: [{ id: 'op-1', name: 'Opción 1', quantity: 4 }]
+      }),
+      makeOrder({
+        id: '10000000-0000-4000-8000-000000000302',
+        company_slug: 'epse',
+        company_name: 'EPSE',
+        location: 'EPSE – Planta Fotovoltaica',
+        delivery_location: 'EPSE – Planta Fotovoltaica',
+        total_items: 6,
+        items: [{ id: 'op-2', name: 'Opción 2', quantity: 6 }]
+      })
+    ]
+
+    const groups = buildCompanyGroups(orders)
+
+    expect(groups).toHaveLength(2)
+    expect(groups.map((group) => group.locationKey).sort()).toEqual([
+      'epse_estacion_transformadora',
+      'epse_planta_fotovoltaica'
+    ])
+  })
+
+  it('keeps non-EPSE grouping by company unchanged', () => {
+    const orders = [
+      makeOrder({
+        id: '10000000-0000-4000-8000-000000000401',
+        company_slug: 'genneia',
+        company_name: 'Genneia',
+        location: 'Genneia',
+        delivery_location: 'Entrega Norte'
+      }),
+      makeOrder({
+        id: '10000000-0000-4000-8000-000000000402',
+        company_slug: 'genneia',
+        company_name: 'Genneia',
+        location: 'Genneia',
+        delivery_location: 'Entrega Sur'
+      })
+    ]
+
+    const groups = buildCompanyGroups(orders)
+
+    expect(groups).toHaveLength(1)
+    expect(groups[0]).toMatchObject({
+      slug: 'genneia',
+      name: 'Genneia',
+      locationKey: ''
+    })
+    expect(groups[0].orders.map((order) => order.id).sort()).toEqual([
+      '10000000-0000-4000-8000-000000000401',
+      '10000000-0000-4000-8000-000000000402'
+    ])
+  })
+
+  it('keeps EPSE grouped totals equal to the general EPSE total without duplicated orders', () => {
+    const orders = [
+      makeOrder({
+        id: '10000000-0000-4000-8000-000000000501',
+        company_slug: 'epse',
+        company_name: 'EPSE',
+        requesting_location_code: 'EPSE_ESTACION_TRANSFORMADORA',
+        requesting_location: 'EPSE – Estación Transformadora',
+        location: 'EPSE – Estación Transformadora',
+        delivery_location: 'EPSE – Estación Transformadora',
+        total_items: 10,
+        items: [{ id: 'op-1', name: 'Opción 1', quantity: 10 }]
+      }),
+      makeOrder({
+        id: '10000000-0000-4000-8000-000000000502',
+        company_slug: 'epse',
+        company_name: 'EPSE',
+        requesting_location_code: 'EPSE_PLANTA_FOTOVOLTAICA',
+        requesting_location: 'EPSE – Planta Fotovoltaica',
+        location: 'EPSE – Planta Fotovoltaica',
+        delivery_location: 'EPSE – Estación Transformadora',
+        total_items: 11,
+        items: [{ id: 'op-2', name: 'Opción 2', quantity: 11 }]
+      }),
+      makeOrder({
+        id: '10000000-0000-4000-8000-000000000503',
+        company_slug: 'epse',
+        company_name: 'EPSE',
+        requesting_location_code: 'EPSE_ANCHIPURAC',
+        requesting_location: 'EPSE – Anchipurac',
+        location: 'EPSE – Anchipurac',
+        delivery_location: 'EPSE – Estación Transformadora',
+        total_items: 12,
+        items: [{ id: 'op-3', name: 'Opción 3', quantity: 12 }]
+      })
+    ]
+
+    const groups = buildCompanyGroups(orders)
+    const snapshots = groups.map((group) => buildRemitoSnapshot({ group }))
+    const groupedOrderIds = groups.flatMap((group) => group.orders.map((order) => order.id))
+
+    expect(groups).toHaveLength(3)
+    expect(new Set(groupedOrderIds).size).toBe(orders.length)
+    expect(snapshots.reduce((sum, snapshot) => sum + snapshot.totalMenus, 0)).toBe(33)
+    expect(snapshots.flatMap((snapshot) => snapshot.orderIds).sort()).toEqual(orders.map((order) => order.id).sort())
   })
 })

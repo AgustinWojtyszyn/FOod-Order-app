@@ -115,6 +115,66 @@ const normalizeCompanyMatchText = (value = '') =>
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
 
+const isEpseCompanySlug = (slug = '') =>
+  normalizeCompanyMatchText(slug) === 'epse'
+
+const firstNonBlank = (...values) =>
+  values.map((value) => normalizeText(value)).find(Boolean) || ''
+
+const formatEpseLocationLabel = (value = '') => {
+  const raw = normalizeText(value)
+  if (!raw) return 'EPSE'
+  if (/^EPSE\s*[–-]\s*/i.test(raw)) return raw
+  const normalized = normalizeCompanyMatchText(raw)
+  if (normalized.startsWith('epse_')) {
+    return `EPSE – ${raw
+      .replace(/^EPSE[_\s-]*/i, '')
+      .toLowerCase()
+      .split(/[_\s-]+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')}`
+  }
+  return `EPSE – ${raw}`
+}
+
+export const getEpseRequestingLocationValue = (order = {}) =>
+  firstNonBlank(
+    order.requesting_location_code,
+    order.order_location?.code,
+    order.location_snapshot?.code,
+    order.requesting_location,
+    order.requesting_location_name,
+    order.order_location?.display_name,
+    order.order_location?.name,
+    order.location_snapshot?.display_name,
+    order.location_snapshot?.name,
+    order.location,
+    order.organization,
+    order.company_name
+  )
+
+export const getOrderRemitoLocationKey = (order = {}) => {
+  const company = resolveCompanyForOrder(order)
+  if (!isEpseCompanySlug(company.slug)) return ''
+  return normalizeCompanyMatchText(getEpseRequestingLocationValue(order))
+}
+
+export const getOrderRemitoLocationLabel = (order = {}) => {
+  const company = resolveCompanyForOrder(order)
+  if (!isEpseCompanySlug(company.slug)) return firstNonBlank(order.location, order.delivery_location)
+  return formatEpseLocationLabel(firstNonBlank(
+    order.requesting_location,
+    order.requesting_location_name,
+    order.order_location?.display_name,
+    order.order_location?.name,
+    order.location_snapshot?.display_name,
+    order.location_snapshot?.name,
+    order.location,
+    getEpseRequestingLocationValue(order)
+  ))
+}
+
 export const resolveCompanyForOrder = (order = {}) => {
   const raw = getOrderLocation(order)
   const company = getCompanyByLocationOrSlug(raw) || getCompanyByLocationOrSlug(order.company_slug || order.company)
@@ -161,12 +221,23 @@ export const buildCompanyGroups = (orders = []) => {
   orders.forEach((order) => {
     const company = resolveCompanyForOrder(order)
     if (!isRemitoEligibleCompany(company)) return
-    if (!groups.has(company.slug)) {
-      groups.set(company.slug, { ...company, orders: [] })
+    const locationKey = getOrderRemitoLocationKey(order)
+    const groupKey = [company.slug, locationKey].filter(Boolean).join(':')
+    if (!groups.has(groupKey)) {
+      const locationLabel = getOrderRemitoLocationLabel(order)
+      groups.set(groupKey, {
+        ...company,
+        displayName: isEpseCompanySlug(company.slug) && locationLabel ? locationLabel : company.displayName,
+        locationKey,
+        locationLabel,
+        orders: []
+      })
     }
-    groups.get(company.slug).orders.push(order)
+    groups.get(groupKey).orders.push(order)
   })
-  return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name))
+  return [...groups.values()].sort((a, b) =>
+    (a.displayName || a.name).localeCompare(b.displayName || b.name)
+  )
 }
 
 const getIndexCompanyLabel = (remito = {}) =>
@@ -897,6 +968,8 @@ export const buildRemitoSnapshot = ({
     companySlug: group?.slug || '',
     companyName: group?.name || group?.slug || '',
     companyDisplayName: group?.displayName || group?.name || group?.slug || 'Empresa',
+    locationKey: group?.locationKey || '',
+    locationLabel: group?.locationLabel || '',
     remitoNumber,
     deliveryDate,
     serviceDate: deliveryDate,
@@ -926,8 +999,16 @@ export const buildRemitoSnapshot = ({
       custom_responses: order?.custom_responses || [],
       location: order?.location || null,
       delivery_location: order?.delivery_location || null,
+      requesting_location_code: order?.requesting_location_code || null,
+      requesting_location: order?.requesting_location || null,
+      requesting_location_name: order?.requesting_location_name || null,
+      order_location_id: order?.order_location_id || null,
+      delivery_order_location_id: order?.delivery_order_location_id || null,
+      order_location: order?.order_location || null,
+      location_snapshot: order?.location_snapshot || null,
       company_slug: order?.company_slug || null,
       company_name: order?.company_name || null,
+      organization: order?.organization || null,
       comments: order?.comments || null
     }))
     }
@@ -959,6 +1040,8 @@ export const remitoFromSnapshot = (snapshot = {}, fallback = {}) => {
     companySlug: snapshot.companySlug || fallback.company_slug || fallback.companySlug || '',
     companyName: snapshot.companyName || fallback.company_name || fallback.companyName || '',
     companyDisplayName: snapshot.companyDisplayName || snapshot.companyName || fallback.company_name || fallback.companyName || 'Empresa',
+    locationKey: snapshot.locationKey || fallback.location_key || fallback.locationKey || '',
+    locationLabel: snapshot.locationLabel || fallback.location_label || fallback.locationLabel || '',
     remitoNumber: Number.isFinite(remitoNumber) ? remitoNumber : (rawNumber || 'SIN EMITIR'),
     deliveryDate: snapshot.deliveryDate || snapshot.serviceDate || fallback.delivery_date || fallback.deliveryDate || '',
     totalItems: Number.isFinite(totalMenus) ? totalMenus : 0,
@@ -980,7 +1063,7 @@ export const buildRemitoWorkbook = async (remitos = []) => {
   const usedSheetNames = new Set(['índice'])
   const printableRemitos = remitos.map((remito) => ({
     ...remito,
-    sheetName: remito.sheetName || buildUniqueSheetName(`${remito.companyName} ${remito.remitoNumber || 'sin emitir'}`, usedSheetNames)
+    sheetName: remito.sheetName || buildUniqueSheetName(`${remito.companyDisplayName || remito.companyName} ${remito.remitoNumber || 'sin emitir'}`, usedSheetNames)
   }))
 
   addIndexSheet(workbook, printableRemitos)
@@ -1044,14 +1127,16 @@ export async function exportDailyOrderNotesExcel({
 
     for (const group of groups) {
       const draftSnapshot = buildRemitoSnapshot({ group, deliveryDate, status: 'draft' })
-      const requestId = `daily-remito:${group.slug}:${deliveryDate}:${getOrderIds(group.orders).sort().join(',')}`
+      const locationKey = group.locationKey || ''
+      const requestId = `daily-remito:${group.slug}:${deliveryDate}:${locationKey || 'all'}:${getOrderIds(group.orders).sort().join(',')}`
       const { data, error } = await db.issueCompanyRemito({
         companySlug: group.slug,
         companyName: group.name,
         deliveryDate,
         orderIds: getOrderIds(group.orders),
         requestId,
-        snapshot: draftSnapshot
+        snapshot: draftSnapshot,
+        locationKey
       })
 
       if (error) {
@@ -1072,11 +1157,13 @@ export async function exportDailyOrderNotesExcel({
       }
 
       const products = summarizeProducts(group.orders)
-      const sheetName = buildUniqueSheetName(`${issuedName} ${issuedNumber}`, usedSheetNames)
+      const sheetName = buildUniqueSheetName(`${group.displayName || issuedName} ${issuedNumber}`, usedSheetNames)
       remitos.push({
         companySlug: issuedSlug,
         companyName: issuedName,
         companyDisplayName: group.displayName,
+        locationKey,
+        locationLabel: group.locationLabel || '',
         remitoNumber: issuedNumber,
         deliveryDate,
         totalItems: getRemitoMenuTotalFromRows(products),

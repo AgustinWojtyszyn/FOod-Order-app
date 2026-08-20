@@ -8,6 +8,8 @@ import {
   buildRemitoSnapshot,
   downloadRemitoWorkbook,
   getOrderIds,
+  getOrderRemitoLocationKey,
+  getOrderRemitoLocationLabel,
   getRemitoIssueFallbackMessage,
   isRemitoNumberInCompanyRange,
   remitoFromSnapshot
@@ -88,24 +90,28 @@ const arraysMatchAsSet = (left = [], right = []) => {
 }
 
 const buildLocationOptions = (orders = []) => {
-  const locations = new Set()
+  const locations = new Map()
   orders.forEach((order) => {
-    const location = String(order?.location || order?.delivery_location || '').trim()
-    if (location) locations.add(location)
+    const location = getOrderRemitoLocationLabel(order)
+    const key = getOrderRemitoLocationKey(order) || normalizeText(location)
+    if (location && key) locations.set(key, location)
   })
-  return [...locations].sort((a, b) => a.localeCompare(b))
+  return [...locations.entries()]
+    .map(([key, label]) => ({ key, label }))
+    .sort((a, b) => a.label.localeCompare(b.label))
 }
 
 const getOrderLocationKey = (order = {}) =>
-  normalizeText(order?.location || order?.delivery_location || '')
+  getOrderRemitoLocationKey(order) || normalizeText(order?.location || order?.delivery_location || '')
 
 const filterOrdersForRemitos = ({ orders = [], companySlug = 'all', location = 'all' } = {}) => {
   const companyFiltered = filterOrdersByCompany(orders, companySlug)
+  const selectedLocationKey = location === 'all' ? '' : normalizeText(location)
   return companyFiltered.filter((order) => {
     const status = String(order?.status || '').toLowerCase()
     if (!['pending', 'archived', 'post_report_extra'].includes(status)) return false
     if (location === 'all') return true
-    return String(order?.location || order?.delivery_location || '').trim() === location
+    return getOrderLocationKey(order) === selectedLocationKey
   })
 }
 
@@ -161,13 +167,18 @@ const buildFreshGroupForRemito = ({
     if (targetLocationKey && getOrderLocationKey(order) !== targetLocationKey) return false
     return true
   })
-  const freshGroup = buildCompanyGroups(freshOrders).find((candidate) => candidate.slug === targetSlug)
+  const freshGroup = buildCompanyGroups(freshOrders).find((candidate) => (
+    candidate.slug === targetSlug &&
+    String(candidate.locationKey || '') === targetLocationKey
+  ))
   if (freshGroup) return freshGroup
 
   return {
     slug: targetSlug || fallbackGroup.slug || '',
     name: safeExisting.company_name || safeExisting.companyName || fallbackGroup.name || targetSlug || 'Empresa',
     displayName: safeExisting.company_name || safeExisting.companyName || fallbackGroup.displayName || fallbackGroup.name || targetSlug || 'Empresa',
+    locationKey: targetLocationKey,
+    locationLabel: fallbackGroup.locationLabel || '',
     orders: []
   }
 }
@@ -312,7 +323,8 @@ const DailyRemitosPanel = ({
   }
 
   const issueGroup = async (group) => {
-    const key = `${group.slug}:${locationKey || 'all'}`
+    const rowLocationKey = group.locationKey ?? locationKey
+    const key = `${group.slug}:${rowLocationKey || 'all'}`
     setBusyKey(key)
     try {
       const snapshot = buildRemitoSnapshot({
@@ -325,9 +337,9 @@ const DailyRemitosPanel = ({
         companyName: group.name,
         deliveryDate,
         orderIds: getOrderIds(group.orders),
-        requestId: buildRequestId({ group, deliveryDate, locationKey }),
+        requestId: buildRequestId({ group, deliveryDate, locationKey: rowLocationKey }),
         snapshot,
-        locationKey
+        locationKey: rowLocationKey
       })
       if (error) {
         notifyError(getUserFriendlyErrorMessage(error, getRemitoIssueFallbackMessage(group.displayName, error)))
@@ -545,7 +557,7 @@ const DailyRemitosPanel = ({
             <select value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">
               <option value="all">Todas</option>
               {locationOptions.map((location) => (
-                <option key={location} value={location}>{location}</option>
+                <option key={location.key} value={location.key}>{location.label}</option>
               ))}
             </select>
           </label>
