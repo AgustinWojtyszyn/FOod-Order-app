@@ -77,4 +77,34 @@ describe('DailyRemitosPanel remito row matching', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0].existing?.remito_number).toBe(40001)
   })
+
+  it('does not match or render cancelled remitos as operative rows', () => {
+    const rows = buildDailyRemitoRows({
+      deliveryDate: '2026-08-20',
+      locationKey: '',
+      groups: [epseGroup],
+      remitos: [{
+        remito_id: '30000000-0000-4000-8000-000000000005',
+        company_slug: 'epse',
+        company_name: 'EPSE',
+        delivery_date: '2026-08-20',
+        remito_number: 30005,
+        status: 'cancelled',
+        order_ids: ['10000000-0000-4000-8000-000000000001'],
+        location_key: 'epse_los_caracoles',
+        snapshot: {
+          orderIds: ['10000000-0000-4000-8000-000000000001'],
+          ordersCount: 1,
+          totalItems: 1,
+          totalMenus: 1,
+          locationKey: 'epse_los_caracoles'
+        }
+      }]
+    })
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0].group.locationKey).toBe('epse_los_caracoles')
+    expect(rows[0].existing).toBeNull()
+    expect(rows.some((row) => row.existing?.remito_number === 30005)).toBe(false)
+  })
 })

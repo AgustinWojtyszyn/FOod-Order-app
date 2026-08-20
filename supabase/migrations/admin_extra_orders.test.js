@@ -41,6 +41,10 @@ const reportArchiveReconciliationMigration = readFileSync(
   new URL('./20260819110000_reconcile_and_archive_daily_report_orders.sql', import.meta.url),
   'utf8'
 )
+const cancelEpseDuplicateRemitoMigration = readFileSync(
+  new URL('./20260820120000_cancel_epse_30005_duplicate_remito.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -183,5 +187,26 @@ describe('admin extra orders migration', () => {
     expect(reportArchiveReconciliationMigration).toContain('revoke all on function public.archive_orders_after_daily_report(date)')
     expect(reportArchiveReconciliationMigration).toContain('created_at >= v_sent_at')
     expect(reportArchiveReconciliationMigration).toContain("and status = 'pending'")
+  })
+
+  it('cancels only the guarded duplicate EPSE remito without touching orders or reusing the number', () => {
+    expect(cancelEpseDuplicateRemitoMigration).toContain("cr.remito_number = 30005")
+    expect(cancelEpseDuplicateRemitoMigration).toContain("cr.delivery_date = date '2026-08-20'")
+    expect(cancelEpseDuplicateRemitoMigration).toContain("where slug = 'epse'")
+    expect(cancelEpseDuplicateRemitoMigration).toContain("cr.status = 'issued'")
+    expect(cancelEpseDuplicateRemitoMigration).toContain("cardinality(coalesce(cr.order_ids, array[]::uuid[])) = 44")
+    expect(cancelEpseDuplicateRemitoMigration).toContain("= 44")
+    expect(cancelEpseDuplicateRemitoMigration).toContain("v_target_count <> 1")
+    expect(cancelEpseDuplicateRemitoMigration).toContain("set status = 'cancelled'")
+    expect(cancelEpseDuplicateRemitoMigration).toContain('epse_remito_30005_audit_fields_changed')
+    expect(cancelEpseDuplicateRemitoMigration).toContain('epse_remito_30005_referenced_orders_guard_failed')
+    expect(cancelEpseDuplicateRemitoMigration).toContain('unexpected_active_epse_remitos_after_cancel')
+    expect(cancelEpseDuplicateRemitoMigration).toContain('active_epse_remitos_have_duplicate_orders')
+    expect(cancelEpseDuplicateRemitoMigration).toContain('orders_modified\', false')
+    expect(cancelEpseDuplicateRemitoMigration).toContain('company_remitos_company_date_location_issued_unique')
+    expect(cancelEpseDuplicateRemitoMigration).toContain('company_remitos_request_id_issued_unique')
+    expect(cancelEpseDuplicateRemitoMigration).toContain("and status = 'issued'")
+    expect(cancelEpseDuplicateRemitoMigration).not.toContain('delete from public.orders')
+    expect(cancelEpseDuplicateRemitoMigration).not.toContain('update public.orders')
   })
 })

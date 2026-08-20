@@ -89,8 +89,14 @@ const isMultiLocationRemitoCompany = (companySlug = '') =>
 const getRemitoSnapshot = (remito = {}) =>
   remito?.snapshot && typeof remito.snapshot === 'object' ? remito.snapshot : {}
 
+const isCancelledRemito = (remito = {}) =>
+  String(remito?.status || '').toLowerCase() === 'cancelled'
+
 const hasRemitoNumberOrIssuedStatus = (remito = {}) =>
   Boolean(remito?.remito_number || String(remito?.status || '').toLowerCase() === 'issued')
+
+const isOperationalRemito = (remito = {}) =>
+  !isCancelledRemito(remito) && hasRemitoNumberOrIssuedStatus(remito)
 
 const getRemitoOrderIdCount = (remito = {}) => {
   const snapshot = getRemitoSnapshot(remito)
@@ -101,7 +107,7 @@ const getRemitoOrderIdCount = (remito = {}) => {
 
 const isEmptyIssuedRemito = (remito = {}) => {
   const snapshot = getRemitoSnapshot(remito)
-  return hasRemitoNumberOrIssuedStatus(remito) &&
+  return isOperationalRemito(remito) &&
     getRemitoOrderIdCount(remito) === 0 &&
     getSnapshotOrderCount(snapshot, remito) === 0 &&
     getSnapshotMenuTotal(snapshot) === 0
@@ -186,6 +192,7 @@ export const buildDailyRemitoRows = ({
 } = {}) => {
   const remitosByCompany = new Map()
   remitos.filter(Boolean).forEach((remito) => {
+    if (!isOperationalRemito(remito)) return
     const companySlug = getRemitoCompanySlug(remito)
     const remitoLocationKey = getRemitoLocationKey(remito)
     if (isMultiLocationRemitoCompany(companySlug) && !remitoLocationKey) return
@@ -225,7 +232,7 @@ export const buildDailyRemitoRows = ({
       locationKey: rowLocationKey
     })
     if (seenKeys.has(key)) return
-    if (!hasRemitoNumberOrIssuedStatus(remito)) return
+    if (!isOperationalRemito(remito)) return
     if (isEmptyIssuedRemito(remito)) return
 
     rows.push({
