@@ -625,7 +625,7 @@ const EXCEL_COLUMN_CHAR_PX = 7
 const POINTS_TO_PIXELS = 96 / 72
 const REMITO_LOGO_BLOCK_START_ROW = 1
 const REMITO_LOGO_BLOCK_END_ROW = 4
-const REMITO_LOGO_BLOCK_FILL_RATIO = 0.78
+const REMITO_LOGO_SIZE_PX = 78
 
 const getColumnWidthPx = (worksheet, colNumber) => {
   const width = Number(worksheet.getColumn(colNumber)?.width || DEFAULT_COLUMN_WIDTH)
@@ -660,17 +660,16 @@ const getRowAnchorFromOffset = (worksheet, fromRow, offsetPx) => {
 const getCenteredLogoAnchor = (worksheet, colNumber) => {
   const blockWidth = getColumnWidthPx(worksheet, colNumber)
   const blockHeight = getBlockHeightPx(worksheet, REMITO_LOGO_BLOCK_START_ROW, REMITO_LOGO_BLOCK_END_ROW)
-  const logoSize = Math.floor(Math.min(blockWidth, blockHeight) * REMITO_LOGO_BLOCK_FILL_RATIO)
-  const xOffset = (blockWidth - logoSize) / 2
-  const yOffset = (blockHeight - logoSize) / 2
+  const xOffset = (blockWidth - REMITO_LOGO_SIZE_PX) / 2
+  const yOffset = (blockHeight - REMITO_LOGO_SIZE_PX) / 2
   return {
     tl: {
       col: (colNumber - 1) + (xOffset / blockWidth),
       row: getRowAnchorFromOffset(worksheet, REMITO_LOGO_BLOCK_START_ROW, yOffset)
     },
     ext: {
-      width: logoSize,
-      height: logoSize
+      width: REMITO_LOGO_SIZE_PX,
+      height: REMITO_LOGO_SIZE_PX
     }
   }
 }
