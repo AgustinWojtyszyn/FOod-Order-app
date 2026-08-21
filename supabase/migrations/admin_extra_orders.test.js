@@ -61,6 +61,10 @@ const lateAdminExtraHistoryClosuresMigration = readFileSync(
   new URL('./20260821170000_late_admin_extra_history_closures.sql', import.meta.url),
   'utf8'
 )
+const lateAdminExtraHistoryOnReadBackfillMigration = readFileSync(
+  new URL('./20260821173000_late_admin_extra_history_on_read_backfill.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -336,5 +340,21 @@ describe('admin extra orders migration', () => {
     expect(lateAdminExtraHistoryClosuresMigration).toContain("'can_manage_late_extra_history', public.can_manage_late_extra_history(auth.uid())")
     expect(lateAdminExtraHistoryClosuresMigration).toContain('revoke all on function public.close_late_admin_extra_operational_day(date) from public, anon')
     expect(lateAdminExtraHistoryClosuresMigration).toContain('grant execute on function public.get_late_admin_extra_history_days(date, date) to authenticated')
+  })
+
+  it('backfills late-admin-extra history from audit logs when history is read or closed', () => {
+    expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain('create or replace function public.backfill_late_admin_extra_history_for_date')
+    expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain("where a.action = 'late_admin_extra_order_created'")
+    expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain('a.created_at >= v_bounds.window_started_at')
+    expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain('a.created_at < v_bounds.window_closed_at')
+    expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain("d.action = 'admin_extra_order_deleted'")
+    expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain("historical_status = 'deleted'")
+    expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain('perform public.backfill_late_admin_extra_history_for_date(v_day)')
+    expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain('perform public.backfill_late_admin_extra_history_for_date(p_operational_date)')
+    expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain('create or replace function public.get_late_admin_extra_history_days')
+    expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain('create or replace function public.get_late_admin_extra_history_for_day')
+    expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain('create or replace function public.close_late_admin_extra_operational_day')
+    expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain('public.resolve_late_admin_extra_operational_date(a.created_at)')
+    expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain('grant execute on function public.backfill_late_admin_extra_history_for_date(date) to authenticated')
   })
 })
