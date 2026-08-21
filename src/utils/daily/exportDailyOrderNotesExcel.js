@@ -702,6 +702,12 @@ const addLogoAt = (worksheet, imageId, startCol) => {
 }
 
 const withCalibri = (font = {}) => ({ name: CALIBRI, ...font })
+const labelValueRichText = (label, value, baseSize = 9) => ({
+  richText: [
+    { text: label, font: withCalibri({ size: baseSize, bold: true }) },
+    { text: value, font: withCalibri({ size: baseSize + 2, bold: true }) }
+  ]
+})
 
 const copyCell = (worksheet, row, col, value, options = {}) => {
   const cell = worksheet.getCell(row, col)
@@ -821,12 +827,12 @@ const addCopySheetBlock = (worksheet, remito, startCol, copyLabel, logoImageId) 
     alignment: { vertical: 'middle', horizontal: 'center' }
   })
 
-  mergeAndSet(worksheet, 5, startCol, 5, startCol + 2, `Fecha: ${formatDateOnly(remito.deliveryDate)}`, {
+  mergeAndSet(worksheet, 5, startCol, 5, startCol + 2, labelValueRichText('Fecha: ', formatDateOnly(remito.deliveryDate)), {
     font: { size: 9, bold: true },
     fill: APPROVED_GRAY_FILL,
     alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
   })
-  mergeAndSet(worksheet, 5, xCol, 5, endCol, `Empresa: ${remito.companyDisplayName}`, {
+  mergeAndSet(worksheet, 5, xCol, 5, endCol, labelValueRichText('Empresa: ', remito.companyDisplayName), {
     font: { size: 9, bold: true },
     fill: APPROVED_GRAY_FILL,
     alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }

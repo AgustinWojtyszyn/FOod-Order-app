@@ -160,6 +160,16 @@ describe('daily order notes Excel model', () => {
       expect(worksheet.getCell('J1').font).toMatchObject({ size: 6.5, bold: true })
       expect(worksheet.getCell('B5').fill).toEqual(worksheet.getCell('I5').fill)
       expect(worksheet.getCell('E5').fill).toEqual(worksheet.getCell('L5').fill)
+      expect(worksheet.getCell('B5').value.richText).toEqual([
+        { text: 'Fecha: ', font: { name: 'Calibri', size: 9, bold: true } },
+        { text: '21/08/2026', font: { name: 'Calibri', size: 11, bold: true } }
+      ])
+      expect(worksheet.getCell('E5').value.richText).toEqual([
+        { text: 'Empresa: ', font: { name: 'Calibri', size: 9, bold: true } },
+        { text: 'Genneia', font: { name: 'Calibri', size: 11, bold: true } }
+      ])
+      expect(worksheet.getCell('I5').value.richText).toEqual(worksheet.getCell('B5').value.richText)
+      expect(worksheet.getCell('L5').value.richText).toEqual(worksheet.getCell('E5').value.richText)
       expect(worksheet.getCell('B8').fill.fgColor.argb).toBe('FF111827')
       expect(worksheet.getCell('I8').fill.fgColor.argb).toBe('FF111827')
       for (let rowNumber = 1; rowNumber <= 7; rowNumber += 1) {
