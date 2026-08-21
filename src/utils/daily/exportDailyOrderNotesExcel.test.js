@@ -62,14 +62,18 @@ describe('daily order notes Excel model', () => {
       const images = worksheet.getImages()
 
       expect(images).toHaveLength(2)
+      expect(images[0].imageId).toBe(images[1].imageId)
       expect(images[0].range.ext).toEqual(images[1].range.ext)
       expect(images[0].range.ext).toEqual({ width: 50, height: 50 })
       expect(images[0].range.tl.nativeCol).toBe(1)
       expect(images[1].range.tl.nativeCol).toBe(8)
-      expect(images[0].range.tl.nativeColOff).toBe(images[1].range.tl.nativeColOff)
-      expect(images[1].range.tl.col - images[0].range.tl.col).toBeCloseTo(7, 4)
-      expect(images[0].range.tl.nativeRow).toBe(images[1].range.tl.nativeRow)
-      expect(images[0].range.tl.nativeRowOff).toBe(images[1].range.tl.nativeRowOff)
+      expect(images[0].range.tl.nativeColOff).toBe(2592)
+      expect(images[1].range.tl.nativeColOff).toBe(2592)
+      expect(images[0].range.tl.nativeRow).toBe(0)
+      expect(images[1].range.tl.nativeRow).toBe(0)
+      expect(images[0].range.tl.nativeRowOff).toBe(132499)
+      expect(images[1].range.tl.nativeRowOff).toBe(132499)
+      expect(workbook.model.media).toHaveLength(1)
     } finally {
       globalThis.fetch = previousFetch
     }
@@ -158,6 +162,46 @@ describe('daily order notes Excel model', () => {
       expect(worksheet.getCell('E5').fill).toEqual(worksheet.getCell('L5').fill)
       expect(worksheet.getCell('B8').fill.fgColor.argb).toBe('FF111827')
       expect(worksheet.getCell('I8').fill.fgColor.argb).toBe('FF111827')
+      for (let rowNumber = 1; rowNumber <= 7; rowNumber += 1) {
+        expect(worksheet.getRow(rowNumber).height).toBe(15.95)
+      }
+      for (let rowNumber = 8; rowNumber <= 27; rowNumber += 1) {
+        expect(worksheet.getRow(rowNumber).height).toBe(15.6)
+      }
+      expect(worksheet.getRow(28).height).toBe(10.5)
+      expect(worksheet.getRow(29).height).toBe(8.25)
+      expect(worksheet.getRow(30).height).toBe(15.6)
+      expect(worksheet.getRow(31).height).toBe(15.6)
+      expect(worksheet.getRow(32).height).toBe(15.6)
+      expect(worksheet.getRow(33).height).toBe(15.6)
+      expect(worksheet.getCell('B27').value).toBe('DEVOLUCIONES')
+      expect(worksheet.getCell('I27').value).toBe('DEVOLUCIONES')
+      expect(worksheet.getCell('B30').value).toContain('CONTROL DE CALIDAD / CANTIDAD')
+      expect(worksheet.getCell('I30').value).toContain('CONTROL DE CALIDAD / CANTIDAD')
+      expect(worksheet.getCell('B32').value).toBe('FIRMA RESPONSABLE')
+      expect(worksheet.getCell('E32').value).toBe('FIRMA TRANSPORTE')
+      expect(worksheet.getCell('I32').value).toBe('FIRMA RESPONSABLE')
+      expect(worksheet.getCell('L32').value).toBe('FIRMA TRANSPORTE')
+      expect(worksheet.getCell('A35').value).toEqual({
+        text: 'Volver al índice',
+        hyperlink: "#'Índice'!A1"
+      })
+      expect(worksheet.getCell('A35').font).toMatchObject({
+        name: 'Calibri',
+        size: 8,
+        underline: true,
+        color: { argb: 'FF2563EB' }
+      })
+
+      ;[
+        'B1', 'C1', 'E1', 'F1', 'F2', 'F4', 'B5', 'E5', 'B6', 'B7', 'E7', 'B8', 'C8',
+        'B9', 'C9', 'B11', 'C11', 'B13', 'C13', 'B15', 'C15', 'B27', 'B30', 'B32', 'E32',
+        'I1', 'J1', 'L1', 'M1', 'M2', 'M4', 'I5', 'L5', 'I6', 'I7', 'L7', 'I8', 'J8',
+        'I9', 'J9', 'I11', 'J11', 'I13', 'J13', 'I15', 'J15', 'I27', 'I30', 'I32', 'L32',
+        'A35'
+      ].forEach((address) => {
+        expect(worksheet.getCell(address).font?.name).toBe('Calibri')
+      })
     } finally {
       globalThis.fetch = previousFetch
     }
@@ -190,19 +234,79 @@ describe('daily order notes Excel model', () => {
       const dessertTotalRow = 15
 
       ;['B', 'C', 'I', 'J'].forEach((column) => {
-        expect(worksheet.getCell(`${column}${menuTotalRow}`).font).toMatchObject({ size: 12, bold: true })
-        expect(worksheet.getCell(`${column}${menuTotalRow}`).fill.fgColor.argb).toBe('FFE5E7EB')
+        expect(worksheet.getCell(`${column}${menuTotalRow}`).font).toMatchObject({ name: 'Calibri', size: 12, bold: true })
+        expect(worksheet.getCell(`${column}${menuTotalRow}`).fill.fgColor.argb).toBe('FFD9D9D9')
       })
       ;['B', 'C', 'I', 'J'].forEach((column) => {
-        expect(worksheet.getCell(`${column}${beverageTotalRow}`).font).toMatchObject({ size: 8, bold: true })
+        expect(worksheet.getCell(`${column}${beverageTotalRow}`).font).toMatchObject({ name: 'Calibri', size: 8, bold: true })
         expect(worksheet.getCell(`${column}${beverageTotalRow}`).fill.fgColor.argb).toBe('FFF3F4F6')
-        expect(worksheet.getCell(`${column}${dessertTotalRow}`).font).toMatchObject({ size: 8, bold: true })
+        expect(worksheet.getCell(`${column}${dessertTotalRow}`).font).toMatchObject({ name: 'Calibri', size: 8, bold: true })
         expect(worksheet.getCell(`${column}${dessertTotalRow}`).fill.fgColor.argb).toBe('FFF3F4F6')
       })
       expect(worksheet.getRow(menuTotalRow).height).toBe(15.6)
-      expect(worksheet.getRow(27).height).toBe(10.5)
-      expect(worksheet.getRow(32).height).toBe(8.25)
-      expect(worksheet.getRow(33).height).toBe(8.25)
+      expect(worksheet.getRow(27).height).toBe(15.6)
+      expect(worksheet.getRow(28).height).toBe(10.5)
+      expect(worksheet.getRow(29).height).toBe(8.25)
+      expect(worksheet.getRow(32).height).toBe(15.6)
+      expect(worksheet.getRow(33).height).toBe(15.6)
+      expect(worksheet.getCell('B32').alignment).toEqual({ horizontal: 'center' })
+      expect(worksheet.getCell('E32').alignment).toEqual({ horizontal: 'center' })
+    } finally {
+      globalThis.fetch = previousFetch
+    }
+  })
+
+  it('keeps the index sheet print setup separate from the note layout', async () => {
+    const previousFetch = globalThis.fetch
+    globalThis.fetch = async () => ({
+      arrayBuffer: async () => new ArrayBuffer(8)
+    })
+
+    try {
+      const { workbook } = await buildRemitoWorkbook([{
+        companySlug: 'genneia',
+        companyName: 'Genneia',
+        companyDisplayName: 'Genneia',
+        remitoNumber: 40014,
+        deliveryDate: '2026-08-21',
+        totalItems: 24,
+        products: [{ cantidad: 24, producto: 'Opción 1 - Pollo', category: REMITO_ROW_CATEGORIES.numberedOption }]
+      }])
+      const worksheet = workbook.getWorksheet('Índice')
+
+      expect(worksheet.getRow(1).height).toBe(21)
+      expect([1, 2, 3, 4, 5].map((columnNumber) => worksheet.getColumn(columnNumber).width)).toEqual([34, 18, 14, 16, 18])
+      expect(worksheet.getColumn(8).width).toBe(9)
+      expect(worksheet.getColumn(9).width).toBe(9)
+      expect(worksheet.getColumn(8).hidden).toBe(true)
+      expect(worksheet.getColumn(9).hidden).toBe(true)
+      expect(worksheet.pageSetup).toMatchObject({
+        paperSize: 9,
+        orientation: 'landscape',
+        horizontalCentered: true,
+        verticalCentered: false,
+        printArea: 'A1:E7'
+      })
+      expect(worksheet.pageSetup.scale).toBeUndefined()
+      expect(worksheet.pageSetup.fitToPage).toBeUndefined()
+      expect(worksheet.pageSetup.margins).toEqual({
+        left: 0.25,
+        right: 0.25,
+        top: 0.35,
+        bottom: 0.35,
+        header: 0.12,
+        footer: 0.12
+      })
+      expect(worksheet.getCell('C3').font?.name).toBe('Calibri')
+      expect(worksheet.getCell('E6').value).toEqual({
+        text: 'Ir a la nota',
+        hyperlink: "#'Genneia 40014'!A1"
+      })
+      expect(worksheet.getCell('E6').font).toMatchObject({
+        name: 'Calibri',
+        underline: true,
+        color: { argb: 'FF2563EB' }
+      })
     } finally {
       globalThis.fetch = previousFetch
     }

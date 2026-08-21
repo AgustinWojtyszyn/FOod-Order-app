@@ -36,8 +36,9 @@ const APPROVED_NOTE_COLUMN_WIDTHS = [
   10.140625
 ]
 
+const CALIBRI = 'Calibri'
 const HEADER_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111827' } }
-const TOTAL_MENU_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } }
+const APPROVED_GRAY_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }
 const LIGHT_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
 const WHITE_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
 const BORDER = {
@@ -627,6 +628,28 @@ const configurePrintPage = (worksheet, printArea = 'A1:N33') => {
   worksheet.views = [{ showGridLines: false }]
 }
 
+const configureIndexPrintPage = (worksheet, printArea) => {
+  worksheet.pageSetup = {
+    paperSize: 9,
+    orientation: 'landscape',
+    horizontalCentered: true,
+    verticalCentered: false,
+    printTitlesRow: '',
+    printTitlesColumn: '',
+    margins: {
+      left: 0.25,
+      right: 0.25,
+      top: 0.35,
+      bottom: 0.35,
+      header: 0.12,
+      footer: 0.12
+    },
+    printArea
+  }
+  worksheet.properties.showGridLines = false
+  worksheet.views = [{ showGridLines: false }]
+}
+
 const applyOuterBorder = (worksheet, fromRow, toRow, fromCol, toCol) => {
   for (let rowNumber = fromRow; rowNumber <= toRow; rowNumber += 1) {
     for (let colNumber = fromCol; colNumber <= toCol; colNumber += 1) {
@@ -641,54 +664,17 @@ const applyOuterBorder = (worksheet, fromRow, toRow, fromCol, toCol) => {
   }
 }
 
-const DEFAULT_COLUMN_WIDTH = 8.43
-const DEFAULT_ROW_HEIGHT = 15
-const EXCEL_COLUMN_PADDING_PX = 5
-const EXCEL_COLUMN_CHAR_PX = 7
-const POINTS_TO_PIXELS = 96 / 72
-const REMITO_LOGO_BLOCK_START_ROW = 1
-const REMITO_LOGO_BLOCK_END_ROW = 4
 const REMITO_LOGO_SIZE_PX = 50
+const REMITO_LOGO_NATIVE_COL_OFF = 2592
+const REMITO_LOGO_NATIVE_ROW_OFF = 132499
 
-const getColumnWidthPx = (worksheet, colNumber) => {
-  const width = Number(worksheet.getColumn(colNumber)?.width || DEFAULT_COLUMN_WIDTH)
-  return Math.floor(width * EXCEL_COLUMN_CHAR_PX + EXCEL_COLUMN_PADDING_PX)
-}
-
-const getRowHeightPx = (worksheet, rowNumber) => {
-  const height = Number(worksheet.getRow(rowNumber)?.height || DEFAULT_ROW_HEIGHT)
-  return height * POINTS_TO_PIXELS
-}
-
-const getBlockHeightPx = (worksheet, fromRow, toRow) => {
-  let height = 0
-  for (let rowNumber = fromRow; rowNumber <= toRow; rowNumber += 1) {
-    height += getRowHeightPx(worksheet, rowNumber)
-  }
-  return height
-}
-
-const getRowAnchorFromOffset = (worksheet, fromRow, offsetPx) => {
-  let remainingOffset = Math.max(0, offsetPx)
-  for (let rowNumber = fromRow; rowNumber <= REMITO_LOGO_BLOCK_END_ROW; rowNumber += 1) {
-    const rowHeight = getRowHeightPx(worksheet, rowNumber)
-    if (remainingOffset <= rowHeight) {
-      return (rowNumber - 1) + (remainingOffset / rowHeight)
-    }
-    remainingOffset -= rowHeight
-  }
-  return REMITO_LOGO_BLOCK_END_ROW - 1
-}
-
-const getCenteredLogoAnchor = (worksheet, colNumber) => {
-  const blockWidth = getColumnWidthPx(worksheet, colNumber)
-  const blockHeight = getBlockHeightPx(worksheet, REMITO_LOGO_BLOCK_START_ROW, REMITO_LOGO_BLOCK_END_ROW)
-  const xOffset = (blockWidth - REMITO_LOGO_SIZE_PX) / 2
-  const yOffset = (blockHeight - REMITO_LOGO_SIZE_PX) / 2
+const getApprovedLogoAnchor = (colNumber) => {
   return {
     tl: {
-      col: (colNumber - 1) + (xOffset / blockWidth),
-      row: getRowAnchorFromOffset(worksheet, REMITO_LOGO_BLOCK_START_ROW, yOffset)
+      nativeCol: colNumber - 1,
+      nativeColOff: REMITO_LOGO_NATIVE_COL_OFF,
+      nativeRow: 0,
+      nativeRowOff: REMITO_LOGO_NATIVE_ROW_OFF
     },
     ext: {
       width: REMITO_LOGO_SIZE_PX,
@@ -697,23 +683,30 @@ const getCenteredLogoAnchor = (worksheet, colNumber) => {
   }
 }
 
-const addLogoAt = async (workbook, worksheet, startCol) => {
+const createWorkbookLogoImageId = async (workbook) => {
   try {
     const response = await fetch(logoUrl)
     const buffer = await response.arrayBuffer()
-    const imageId = workbook.addImage({ buffer, extension: 'jpeg' })
-    worksheet.addImage(imageId, getCenteredLogoAnchor(worksheet, startCol))
+    return workbook.addImage({ buffer, extension: 'jpeg' })
   } catch (error) {
     if (import.meta.env.DEV) {
       console.warn('No se pudo agregar el logo al Excel:', error)
     }
+    return null
   }
 }
+
+const addLogoAt = (worksheet, imageId, startCol) => {
+  if (imageId == null) return
+  worksheet.addImage(imageId, getApprovedLogoAnchor(startCol))
+}
+
+const withCalibri = (font = {}) => ({ name: CALIBRI, ...font })
 
 const copyCell = (worksheet, row, col, value, options = {}) => {
   const cell = worksheet.getCell(row, col)
   cell.value = value
-  cell.font = options.font || { size: 8, color: { argb: 'FF000000' } }
+  cell.font = withCalibri(options.font || { size: 8, color: { argb: 'FF000000' } })
   cell.alignment = options.alignment || { vertical: 'middle', horizontal: 'center', wrapText: true }
   cell.fill = options.fill || WHITE_FILL
   cell.border = options.border || BORDER
@@ -802,11 +795,11 @@ export const getPrintableDetailRows = (products = [], totalItems = getRemitoMenu
   ]
 }
 
-const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabel) => {
+const addCopySheetBlock = (worksheet, remito, startCol, copyLabel, logoImageId) => {
   const endCol = startCol + 5
   const xCol = startCol + 3
   const titleStartCol = startCol + 4
-  await addLogoAt(workbook, worksheet, startCol)
+  addLogoAt(worksheet, logoImageId, startCol)
 
   mergeAndSet(worksheet, 1, startCol, 4, startCol, '', { border: BORDER })
   addInstitutionalBlock(worksheet, startCol)
@@ -830,12 +823,12 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
 
   mergeAndSet(worksheet, 5, startCol, 5, startCol + 2, `Fecha: ${formatDateOnly(remito.deliveryDate)}`, {
     font: { size: 9, bold: true },
-    fill: LIGHT_FILL,
+    fill: APPROVED_GRAY_FILL,
     alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
   })
   mergeAndSet(worksheet, 5, xCol, 5, endCol, `Empresa: ${remito.companyDisplayName}`, {
     font: { size: 9, bold: true },
-    fill: LIGHT_FILL,
+    fill: APPROVED_GRAY_FILL,
     alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
   })
   mergeAndSet(worksheet, 6, startCol, 6, endCol, 'Documento no válido como factura', {
@@ -869,12 +862,12 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
     const isTotalRow = isMenuTotal || isSecondaryTotal
     copyCell(worksheet, rowNumber, startCol, product?.cantidad || '', {
       font: { size: isMenuTotal ? 12 : 8, bold: isTotalRow },
-      fill: isMenuTotal ? TOTAL_MENU_FILL : (isSecondaryTotal ? LIGHT_FILL : WHITE_FILL),
+      fill: isMenuTotal ? APPROVED_GRAY_FILL : (isSecondaryTotal ? LIGHT_FILL : WHITE_FILL),
       alignment: { vertical: 'middle', horizontal: 'center' }
     })
     mergeAndSet(worksheet, rowNumber, startCol + 1, rowNumber, endCol, product?.producto || '', {
       font: { size: isMenuTotal ? 12 : 8, bold: isTotalRow },
-      fill: isMenuTotal ? TOTAL_MENU_FILL : (isSecondaryTotal ? LIGHT_FILL : WHITE_FILL),
+      fill: isMenuTotal ? APPROVED_GRAY_FILL : (isSecondaryTotal ? LIGHT_FILL : WHITE_FILL),
       alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
     })
     worksheet.getRow(rowNumber).height = 15.6
@@ -904,17 +897,18 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
   })
   mergeAndSet(worksheet, footerStartRow + 5, startCol, footerStartRow + 6, startCol + 2, 'FIRMA RESPONSABLE', {
     font: { size: 8, bold: true },
-    alignment: { vertical: 'bottom', horizontal: 'center' }
+    alignment: { horizontal: 'center' }
   })
   mergeAndSet(worksheet, footerStartRow + 5, xCol, footerStartRow + 6, endCol, 'FIRMA TRANSPORTE', {
     font: { size: 8, bold: true },
-    alignment: { vertical: 'bottom', horizontal: 'center' }
+    alignment: { horizontal: 'center' }
   })
-  for (let rowNumber = footerStartRow; rowNumber <= footerStartRow + 4; rowNumber += 1) {
-    worksheet.getRow(rowNumber).height = 10.5
-  }
-  worksheet.getRow(footerStartRow + 5).height = 8.25
-  worksheet.getRow(footerStartRow + 6).height = 8.25
+  worksheet.getRow(footerStartRow + 1).height = 10.5
+  worksheet.getRow(footerStartRow + 2).height = 8.25
+  worksheet.getRow(footerStartRow + 3).height = 15.6
+  worksheet.getRow(footerStartRow + 4).height = 15.6
+  worksheet.getRow(footerStartRow + 5).height = 15.6
+  worksheet.getRow(footerStartRow + 6).height = 15.6
 
   applyOuterBorder(worksheet, 1, footerStartRow + 6, startCol, endCol)
   return footerStartRow + 6
@@ -926,18 +920,19 @@ export const addRemitoSheet = async (workbook, remito, sheetName) => {
   worksheet.properties.showGridLines = false
   worksheet.views = [{ showGridLines: false }]
   for (let rowNumber = 1; rowNumber <= 60; rowNumber += 1) {
-    worksheet.getRow(rowNumber).height = rowNumber <= 7 ? 16 : 15.6
+    worksheet.getRow(rowNumber).height = rowNumber <= 7 ? 15.95 : 15.6
   }
 
-  const originalEndRow = await addCopySheetBlock(workbook, worksheet, remito, 2, 'ORIGINAL')
-  const duplicateEndRow = await addCopySheetBlock(workbook, worksheet, remito, 9, 'DUPLICADO')
+  const logoImageId = await createWorkbookLogoImageId(workbook)
+  const originalEndRow = addCopySheetBlock(worksheet, remito, 2, 'ORIGINAL', logoImageId)
+  const duplicateEndRow = addCopySheetBlock(worksheet, remito, 9, 'DUPLICADO', logoImageId)
   const sheetEndRow = Math.max(originalEndRow, duplicateEndRow)
 
   worksheet.getCell(`A${sheetEndRow + 2}`).value = {
     text: 'Volver al índice',
     hyperlink: "#'Índice'!A1"
   }
-  worksheet.getCell(`A${sheetEndRow + 2}`).font = { color: { argb: 'FF2563EB' }, underline: true, size: 8 }
+  worksheet.getCell(`A${sheetEndRow + 2}`).font = withCalibri({ color: { argb: 'FF2563EB' }, underline: true, size: 8 })
   worksheet.getCell(`A${sheetEndRow + 2}`).alignment = { vertical: 'middle', horizontal: 'left' }
 
   configurePrintPage(worksheet, `A1:N${sheetEndRow}`)
@@ -957,12 +952,13 @@ export const addIndexSheet = (workbook, remitos) => {
   worksheet.properties.showGridLines = false
 
   worksheet.mergeCells('A1:E1')
+  worksheet.getRow(1).height = 21
   worksheet.getCell('A1').value = 'Índice de notas de pedido'
-  worksheet.getCell('A1').font = { bold: true, size: 16, color: { argb: 'FF111827' } }
+  worksheet.getCell('A1').font = withCalibri({ bold: true, size: 16, color: { argb: 'FF111827' } })
   worksheet.getCell('A1').alignment = { vertical: 'middle' }
 
   worksheet.getCell('A3').value = 'Empresa'
-  worksheet.getCell('A3').font = { bold: true }
+  worksheet.getCell('A3').font = withCalibri({ bold: true })
   worksheet.getCell('B3').dataValidation = {
     type: 'list',
     allowBlank: false,
@@ -973,13 +969,13 @@ export const addIndexSheet = (workbook, remitos) => {
     formula: `HYPERLINK("#'"&VLOOKUP(B3,$H$2:$I$${remitos.length + 1},2,FALSE)&"'!A1","Ir a la nota")`,
     result: 'Ir a la nota'
   }
-  worksheet.getCell('C3').font = { color: { argb: 'FF2563EB' }, underline: true, bold: true }
+  worksheet.getCell('C3').font = withCalibri({ color: { argb: 'FF2563EB' }, underline: true, bold: true })
 
   const headerRow = worksheet.getRow(5)
   ;['Empresa', 'Número de nota', 'Fecha', 'Cantidad total', 'Enlace directo'].forEach((header, index) => {
     const cell = headerRow.getCell(index + 1)
     cell.value = header
-    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+    cell.font = withCalibri({ bold: true, color: { argb: 'FFFFFFFF' } })
     cell.fill = HEADER_FILL
     cell.alignment = { horizontal: 'center', vertical: 'middle' }
     cell.border = BORDER
@@ -996,7 +992,7 @@ export const addIndexSheet = (workbook, remitos) => {
       text: 'Ir a la nota',
       hyperlink: `#'${remito.sheetName}'!A1`
     }
-    row.getCell(5).font = { color: { argb: 'FF2563EB' }, underline: true }
+    row.getCell(5).font = withCalibri({ color: { argb: 'FF2563EB' }, underline: true })
     row.eachCell((cell) => {
       cell.border = BORDER
       cell.alignment = { vertical: 'middle', wrapText: true }
@@ -1006,9 +1002,11 @@ export const addIndexSheet = (workbook, remitos) => {
     worksheet.getCell(`I${index + 2}`).value = remito.sheetName
   })
 
+  worksheet.getColumn(8).width = 9
+  worksheet.getColumn(9).width = 9
   worksheet.getColumn(8).hidden = true
   worksheet.getColumn(9).hidden = true
-  configurePrintPage(worksheet, `A1:E${remitos.length + 6}`)
+  configureIndexPrintPage(worksheet, `A1:E${remitos.length + 6}`)
   return worksheet
 }
 
