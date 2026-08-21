@@ -13,6 +13,7 @@ export const useDailyOrdersData = (user) => {
   const {
     isAdmin: isGlobalAdmin,
     isCompanyAdmin,
+    canBypassAdminExtraCutoff,
     adminCompanies
   } = useAuthContext()
   const [orders, setOrders] = useState([])
@@ -304,6 +305,7 @@ export const useDailyOrdersData = (user) => {
     isAdmin: hasAdminAccess,
     isGlobalAdmin,
     isCompanyAdmin,
+    canBypassAdminExtraCutoff,
     adminCompanies,
     availableDishes,
     refreshing,

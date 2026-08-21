@@ -49,6 +49,7 @@ const DailyOrders = ({ user, loading }) => {
     ordersLoading,
     isAdmin,
     isGlobalAdmin,
+    canBypassAdminExtraCutoff,
     adminCompanies,
     availableDishes,
     refreshing,
@@ -238,6 +239,7 @@ const DailyOrders = ({ user, loading }) => {
           }}
           operationalDate={operationalDate}
           lateWindowMode={extraOrderMode === 'late'}
+          canBypassCutoff={canBypassAdminExtraCutoff}
           isGlobalAdmin={isGlobalAdmin}
           adminCompanies={adminCompanies}
         />

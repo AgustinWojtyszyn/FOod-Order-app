@@ -49,6 +49,10 @@ const issueCompanyRemitoAmbiguityFixMigration = readFileSync(
   new URL('./20260820130000_fix_issue_company_remito_status_ambiguity.sql', import.meta.url),
   'utf8'
 )
+const adminExtraCutoffBypassMigration = readFileSync(
+  new URL('./20260821120000_admin_extra_cutoff_bypass_accounts.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -232,5 +236,16 @@ describe('admin extra orders migration', () => {
     expect(issueCompanyRemitoAmbiguityFixMigration).toContain('grant execute on function public.issue_company_remito(text, text, date, uuid[], text, jsonb, text) to authenticated')
     expect(issueCompanyRemitoAmbiguityFixMigration).not.toMatch(/where\s+request_id\s*=\s*v_request_id\s+and\s+status\s*=\s*'issued'/i)
     expect(issueCompanyRemitoAmbiguityFixMigration).not.toMatch(/and\s+status\s*=\s*'issued'/i)
+  })
+
+  it('allows configured admin extra accounts to bypass cutoff without changing post-report status logic', () => {
+    expect(adminExtraCutoffBypassMigration).toContain('admin_late_extra_order_authorized_accounts')
+    expect(adminExtraCutoffBypassMigration).toContain('is_admin_extra_cutoff_bypass_authorized')
+    expect(adminExtraCutoffBypassMigration).toContain('can_bypass_admin_extra_order_cutoff')
+    expect(adminExtraCutoffBypassMigration).toContain('public.create_admin_extra_order(v_payload)')
+    expect(adminExtraCutoffBypassMigration).toContain("'late_admin_extra_not_authorized'")
+    expect(adminExtraCutoffBypassMigration).toContain("'cutoff_bypass', true")
+    expect(adminExtraCutoffBypassMigration).toContain("'status', v_order.status")
+    expect(adminExtraCutoffBypassMigration).not.toContain("raise exception 'late_admin_extra_window_closed'")
   })
 })

@@ -1,5 +1,6 @@
 import { BEVERAGE_KEYWORDS, DINNER_OVERRIDE_KEYWORDS } from './dailyOrderConstants'
 import { normalizeDishName } from './dailyOrderFormatters'
+import { getCompanyByLocationOrSlug } from '../../constants/companyConfig'
 import { getSideSummaryForOrder } from './dailyOrderSideAssociations'
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
 import {
@@ -18,6 +19,14 @@ const normalizeText = (value = '') =>
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+
+const normalizeLookupKey = (value = '') =>
+  normalizeText(value)
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+const normalizeLocationKey = (value = '') =>
+  normalizeLookupKey(value).replace(/_de_/g, '_')
 
 const isGenneiaDinnerOrder = (order = {}) =>
   String(order?.service || 'lunch').toLowerCase() === 'dinner' &&
@@ -225,11 +234,39 @@ export const buildOrderPreview = (order) => {
 
 export const filterOrdersByCompany = (ordersList, company) => {
   if (company === 'all') return ordersList
-  const target = (company || '').toLowerCase()
+  const target = String(company || '').trim()
+  const targetText = target.toLowerCase()
+  const targetLocationKey = normalizeLocationKey(target)
+  const configuredTarget = getCompanyByLocationOrSlug(target)
+  const targetCompanyKey = normalizeLookupKey(configuredTarget?.slug || '')
+  const targetIsCompanySlug = targetCompanyKey && normalizeLookupKey(target) === targetCompanyKey
   return (ordersList || []).filter(order => {
     const loc = (order?.location || '').toLowerCase()
+    const deliveryLoc = (order?.delivery_location || '').toLowerCase()
     const comp = (order?.company || order?.company_slug || order?.target_company || '').toLowerCase()
-    return loc === target || comp === target
+    const locationCandidates = [
+      order?.requesting_location_code,
+      order?.requesting_location,
+      order?.requesting_location_name,
+      order?.order_location?.slug,
+      order?.order_location?.code,
+      order?.order_location?.display_name,
+      order?.location_snapshot?.slug,
+      order?.location_snapshot?.code,
+      order?.location_snapshot?.display_name,
+      order?.location,
+      order?.delivery_location,
+      order?.organization
+    ]
+    const matchesLocation = locationCandidates
+      .map(normalizeLocationKey)
+      .filter(Boolean)
+      .some((candidate) => candidate === targetLocationKey)
+
+    return loc === targetText ||
+      deliveryLoc === targetText ||
+      matchesLocation ||
+      (targetIsCompanySlug && comp === targetText)
   })
 }
 

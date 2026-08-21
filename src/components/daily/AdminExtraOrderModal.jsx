@@ -226,6 +226,7 @@ const AdminExtraOrderModal = ({
   onCreated,
   operationalDate,
   lateWindowMode = false,
+  canBypassCutoff = false,
   isGlobalAdmin,
   adminCompanies = []
 }) => {
@@ -270,14 +271,17 @@ const AdminExtraOrderModal = ({
     : (selectedCompany?.locations?.length ? selectedCompany.locations : [selectedCompany?.name].filter(Boolean))
   const outsideWindow = isOutsideOrderWindow()
   const resolvedReason = reason === 'otro' ? normalizeText(otherReason) : reason
-  const resolvedOperationalDate = lateWindowMode ? lateWindowInfo.operationalDate : deliveryDate
+  const resolvedOperationalDate = lateWindowMode && !canBypassCutoff
+    ? lateWindowInfo.operationalDate
+    : deliveryDate
   const operationalDateLabel = formatOperationalDate(resolvedOperationalDate)
+  const lateWindowAllowed = !lateWindowMode || lateWindowInfo.open || canBypassCutoff
 
   useEffect(() => {
     if (!open) return
-    setDeliveryDate(lateWindowMode ? lateWindowInfo.operationalDate : (operationalDate || today))
+    setDeliveryDate(lateWindowMode && !canBypassCutoff ? lateWindowInfo.operationalDate : (operationalDate || today))
     setCompanySlug(companyOptions[0]?.slug || '')
-  }, [companyOptions, lateWindowInfo.operationalDate, lateWindowMode, open, operationalDate, today])
+  }, [canBypassCutoff, companyOptions, lateWindowInfo.operationalDate, lateWindowMode, open, operationalDate, today])
 
   useEffect(() => {
     if (!open || !isEpseCompany) return
@@ -417,7 +421,7 @@ const AdminExtraOrderModal = ({
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    if (lateWindowMode && !lateWindowInfo.open) {
+    if (lateWindowMode && !lateWindowAllowed) {
       notifyError('La carga de pedidos fuera de término para esta jornada cerró a las 09:00.')
       return
     }
@@ -524,10 +528,10 @@ const AdminExtraOrderModal = ({
           )}
 
           {lateWindowMode && (
-            <div className={`rounded-lg border px-3 py-2 text-sm font-semibold ${lateWindowInfo.open ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-red-200 bg-red-50 text-red-800'}`}>
-              {lateWindowInfo.open ? (
+            <div className={`rounded-lg border px-3 py-2 text-sm font-semibold ${lateWindowAllowed ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-red-200 bg-red-50 text-red-800'}`}>
+              {lateWindowAllowed ? (
                 <span>
-                  Podés agregar pedidos fuera de término para la jornada del {operationalDateLabel}. La carga cierra {lateWindowInfo.closesLabel}.
+                  Podés agregar pedidos fuera de término para la jornada del {operationalDateLabel}. {canBypassCutoff ? 'Tu cuenta no tiene restricción horaria para esta carga.' : `La carga cierra ${lateWindowInfo.closesLabel}.`}
                 </span>
               ) : (
                 <span>La carga de pedidos fuera de término para esta jornada cerró a las 09:00.</span>
@@ -543,10 +547,10 @@ const AdminExtraOrderModal = ({
                 min={today}
                 value={deliveryDate}
                 onChange={(event) => setDeliveryDate(event.target.value)}
-                disabled={lateWindowMode}
+                disabled={lateWindowMode && !canBypassCutoff}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold"
               />
-              {lateWindowMode && (
+              {lateWindowMode && !canBypassCutoff && (
                 <span className="mt-1 block text-xs font-semibold text-slate-500">
                   La fecha operativa se calcula automáticamente en backend.
                 </span>
@@ -736,7 +740,7 @@ const AdminExtraOrderModal = ({
             </button>
             <button
               type="submit"
-              disabled={submitting || menuLoading || (lateWindowMode && !lateWindowInfo.open)}
+              disabled={submitting || menuLoading || (lateWindowMode && !lateWindowAllowed)}
               className="inline-flex justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
