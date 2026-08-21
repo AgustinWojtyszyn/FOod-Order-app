@@ -65,6 +65,10 @@ const lateAdminExtraHistoryOnReadBackfillMigration = readFileSync(
   new URL('./20260821173000_late_admin_extra_history_on_read_backfill.sql', import.meta.url),
   'utf8'
 )
+const lateAdminExtraHistoryWiderDbBackfillMigration = readFileSync(
+  new URL('./20260821174500_late_extra_history_wider_db_backfill.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -356,5 +360,20 @@ describe('admin extra orders migration', () => {
     expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain('create or replace function public.close_late_admin_extra_operational_day')
     expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain('public.resolve_late_admin_extra_operational_date(a.created_at)')
     expect(lateAdminExtraHistoryOnReadBackfillMigration).toContain('grant execute on function public.backfill_late_admin_extra_history_for_date(date) to authenticated')
+  })
+
+  it('widens retroactive late-extra backfill to DB evidence beyond the late-specific audit action', () => {
+    expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain('create or replace function public.backfill_late_admin_extra_history_for_date')
+    expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain("a.action = 'late_admin_extra_order_created'")
+    expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain("a.action = 'admin_extra_order_created'")
+    expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain("o.order_origin, '')) = 'admin_extra'")
+    expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain('late_admin_extra_history_authorized_accounts')
+    expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain('join allowed_accounts aa')
+    expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain('a.created_at >= v_bounds.window_started_at')
+    expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain('a.created_at < v_bounds.window_closed_at')
+    expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain('o.created_at >= v_bounds.window_started_at')
+    expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain('o.created_at < v_bounds.window_closed_at')
+    expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain('o.delivery_date = p_operational_date')
+    expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain("d.action = 'admin_extra_order_deleted'")
   })
 })
