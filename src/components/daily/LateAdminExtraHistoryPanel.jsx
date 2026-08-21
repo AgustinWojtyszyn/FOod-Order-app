@@ -51,9 +51,8 @@ const getDetailText = (row = {}) => {
     .join(' · ') || 'Sin detalle'
 }
 
-const LateAdminExtraHistoryPanel = () => {
-  const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
+const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
+  const [selectedDate, setSelectedDate] = useState(operationalDate)
   const [days, setDays] = useState([])
   const [selectedDay, setSelectedDay] = useState(null)
   const [detailRows, setDetailRows] = useState([])
@@ -71,7 +70,10 @@ const LateAdminExtraHistoryPanel = () => {
   const loadDays = async () => {
     setLoadingDays(true)
     try {
-      const { data, error } = await db.getLateAdminExtraHistoryDays({ fromDate, toDate })
+      const { data, error } = await db.getLateAdminExtraHistoryDays({
+        fromDate: selectedDate || null,
+        toDate: selectedDate || null
+      })
       if (error) {
         notifyError(getUserFriendlyErrorMessage(error, 'No pudimos cargar el histórico de extras.'))
         setDays([])
@@ -156,12 +158,8 @@ const LateAdminExtraHistoryPanel = () => {
           </div>
           <div className="flex flex-wrap items-end gap-2">
             <label className="text-xs font-semibold text-slate-600">
-              Desde
-              <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} className="mt-1 h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold" />
-            </label>
-            <label className="text-xs font-semibold text-slate-600">
-              Hasta
-              <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} className="mt-1 h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold" />
+              Fecha de entrega
+              <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} className="mt-1 h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold" />
             </label>
             <button type="button" onClick={loadDays} disabled={loadingDays} className="inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-3 text-sm font-black text-white disabled:opacity-60">
               <RefreshCw className={`h-4 w-4 ${loadingDays ? 'animate-spin' : ''}`} />

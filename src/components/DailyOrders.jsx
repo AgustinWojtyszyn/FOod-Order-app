@@ -336,7 +336,7 @@ const DailyOrders = ({ user, loading }) => {
         )}
 
         {activeSubtab === 'extra-history' && canManageLateExtraHistory && (
-          <LateAdminExtraHistoryPanel />
+          <LateAdminExtraHistoryPanel operationalDate={operationalDate} />
         )}
       </div>
     </RequireUser>
