@@ -28,7 +28,7 @@ export const useAuth = () => {
   const [permissionLoading, setPermissionLoading] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [isCompanyAdmin, setIsCompanyAdmin] = useState(false)
-  const [canBypassAdminExtraCutoff, setCanBypassAdminExtraCutoff] = useState(false)
+  const [canCreateLateAdminExtraOrder, setCanCreateLateAdminExtraOrder] = useState(false)
   const [adminCompanies, setAdminCompanies] = useState([])
   const [permissionError, setPermissionError] = useState(null)
   const roleRequestIdRef = useRef(0)
@@ -49,7 +49,7 @@ export const useAuth = () => {
     setPermissionError(null)
     setIsAdmin(false)
     setIsCompanyAdmin(false)
-    setCanBypassAdminExtraCutoff(false)
+    setCanCreateLateAdminExtraOrder(false)
     setAdminCompanies([])
 
     try {
@@ -95,7 +95,7 @@ export const useAuth = () => {
       const contextCompanies = Array.isArray(accessContext?.companies) ? accessContext.companies : []
       const isAdminRole = normalizedRole === 'admin' || accessContext?.is_global_admin === true
       const isCompanyAdminRole = !isAdminRole && (accessContext?.is_company_admin === true || contextCompanies.length > 0)
-      const canBypassCutoff = accessContext?.can_bypass_admin_extra_order_cutoff === true
+      const canCreateLateExtra = accessContext?.can_create_late_admin_extra_order === true
 
       logRoleDebug('raw user metadata', {
         id: authUser?.id,
@@ -110,14 +110,14 @@ export const useAuth = () => {
       setUser((prev) => (prev ? { ...prev, ...authUser, role: normalizedRole } : { ...authUser, role: normalizedRole }))
       setIsAdmin(isAdminRole)
       setIsCompanyAdmin(isCompanyAdminRole)
-      setCanBypassAdminExtraCutoff(canBypassCutoff)
+      setCanCreateLateAdminExtraOrder(canCreateLateExtra)
       setAdminCompanies(contextCompanies)
       setPermissionError(roleError)
 
       logRoleDebug('computed flags', {
         isAdmin: isAdminRole,
         isCompanyAdmin: isCompanyAdminRole,
-        canBypassAdminExtraCutoff: canBypassCutoff,
+        canCreateLateAdminExtraOrder: canCreateLateExtra,
         adminCompanies: contextCompanies,
         permissionError: roleError
       })
@@ -171,7 +171,7 @@ export const useAuth = () => {
             setSession(null)
             setIsAdmin(false)
             setIsCompanyAdmin(false)
-            setCanBypassAdminExtraCutoff(false)
+            setCanCreateLateAdminExtraOrder(false)
             setAdminCompanies([])
             setPermissionError(userError || null)
             setPermissionLoading(false)
@@ -191,7 +191,7 @@ export const useAuth = () => {
           setSession(null)
           setIsAdmin(false)
           setIsCompanyAdmin(false)
-          setCanBypassAdminExtraCutoff(false)
+          setCanCreateLateAdminExtraOrder(false)
           setAdminCompanies([])
           setPermissionError(null)
           setPermissionLoading(false)
@@ -205,7 +205,7 @@ export const useAuth = () => {
         setSession(null)
         setIsAdmin(false)
         setIsCompanyAdmin(false)
-        setCanBypassAdminExtraCutoff(false)
+        setCanCreateLateAdminExtraOrder(false)
         setAdminCompanies([])
         setPermissionError(error)
         setPermissionLoading(false)
@@ -233,7 +233,7 @@ export const useAuth = () => {
         setSession(null)
         setIsAdmin(false)
         setIsCompanyAdmin(false)
-        setCanBypassAdminExtraCutoff(false)
+        setCanCreateLateAdminExtraOrder(false)
         setAdminCompanies([])
         setPermissionError(null)
         setPermissionLoading(false)
@@ -385,9 +385,9 @@ export const useAuth = () => {
 
   useEffect(() => {
     if (import.meta.env.DEV) {
-      console.log('[Auth] state', { user, loading, permissionLoading, isAdmin, isCompanyAdmin, canBypassAdminExtraCutoff, adminCompanies, permissionError })
+      console.log('[Auth] state', { user, loading, permissionLoading, isAdmin, isCompanyAdmin, canCreateLateAdminExtraOrder, adminCompanies, permissionError })
     }
-  }, [user, loading, permissionLoading, isAdmin, isCompanyAdmin, canBypassAdminExtraCutoff, adminCompanies, permissionError])
+  }, [user, loading, permissionLoading, isAdmin, isCompanyAdmin, canCreateLateAdminExtraOrder, adminCompanies, permissionError])
 
   return {
     // Estado
@@ -397,7 +397,7 @@ export const useAuth = () => {
     permissionLoading,
     isAdmin,
     isCompanyAdmin,
-    canBypassAdminExtraCutoff,
+    canCreateLateAdminExtraOrder,
     canAccessAdminPanel: isAdmin || isCompanyAdmin,
     adminCompanies,
     permissionError,

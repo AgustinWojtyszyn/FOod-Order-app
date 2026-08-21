@@ -49,8 +49,8 @@ const issueCompanyRemitoAmbiguityFixMigration = readFileSync(
   new URL('./20260820130000_fix_issue_company_remito_status_ambiguity.sql', import.meta.url),
   'utf8'
 )
-const adminExtraCutoffBypassMigration = readFileSync(
-  new URL('./20260821120000_admin_extra_cutoff_bypass_accounts.sql', import.meta.url),
+const lateAdminExtraExtendedWindowMigration = readFileSync(
+  new URL('./20260821120000_late_admin_extra_extended_window.sql', import.meta.url),
   'utf8'
 )
 
@@ -238,14 +238,16 @@ describe('admin extra orders migration', () => {
     expect(issueCompanyRemitoAmbiguityFixMigration).not.toMatch(/and\s+status\s*=\s*'issued'/i)
   })
 
-  it('allows configured admin extra accounts to bypass cutoff without changing post-report status logic', () => {
-    expect(adminExtraCutoffBypassMigration).toContain('admin_late_extra_order_authorized_accounts')
-    expect(adminExtraCutoffBypassMigration).toContain('is_admin_extra_cutoff_bypass_authorized')
-    expect(adminExtraCutoffBypassMigration).toContain('can_bypass_admin_extra_order_cutoff')
-    expect(adminExtraCutoffBypassMigration).toContain('public.create_admin_extra_order(v_payload)')
-    expect(adminExtraCutoffBypassMigration).toContain("'late_admin_extra_not_authorized'")
-    expect(adminExtraCutoffBypassMigration).toContain("'cutoff_bypass', true")
-    expect(adminExtraCutoffBypassMigration).toContain("'status', v_order.status")
-    expect(adminExtraCutoffBypassMigration).not.toContain("raise exception 'late_admin_extra_window_closed'")
+  it('allows configured admin extra accounts in the extended 22-to-18 window without changing post-report status logic', () => {
+    expect(lateAdminExtraExtendedWindowMigration).toContain('admin_late_extra_order_authorized_accounts')
+    expect(lateAdminExtraExtendedWindowMigration).toContain('is_late_admin_extra_order_authorized')
+    expect(lateAdminExtraExtendedWindowMigration).toContain('can_create_late_admin_extra_order')
+    expect(lateAdminExtraExtendedWindowMigration).toContain("v_local_time >= time '22:00:00'")
+    expect(lateAdminExtraExtendedWindowMigration).toContain("v_local_time < time '18:00:00'")
+    expect(lateAdminExtraExtendedWindowMigration).toContain("raise exception 'late_admin_extra_window_closed'")
+    expect(lateAdminExtraExtendedWindowMigration).toContain('public.create_admin_extra_order(v_payload)')
+    expect(lateAdminExtraExtendedWindowMigration).toContain("'late_admin_extra_not_authorized'")
+    expect(lateAdminExtraExtendedWindowMigration).toContain("'extended_window', '22:00-18:00'")
+    expect(lateAdminExtraExtendedWindowMigration).toContain("'status', v_order.status")
   })
 })

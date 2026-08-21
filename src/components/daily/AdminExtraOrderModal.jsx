@@ -54,22 +54,22 @@ const getLateWindowInfo = (date = new Date()) => {
     return {
       open: true,
       operationalDate: addDaysToISO(localDate, 1),
-      closesLabel: 'mañana a las 09:00',
+      closesLabel: 'mañana a las 18:00',
       startsNextDay: true
     }
   }
-  if (seconds < 9 * 3600) {
+  if (seconds < 18 * 3600) {
     return {
       open: true,
       operationalDate: localDate,
-      closesLabel: 'hoy a las 09:00',
+      closesLabel: 'hoy a las 18:00',
       startsNextDay: false
     }
   }
   return {
     open: false,
     operationalDate: '',
-    closesLabel: 'hoy a las 09:00',
+    closesLabel: 'hoy a las 18:00',
     startsNextDay: false
   }
 }
@@ -106,7 +106,7 @@ const mapErrorMessage = (error) => {
   const message = String(error?.message || error || '').toLowerCase()
   if (message.includes('late_admin_extra_not_authorized')) return 'Tu cuenta no está autorizada para cargar pedidos fuera de término.'
   if (message.includes('late_admin_extra_authorized_account_not_configured')) return 'No se configuró la cuenta autorizada para esta operación.'
-  if (message.includes('late_admin_extra_window_closed')) return 'La carga de pedidos fuera de término para esta jornada cerró a las 09:00.'
+  if (message.includes('late_admin_extra_window_closed')) return 'La carga de pedidos fuera de término para esta jornada cerró a las 18:00.'
   if (message.includes('not_authorized')) return 'No tenés autorización para cargar pedidos extra en esa empresa.'
   if (message.includes('invalid_delivery_date')) return 'No se pueden cargar pedidos extra para fechas pasadas.'
   if (message.includes('menu_required')) return 'No existe un menú válido para esa fecha, empresa y turno.'
@@ -226,7 +226,6 @@ const AdminExtraOrderModal = ({
   onCreated,
   operationalDate,
   lateWindowMode = false,
-  canBypassCutoff = false,
   isGlobalAdmin,
   adminCompanies = []
 }) => {
@@ -271,17 +270,15 @@ const AdminExtraOrderModal = ({
     : (selectedCompany?.locations?.length ? selectedCompany.locations : [selectedCompany?.name].filter(Boolean))
   const outsideWindow = isOutsideOrderWindow()
   const resolvedReason = reason === 'otro' ? normalizeText(otherReason) : reason
-  const resolvedOperationalDate = lateWindowMode && !canBypassCutoff
-    ? lateWindowInfo.operationalDate
-    : deliveryDate
+  const resolvedOperationalDate = lateWindowMode ? lateWindowInfo.operationalDate : deliveryDate
   const operationalDateLabel = formatOperationalDate(resolvedOperationalDate)
-  const lateWindowAllowed = !lateWindowMode || lateWindowInfo.open || canBypassCutoff
+  const lateWindowAllowed = !lateWindowMode || lateWindowInfo.open
 
   useEffect(() => {
     if (!open) return
-    setDeliveryDate(lateWindowMode && !canBypassCutoff ? lateWindowInfo.operationalDate : (operationalDate || today))
+    setDeliveryDate(lateWindowMode ? lateWindowInfo.operationalDate : (operationalDate || today))
     setCompanySlug(companyOptions[0]?.slug || '')
-  }, [canBypassCutoff, companyOptions, lateWindowInfo.operationalDate, lateWindowMode, open, operationalDate, today])
+  }, [companyOptions, lateWindowInfo.operationalDate, lateWindowMode, open, operationalDate, today])
 
   useEffect(() => {
     if (!open || !isEpseCompany) return
@@ -422,7 +419,7 @@ const AdminExtraOrderModal = ({
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (lateWindowMode && !lateWindowAllowed) {
-      notifyError('La carga de pedidos fuera de término para esta jornada cerró a las 09:00.')
+      notifyError('La carga de pedidos fuera de término para esta jornada cerró a las 18:00.')
       return
     }
     if (!lateWindowMode && deliveryDate < today) {
@@ -531,10 +528,10 @@ const AdminExtraOrderModal = ({
             <div className={`rounded-lg border px-3 py-2 text-sm font-semibold ${lateWindowAllowed ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-red-200 bg-red-50 text-red-800'}`}>
               {lateWindowAllowed ? (
                 <span>
-                  Podés agregar pedidos fuera de término para la jornada del {operationalDateLabel}. {canBypassCutoff ? 'Tu cuenta no tiene restricción horaria para esta carga.' : `La carga cierra ${lateWindowInfo.closesLabel}.`}
+                  Podés agregar pedidos fuera de término para la jornada del {operationalDateLabel}. La carga cierra {lateWindowInfo.closesLabel}.
                 </span>
               ) : (
-                <span>La carga de pedidos fuera de término para esta jornada cerró a las 09:00.</span>
+                <span>La carga de pedidos fuera de término para esta jornada cerró a las 18:00.</span>
               )}
             </div>
           )}
@@ -547,10 +544,10 @@ const AdminExtraOrderModal = ({
                 min={today}
                 value={deliveryDate}
                 onChange={(event) => setDeliveryDate(event.target.value)}
-                disabled={lateWindowMode && !canBypassCutoff}
+                disabled={lateWindowMode}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold"
               />
-              {lateWindowMode && !canBypassCutoff && (
+              {lateWindowMode && (
                 <span className="mt-1 block text-xs font-semibold text-slate-500">
                   La fecha operativa se calcula automáticamente en backend.
                 </span>
