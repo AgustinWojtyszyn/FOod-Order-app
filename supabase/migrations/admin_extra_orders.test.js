@@ -53,6 +53,10 @@ const lateAdminExtraExtendedWindowMigration = readFileSync(
   new URL('./20260821120000_late_admin_extra_extended_window.sql', import.meta.url),
   'utf8'
 )
+const dailyOperationalClosuresMigration = readFileSync(
+  new URL('./20260821150000_daily_operational_closures.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -257,5 +261,45 @@ describe('admin extra orders migration', () => {
     expect(lateAdminExtraExtendedWindowMigration).toContain("a.action = 'late_admin_extra_order_created'")
     expect(lateAdminExtraExtendedWindowMigration).toContain('v_is_late_extra and not public.is_late_admin_extra_order_authorized')
     expect(lateAdminExtraExtendedWindowMigration).toContain("'late_admin_extra', v_is_late_extra")
+  })
+
+  it('adds idempotent daily operational closures without issuing or renumbering remitos', () => {
+    expect(dailyOperationalClosuresMigration).toContain('create table if not exists public.daily_operational_closures')
+    expect(dailyOperationalClosuresMigration).toContain('delivery_date date not null unique')
+    expect(dailyOperationalClosuresMigration).toContain('late_window_start timestamptz not null')
+    expect(dailyOperationalClosuresMigration).toContain('closure_at timestamptz not null')
+    expect(dailyOperationalClosuresMigration).toContain('snapshot jsonb not null')
+    expect(dailyOperationalClosuresMigration).toContain('anomalies jsonb not null')
+    expect(dailyOperationalClosuresMigration).toContain('create or replace function public.close_daily_operational_day')
+    expect(dailyOperationalClosuresMigration).toContain('create or replace function public.get_daily_operational_closure')
+    expect(dailyOperationalClosuresMigration).toContain("now() at time zone 'America/Argentina/Buenos_Aires')::date - 1")
+    expect(dailyOperationalClosuresMigration).toContain('make_timestamptz')
+    expect(dailyOperationalClosuresMigration).toContain('22, 0, 0, v_timezone')
+    expect(dailyOperationalClosuresMigration).toContain('18, 0, 0, v_timezone')
+    expect(dailyOperationalClosuresMigration).toContain('o.created_at < v_closure_at')
+    expect(dailyOperationalClosuresMigration).toContain('o.created_at >= v_closure_at')
+    expect(dailyOperationalClosuresMigration).toContain('if found and not coalesce(p_rebuild, false) then')
+    expect(dailyOperationalClosuresMigration).toContain('v_next_version := coalesce(v_existing.version, 1) + 1')
+    expect(dailyOperationalClosuresMigration).toContain('daily_operational_closure_created')
+    expect(dailyOperationalClosuresMigration).toContain('daily_operational_closure_rebuilt')
+    expect(dailyOperationalClosuresMigration).toContain('admin_order_updated')
+    expect(dailyOperationalClosuresMigration).toContain('admin_order_cancelled')
+    expect(dailyOperationalClosuresMigration).toContain('admin_extra_order_deleted')
+    expect(dailyOperationalClosuresMigration).toContain('late_admin_extra_order_created')
+    expect(dailyOperationalClosuresMigration).toContain('order_created_after_closure')
+    expect(dailyOperationalClosuresMigration).toContain('order_not_reconstructible_exactly')
+    expect(dailyOperationalClosuresMigration).toContain('order_without_resolvable_company_or_location')
+    expect(dailyOperationalClosuresMigration).toContain('multiple_active_remitos_for_logical_key')
+    expect(dailyOperationalClosuresMigration).toContain('remito_references_missing_order')
+    expect(dailyOperationalClosuresMigration).toContain('remito_requires_refresh')
+    expect(dailyOperationalClosuresMigration).toContain('public.daily_operational_jsonb_int')
+    expect(dailyOperationalClosuresMigration).toContain('security definer')
+    expect(dailyOperationalClosuresMigration).toContain('set search_path = public, pg_temp')
+    expect(dailyOperationalClosuresMigration).toContain('revoke all on function public.close_daily_operational_day(date, boolean) from public')
+    expect(dailyOperationalClosuresMigration).toContain('grant execute on function public.close_daily_operational_day(date, boolean) to authenticated')
+    expect(dailyOperationalClosuresMigration).toContain('grant execute on function public.get_daily_operational_closure(date) to authenticated')
+    expect(dailyOperationalClosuresMigration).not.toContain('issue_company_remito')
+    expect(dailyOperationalClosuresMigration).not.toContain('next_remito_number')
+    expect(dailyOperationalClosuresMigration).not.toContain('insert into public.company_remitos')
   })
 })

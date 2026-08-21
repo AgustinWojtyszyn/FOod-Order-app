@@ -19,8 +19,25 @@ import { getSideAssociationsForOrder } from './dailyOrderSideAssociations'
 
 const DETAIL_ROWS_PER_COPY = 16
 const DETAIL_START_ROW = 9
+const APPROVED_NOTE_COLUMN_WIDTHS = [
+  1.42578125,
+  7,
+  9.42578125,
+  9.42578125,
+  9.42578125,
+  10.140625,
+  10.140625,
+  10,
+  7,
+  9.42578125,
+  9.42578125,
+  9.42578125,
+  10.140625,
+  10.140625
+]
 
 const HEADER_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111827' } }
+const TOTAL_MENU_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } }
 const LIGHT_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
 const WHITE_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
 const BORDER = {
@@ -579,26 +596,32 @@ export const summarizeProducts = (orders = []) => {
   }
 }
 
-const configurePrintPage = (worksheet, printArea = 'A1:M33') => {
+const configurePrintPage = (worksheet, printArea = 'A1:N33') => {
   worksheet.pageSetup = {
     paperSize: 9,
     orientation: 'landscape',
-    fitToPage: true,
-    fitToWidth: 1,
-    fitToHeight: 1,
+    scale: 110,
     horizontalCentered: true,
     verticalCentered: false,
     printTitlesRow: '',
     printTitlesColumn: '',
     margins: {
-      left: 0.25,
-      right: 0.25,
-      top: 0.35,
-      bottom: 0.35,
-      header: 0.12,
-      footer: 0.12
+      left: 0.23622047244094491,
+      right: 0.23622047244094491,
+      top: 0.39370078740157483,
+      bottom: 0.39370078740157483,
+      header: 0,
+      footer: 0
     },
     printArea
+  }
+  worksheet.headerFooter = {
+    oddHeader: '',
+    oddFooter: '',
+    evenHeader: '',
+    evenFooter: '',
+    firstHeader: '',
+    firstFooter: ''
   }
   worksheet.properties.showGridLines = false
   worksheet.views = [{ showGridLines: false }]
@@ -713,7 +736,7 @@ const addInstitutionalBlock = (worksheet, startCol) => {
     'CUIT.'
   ]
   mergeAndSet(worksheet, 1, startCol + 1, 4, startCol + 2, lines.join('\n'), {
-    font: { size: 7, bold: true },
+    font: { size: 6.5, bold: true },
     alignment: { vertical: 'middle', horizontal: 'center', wrapText: true }
   })
 }
@@ -807,10 +830,12 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
 
   mergeAndSet(worksheet, 5, startCol, 5, startCol + 2, `Fecha: ${formatDateOnly(remito.deliveryDate)}`, {
     font: { size: 9, bold: true },
+    fill: LIGHT_FILL,
     alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
   })
   mergeAndSet(worksheet, 5, xCol, 5, endCol, `Empresa: ${remito.companyDisplayName}`, {
     font: { size: 9, bold: true },
+    fill: LIGHT_FILL,
     alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
   })
   mergeAndSet(worksheet, 6, startCol, 6, endCol, 'Documento no válido como factura', {
@@ -838,18 +863,21 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
   const detailRows = getPrintableDetailRows(remito.products, remito.totalItems)
   detailRows.forEach((product, index) => {
     const rowNumber = DETAIL_START_ROW + index
-    const isTotalRow = String(product?.category || '').startsWith('total_')
+    const category = String(product?.category || '')
+    const isMenuTotal = category === 'total_menu'
+    const isSecondaryTotal = category === 'total_beverages' || category === 'total_desserts'
+    const isTotalRow = isMenuTotal || isSecondaryTotal
     copyCell(worksheet, rowNumber, startCol, product?.cantidad || '', {
-      font: { size: 8, bold: isTotalRow },
-      fill: isTotalRow ? LIGHT_FILL : WHITE_FILL,
+      font: { size: isMenuTotal ? 12 : 8, bold: isTotalRow },
+      fill: isMenuTotal ? TOTAL_MENU_FILL : (isSecondaryTotal ? LIGHT_FILL : WHITE_FILL),
       alignment: { vertical: 'middle', horizontal: 'center' }
     })
     mergeAndSet(worksheet, rowNumber, startCol + 1, rowNumber, endCol, product?.producto || '', {
-      font: { size: 8, bold: isTotalRow },
-      fill: isTotalRow ? LIGHT_FILL : WHITE_FILL,
+      font: { size: isMenuTotal ? 12 : 8, bold: isTotalRow },
+      fill: isMenuTotal ? TOTAL_MENU_FILL : (isSecondaryTotal ? LIGHT_FILL : WHITE_FILL),
       alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
     })
-    worksheet.getRow(rowNumber).height = 15.5
+    worksheet.getRow(rowNumber).height = 15.6
   })
   for (let index = detailRows.length; index < DETAIL_ROWS_PER_COPY; index += 1) {
     const rowNumber = DETAIL_START_ROW + index
@@ -861,7 +889,7 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
       font: { size: 8 },
       alignment: { vertical: 'middle', horizontal: 'left', wrapText: true }
     })
-    worksheet.getRow(rowNumber).height = 15.5
+    worksheet.getRow(rowNumber).height = 15.6
   }
 
   const footerStartRow = Math.max(27, DETAIL_START_ROW + detailRows.length + 1)
@@ -882,6 +910,11 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
     font: { size: 8, bold: true },
     alignment: { vertical: 'bottom', horizontal: 'center' }
   })
+  for (let rowNumber = footerStartRow; rowNumber <= footerStartRow + 4; rowNumber += 1) {
+    worksheet.getRow(rowNumber).height = 10.5
+  }
+  worksheet.getRow(footerStartRow + 5).height = 8.25
+  worksheet.getRow(footerStartRow + 6).height = 8.25
 
   applyOuterBorder(worksheet, 1, footerStartRow + 6, startCol, endCol)
   return footerStartRow + 6
@@ -889,26 +922,11 @@ const addCopySheetBlock = async (workbook, worksheet, remito, startCol, copyLabe
 
 export const addRemitoSheet = async (workbook, remito, sheetName) => {
   const worksheet = workbook.addWorksheet(sheetName)
-  worksheet.columns = [
-    { key: 'margin', width: 1.4 },
-    { key: 'originalCantidad', width: 7 },
-    { key: 'originalDetalleA', width: 9.4 },
-    { key: 'originalDetalleB', width: 9.4 },
-    { key: 'originalDetalleC', width: 9.4 },
-    { key: 'originalDetalleD', width: 10.2 },
-    { key: 'originalDetalleE', width: 10.2 },
-    { key: 'copySeparator', width: 2.8 },
-    { key: 'duplicadoCantidad', width: 7 },
-    { key: 'duplicadoDetalleA', width: 9.4 },
-    { key: 'duplicadoDetalleB', width: 9.4 },
-    { key: 'duplicadoDetalleC', width: 9.4 },
-    { key: 'duplicadoDetalleD', width: 10.2 },
-    { key: 'duplicadoDetalleE', width: 10.2 }
-  ]
+  worksheet.columns = APPROVED_NOTE_COLUMN_WIDTHS.map((width, index) => ({ key: `col${index + 1}`, width }))
   worksheet.properties.showGridLines = false
   worksheet.views = [{ showGridLines: false }]
   for (let rowNumber = 1; rowNumber <= 60; rowNumber += 1) {
-    worksheet.getRow(rowNumber).height = rowNumber <= 7 ? 16 : 15.5
+    worksheet.getRow(rowNumber).height = rowNumber <= 7 ? 16 : 15.6
   }
 
   const originalEndRow = await addCopySheetBlock(workbook, worksheet, remito, 2, 'ORIGINAL')

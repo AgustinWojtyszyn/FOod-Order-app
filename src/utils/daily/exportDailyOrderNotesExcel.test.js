@@ -75,6 +75,139 @@ describe('daily order notes Excel model', () => {
     }
   })
 
+  it('uses the approved 40014 visual print layout for order note sheets', async () => {
+    const previousFetch = globalThis.fetch
+    globalThis.fetch = async () => ({
+      arrayBuffer: async () => new ArrayBuffer(8)
+    })
+
+    try {
+      const { workbook } = await buildRemitoWorkbook([{
+        companySlug: 'genneia',
+        companyName: 'Genneia',
+        companyDisplayName: 'Genneia',
+        remitoNumber: 40014,
+        deliveryDate: '2026-08-21',
+        totalItems: 24,
+        products: [
+          { cantidad: 10, producto: 'Opción 1 - Pollo', category: REMITO_ROW_CATEGORIES.numberedOption },
+          { cantidad: 14, producto: 'Opción 2 - Carne', category: REMITO_ROW_CATEGORIES.numberedOption },
+          { cantidad: 24, producto: 'Bebida: Agua', category: REMITO_ROW_CATEGORIES.drink },
+          { cantidad: 24, producto: 'Postre: Fruta', category: REMITO_ROW_CATEGORIES.dessert }
+        ]
+      }])
+      const worksheet = workbook.getWorksheet('Genneia 40014')
+      const expectedWidths = [
+        1.42578125,
+        7,
+        9.42578125,
+        9.42578125,
+        9.42578125,
+        10.140625,
+        10.140625,
+        10,
+        7,
+        9.42578125,
+        9.42578125,
+        9.42578125,
+        10.140625,
+        10.140625
+      ]
+
+      expectedWidths.forEach((width, index) => {
+        expect(worksheet.getColumn(index + 1).width).toBe(width)
+      })
+
+      expect(worksheet.pageSetup).toMatchObject({
+        paperSize: 9,
+        orientation: 'landscape',
+        scale: 110,
+        horizontalCentered: true,
+        verticalCentered: false,
+        printArea: 'A1:N33'
+      })
+      expect(worksheet.pageSetup.fitToPage).toBeUndefined()
+      expect(worksheet.pageSetup.fitToWidth).toBeUndefined()
+      expect(worksheet.pageSetup.fitToHeight).toBeUndefined()
+      expect(worksheet.pageSetup.margins).toEqual({
+        left: 0.23622047244094491,
+        right: 0.23622047244094491,
+        top: 0.39370078740157483,
+        bottom: 0.39370078740157483,
+        header: 0,
+        footer: 0
+      })
+      expect(worksheet.headerFooter).toMatchObject({
+        oddHeader: '',
+        oddFooter: '',
+        evenHeader: '',
+        evenFooter: '',
+        firstHeader: '',
+        firstFooter: ''
+      })
+
+      expect(worksheet.getCell('E1').value).toBe('X')
+      expect(worksheet.getCell('L1').value).toBe('X')
+      expect(worksheet.getCell('E1').font).toMatchObject({ size: 20, bold: true })
+      expect(worksheet.getCell('L1').font).toMatchObject({ size: 20, bold: true })
+      expect(worksheet.getCell('F1').value).toBe('ORIGINAL')
+      expect(worksheet.getCell('M1').value).toBe('DUPLICADO')
+      expect(worksheet.getCell('C1').font).toMatchObject({ size: 6.5, bold: true })
+      expect(worksheet.getCell('J1').font).toMatchObject({ size: 6.5, bold: true })
+      expect(worksheet.getCell('B5').fill).toEqual(worksheet.getCell('I5').fill)
+      expect(worksheet.getCell('E5').fill).toEqual(worksheet.getCell('L5').fill)
+      expect(worksheet.getCell('B8').fill.fgColor.argb).toBe('FF111827')
+      expect(worksheet.getCell('I8').fill.fgColor.argb).toBe('FF111827')
+    } finally {
+      globalThis.fetch = previousFetch
+    }
+  })
+
+  it('formats menu totals stronger than beverage and dessert totals on both copies', async () => {
+    const previousFetch = globalThis.fetch
+    globalThis.fetch = async () => ({
+      arrayBuffer: async () => new ArrayBuffer(8)
+    })
+
+    try {
+      const { workbook } = await buildRemitoWorkbook([{
+        companySlug: 'genneia',
+        companyName: 'Genneia',
+        companyDisplayName: 'Genneia',
+        remitoNumber: 40014,
+        deliveryDate: '2026-08-21',
+        totalItems: 24,
+        products: [
+          { cantidad: 10, producto: 'Opción 1 - Pollo', category: REMITO_ROW_CATEGORIES.numberedOption },
+          { cantidad: 14, producto: 'Opción 2 - Carne', category: REMITO_ROW_CATEGORIES.numberedOption },
+          { cantidad: 24, producto: 'Bebida: Agua', category: REMITO_ROW_CATEGORIES.drink },
+          { cantidad: 24, producto: 'Postre: Fruta', category: REMITO_ROW_CATEGORIES.dessert }
+        ]
+      }])
+      const worksheet = workbook.getWorksheet('Genneia 40014')
+      const menuTotalRow = 11
+      const beverageTotalRow = 13
+      const dessertTotalRow = 15
+
+      ;['B', 'C', 'I', 'J'].forEach((column) => {
+        expect(worksheet.getCell(`${column}${menuTotalRow}`).font).toMatchObject({ size: 12, bold: true })
+        expect(worksheet.getCell(`${column}${menuTotalRow}`).fill.fgColor.argb).toBe('FFE5E7EB')
+      })
+      ;['B', 'C', 'I', 'J'].forEach((column) => {
+        expect(worksheet.getCell(`${column}${beverageTotalRow}`).font).toMatchObject({ size: 8, bold: true })
+        expect(worksheet.getCell(`${column}${beverageTotalRow}`).fill.fgColor.argb).toBe('FFF3F4F6')
+        expect(worksheet.getCell(`${column}${dessertTotalRow}`).font).toMatchObject({ size: 8, bold: true })
+        expect(worksheet.getCell(`${column}${dessertTotalRow}`).fill.fgColor.argb).toBe('FFF3F4F6')
+      })
+      expect(worksheet.getRow(menuTotalRow).height).toBe(15.6)
+      expect(worksheet.getRow(27).height).toBe(10.5)
+      expect(worksheet.getRow(32).height).toBe(8.25)
+      expect(worksheet.getRow(33).height).toBe(8.25)
+    } finally {
+      globalThis.fetch = previousFetch
+    }
+  })
+
   it('keeps reserved empty detail rows blank without removing real quantity 11 values', async () => {
     const previousFetch = globalThis.fetch
     globalThis.fetch = async () => ({
