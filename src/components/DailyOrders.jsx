@@ -13,6 +13,7 @@ import DailyPrintStyles from './daily/DailyPrintStyles'
 import AdminExtraOrderModal from './daily/AdminExtraOrderModal'
 import DailyRemitosPanel from './daily/DailyRemitosPanel'
 import DailySearchPanel from './daily/DailySearchPanel'
+import LateAdminExtraHistoryPanel from './daily/LateAdminExtraHistoryPanel'
 import { useDailyOrdersData } from '../hooks/useDailyOrdersData'
 import { matchesDailyOrderStatusFilter, useDailyOrdersFilters } from '../hooks/useDailyOrdersFilters'
 import {
@@ -50,6 +51,7 @@ const DailyOrders = ({ user, loading }) => {
     isAdmin,
     isGlobalAdmin,
     canCreateLateAdminExtraOrder,
+    canManageLateExtraHistory,
     adminCompanies,
     availableDishes,
     refreshing,
@@ -257,7 +259,8 @@ const DailyOrders = ({ user, loading }) => {
           {[
             ['orders', 'Pedidos'],
             ['remitos', 'Remitos'],
-            ['search', 'Buscar']
+            ['search', 'Buscar'],
+            ...(canManageLateExtraHistory ? [['extra-history', 'Histórico de extras']] : [])
           ].map(([value, label]) => (
             <button
               key={value}
@@ -330,6 +333,10 @@ const DailyOrders = ({ user, loading }) => {
             }))}
             onViewOrder={(orderId) => navigate(`/orders/${orderId}`)}
           />
+        )}
+
+        {activeSubtab === 'extra-history' && canManageLateExtraHistory && (
+          <LateAdminExtraHistoryPanel />
         )}
       </div>
     </RequireUser>

@@ -269,6 +269,30 @@ describe('ordersService admin extra RPCs', () => {
     expect(result.error?.message).toContain('reason es requerido')
     expect(calls).toEqual([])
   })
+
+  it('calls restricted late extra history and closure RPCs', async () => {
+    const { supabase, calls } = createRpcSupabaseMock({ data: [{ operational_date: '2026-08-21' }], error: null })
+    const service = createOrdersService({ supabase })
+
+    await expect(service.getLateAdminExtraHistoryDays({
+      fromDate: '2026-08-01',
+      toDate: '2026-08-21'
+    })).resolves.toEqual({ data: [{ operational_date: '2026-08-21' }], error: null })
+    await service.getLateAdminExtraHistoryForDay({ operationalDate: '2026-08-21' })
+    await service.closeLateAdminExtraOperationalDay({ operationalDate: '2026-08-21' })
+    await service.getLateAdminExtraClosure({ operationalDate: '2026-08-21' })
+
+    expect(calls.map((call) => call[1])).toEqual([
+      'get_late_admin_extra_history_days',
+      'get_late_admin_extra_history_for_day',
+      'close_late_admin_extra_operational_day',
+      'get_late_admin_extra_closure'
+    ])
+    expect(calls[0][2]).toEqual({ p_from_date: '2026-08-01', p_to_date: '2026-08-21' })
+    expect(calls[1][2]).toEqual({ p_operational_date: '2026-08-21' })
+    expect(calls[2][2]).toEqual({ p_operational_date: '2026-08-21' })
+    expect(calls[3][2]).toEqual({ p_operational_date: '2026-08-21' })
+  })
 })
 
 describe('withSupabaseRetry', () => {

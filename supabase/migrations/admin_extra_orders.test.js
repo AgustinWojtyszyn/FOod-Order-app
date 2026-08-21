@@ -57,6 +57,10 @@ const dailyOperationalClosuresMigration = readFileSync(
   new URL('./20260821150000_daily_operational_closures.sql', import.meta.url),
   'utf8'
 )
+const lateAdminExtraHistoryClosuresMigration = readFileSync(
+  new URL('./20260821170000_late_admin_extra_history_closures.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -301,5 +305,36 @@ describe('admin extra orders migration', () => {
     expect(dailyOperationalClosuresMigration).not.toContain('issue_company_remito')
     expect(dailyOperationalClosuresMigration).not.toContain('next_remito_number')
     expect(dailyOperationalClosuresMigration).not.toContain('insert into public.company_remitos')
+  })
+
+  it('adds permanent late-admin-extra history and restricted operational closures', () => {
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('create table if not exists public.late_admin_extra_order_history')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('create table if not exists public.late_admin_extra_order_closures')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('create table if not exists public.late_admin_extra_history_authorized_accounts')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('can_manage_late_extra_history')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('sarmientoclaudia985@gmail.com')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('agustinwojtyszyn99@gmail.com')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain("lower(coalesce(u.email, '')) like '%jessica%'")
+    expect(lateAdminExtraHistoryClosuresMigration).toContain("lower(coalesce(u.email, '')) like '%jesica%'")
+    expect(lateAdminExtraHistoryClosuresMigration).not.toContain('servifoodrecepcion@gmail.com')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain("time '22:00:00'")
+    expect(lateAdminExtraHistoryClosuresMigration).toContain("time '18:00:00'")
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('America/Argentina/Buenos_Aires')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('create or replace function public.create_late_admin_extra_order')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('perform public.insert_late_admin_extra_order_history')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain("'snapshot', to_jsonb(v_order)")
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('create or replace function public.delete_admin_extra_order')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain("historical_status = 'deleted'")
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('insert into public.late_admin_extra_order_history')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain("where a.action = 'late_admin_extra_order_created'")
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('create or replace function public.get_late_admin_extra_history_days')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('create or replace function public.get_late_admin_extra_history_for_day')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('create or replace function public.close_late_admin_extra_operational_day')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('create or replace function public.get_late_admin_extra_closure')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('late_extra_operational_day_open')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('operational_date date not null unique')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain("'can_manage_late_extra_history', public.can_manage_late_extra_history(auth.uid())")
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('revoke all on function public.close_late_admin_extra_operational_day(date) from public, anon')
+    expect(lateAdminExtraHistoryClosuresMigration).toContain('grant execute on function public.get_late_admin_extra_history_days(date, date) to authenticated')
   })
 })

@@ -265,6 +265,45 @@ export const createOrdersService = ({ supabase, invalidateCache = () => {} } = {
       return { data, error }
     },
 
+    getLateAdminExtraHistoryDays: async ({ fromDate = null, toDate = null } = {}) => {
+      const { data, error } = await supabase.rpc('get_late_admin_extra_history_days', {
+        p_from_date: fromDate || null,
+        p_to_date: toDate || null
+      })
+      return { data, error }
+    },
+
+    getLateAdminExtraHistoryForDay: async ({ operationalDate } = {}) => {
+      if (!operationalDate) {
+        return { data: null, error: new Error('operationalDate es requerido para consultar extras históricos') }
+      }
+      const { data, error } = await supabase.rpc('get_late_admin_extra_history_for_day', {
+        p_operational_date: operationalDate
+      })
+      return { data, error }
+    },
+
+    closeLateAdminExtraOperationalDay: async ({ operationalDate } = {}) => {
+      invalidateCache()
+      if (!operationalDate) {
+        return { data: null, error: new Error('operationalDate es requerido para cerrar la jornada de extras') }
+      }
+      const { data, error } = await supabase.rpc('close_late_admin_extra_operational_day', {
+        p_operational_date: operationalDate
+      })
+      return { data: Array.isArray(data) ? data[0] : data, error }
+    },
+
+    getLateAdminExtraClosure: async ({ operationalDate } = {}) => {
+      if (!operationalDate) {
+        return { data: null, error: new Error('operationalDate es requerido para consultar el cierre de extras') }
+      }
+      const { data, error } = await supabase.rpc('get_late_admin_extra_closure', {
+        p_operational_date: operationalDate
+      })
+      return { data: Array.isArray(data) ? (data[0] || null) : data, error }
+    },
+
     getOrders: async (userId = null, {
       status = null,
       deliveryDate = null,

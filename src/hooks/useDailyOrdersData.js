@@ -14,6 +14,7 @@ export const useDailyOrdersData = (user) => {
     isAdmin: isGlobalAdmin,
     isCompanyAdmin,
     canCreateLateAdminExtraOrder,
+    canManageLateExtraHistory,
     adminCompanies
   } = useAuthContext()
   const [orders, setOrders] = useState([])
@@ -306,6 +307,7 @@ export const useDailyOrdersData = (user) => {
     isGlobalAdmin,
     isCompanyAdmin,
     canCreateLateAdminExtraOrder,
+    canManageLateExtraHistory,
     adminCompanies,
     availableDishes,
     refreshing,

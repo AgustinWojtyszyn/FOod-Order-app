@@ -29,6 +29,7 @@ export const useAuth = () => {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isCompanyAdmin, setIsCompanyAdmin] = useState(false)
   const [canCreateLateAdminExtraOrder, setCanCreateLateAdminExtraOrder] = useState(false)
+  const [canManageLateExtraHistory, setCanManageLateExtraHistory] = useState(false)
   const [adminCompanies, setAdminCompanies] = useState([])
   const [permissionError, setPermissionError] = useState(null)
   const roleRequestIdRef = useRef(0)
@@ -50,6 +51,7 @@ export const useAuth = () => {
     setIsAdmin(false)
     setIsCompanyAdmin(false)
     setCanCreateLateAdminExtraOrder(false)
+    setCanManageLateExtraHistory(false)
     setAdminCompanies([])
 
     try {
@@ -96,6 +98,7 @@ export const useAuth = () => {
       const isAdminRole = normalizedRole === 'admin' || accessContext?.is_global_admin === true
       const isCompanyAdminRole = !isAdminRole && (accessContext?.is_company_admin === true || contextCompanies.length > 0)
       const canCreateLateExtra = accessContext?.can_create_late_admin_extra_order === true
+      const canManageLateHistory = accessContext?.can_manage_late_extra_history === true
 
       logRoleDebug('raw user metadata', {
         id: authUser?.id,
@@ -111,6 +114,7 @@ export const useAuth = () => {
       setIsAdmin(isAdminRole)
       setIsCompanyAdmin(isCompanyAdminRole)
       setCanCreateLateAdminExtraOrder(canCreateLateExtra)
+      setCanManageLateExtraHistory(canManageLateHistory)
       setAdminCompanies(contextCompanies)
       setPermissionError(roleError)
 
@@ -118,6 +122,7 @@ export const useAuth = () => {
         isAdmin: isAdminRole,
         isCompanyAdmin: isCompanyAdminRole,
         canCreateLateAdminExtraOrder: canCreateLateExtra,
+        canManageLateExtraHistory: canManageLateHistory,
         adminCompanies: contextCompanies,
         permissionError: roleError
       })
@@ -127,6 +132,8 @@ export const useAuth = () => {
       setUser((prev) => prev || authUser)
       setIsAdmin(false)
       setIsCompanyAdmin(false)
+      setCanCreateLateAdminExtraOrder(false)
+      setCanManageLateExtraHistory(false)
       setAdminCompanies([])
       setPermissionError(error)
     } finally {
@@ -172,6 +179,7 @@ export const useAuth = () => {
             setIsAdmin(false)
             setIsCompanyAdmin(false)
             setCanCreateLateAdminExtraOrder(false)
+            setCanManageLateExtraHistory(false)
             setAdminCompanies([])
             setPermissionError(userError || null)
             setPermissionLoading(false)
@@ -192,6 +200,7 @@ export const useAuth = () => {
           setIsAdmin(false)
           setIsCompanyAdmin(false)
           setCanCreateLateAdminExtraOrder(false)
+          setCanManageLateExtraHistory(false)
           setAdminCompanies([])
           setPermissionError(null)
           setPermissionLoading(false)
@@ -206,6 +215,7 @@ export const useAuth = () => {
         setIsAdmin(false)
         setIsCompanyAdmin(false)
         setCanCreateLateAdminExtraOrder(false)
+        setCanManageLateExtraHistory(false)
         setAdminCompanies([])
         setPermissionError(error)
         setPermissionLoading(false)
@@ -234,6 +244,7 @@ export const useAuth = () => {
         setIsAdmin(false)
         setIsCompanyAdmin(false)
         setCanCreateLateAdminExtraOrder(false)
+        setCanManageLateExtraHistory(false)
         setAdminCompanies([])
         setPermissionError(null)
         setPermissionLoading(false)
@@ -385,9 +396,9 @@ export const useAuth = () => {
 
   useEffect(() => {
     if (import.meta.env.DEV) {
-      console.log('[Auth] state', { user, loading, permissionLoading, isAdmin, isCompanyAdmin, canCreateLateAdminExtraOrder, adminCompanies, permissionError })
+        console.log('[Auth] state', { user, loading, permissionLoading, isAdmin, isCompanyAdmin, canCreateLateAdminExtraOrder, canManageLateExtraHistory, adminCompanies, permissionError })
     }
-  }, [user, loading, permissionLoading, isAdmin, isCompanyAdmin, canCreateLateAdminExtraOrder, adminCompanies, permissionError])
+  }, [user, loading, permissionLoading, isAdmin, isCompanyAdmin, canCreateLateAdminExtraOrder, canManageLateExtraHistory, adminCompanies, permissionError])
 
   return {
     // Estado
@@ -398,6 +409,7 @@ export const useAuth = () => {
     isAdmin,
     isCompanyAdmin,
     canCreateLateAdminExtraOrder,
+    canManageLateExtraHistory,
     canAccessAdminPanel: isAdmin || isCompanyAdmin,
     adminCompanies,
     permissionError,
