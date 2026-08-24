@@ -8,7 +8,7 @@ import { mergeCompanyMenuItems } from '../../utils/order/companyMenuMerge'
 import { filterOrderableMenuItems, getMenuDisplay, withMenuSlotIndex } from '../../utils/order/menuDisplay'
 import { sortMenuItems } from '../../utils/order/orderMenuHelpers'
 import { canChooseCustomSide } from '../../utils/order/orderCustomSideRules'
-import { withGreifDefaultSnackResponse } from '../../utils/order/greifDefaultSnack'
+import { isGreifRefrigerioMenuItem, withGreifRefrigerioMenuItem } from '../../utils/order/greifDefaultSnack'
 import { notifyError, notifySuccess } from '../../utils/notice'
 
 const REASONS = [
@@ -331,7 +331,10 @@ const AdminExtraOrderModal = ({
         if (companyResult.error) throw companyResult.error
 
         const merged = mergeCompanyMenuItems(globalResult.data || [], companyResult.data || [])
-        const baseMenuItems = filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(merged)), companySlug)
+        const baseMenuItems = withGreifRefrigerioMenuItem({
+          companySlug,
+          items: filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(merged)), companySlug)
+        })
         let nextMenuItems = baseMenuItems
 
         if (service === 'dinner') {
@@ -411,8 +414,16 @@ const AdminExtraOrderModal = ({
   }
 
   const handleMenuCountChange = (item, nextQuantity) => {
+    const isRefrigerio = isGreifRefrigerioMenuItem(item)
     setMenuCounts((prev) => ({
-      ...prev,
+      ...(isRefrigerio || Number(nextQuantity) > 0
+        ? Object.fromEntries(Object.entries(prev).filter(([id]) => {
+            const sourceItem = menuItems.find((menuItem) => String(menuItem.id) === String(id))
+            return isRefrigerio
+              ? isGreifRefrigerioMenuItem(sourceItem)
+              : !isGreifRefrigerioMenuItem(sourceItem)
+          }))
+        : prev),
       [item.id]: nextQuantity
     }))
   }
@@ -458,12 +469,6 @@ const AdminExtraOrderModal = ({
       return
     }
     setSubmitting(true)
-    const customResponsesPayload = withGreifDefaultSnackResponse({
-      companySlug,
-      service,
-      responses: buildResponsePayload(customOptions, customResponses, selectedItems),
-      menuQuantity: totalMenuCount
-    })
     const payload = {
       client_user_id: null,
       customer_name: null,
@@ -481,7 +486,7 @@ const AdminExtraOrderModal = ({
         quantity: item.quantity,
         slotIndex: item.slotIndex ?? 0
       })),
-      custom_responses: customResponsesPayload,
+      custom_responses: buildResponsePayload(customOptions, customResponses, selectedItems),
       quantity: totalMenuCount,
       reason: resolvedReason,
       comment,
@@ -623,14 +628,22 @@ const AdminExtraOrderModal = ({
                 {menuItems.map((item, index) => {
                   const display = getMenuDisplay(item, index, companySlug)
                   const text = [display.label, display.dish].filter(Boolean).join(' - ') || item.name || 'Menú'
+                  const isRefrigerio = isGreifRefrigerioMenuItem(item)
+                  const hasRefrigerio = selectedItems.some(isGreifRefrigerioMenuItem)
+                  const hasMenu = selectedItems.some((selectedItem) => !isGreifRefrigerioMenuItem(selectedItem))
+                  const disabled = (hasRefrigerio && !isRefrigerio) || (hasMenu && isRefrigerio)
                   return (
-                    <div key={item.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <div key={item.id} className={`flex items-center justify-between gap-3 px-3 py-2 ${disabled ? 'bg-slate-50 opacity-60' : ''}`}>
                       <div className="min-w-0 flex-1 pr-1">
                         <p className="text-sm font-bold text-slate-900">{text}</p>
                       </div>
                       <CounterControl
                         value={menuCounts[item.id] || 0}
-                        onChange={(next) => handleMenuCountChange(item, next)}
+                        onChange={(next) => {
+                          if (disabled && next > 0) return
+                          handleMenuCountChange(item, next)
+                        }}
+                        max={disabled ? 0 : 99}
                         ariaLabel={`Cantidad de ${text}`}
                       />
                     </div>

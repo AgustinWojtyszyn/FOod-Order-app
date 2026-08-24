@@ -101,6 +101,26 @@ describe('order validation', () => {
     expect(result.data.selectedItemsList[0].id).toBe('option-5')
   })
 
+  it('blocks Greif lunch with menu and Refrigerio selected together', () => {
+    const result = validateOrderSubmission(baseArgs({
+      formData: {
+        location: 'Greif',
+        name: '',
+        email: '',
+        phone: '',
+        comments: ''
+      },
+      companyConfig: { slug: 'greif', name: 'Greif' },
+      getSelectedItemsList: () => [
+        { id: 'main', name: 'Menú principal', slotIndex: 0 },
+        { id: 'greif-refrigerio', name: 'Refrigerio', isGreifRefrigerio: true, slotIndex: 6 }
+      ],
+      calculateTotal: () => 2
+    }))
+
+    expect(result.error).toBe('Para Greif elegí Refrigerio o menú, no ambos.')
+  })
+
   it('keeps Genneia beverage and dessert as custom responses, not items', () => {
     const result = validateOrderSubmission(baseArgs({
       visibleLunchOptions: [

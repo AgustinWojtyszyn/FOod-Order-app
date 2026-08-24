@@ -11,6 +11,7 @@ import {
 import { notifyError, notifyInfo, notifySuccess } from '../notice'
 import { getUserFriendlyErrorMessage } from '../index'
 import {
+  isRefrigerioLabel,
   summarizeOperationalOrder,
   summarizeOperationalOrders
 } from '../order/orderOperationalTotals'
@@ -405,6 +406,27 @@ const getPanQuantityForOrder = (order = {}, menuRows = []) => {
   return Math.max(menuTotal - celiacMenuTotal, 0)
 }
 
+const getOrderItemProductLabel = (item = {}) => {
+  const name = normalizeText(item?.name || item?.title || item?.menu || item?.label)
+  const option = normalizeText(item?.option || item?.selected_option || item?.choice)
+  return [name, option].filter(Boolean).join(' - ')
+}
+
+const getOrderItemProductQuantity = (item = {}) => {
+  const quantity = Number(item?.quantity ?? item?.qty ?? item?.count)
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1
+}
+
+const getAdditionalItemRowsForOrder = (order = {}) => {
+  const { normalizedItems } = normalizeOrderForReadOnly(order)
+  return (Array.isArray(normalizedItems) ? normalizedItems : [])
+    .map((item) => ({
+      label: getOrderItemProductLabel(item),
+      quantity: getOrderItemProductQuantity(item)
+    }))
+    .filter((row) => row.label && isRefrigerioLabel(row.label) && row.quantity > 0)
+}
+
 const getDinnerDishName = (label = '') =>
   normalizeText(label)
     .replace(/^(men[uú]\s+de\s+cena|opci[oó]n\s+de\s+cena|cena)\s*[:-]?\s*/i, '')
@@ -616,6 +638,11 @@ export const summarizeProducts = (orders = []) => {
 
     remitoMenuRows.forEach((row) => {
       incrementCategorizedSummary(row.label, row.quantity, getRemitoCategoryForLabel(row.label))
+    })
+    orders.forEach((order) => {
+      getAdditionalItemRowsForOrder(order).forEach((row) => {
+        incrementCategorizedSummary(row.label, row.quantity, REMITO_ROW_CATEGORIES.additional)
+      })
     })
     if (remitoMenuRows.length === 0 && operationalSummary.menuTotal > 0) {
       incrementCategorizedSummary('Menú / vianda', operationalSummary.menuTotal, REMITO_ROW_CATEGORIES.mainMenu)

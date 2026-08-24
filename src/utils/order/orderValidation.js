@@ -4,6 +4,7 @@ import { canChooseCustomSide } from './orderCustomSideRules'
 import { hasGenneiaOptionRules } from './companySpecialRules'
 import { hasHiddenOrderMenuSelection } from './menuDisplay'
 import { isBeverageOption, isBeverageOrDessertOption } from './orderBusinessRules'
+import { isGreifCompany, isGreifRefrigerioMenuItem } from './greifDefaultSnack'
 
 const isCustomSideOption = (opt) => (opt?.title || '').toLowerCase().includes('guarn')
 const SINGLE_MENU_MESSAGE = 'Solo podés seleccionar 1 comida principal por persona para almuerzo o cena.'
@@ -206,6 +207,15 @@ const validateOrderSubmission = ({
 
   if (lunchSelected && hasHiddenOrderMenuSelection(selectedItemsList, companySlug)) {
     return { error: 'Esa opción de menú no está disponible para pedidos.' }
+  }
+
+  if (
+    lunchSelected &&
+    isGreifCompany(companySlug) &&
+    selectedItemsList.some(isGreifRefrigerioMenuItem) &&
+    selectedItemsList.some((item) => !isGreifRefrigerioMenuItem(item))
+  ) {
+    return { error: 'Para Greif elegí Refrigerio o menú, no ambos.' }
   }
 
   if (lunchSelected && selectedItemsList.length > 1) {

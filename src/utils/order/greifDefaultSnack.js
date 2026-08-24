@@ -1,40 +1,49 @@
 export const GREIF_DEFAULT_SNACK_RESPONSE_ID = 'greif-default-refrigerio'
-export const GREIF_DEFAULT_SNACK_LABEL = 'Refrigerio'
+export const GREIF_REFRIGERIO_MENU_ITEM_ID = 'greif-refrigerio'
+export const GREIF_REFRIGERIO_LABEL = 'Refrigerio'
 
 const normalizeSlug = (value = '') => String(value || '').trim().toLowerCase()
 
-const isGreifCompany = (companySlug = '') => normalizeSlug(companySlug) === 'greif'
+export const isGreifCompany = (companySlug = '') => normalizeSlug(companySlug) === 'greif'
 
-const isGreifDefaultSnackResponse = (response = {}) =>
+export const isGreifDefaultSnackResponse = (response = {}) =>
   String(response?.id || '').trim() === GREIF_DEFAULT_SNACK_RESPONSE_ID ||
   response?.auto_applied === true && String(response?.source || '') === GREIF_DEFAULT_SNACK_RESPONSE_ID
 
-export const withGreifDefaultSnackResponse = ({
+const normalizeLabel = (value = '') =>
+  String(value ?? '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
+export const isGreifRefrigerioMenuItem = (item = {}) =>
+  String(item?.id || '').trim() === GREIF_REFRIGERIO_MENU_ITEM_ID ||
+  item?.isGreifRefrigerio === true ||
+  normalizeLabel(item?.name || item?.title || item?.description || item?.label) === normalizeLabel(GREIF_REFRIGERIO_LABEL)
+
+export const withGreifRefrigerioMenuItem = ({
   companySlug = '',
-  responses = [],
-  menuQuantity = 0
+  items = []
 } = {}) => {
-  const sourceResponses = Array.isArray(responses) ? responses.filter(Boolean) : []
-  const quantity = Number(menuQuantity || 0)
+  const sourceItems = Array.isArray(items) ? items.filter(Boolean) : []
 
-  if (!isGreifCompany(companySlug) || !Number.isFinite(quantity) || quantity <= 0) {
-    return sourceResponses
+  if (!isGreifCompany(companySlug)) return sourceItems
+  if (sourceItems.some(isGreifRefrigerioMenuItem)) return sourceItems
+
+  const maxSlotIndex = sourceItems.reduce((max, item, index) => {
+    const slotIndex = Number.isFinite(item?.slotIndex) ? item.slotIndex : index
+    return Math.max(max, slotIndex)
+  }, -1)
+
+  const refrigerioItem = {
+    id: GREIF_REFRIGERIO_MENU_ITEM_ID,
+    name: GREIF_REFRIGERIO_LABEL,
+    description: '',
+    quantity: 1,
+    slotIndex: maxSlotIndex + 1,
+    isGreifRefrigerio: true
   }
 
-  const snackResponse = {
-    id: GREIF_DEFAULT_SNACK_RESPONSE_ID,
-    title: GREIF_DEFAULT_SNACK_LABEL,
-    response: GREIF_DEFAULT_SNACK_LABEL,
-    quantity,
-    quantities: {
-      [GREIF_DEFAULT_SNACK_LABEL]: quantity
-    },
-    auto_applied: true,
-    source: GREIF_DEFAULT_SNACK_RESPONSE_ID
-  }
-
-  return [
-    ...sourceResponses.filter(response => !isGreifDefaultSnackResponse(response)),
-    snackResponse
-  ]
+  return [...sourceItems, refrigerioItem]
 }

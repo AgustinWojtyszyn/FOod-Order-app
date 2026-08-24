@@ -85,6 +85,10 @@ const greifDefaultRefrigerioBackfillMigration = readFileSync(
   new URL('./20260824150000_backfill_greif_default_refrigerio.sql', import.meta.url),
   'utf8'
 )
+const removeGreifAutoRefrigerioMigration = readFileSync(
+  new URL('./20260824153000_remove_greif_auto_refrigerio_response.sql', import.meta.url),
+  'utf8'
+)
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
 describe('admin extra orders migration', () => {
@@ -440,6 +444,16 @@ describe('admin extra orders migration', () => {
     expect(greifDefaultRefrigerioBackfillMigration).not.toContain('insert into public.orders')
     expect(greifDefaultRefrigerioBackfillMigration).not.toContain('company_remitos')
     expect(gitignore).toContain('!supabase/migrations/20260824150000_backfill_greif_default_refrigerio.sql')
+  })
+
+  it('removes old automatic Greif refrigerio responses without touching orders or remitos', () => {
+    expect(removeGreifAutoRefrigerioMigration).toContain('update public.orders as o')
+    expect(removeGreifAutoRefrigerioMigration).toContain("lower(trim(coalesce(nullif(o.company_slug, ''), o.location, ''))) = 'greif'")
+    expect(removeGreifAutoRefrigerioMigration).toContain("response->>'id' = 'greif-default-refrigerio'")
+    expect(removeGreifAutoRefrigerioMigration).toContain("response->>'source' = 'greif-default-refrigerio'")
+    expect(removeGreifAutoRefrigerioMigration).not.toContain('insert into public.orders')
+    expect(removeGreifAutoRefrigerioMigration).not.toContain('company_remitos')
+    expect(gitignore).toContain('!supabase/migrations/20260824153000_remove_greif_auto_refrigerio_response.sql')
   })
 
   it('issues company remitos from canonical companies numbering config without duplicated range CASEs', () => {

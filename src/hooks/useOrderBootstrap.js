@@ -7,6 +7,7 @@ import { DINNER_FALLBACK_WHITELIST } from '../constants/dinnerWhitelist'
 import { buildSuggestionSummary, buildOptionsSummary } from '../utils/order/orderFormatters'
 import { hasMainMenuSelected } from '../utils/order/orderSelectionHelpers'
 import { getTomorrowISOInTimeZone } from '../utils/dateUtils'
+import { withGreifRefrigerioMenuItem } from '../utils/order/greifDefaultSnack'
 
 const DEFAULT_MENU_ITEMS = [
   { id: 1, name: 'Plato Principal 1', description: 'Delicioso plato principal' },
@@ -138,7 +139,10 @@ const useOrderBootstrap = ({
       if (globalError && (!shouldFetchCompanyMenu || companyResult?.error)) {
         console.error('Error fetching menu:', globalError)
         if (companyResult?.error) console.error('Error fetching company menu:', companyResult.error)
-        setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS)), normalizedCompanySlug))
+        setMenuItems(withGreifRefrigerioMenuItem({
+          companySlug: normalizedCompanySlug,
+          items: filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS)), normalizedCompanySlug)
+        }))
         return
       }
 
@@ -149,7 +153,10 @@ const useOrderBootstrap = ({
         globalError ? [] : (globalData || []),
         companyResult?.error ? [] : (companyResult?.data || [])
       )
-      setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(mergedItems)), normalizedCompanySlug))
+      setMenuItems(withGreifRefrigerioMenuItem({
+        companySlug: normalizedCompanySlug,
+        items: filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(mergedItems)), normalizedCompanySlug)
+      }))
     } catch (err) {
       console.error('Error:', err)
     }

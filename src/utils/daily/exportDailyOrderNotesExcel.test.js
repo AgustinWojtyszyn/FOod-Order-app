@@ -61,29 +61,23 @@ describe('daily order notes Excel model', () => {
     expect(isValidRemitoNumberingConfig(configBySlug.get('sin_config'))).toBe(false)
   })
 
-  it('summarizes Greif default refrigerios with their explicit quantity without changing menu total', () => {
+  it('summarizes Greif refrigerio selected as an item without changing menu total', () => {
     const products = summarizeProducts([
       makeOrder({
         location: 'Greif',
         company_slug: 'greif',
-        total_items: 5,
-        items: [{ id: 'op-1', name: 'Opción 1 - Pollo', quantity: 5 }],
-        custom_responses: [{
-          id: 'greif-default-refrigerio',
-          title: 'Refrigerio',
-          response: 'Refrigerio',
-          quantity: 5,
-          quantities: { Refrigerio: 5 },
-          auto_applied: true
-        }]
+        total_items: 1,
+        items: [{ id: 'greif-refrigerio', name: 'Refrigerio', quantity: 1, isGreifRefrigerio: true }],
+        custom_responses: []
       })
     ])
 
-    expect(getRemitoMenuTotalFromRows(products)).toBe(5)
+    expect(getRemitoMenuTotalFromRows(products)).toBe(0)
     expect(products).toContainEqual(expect.objectContaining({
       producto: 'Refrigerio',
-      cantidad: 5
+      cantidad: 1
     }))
+    expect(products).not.toContainEqual(expect.objectContaining({ producto: 'Pan' }))
   })
 
   it('prints Greif refrigerio once and adds total refrigerios directly below it', () => {
@@ -91,42 +85,28 @@ describe('daily order notes Excel model', () => {
       makeOrder({
         location: 'Greif',
         company_slug: 'greif',
-        total_items: 2,
-        items: [{ id: 'op-1', name: 'Opción 1 - Pollo', quantity: 2 }],
-        custom_responses: [{
-          id: 'greif-default-refrigerio',
-          title: 'Refrigerio',
-          response: 'Refrigerio',
-          quantity: 2,
-          quantities: { Refrigerio: 2 },
-          auto_applied: true
-        }]
+        total_items: 1,
+        items: [{ id: 'greif-refrigerio', name: 'Refrigerio', quantity: 1, isGreifRefrigerio: true }],
+        custom_responses: []
       }),
       makeOrder({
         id: crypto.randomUUID(),
         location: 'Greif',
         company_slug: 'greif',
-        total_items: 3,
-        items: [{ id: 'op-2', name: 'Opción 2 - Carne', quantity: 3 }],
-        custom_responses: [{
-          id: 'greif-default-refrigerio',
-          title: 'Refrigerio',
-          response: 'Refrigerio',
-          quantity: 3,
-          quantities: { Refrigerio: 3 },
-          auto_applied: true
-        }]
+        total_items: 1,
+        items: [{ id: 'greif-refrigerio', name: 'Refrigerio', quantity: 1, isGreifRefrigerio: true }],
+        custom_responses: []
       })
     ])
     const detailRows = getPrintableDetailRows(products, getRemitoMenuTotalFromRows(products))
     const refrigerioIndex = detailRows.findIndex((row) => row.producto === 'Refrigerio')
 
     expect(products.filter((row) => row.producto === 'Refrigerio')).toEqual([
-      expect.objectContaining({ producto: 'Refrigerio', cantidad: 5 })
+      expect.objectContaining({ producto: 'Refrigerio', cantidad: 2 })
     ])
     expect(refrigerioIndex).toBeGreaterThan(-1)
-    expect(detailRows[refrigerioIndex]).toMatchObject({ producto: 'Refrigerio', cantidad: 5 })
-    expect(detailRows[refrigerioIndex + 1]).toMatchObject({ producto: 'TOTAL REFRIGERIOS', cantidad: 5 })
+    expect(detailRows[refrigerioIndex]).toMatchObject({ producto: 'Refrigerio', cantidad: 2 })
+    expect(detailRows[refrigerioIndex + 1]).toMatchObject({ producto: 'TOTAL REFRIGERIOS', cantidad: 2 })
   })
 
   it('keeps Genneia menu detail rows summing exactly to total viandas', () => {

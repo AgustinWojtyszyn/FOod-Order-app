@@ -45,7 +45,10 @@ const getItemLabel = (item = {}) => {
   return [name, option].filter(Boolean).join(' - ') || 'Sin menú / opción'
 }
 
-const isNonMenuItemLabel = (label = '') => isBeverageLabel(label) || isDessertLabel(label)
+export const isRefrigerioLabel = (value = '') =>
+  normalizeOperationalLabel(value) === 'refrigerio'
+
+const isNonMenuItemLabel = (label = '') => isBeverageLabel(label) || isDessertLabel(label) || isRefrigerioLabel(label)
 
 export const getFallbackItemQuantityTotal = (order = {}) =>
   getRawOrderItems(order).reduce((sum, item) => {
@@ -81,7 +84,10 @@ export const getOrderMenuBreakdown = (order = {}) => {
   const rowTotal = rows.reduce((sum, row) => sum + safePositiveNumber(row.quantity), 0)
   if (rowTotal === storedTotal) return rows
   if (rowTotal > storedTotal) return rows
-  if (rows.length === 0) return [{ label: 'Menú / vianda', quantity: storedTotal }]
+  if (rows.length === 0) {
+    if (getRawOrderItems(order).length > 0 && getFallbackItemQuantityTotal(order) === 0) return []
+    return [{ label: 'Menú / vianda', quantity: storedTotal }]
+  }
   if (rows.length === 1) return [{ ...rows[0], quantity: storedTotal }]
   if (rowTotal < storedTotal) {
     return [

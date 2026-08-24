@@ -7,6 +7,7 @@ import { getTomorrowISOInTimeZone } from '../../utils/dateUtils'
 import { sortMenuItems } from '../../utils/order/orderMenuHelpers'
 import { filterOrderableMenuItems, withMenuSlotIndex } from '../../utils/order/menuDisplay'
 import { mergeCompanyMenuItems, normalizeCompanySlug } from '../../utils/order/companyMenuMerge'
+import { withGreifRefrigerioMenuItem } from '../../utils/order/greifDefaultSnack'
 import { mapOrderToEditForm } from '../../utils/orderEdit/mapOrderToEditForm'
 import {
   resolveEditOrderCompanySlug,
@@ -59,7 +60,10 @@ export const useEditOrderBootstrap = ({ order, user, navigate, isAdmin = false }
       if (globalError && (!shouldFetchCompanyMenu || companyResult?.error)) {
         console.error('Error fetching menu:', globalError)
         if (companyResult?.error) console.error('Error fetching company menu:', companyResult.error)
-        setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS)), normalizedCompanySlug))
+        setMenuItems(withGreifRefrigerioMenuItem({
+          companySlug: normalizedCompanySlug,
+          items: filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS)), normalizedCompanySlug)
+        }))
         return
       }
 
@@ -70,7 +74,10 @@ export const useEditOrderBootstrap = ({ order, user, navigate, isAdmin = false }
         globalError ? [] : (globalData || []),
         companyResult?.error ? [] : (companyResult?.data || [])
       )
-      setMenuItems(filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(mergedItems)), normalizedCompanySlug))
+      setMenuItems(withGreifRefrigerioMenuItem({
+        companySlug: normalizedCompanySlug,
+        items: filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(mergedItems)), normalizedCompanySlug)
+      }))
     } catch (err) {
       console.error('Error:', err)
     }

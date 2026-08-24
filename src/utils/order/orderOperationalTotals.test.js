@@ -168,6 +168,24 @@ describe('orderOperationalTotals', () => {
     })
   })
 
+  it('does not count Greif Refrigerio as a menu or add beverage/dessert defaults', () => {
+    const order = baseOrder({
+      company_slug: 'greif',
+      location: 'Greif',
+      total_items: 1,
+      items: [{ id: 'greif-refrigerio', name: 'Refrigerio', quantity: 1, isGreifRefrigerio: true }]
+    })
+
+    expect(getOrderMenuBreakdown(order)).toEqual([])
+    expect(getOrderMenuTotal(order)).toBe(0)
+    expect(summarizeOperationalOrder(order)).toMatchObject({
+      menuTotal: 0,
+      menuBreakdown: [],
+      beverageBreakdown: [],
+      dessertBreakdown: []
+    })
+  })
+
   it('E: prefiere quantities y no suma arrays repetidos dos veces', () => {
     const order = baseOrder({
       total_items: 10,
