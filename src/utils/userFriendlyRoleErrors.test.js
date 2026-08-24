@@ -24,6 +24,9 @@ describe('role update friendly errors', () => {
     expect(getUserFriendlyErrorMessage(new Error('company_remito_range_exhausted'))).toBe(
       'La empresa agotó su rango de numeración de notas de pedido.'
     )
+    expect(getUserFriendlyErrorMessage(new Error('company_remito_numbering_not_configured'))).toBe(
+      'La empresa existe, pero no tiene configurados todos los datos de numeración de notas de pedido.'
+    )
     expect(getUserFriendlyErrorMessage(new Error('Could not find the function public.issue_company_remito'))).toBe(
       'Falta aplicar el SQL de numeración de notas de pedido en la base de datos.'
     )

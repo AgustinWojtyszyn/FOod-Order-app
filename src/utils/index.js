@@ -346,6 +346,10 @@ export const getUserFriendlyErrorMessage = (error, fallback = 'No pudimos comple
     return 'Esta empresa no genera notas de pedido numeradas.'
   }
 
+  if (normalized.includes('company_remito_numbering_not_configured')) {
+    return 'La empresa existe, pero no tiene configurados todos los datos de numeración de notas de pedido.'
+  }
+
   if (normalized.includes('company_required') || normalized.includes('company_not_found')) {
     return 'No pudimos identificar la empresa para emitir la nota de pedido.'
   }

@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildCompanyGroups,
+  buildFileName,
   getPrintableDetailRows,
   buildRemitoSnapshot,
   buildRemitoWorkbook,
+  buildRemitoConfigBySlug,
   getRemitoMenuTotalFromRows,
   getRemitoIssueFallbackMessage,
   getRemitoRowPriority,
   getOrderRemitoBeverages,
   getTotalMenuItemsForRemito,
+  isRemitoNumberInCompanyRange,
+  isValidRemitoNumberingConfig,
   isMenuCountableCategory,
   normalizeBeverageLabel,
   REMITO_ROW_CATEGORIES,
@@ -30,6 +34,68 @@ const makeOrder = (overrides = {}) => ({
 })
 
 describe('daily order notes Excel model', () => {
+  it('includes Greif and Molinos in remito grouping and excludes global/admin companies', () => {
+    const groups = buildCompanyGroups([
+      makeOrder({ location: 'Greif', company_slug: 'greif' }),
+      makeOrder({ id: crypto.randomUUID(), location: 'Molinos', company_slug: 'molinos' }),
+      makeOrder({ id: crypto.randomUUID(), location: 'global', company_slug: 'global' }),
+      makeOrder({ id: crypto.randomUUID(), location: 'Administración ServiFood', company_slug: 'administracion_servifood' })
+    ])
+
+    expect(groups.map((group) => group.slug).sort()).toEqual(['greif', 'molinos'])
+  })
+
+  it('validates Greif and Molinos remito numbers from backend company config', () => {
+    const configBySlug = buildRemitoConfigBySlug([
+      { slug: 'greif', remito_start_number: 80000, remito_end_number: 89999, next_remito_number: 80000 },
+      { slug: 'molinos', remito_start_number: 90000, remito_end_number: 99999, next_remito_number: 90000 },
+      { slug: 'sin_config', remito_start_number: null, remito_end_number: null, next_remito_number: null }
+    ])
+
+    expect(isValidRemitoNumberingConfig(configBySlug.get('greif'))).toBe(true)
+    expect(isRemitoNumberInCompanyRange('greif', 80000, configBySlug)).toBe(true)
+    expect(isRemitoNumberInCompanyRange('greif', 80001, configBySlug)).toBe(true)
+    expect(isRemitoNumberInCompanyRange('greif', 90000, configBySlug)).toBe(false)
+    expect(isRemitoNumberInCompanyRange('molinos', 90000, configBySlug)).toBe(true)
+    expect(isRemitoNumberInCompanyRange('molinos', 89999, configBySlug)).toBe(false)
+    expect(isValidRemitoNumberingConfig(configBySlug.get('sin_config'))).toBe(false)
+  })
+
+  it('keeps the canonical order-note file naming for Greif and Molinos', async () => {
+    const previousFetch = globalThis.fetch
+    globalThis.fetch = async () => ({
+      arrayBuffer: async () => new ArrayBuffer(8)
+    })
+
+    try {
+      const greifWorkbook = await buildRemitoWorkbook([{
+        companySlug: 'greif',
+        companyName: 'Greif',
+        companyDisplayName: 'Greif',
+        remitoNumber: 80000,
+        deliveryDate: '2026-08-21',
+        totalItems: 1,
+        products: [{ cantidad: 1, producto: 'Opción 1 - Pollo', category: REMITO_ROW_CATEGORIES.numberedOption }]
+      }])
+      const molinosWorkbook = await buildRemitoWorkbook([{
+        companySlug: 'molinos',
+        companyName: 'Molinos',
+        companyDisplayName: 'Molinos',
+        remitoNumber: 90000,
+        deliveryDate: '2026-08-21',
+        totalItems: 1,
+        products: [{ cantidad: 1, producto: 'Opción 1 - Pollo', category: REMITO_ROW_CATEGORIES.numberedOption }]
+      }])
+
+      expect(greifWorkbook.remitos[0].sheetName).toBe('Greif 80000')
+      expect(molinosWorkbook.remitos[0].sheetName).toBe('Molinos 90000')
+      expect(buildFileName(greifWorkbook.remitos, '2026-08-21')).toBe('Nota_de_Pedido_GREIF_80000_21-08-2026.xlsx')
+      expect(buildFileName(molinosWorkbook.remitos, '2026-08-21')).toBe('Nota_de_Pedido_MOLINOS_90000_21-08-2026.xlsx')
+    } finally {
+      globalThis.fetch = previousFetch
+    }
+  })
+
   it('does not blame remito start-number config for unrelated RPC errors', () => {
     const message = getRemitoIssueFallbackMessage('EPSE – Los Caracoles', {
       code: '42702',

@@ -69,6 +69,10 @@ const lateAdminExtraHistoryWiderDbBackfillMigration = readFileSync(
   new URL('./20260821174500_late_extra_history_wider_db_backfill.sql', import.meta.url),
   'utf8'
 )
+const greifMolinosRemitoNumberingMigration = readFileSync(
+  new URL('./20260824120000_greif_molinos_company_remito_numbering.sql', import.meta.url),
+  'utf8'
+)
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -380,5 +384,76 @@ describe('admin extra orders migration', () => {
     expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain('o.created_at < v_bounds.window_closed_at')
     expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain('o.delivery_date = p_operational_date')
     expect(lateAdminExtraHistoryWiderDbBackfillMigration).toContain("d.action = 'admin_extra_order_deleted'")
+  })
+
+  it('configures Greif and Molinos remito ranges without moving valid counters backwards', () => {
+    expect(greifMolinosRemitoNumberingMigration).toContain("('greif', 'Greif', 80000, 89999, 80000)")
+    expect(greifMolinosRemitoNumberingMigration).toContain("('molinos', 'Molinos', 90000, 99999, 90000)")
+    expect(greifMolinosRemitoNumberingMigration).toContain('public.companies.next_remito_number between excluded.remito_start_number and excluded.remito_end_number + 1')
+    expect(greifMolinosRemitoNumberingMigration).toContain('then public.companies.next_remito_number')
+    expect(greifMolinosRemitoNumberingMigration).not.toContain('update public.company_remitos')
+    expect(greifMolinosRemitoNumberingMigration).not.toContain('delete from public.company_remitos')
+  })
+
+  it('issues company remitos from canonical companies numbering config without duplicated range CASEs', () => {
+    expect(greifMolinosRemitoNumberingMigration).toContain('create or replace function public.issue_company_remito')
+    expect(greifMolinosRemitoNumberingMigration).toContain('from public.companies as c')
+    expect(greifMolinosRemitoNumberingMigration).toContain('where c.slug = v_slug')
+    expect(greifMolinosRemitoNumberingMigration).toContain('for update')
+    expect(greifMolinosRemitoNumberingMigration).toContain("v_slug in ('global', 'administracion_servifood')")
+    expect(greifMolinosRemitoNumberingMigration).toContain("raise exception 'company_remito_numbering_excluded'")
+    expect(greifMolinosRemitoNumberingMigration).toContain("raise exception 'company_not_found'")
+    expect(greifMolinosRemitoNumberingMigration).toContain("raise exception 'company_remito_numbering_not_configured'")
+    expect(greifMolinosRemitoNumberingMigration).toContain('v_company.remito_start_number')
+    expect(greifMolinosRemitoNumberingMigration).toContain('v_company.remito_end_number')
+    expect(greifMolinosRemitoNumberingMigration).toContain('v_company.next_remito_number')
+    expect(greifMolinosRemitoNumberingMigration).toContain('greatest(')
+    expect(greifMolinosRemitoNumberingMigration).toContain('coalesce(v_last_number + 1, v_company.remito_start_number)')
+    expect(greifMolinosRemitoNumberingMigration).toContain('next_remito_number = v_number + 1')
+    expect(greifMolinosRemitoNumberingMigration).toContain('cr.delivery_date = p_delivery_date')
+    expect(greifMolinosRemitoNumberingMigration).toContain('cr.location_key = v_location_key')
+    expect(greifMolinosRemitoNumberingMigration).toContain('set next_remito_number = v_number + 1')
+    expect(greifMolinosRemitoNumberingMigration).not.toContain('case v_slug')
+  })
+
+  it('preserves idempotent reuse and snapshot refresh semantics without consuming numbers', () => {
+    expect(greifMolinosRemitoNumberingMigration).toContain('cr.request_id = v_request_id')
+    expect(greifMolinosRemitoNumberingMigration).toContain("cr.status = 'issued'")
+    expect(greifMolinosRemitoNumberingMigration).toContain('true as reused')
+    expect(greifMolinosRemitoNumberingMigration).toContain('v_existing.snapshot as snapshot')
+    expect(greifMolinosRemitoNumberingMigration).toContain('jsonb_build_object(')
+    expect(greifMolinosRemitoNumberingMigration).toContain("'companySlug', v_company.slug")
+    expect(greifMolinosRemitoNumberingMigration).toContain("'remitoNumber', v_number")
+    expect(refreshCompanyRemitosMigration).not.toContain('next_remito_number')
+  })
+
+  it('updates remito start from canonical company config and never moves next backwards', () => {
+    expect(greifMolinosRemitoNumberingMigration).toContain('create or replace function public.update_company_remito_start')
+    expect(greifMolinosRemitoNumberingMigration).toContain('p_remito_start_number <> v_company.remito_start_number')
+    expect(greifMolinosRemitoNumberingMigration).toContain("raise exception 'remito_start_number_out_of_range'")
+    expect(greifMolinosRemitoNumberingMigration).toContain('greatest(')
+    expect(greifMolinosRemitoNumberingMigration).toContain('v_company.next_remito_number')
+    expect(greifMolinosRemitoNumberingMigration).toContain('coalesce(v_last_number + 1, v_company.remito_start_number)')
+    expect(greifMolinosRemitoNumberingMigration).toContain('set next_remito_number = v_next_number')
+  })
+
+  it('keeps all definitive remito ranges non-overlapping', () => {
+    const expectedRanges = [
+      ['ccp', 10000, 19999],
+      ['distro_cuyo', 20000, 29999],
+      ['epse', 30000, 39999],
+      ['genneia', 40000, 49999],
+      ['laja', 50000, 59999],
+      ['losberros', 60000, 69999],
+      ['padrebueno', 70000, 79999],
+      ['greif', 80000, 89999],
+      ['molinos', 90000, 99999]
+    ]
+
+    for (let index = 0; index < expectedRanges.length - 1; index += 1) {
+      expect(expectedRanges[index][2]).toBeLessThan(expectedRanges[index + 1][1])
+    }
+    expect(greifMolinosRemitoNumberingMigration).toContain("('greif', 'Greif', 80000, 89999, 80000)")
+    expect(greifMolinosRemitoNumberingMigration).toContain("('molinos', 'Molinos', 90000, 99999, 90000)")
   })
 })

@@ -5,6 +5,7 @@ import { addDaysToISO, getTodayISOInTimeZone } from '../../utils/dateUtils'
 import { filterOrdersByCompany } from '../../utils/daily/dailyOrderCalculations'
 import {
   buildCompanyGroups,
+  buildRemitoConfigBySlug,
   buildRemitoSnapshot,
   downloadRemitoWorkbook,
   getOrderIds,
@@ -12,6 +13,7 @@ import {
   getOrderRemitoLocationLabel,
   getRemitoIssueFallbackMessage,
   isRemitoNumberInCompanyRange,
+  isValidRemitoNumberingConfig,
   remitoFromSnapshot
 } from '../../utils/daily/exportDailyOrderNotesExcel'
 import { getUserFriendlyErrorMessage } from '../../utils'
@@ -85,6 +87,14 @@ const getSnapshotMenuTotal = (snapshot = {}) => {
 
 const isMultiLocationRemitoCompany = (companySlug = '') =>
   MULTILOCATION_REMITO_COMPANY_SLUGS.has(normalizeText(companySlug))
+
+const EXCLUDED_REMITO_COMPANY_SLUGS = new Set(['global', 'administracion_servifood'])
+
+const canIssueRemitoForCompany = (companySlug = '', configBySlug = new Map()) => {
+  const slug = normalizeText(companySlug)
+  if (!slug || EXCLUDED_REMITO_COMPANY_SLUGS.has(slug)) return false
+  return isValidRemitoNumberingConfig(configBySlug.get(slug))
+}
 
 const getRemitoSnapshot = (remito = {}) =>
   remito?.snapshot && typeof remito.snapshot === 'object' ? remito.snapshot : {}
@@ -300,6 +310,7 @@ const DailyRemitosPanel = ({
 }) => {
   const [locationFilter, setLocationFilter] = useState('all')
   const [remitos, setRemitos] = useState([])
+  const [remitoConfigs, setRemitoConfigs] = useState([])
   const [loading, setLoading] = useState(false)
   const [busyKey, setBusyKey] = useState('')
   const today = getTodayISOInTimeZone()
@@ -313,6 +324,7 @@ const DailyRemitosPanel = ({
   }), [exportCompany, locationFilter, orders])
 
   const groups = useMemo(() => buildCompanyGroups(filteredOrders), [filteredOrders])
+  const remitoConfigBySlug = useMemo(() => buildRemitoConfigBySlug(remitoConfigs), [remitoConfigs])
   const remitoRows = useMemo(() => buildDailyRemitoRows({
     groups,
     remitos,
@@ -342,9 +354,25 @@ const DailyRemitosPanel = ({
     }
   }, [deliveryDate, exportCompany, locationKey])
 
+  const loadRemitoConfigs = useCallback(async () => {
+    const { data, error } = await db.getCompaniesRemitoConfig()
+    if (error) {
+      notifyError(getUserFriendlyErrorMessage(error, 'No pudimos cargar la configuración de numeración de notas de pedido.'))
+      setRemitoConfigs([])
+      return []
+    }
+    const rows = Array.isArray(data) ? data.filter(Boolean) : []
+    setRemitoConfigs(rows)
+    return rows
+  }, [])
+
   useEffect(() => {
     loadRemitos()
   }, [loadRemitos])
+
+  useEffect(() => {
+    loadRemitoConfigs()
+  }, [loadRemitoConfigs])
 
   const previewGroup = async (group) => {
     const snapshot = buildRemitoSnapshot({
@@ -382,6 +410,10 @@ const DailyRemitosPanel = ({
 
   const issueGroup = async (group) => {
     const rowLocationKey = group.locationKey ?? locationKey
+    if (!canIssueRemitoForCompany(group?.slug, remitoConfigBySlug)) {
+      notifyError('La empresa existe, pero no tiene configurados todos los datos de numeración de notas de pedido.')
+      return
+    }
     if (!Array.isArray(group?.orders) || group.orders.length === 0) {
       notifyError('No se puede emitir un remito sin pedidos.')
       return
@@ -408,7 +440,7 @@ const DailyRemitosPanel = ({
         return
       }
       const issuedNumber = Number(data?.remito_number)
-      if (!isRemitoNumberInCompanyRange(data?.company_slug || group.slug, issuedNumber)) {
+      if (!isRemitoNumberInCompanyRange(data?.company_slug || group.slug, issuedNumber, remitoConfigBySlug)) {
         notifyError(`La nota de pedido para ${group.displayName} recibió un número fuera del rango de su empresa.`)
         return
       }
@@ -681,6 +713,7 @@ const DailyRemitosPanel = ({
               const snapshotOrderCount = existing ? getSnapshotOrderCount(snapshot || {}, existing) : group.orders.length
               const totalItems = existing ? getSnapshotMenuTotal(snapshot || {}) : liveSnapshot.totalItems
               const busy = busyKey === `${group.slug}:${rowLocationKey || 'all'}`
+              const canIssue = canIssueRemitoForCompany(group.slug, remitoConfigBySlug)
               const updatedAt = getUpdatedAt(existing)
               const updater = getUpdaterLabel(existing)
               return (
@@ -711,10 +744,17 @@ const DailyRemitosPanel = ({
                           <Eye className="mr-2 h-4 w-4" />
                           Vista previa
                         </button>
-                        <button type="button" disabled={isPanelBusy || busy} onClick={() => issueGroup(group)} className="inline-flex items-center rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white disabled:opacity-60">
-                          <FileText className="mr-2 h-4 w-4" />
-                          Emitir
-                        </button>
+                        {canIssue && (
+                          <button type="button" disabled={isPanelBusy || busy} onClick={() => issueGroup(group)} className="inline-flex items-center rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white disabled:opacity-60">
+                            <FileText className="mr-2 h-4 w-4" />
+                            Emitir
+                          </button>
+                        )}
+                        {!canIssue && (
+                          <p className="max-w-52 text-xs font-semibold text-amber-700">
+                            Numeración de nota de pedido sin configurar.
+                          </p>
+                        )}
                       </>
                     )}
                     {existing && (

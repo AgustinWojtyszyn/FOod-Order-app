@@ -56,20 +56,10 @@ const THICK_BORDER = {
 
 const INVALID_SHEET_CHARS = new Set(['[', ']', '*', '?', ':', '/', '\\', "'"])
 const INVALID_FILE_CHARS = new Set(['<', '>', ':', '"', '/', '\\', '|', '?', '*'])
-const EXCLUDED_REMITO_COMPANY_SLUGS = new Set(['administracion_servifood'])
+const EXCLUDED_REMITO_COMPANY_SLUGS = new Set(['global', 'administracion_servifood'])
 const REMITO_BEVERAGE_COMPANY_SLUG = 'genneia'
 const UNSPECIFIED_BEVERAGE_LABEL = 'Bebida sin especificar'
 const REMITO_DEBUG_PREFIX = '[ServiFood remitos]'
-const REMITO_NUMBER_RANGES = {
-  ccp: [10000, 19999],
-  distro_cuyo: [20000, 29999],
-  epse: [30000, 39999],
-  genneia: [40000, 49999],
-  laja: [50000, 59999],
-  losberros: [60000, 69999],
-  padrebueno: [70000, 79999]
-}
-
 const normalizeText = (value) => String(value ?? '').trim()
 
 const slugify = (value = '') =>
@@ -261,10 +251,38 @@ export const buildCompanyGroups = (orders = []) => {
 const getIndexCompanyLabel = (remito = {}) =>
   `${remito.companyDisplayName || remito.companyName || 'Empresa'} - N° ${remito.remitoNumber}`
 
-export const isRemitoNumberInCompanyRange = (companySlug, remitoNumber) => {
-  const range = REMITO_NUMBER_RANGES[companySlug]
-  if (!range) return false
-  return remitoNumber >= range[0] && remitoNumber <= range[1]
+export const isValidRemitoNumberingConfig = (config = {}) => {
+  const start = Number(config?.remito_start_number)
+  const end = Number(config?.remito_end_number)
+  const next = Number(config?.next_remito_number)
+  return Number.isInteger(start) &&
+    Number.isInteger(end) &&
+    Number.isInteger(next) &&
+    start > 0 &&
+    end > 0 &&
+    next > 0 &&
+    start <= end &&
+    next >= start &&
+    next <= end + 1
+}
+
+export const buildRemitoConfigBySlug = (configs = []) => {
+  const map = new Map()
+  ;(Array.isArray(configs) ? configs : []).forEach((config) => {
+    if (!config?.slug) return
+    map.set(config.slug, config)
+  })
+  return map
+}
+
+export const isRemitoNumberInCompanyRange = (companySlug, remitoNumber, configBySlug = null) => {
+  const number = Number(remitoNumber)
+  if (!Number.isInteger(number)) return false
+  const config = configBySlug instanceof Map ? configBySlug.get(companySlug) : null
+  if (!config) return number > 0
+  return isValidRemitoNumberingConfig(config) &&
+    number >= Number(config.remito_start_number) &&
+    number <= Number(config.remito_end_number)
 }
 
 export const getRemitoIssueFallbackMessage = (companyName, error) => {
@@ -1197,10 +1215,20 @@ export async function exportDailyOrderNotesExcel({
       notifyInfo('No hay empresas con notas de pedido para generar. Administración ServiFood no genera notas de pedido.')
       return
     }
+    const configResult = await db.getCompaniesRemitoConfig()
+    if (configResult.error) {
+      notifyError(getUserFriendlyErrorMessage(configResult.error, 'No pudimos cargar la configuración de numeración de notas de pedido.'))
+      return
+    }
+    const configBySlug = buildRemitoConfigBySlug(configResult.data || [])
     const usedSheetNames = new Set(['índice'])
     const remitos = []
 
     for (const group of groups) {
+      if (!isValidRemitoNumberingConfig(configBySlug.get(group.slug))) {
+        notifyError(`La empresa ${group.displayName || group.name} no tiene configurada la numeración completa de notas de pedido.`)
+        return
+      }
       const draftSnapshot = buildRemitoSnapshot({ group, deliveryDate, status: 'draft' })
       const locationKey = group.locationKey || ''
       const requestId = `daily-remito:${group.slug}:${deliveryDate}:${locationKey || 'all'}:${getOrderIds(group.orders).sort().join(',')}`
@@ -1226,7 +1254,7 @@ export async function exportDailyOrderNotesExcel({
       const issuedSlug = data?.company_slug || group.slug
       const issuedName = data?.company_name || group.name
       const issuedNumber = Number(data?.remito_number)
-      if (!isRemitoNumberInCompanyRange(issuedSlug, issuedNumber)) {
+      if (!isRemitoNumberInCompanyRange(issuedSlug, issuedNumber, configBySlug)) {
         notifyError(`La nota de pedido para ${group.displayName} recibió un número fuera del rango de su empresa.`)
         return
       }
