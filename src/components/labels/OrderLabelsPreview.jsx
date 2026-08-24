@@ -31,7 +31,9 @@ const OrderLabelsPreview = ({
   setCustomThermalSize,
   onBack,
   onCancel,
-  onPrint
+  onPrint,
+  showControls = true,
+  screenHidden = false
 }) => {
   const labels = expandLabelsForCopies(selectedOrders, copiesByOrderId)
   const thermalSize = thermalPreset === 'custom' ? customThermalSize : {
@@ -63,7 +65,7 @@ const OrderLabelsPreview = ({
 
   return (
     <section
-      className={`labels-preview-root ${previewModeClass}`}
+      className={`labels-preview-root ${previewModeClass}${screenHidden ? ' labels-print-root-screen-hidden' : ''}`}
       style={{
         '--label-a4-columns': a4Columns,
         '--thermal-label-width': `${width}mm`,
@@ -74,6 +76,7 @@ const OrderLabelsPreview = ({
         {`@page { size: ${printPageSize}; margin: 0; }`}
       </style>
 
+      {showControls && (
       <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/50 print-hide">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
@@ -138,6 +141,7 @@ const OrderLabelsPreview = ({
           </button>
         </div>
       </div>
+      )}
 
       <div className={`labels-print-surface ${printFormat === 'thermal' ? 'labels-print-thermal' : 'labels-print-a4'}`}>
         {labels.map(label => (

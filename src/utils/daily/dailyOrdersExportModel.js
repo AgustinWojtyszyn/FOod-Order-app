@@ -43,6 +43,50 @@ const quantitiesToText = (quantities) => {
     .join(', ')
 }
 
+const buildAdditionalResponseLabel = (title = '', value = '') => {
+  const safeTitle = normalizeText(title || 'Opción')
+  const safeValue = normalizeText(value)
+  if (!safeValue) return ''
+  if (safeTitle.toLowerCase() === safeValue.toLowerCase()) return safeTitle
+  return `${safeTitle}: ${safeValue}`
+}
+
+export const extractAdditionalResponseRows = (order = {}) => {
+  const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
+  const rows = []
+
+  toArray(normalizedCustomResponses).forEach((response) => {
+    const title = normalizeText(response.title || response.label || 'Opción')
+    const lowerTitle = title.toLowerCase()
+    const isSide = lowerTitle.includes('guarn')
+    const isDrink = lowerTitle.includes('bebida')
+    const isDessert = lowerTitle.includes('postre') || lowerTitle.includes('fruta')
+    if (isSide || isDrink || isDessert) return
+
+    if (response?.quantities && typeof response.quantities === 'object') {
+      Object.entries(response.quantities).forEach(([label, quantity]) => {
+        const safeQuantity = Number(quantity) || 0
+        const additionalLabel = buildAdditionalResponseLabel(title, label)
+        if (additionalLabel && safeQuantity > 0 && !isBeverage(additionalLabel) && !isDessertLabel(additionalLabel)) {
+          rows.push({ label: additionalLabel, quantity: safeQuantity })
+        }
+      })
+      return
+    }
+
+    const answer = valueToText(response.answer ?? response.response ?? response.value)
+    const optionText = valueToText(response.options)
+    const combined = [answer, optionText].filter(Boolean).join(', ')
+    const safeQuantity = Number(response.quantity ?? response.qty ?? response.count ?? 1) || 1
+    const additionalLabel = buildAdditionalResponseLabel(title, combined)
+    if (additionalLabel && !isBeverage(additionalLabel) && !isDessertLabel(additionalLabel)) {
+      rows.push({ label: additionalLabel, quantity: safeQuantity })
+    }
+  })
+
+  return rows
+}
+
 const safeDate = (value) => {
   if (!value) return null
   const parsed = new Date(value)

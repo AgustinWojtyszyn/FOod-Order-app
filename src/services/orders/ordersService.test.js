@@ -163,7 +163,10 @@ describe('ordersService daily orders query', () => {
       delivery_date: '2026-08-05',
       status: 'archived'
     }
-    const { supabase, calls } = createSupabaseMock([{ data: [order], error: null, count: 1 }])
+    const { supabase, calls } = createSupabaseMock([
+      { data: [order], error: null, count: 1 },
+      { data: [{ id: 'order-1', label_printed_at: '2026-08-05T14:00:00.000Z', label_print_count: 1 }], error: null }
+    ])
     const service = createOrdersService({ supabase })
 
     const result = await service.getOrdersForLabels({
@@ -173,7 +176,11 @@ describe('ordersService daily orders query', () => {
       offset: 0
     })
 
-    expect(result).toEqual({ data: [order], error: null, count: 1 })
+    expect(result).toEqual({
+      data: [{ ...order, label_printed_at: '2026-08-05T14:00:00.000Z', label_print_count: 1 }],
+      error: null,
+      count: 1
+    })
     expect(calls).toContainEqual(['from', 'orders_with_person_key'])
     expect(calls).toContainEqual(['select', '*'])
     expect(calls).toContainEqual(['eq', 'delivery_date', '2026-08-05'])
@@ -181,7 +188,24 @@ describe('ordersService daily orders query', () => {
     expect(calls).toContainEqual(['order', 'delivery_date', { ascending: false }])
     expect(calls).toContainEqual(['order', 'created_at', { ascending: false }])
     expect(calls).toContainEqual(['range', 0, 49])
+    expect(calls).toContainEqual(['from', 'orders'])
+    expect(calls).toContainEqual(['select', 'id,label_printed_at,label_printed_by,label_print_count'])
+    expect(calls).toContainEqual(['in', 'id', ['order-1']])
     expect(calls).not.toContainEqual(['eq', 'created_at', '2026-08-05'])
+  })
+
+  it('marks selected order labels as printed through the dedicated RPC', async () => {
+    const { supabase, calls } = createRpcSupabaseMock({ data: [{ id: 'order-1', label_print_count: 1 }], error: null })
+    const service = createOrdersService({ supabase })
+
+    const result = await service.markOrderLabelsPrinted({
+      orderIds: ['order-1', 'order-1', '', 'order-2']
+    })
+
+    expect(result).toEqual({ data: [{ id: 'order-1', label_print_count: 1 }], error: null })
+    expect(calls).toEqual([
+      ['rpc', 'mark_order_labels_printed', { p_order_ids: ['order-1', 'order-2'] }]
+    ])
   })
 })
 

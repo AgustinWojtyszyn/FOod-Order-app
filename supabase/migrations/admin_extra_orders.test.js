@@ -77,6 +77,10 @@ const placoCompanyMigration = readFileSync(
   new URL('./20260824133000_add_placo_company.sql', import.meta.url),
   'utf8'
 )
+const orderLabelPrintTrackingMigration = readFileSync(
+  new URL('./20260824143000_order_label_print_tracking.sql', import.meta.url),
+  'utf8'
+)
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
 describe('admin extra orders migration', () => {
@@ -409,6 +413,17 @@ describe('admin extra orders migration', () => {
     expect(placoCompanyMigration).toContain("values ('placo', 'Placo')")
     expect(placoCompanyMigration).toContain('on conflict (slug) do update')
     expect(gitignore).toContain('!supabase/migrations/20260824133000_add_placo_company.sql')
+  })
+
+  it('persists label print state on orders without duplicating orders', () => {
+    expect(orderLabelPrintTrackingMigration).toContain('add column if not exists label_printed_at timestamptz')
+    expect(orderLabelPrintTrackingMigration).toContain('add column if not exists label_printed_by uuid references auth.users(id) on delete set null')
+    expect(orderLabelPrintTrackingMigration).toContain('add column if not exists label_print_count integer not null default 0')
+    expect(orderLabelPrintTrackingMigration).toContain('create or replace function public.mark_order_labels_printed')
+    expect(orderLabelPrintTrackingMigration).toContain('label_print_count = coalesce(o.label_print_count, 0) + 1')
+    expect(orderLabelPrintTrackingMigration).toContain("'order_labels_printed'")
+    expect(orderLabelPrintTrackingMigration).not.toContain('insert into public.orders')
+    expect(gitignore).toContain('!supabase/migrations/20260824143000_order_label_print_tracking.sql')
   })
 
   it('issues company remitos from canonical companies numbering config without duplicated range CASEs', () => {

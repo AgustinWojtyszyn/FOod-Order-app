@@ -5,6 +5,15 @@
   padding: 16px;
 }
 
+.labels-print-root-screen-hidden {
+  position: fixed;
+  left: -100vw;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 .labels-print-a4 {
   display: grid;
   grid-template-columns: repeat(var(--label-a4-columns, 2), minmax(0, 1fr));
@@ -141,6 +150,13 @@
     color: #000;
   }
 
+  .labels-print-root-screen-hidden {
+    left: 0;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
   .labels-print-surface {
     border: 0;
     border-radius: 0;
@@ -153,8 +169,7 @@
   }
 
   .labels-print-a4 {
-    gap: 6mm;
-    grid-template-columns: repeat(var(--label-a4-columns, 2), minmax(0, 1fr));
+    display: block;
     padding: 8mm;
   }
 
@@ -175,7 +190,7 @@
     margin: 0;
   }
 
-  .labels-print-thermal .sf-label-card:not(:last-child) {
+  .labels-print-surface .sf-label-card:not(:last-child) {
     break-after: page;
     page-break-after: always;
   }
@@ -183,6 +198,8 @@
   .labels-print-a4 .sf-label-card {
     break-inside: avoid;
     page-break-inside: avoid;
+    margin: 0 auto;
+    max-width: 100%;
   }
 
   .sf-label-card {

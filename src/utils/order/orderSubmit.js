@@ -27,7 +27,8 @@ const submitOrders = async ({
   user,
   formData,
   deliveryDate,
-  deliveryDates
+  deliveryDates,
+  companySlug = ''
 }) => {
   const createdOrderIds = []
   const { data: existingOrders, error: existingOrdersError } = await ordersService.getOrders(user.id, {
@@ -98,7 +99,8 @@ const submitOrders = async ({
       responsesForService,
       dinnerOverrideChoice: overrideChoice,
       totalItems,
-      idempotencyKey: null
+      idempotencyKey: null,
+      companySlug
     })
 
     const idempotencyStorageKey = buildIdempotencyStorageKey(

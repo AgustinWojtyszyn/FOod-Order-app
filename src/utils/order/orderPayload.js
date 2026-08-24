@@ -2,6 +2,7 @@ import { buildOrderItemLabel } from './orderFormatters'
 import { resolveCustomerName } from './orderCustomerName'
 import { computePayloadSignature } from './orderIdempotency'
 import { normalizeOrderItemsForService, normalizeOrderPayloadForService } from './orderItemNormalization'
+import { withGreifDefaultSnackResponse } from './greifDefaultSnack'
 
 const buildOrderPayload = ({
   service,
@@ -12,7 +13,8 @@ const buildOrderPayload = ({
   responsesForService,
   dinnerOverrideChoice,
   totalItems: _totalItems,
-  idempotencyKey
+  idempotencyKey,
+  companySlug = ''
 }) => {
   const isDinner = service === 'dinner'
 
@@ -26,10 +28,16 @@ const buildOrderPayload = ({
     name: buildOrderItemLabel(item),
     quantity: 1
   }))
+  const responsesToSend = withGreifDefaultSnackResponse({
+    companySlug,
+    service,
+    responses: responsesForService,
+    menuQuantity: normalizedItemsToSend.length
+  })
 
   const idempotencySignature = computePayloadSignature(
     normalizedItemsToSend,
-    responsesForService,
+    responsesToSend,
     formData.comments,
     deliveryDate,
     formData.location,
@@ -52,7 +60,7 @@ const buildOrderPayload = ({
     delivery_date: deliveryDate,
     status: 'pending',
     total_items: normalizedItemsToSend.length,
-    custom_responses: responsesForService,
+    custom_responses: responsesToSend,
     idempotency_key: idempotencyKey,
     service
   })

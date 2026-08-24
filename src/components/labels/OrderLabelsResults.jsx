@@ -10,6 +10,8 @@ const OrderLabelsResults = ({
   copiesByOrderId,
   allVisibleSelected,
   totalCount,
+  printState,
+  printStateCounts,
   page,
   maxPage,
   pageSize,
@@ -19,6 +21,7 @@ const OrderLabelsResults = ({
   onCopiesChange,
   onCopiesFromRations,
   onPrintOne,
+  onPrintStateChange,
   onPageChange
 }) => (
   <section className="rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-200/50 print-hide">
@@ -37,6 +40,27 @@ const OrderLabelsResults = ({
       >
         {allVisibleSelected ? 'Quitar visibles' : 'Seleccionar visibles'}
       </button>
+    </div>
+
+    <div className="flex flex-wrap gap-2 border-b border-slate-200 px-4 py-3 md:px-6">
+      {[
+        ['pending', 'Falta imprimir', printStateCounts?.pending || 0],
+        ['printed', 'Ya impreso', printStateCounts?.printed || 0],
+        ['all', 'Todos', printStateCounts?.all || 0]
+      ].map(([value, label, count]) => (
+        <button
+          key={value}
+          type="button"
+          onClick={() => onPrintStateChange(value)}
+          className={`rounded-lg px-4 py-2 text-sm font-black ${
+            printState === value
+              ? 'bg-slate-900 text-white'
+              : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          {label} ({count})
+        </button>
+      ))}
     </div>
 
     {loading ? (
@@ -63,6 +87,7 @@ const OrderLabelsResults = ({
                 <th className="min-w-25 px-4 py-3">Servicio</th>
                 <th className="min-w-70 px-4 py-3">Resumen</th>
                 <th className="min-w-27.5 px-4 py-3">Estado</th>
+                <th className="min-w-32 px-4 py-3">Impresión</th>
                 <th className="min-w-42.5 px-4 py-3">Copias</th>
                 <th className="min-w-37.5 px-4 py-3">Acción</th>
               </tr>
@@ -95,6 +120,17 @@ const OrderLabelsResults = ({
                       {label.hasImportantNotes && <div className="mt-1 text-xs font-black uppercase text-slate-900">Atención: observaciones</div>}
                     </td>
                     <td className="border-b border-slate-200 px-4 py-4 text-sm font-bold text-slate-700">{label.statusLabel}</td>
+                    <td className="border-b border-slate-200 px-4 py-4 text-sm font-bold text-slate-700">
+                      {order.label_printed_at ? (
+                        <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-black text-emerald-800">
+                          Ya impreso
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-black text-amber-800">
+                          Falta imprimir
+                        </span>
+                      )}
+                    </td>
                     <td className="border-b border-slate-200 px-4 py-4">
                       <div className="flex items-center gap-2">
                         <input
@@ -113,7 +149,7 @@ const OrderLabelsResults = ({
                     <td className="border-b border-slate-200 px-4 py-4">
                       <button type="button" className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white hover:bg-blue-800" onClick={() => onPrintOne(order)}>
                         <Printer className="h-4 w-4" />
-                        Imprimir una
+                        {order.label_printed_at ? 'Reimprimir' : 'Imprimir una'}
                       </button>
                     </td>
                   </tr>
@@ -140,11 +176,14 @@ const OrderLabelsResults = ({
                       </span>
                     )}
                     <p className="mt-2 text-sm font-bold text-slate-700">{label.companyLabel} · {label.serviceLabel} · {formatDate(order.delivery_date)}</p>
+                    <p className="mt-1 text-xs font-black uppercase text-slate-600">
+                      {order.label_printed_at ? 'Ya impreso' : 'Falta imprimir'}
+                    </p>
                     <p className="mt-1 text-sm text-slate-700">{label.itemsText}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <input type="number" min="1" max="99" className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-sm" value={copiesByOrderId[order.id] || 1} onChange={event => onCopiesChange(order.id, event.target.value)} />
                       <button type="button" className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700" onClick={() => onCopiesFromRations(order)}>usar raciones</button>
-                      <button type="button" className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white" onClick={() => onPrintOne(order)}>Imprimir una</button>
+                      <button type="button" className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white" onClick={() => onPrintOne(order)}>{order.label_printed_at ? 'Reimprimir' : 'Imprimir una'}</button>
                     </div>
                   </div>
                 </div>

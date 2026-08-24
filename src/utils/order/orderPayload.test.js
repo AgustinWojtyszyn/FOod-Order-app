@@ -43,6 +43,54 @@ describe('order payload', () => {
     expect(idempotencySignature).toBeTruthy()
   })
 
+  it('adds one default refrigerio per Greif lunch menu without increasing menu total', () => {
+    const { orderData } = buildOrderPayload({
+      service: 'lunch',
+      user,
+      formData: {
+        location: 'Greif',
+        comments: ''
+      },
+      deliveryDate: '2026-08-25',
+      itemsForService: [{ id: 'menu-1', name: 'Menu', quantity: 1, slotIndex: 0 }],
+      responsesForService: [],
+      dinnerOverrideChoice: null,
+      totalItems: 1,
+      idempotencyKey: 'idem-greif',
+      companySlug: 'greif'
+    })
+
+    expect(orderData.total_items).toBe(1)
+    expect(orderData.items).toEqual([{ id: 'menu-1', name: 'Menu', quantity: 1, slotIndex: 0 }])
+    expect(orderData.custom_responses).toContainEqual(expect.objectContaining({
+      id: 'greif-default-refrigerio',
+      title: 'Refrigerio',
+      quantity: 1,
+      quantities: { Refrigerio: 1 },
+      auto_applied: true
+    }))
+  })
+
+  it('does not add the Greif refrigerio to other companies', () => {
+    const { orderData } = buildOrderPayload({
+      service: 'lunch',
+      user,
+      formData: {
+        location: 'EPSE',
+        comments: ''
+      },
+      deliveryDate: '2026-08-25',
+      itemsForService: [{ id: 'menu-1', name: 'Menu', slotIndex: 0 }],
+      responsesForService: [],
+      dinnerOverrideChoice: null,
+      totalItems: 1,
+      idempotencyKey: 'idem-epse',
+      companySlug: 'epse'
+    })
+
+    expect(orderData.custom_responses).toEqual([])
+  })
+
   it('uses a dinner override item when dinner has no selected menu item', () => {
     const { orderData } = buildOrderPayload({
       service: 'dinner',

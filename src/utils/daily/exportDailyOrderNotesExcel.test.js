@@ -61,6 +61,31 @@ describe('daily order notes Excel model', () => {
     expect(isValidRemitoNumberingConfig(configBySlug.get('sin_config'))).toBe(false)
   })
 
+  it('summarizes Greif default refrigerios with their explicit quantity without changing menu total', () => {
+    const products = summarizeProducts([
+      makeOrder({
+        location: 'Greif',
+        company_slug: 'greif',
+        total_items: 5,
+        items: [{ id: 'op-1', name: 'Opción 1 - Pollo', quantity: 5 }],
+        custom_responses: [{
+          id: 'greif-default-refrigerio',
+          title: 'Refrigerio',
+          response: 'Refrigerio',
+          quantity: 5,
+          quantities: { Refrigerio: 5 },
+          auto_applied: true
+        }]
+      })
+    ])
+
+    expect(getRemitoMenuTotalFromRows(products)).toBe(5)
+    expect(products).toContainEqual(expect.objectContaining({
+      producto: 'Refrigerio',
+      cantidad: 5
+    }))
+  })
+
   it('keeps the canonical order-note file naming for Greif and Molinos', async () => {
     const previousFetch = globalThis.fetch
     globalThis.fetch = async () => ({

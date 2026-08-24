@@ -116,7 +116,8 @@ const useOrderSubmit = ({
         deliveryDate,
         deliveryDates,
         calculateTotal,
-        calculateTotalDinner
+        calculateTotalDinner,
+        companySlug: rawCompanySlug
       })
 
       if (!submitResult.ok) {

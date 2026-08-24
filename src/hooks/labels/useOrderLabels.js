@@ -32,6 +32,8 @@ const getStatusesForLabels = (statusFilter) => {
   return [statusFilter]
 }
 
+const isLabelPrinted = (order = {}) => Boolean(order?.label_printed_at)
+
 export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminCompanies = [] } = {}) => {
   const [filters, setFilters] = useState(createInitialFilters)
   const [page, setPage] = useState(0)
@@ -44,6 +46,7 @@ export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminC
   const [copiesByOrderId, setCopiesByOrderId] = useState({})
   const [previewMode, setPreviewMode] = useState(false)
   const [printWarning, setPrintWarning] = useState('')
+  const [printState, setPrintState] = useState('pending')
 
   const companyOptions = useMemo(
     () => getCompanyOptionsForLabels({ isAdmin, adminCompanies }),
@@ -96,6 +99,7 @@ export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminC
     setPage(0)
     setPreviewMode(false)
     setPrintWarning('')
+    setPrintState('pending')
   }, [])
 
   const fetchOrders = useCallback(async () => {
@@ -143,9 +147,28 @@ export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminC
     fetchOrders()
   }, [fetchOrders])
 
-  const visibleOrders = useMemo(
+  const filteredOrders = useMemo(
     () => orders.filter(order => orderMatchesLabelFilters(order, filters)),
     [filters, orders]
+  )
+
+  const printStateCounts = useMemo(() => {
+    const pending = filteredOrders.filter(order => !isLabelPrinted(order)).length
+    const printed = filteredOrders.filter(isLabelPrinted).length
+    return {
+      pending,
+      printed,
+      all: filteredOrders.length
+    }
+  }, [filteredOrders])
+
+  const visibleOrders = useMemo(
+    () => filteredOrders.filter((order) => {
+      if (printState === 'printed') return isLabelPrinted(order)
+      if (printState === 'all') return true
+      return !isLabelPrinted(order)
+    }),
+    [filteredOrders, printState]
   )
 
   const selectedOrders = useMemo(
@@ -224,6 +247,50 @@ export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminC
 
   const cancelPreview = useCallback(() => setPreviewMode(false), [])
 
+  const updatePrintState = useCallback((nextState) => {
+    setPrintState(['pending', 'printed', 'all'].includes(nextState) ? nextState : 'pending')
+    setPage(0)
+    setPrintWarning('')
+  }, [])
+
+  const markPrinted = useCallback(async (orderIds = []) => {
+    const safeOrderIds = [...new Set((Array.isArray(orderIds) ? orderIds : [])
+      .map(id => String(id || '').trim())
+      .filter(Boolean))]
+    if (safeOrderIds.length === 0) return { data: [], error: null }
+
+    const { data, error } = await db.markOrderLabelsPrinted({ orderIds: safeOrderIds })
+    if (error) {
+      setPrintWarning('La impresión se inició, pero no pudimos guardar el estado impreso. Recargá e intentá nuevamente.')
+      return { data, error }
+    }
+
+    const printedById = new Map((Array.isArray(data) ? data : []).map(row => [row.id, row]))
+    const applyPrintedState = (order) => {
+      const printed = printedById.get(order?.id)
+      if (!printed) return order
+      return {
+        ...order,
+        label_printed_at: printed.label_printed_at,
+        label_printed_by: printed.label_printed_by,
+        label_print_count: printed.label_print_count
+      }
+    }
+
+    setOrders(prev => prev.map(applyPrintedState))
+    setSelectedOrderById(prev => {
+      const next = { ...prev }
+      Object.keys(next).forEach((id) => {
+        next[id] = applyPrintedState(next[id])
+      })
+      return next
+    })
+    setSelectedIds(prev => prev.filter(id => !safeOrderIds.includes(id)))
+    setPrintState('printed')
+    setPrintWarning('')
+    return { data, error: null }
+  }, [])
+
   return {
     filters,
     updateFilter,
@@ -237,6 +304,10 @@ export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminC
     totalCount,
     orders,
     visibleOrders,
+    filteredOrders,
+    printState,
+    printStateCounts,
+    updatePrintState,
     selectedIds,
     selectedOrders,
     selectedCount,
@@ -251,6 +322,8 @@ export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminC
     previewMode,
     enterPreview,
     cancelPreview,
+    markPrinted,
+    setPrintWarning,
     printWarning,
     companyOptions,
     customerOptions,

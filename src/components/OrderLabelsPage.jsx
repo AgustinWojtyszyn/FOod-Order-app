@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Printer, Tag, X } from 'lucide-react'
 import { useAuthContext } from '../contexts/authContextValue'
 import OrderLabelsFilters from './labels/OrderLabelsFilters'
@@ -13,16 +13,72 @@ const OrderLabelsPage = () => {
   const [a4Columns, setA4Columns] = useState(2)
   const [thermalPreset, setThermalPreset] = useState('100x50')
   const [customThermalSize, setCustomThermalSize] = useState({ width: 100, height: 50 })
+  const [printBatch, setPrintBatch] = useState([])
+  const pendingPrintedIdsRef = useRef([])
+  const printRequestedRef = useRef(false)
 
   const labels = useOrderLabels({ isAdmin, isCompanyAdmin, adminCompanies })
 
-  const printLabels = () => {
-    window.requestAnimationFrame(() => window.print())
-  }
+  const startPrint = useCallback((ordersToPrint = []) => {
+    const safeOrders = Array.isArray(ordersToPrint) ? ordersToPrint.filter(order => order?.id) : []
+    if (safeOrders.length === 0) {
+      labels.setPrintWarning('Seleccioná al menos un pedido para imprimir etiquetas.')
+      return
+    }
+    pendingPrintedIdsRef.current = [...new Set(safeOrders.map(order => order.id))]
+    printRequestedRef.current = true
+    setPrintBatch(safeOrders)
+    labels.setPrintWarning('')
+  }, [labels])
+
+  const printSelectedLabels = useCallback(() => {
+    startPrint(labels.selectedOrders)
+  }, [labels.selectedOrders, startPrint])
+
+  useEffect(() => {
+    if (!printRequestedRef.current || printBatch.length === 0) return
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.print()
+      })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [printBatch])
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      if (!printRequestedRef.current) return
+      printRequestedRef.current = false
+      const printedIds = pendingPrintedIdsRef.current
+      pendingPrintedIdsRef.current = []
+      setPrintBatch([])
+      labels.markPrinted(printedIds)
+    }
+
+    window.addEventListener('afterprint', handleAfterPrint)
+    return () => window.removeEventListener('afterprint', handleAfterPrint)
+  }, [labels])
 
   return (
     <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
-      {!labels.previewMode ? (
+      <OrderLabelsPreview
+        selectedOrders={printBatch}
+        copiesByOrderId={labels.copiesByOrderId}
+        printFormat={printFormat}
+        setPrintFormat={setPrintFormat}
+        a4Columns={a4Columns}
+        setA4Columns={setA4Columns}
+        thermalPreset={thermalPreset}
+        setThermalPreset={setThermalPreset}
+        customThermalSize={customThermalSize}
+        setCustomThermalSize={setCustomThermalSize}
+        onBack={() => {}}
+        onCancel={() => {}}
+        onPrint={() => {}}
+        showControls={false}
+        screenHidden
+      />
+
         <div className="space-y-5">
           <section className="rounded-xl border border-white/30 bg-white p-5 shadow-xl shadow-blue-950/10 print-hide md:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -33,7 +89,7 @@ const OrderLabelsPage = () => {
                 <div>
                   <h1 className="text-2xl font-black text-slate-900 md:text-3xl">Etiquetas</h1>
                   <p className="mt-1 text-sm font-semibold text-slate-600">
-                    Buscar/filtrar → seleccionar pedidos → elegir formato → revisar → imprimir.
+                    Buscar/filtrar → seleccionar pedidos → imprimir.
                   </p>
                 </div>
               </div>
@@ -89,7 +145,7 @@ const OrderLabelsPage = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => labels.enterPreview()}
+                  onClick={printSelectedLabels}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-700 px-5 text-sm font-black text-white hover:bg-blue-800"
                 >
                   <Printer className="h-4 w-4" />
@@ -106,6 +162,8 @@ const OrderLabelsPage = () => {
             copiesByOrderId={labels.copiesByOrderId}
             allVisibleSelected={labels.allVisibleSelected}
             totalCount={labels.totalCount}
+            printState={labels.printState}
+            printStateCounts={labels.printStateCounts}
             page={labels.page}
             maxPage={labels.maxPage}
             pageSize={labels.pageSize}
@@ -114,27 +172,11 @@ const OrderLabelsPage = () => {
             onUnselectVisible={labels.unselectVisible}
             onCopiesChange={labels.setCopiesForOrder}
             onCopiesFromRations={labels.setCopiesFromRations}
-            onPrintOne={labels.enterPreview}
+            onPrintOne={(order) => startPrint([order])}
+            onPrintStateChange={labels.updatePrintState}
             onPageChange={labels.setPage}
           />
         </div>
-      ) : (
-        <OrderLabelsPreview
-          selectedOrders={labels.selectedOrders}
-          copiesByOrderId={labels.copiesByOrderId}
-          printFormat={printFormat}
-          setPrintFormat={setPrintFormat}
-          a4Columns={a4Columns}
-          setA4Columns={setA4Columns}
-          thermalPreset={thermalPreset}
-          setThermalPreset={setThermalPreset}
-          customThermalSize={customThermalSize}
-          setCustomThermalSize={setCustomThermalSize}
-          onBack={labels.cancelPreview}
-          onCancel={labels.cancelPreview}
-          onPrint={printLabels}
-        />
-      )}
     </div>
   )
 }

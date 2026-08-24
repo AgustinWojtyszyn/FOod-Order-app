@@ -4,7 +4,7 @@ import logoUrl from '../../assets/servifood logo.jpg'
 import { getCompanyByLocationOrSlug } from '../../constants/companyConfig'
 import { downloadWorkbook, filterOrdersByCompany, getOrderBeverageLabels, isBeverage } from './dailyOrderCalculations'
 import {
-  extractCustomResponses,
+  extractAdditionalResponseRows,
   formatDateOnly,
   getOrderLocation
 } from './dailyOrdersExportModel'
@@ -590,18 +590,11 @@ export const summarizeProducts = (orders = []) => {
     })
 
     orders.forEach((order) => {
-      const custom = extractCustomResponses(order)
-      if (custom.additional) {
-        custom.additional
-          .split('|')
-          .map(normalizeText)
-          .filter(Boolean)
-          .forEach((label) => {
-            if (!hasObservationMarker(label)) {
-              incrementCategorizedSummary(label, 1)
-            }
-          })
-      }
+      extractAdditionalResponseRows(order).forEach((row) => {
+        if (!hasObservationMarker(row.label)) {
+          incrementCategorizedSummary(row.label, row.quantity)
+        }
+      })
     })
     return [...totals.values()].sort(sortRemitoRows)
   } catch (error) {

@@ -477,8 +477,44 @@ export const createOrdersService = ({ supabase, invalidateCache = () => {} } = {
           .range(safeOffset, safeOffset + safeLimit - 1)
 
         const { data, error, count } = await query
-        return { data, error, count }
+        if (error || !Array.isArray(data) || data.length === 0) {
+          return { data, error, count }
+        }
+
+        const orderIds = data.map(order => order?.id).filter(Boolean)
+        const { data: printRows, error: printError } = await supabase
+          .from('orders')
+          .select('id,label_printed_at,label_printed_by,label_print_count')
+          .in('id', orderIds)
+
+        if (printError || !Array.isArray(printRows)) {
+          return { data, error, count }
+        }
+
+        const printStateById = new Map(printRows.map(row => [row.id, row]))
+        return {
+          data: data.map(order => ({
+            ...order,
+            ...(printStateById.get(order.id) || {})
+          })),
+          error,
+          count
+        }
       }, { context: 'orders labels query' })
+    },
+
+    markOrderLabelsPrinted: async ({ orderIds = [] } = {}) => {
+      const safeOrderIds = Array.isArray(orderIds)
+        ? [...new Set(orderIds.map(id => String(id || '').trim()).filter(Boolean))]
+        : []
+      if (safeOrderIds.length === 0) {
+        return { data: [], error: null }
+      }
+      invalidateCache()
+      const { data, error } = await supabase.rpc('mark_order_labels_printed', {
+        p_order_ids: safeOrderIds
+      })
+      return { data, error }
     },
 
     // Conteo de pedidos agrupado por persona
