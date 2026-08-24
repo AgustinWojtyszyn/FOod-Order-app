@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { addSideItem, createSideBuckets, isOptionName } from '../../utils/monthly/monthlyOrderCalculations'
+import { addSideItem, createSideBuckets, getMonthlyOrderService, isOptionName } from '../../utils/monthly/monthlyOrderCalculations'
 import { toDisplayString } from '../../utils/monthly/monthlyOrderFormatters'
 
 const MonthlyOrderDetailsModal = ({ date, orders = [], dailyBreakdown }) => {
@@ -14,16 +14,20 @@ const MonthlyOrderDetailsModal = ({ date, orders = [], dailyBreakdown }) => {
     }
   }
 
-  let totals = { pedidos: orders.length, menus: 0, opciones: 0 }
+  let totals = { pedidos: 0, cenas: 0, menus: 0, opciones: 0 }
   const sideBuckets = createSideBuckets()
   const byEmpresa = {}
   const byMenu = {}
   const byOpcion = {}
 
   orders.forEach(order => {
+    const service = getMonthlyOrderService(order)
     const empresa = order.location || 'Sin ubicación'
     if (!byEmpresa[empresa]) byEmpresa[empresa] = 0
-    byEmpresa[empresa] += 1
+    if (service !== 'dinner') byEmpresa[empresa] += 1
+
+    if (service === 'dinner') totals.cenas += 1
+    else totals.pedidos += 1
 
     let items = []
     if (Array.isArray(order.items)) items = order.items
@@ -35,6 +39,7 @@ const MonthlyOrderDetailsModal = ({ date, orders = [], dailyBreakdown }) => {
       }
     }
     items.forEach(it => {
+      if (service === 'dinner') return
       const qty = it?.quantity || 1
       const name = (it?.name || '').trim()
       if (!name) return
@@ -57,6 +62,7 @@ const MonthlyOrderDetailsModal = ({ date, orders = [], dailyBreakdown }) => {
       }
     }
     custom.forEach(cr => {
+      if (service === 'dinner') return
       const val = toDisplayString(cr?.response)
       if (val) addSideItem(val, sideBuckets)
       if (Array.isArray(cr?.options)) {
@@ -72,6 +78,7 @@ const MonthlyOrderDetailsModal = ({ date, orders = [], dailyBreakdown }) => {
   const summary = {
     date,
     count: dailyBreakdown?.count ?? totals.pedidos,
+    dinner_count: dailyBreakdown?.dinner_count ?? totals.cenas,
     menus_principales: dailyBreakdown?.menus_principales ?? totals.menus,
     total_opciones: dailyBreakdown?.total_opciones ?? totals.opciones,
     total_guarniciones: sideBuckets.totalGuarniciones,
@@ -84,13 +91,14 @@ const MonthlyOrderDetailsModal = ({ date, orders = [], dailyBreakdown }) => {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h4 className="text-lg font-bold text-slate-800">Detalle del {date}</h4>
-          <p className="text-sm text-slate-600">Pedidos: {summary.count ?? totals.pedidos}</p>
+          <p className="text-sm text-slate-600">Pedidos de almuerzo: {summary.count ?? totals.pedidos}</p>
         </div>
         <div />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
-        <Stat label="Total pedidos" value={summary.count ?? totals.pedidos} />
+        <Stat label="Pedidos almuerzo" value={summary.count ?? totals.pedidos} />
+        <Stat label="Pedidos cena" value={summary.dinner_count ?? totals.cenas} />
         <Stat label="Total menús" value={summary.menus_principales ?? totals.menus} />
         <Stat label="Total opciones" value={summary.total_opciones ?? totals.opciones} />
         <Stat label="Total guarniciones" value={summary.total_guarniciones} />

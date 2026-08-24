@@ -12,7 +12,8 @@ import { toDisplayString } from '../../utils/monthly/monthlyOrderFormatters'
 
 const SUMMARY_COLUMNS = [
   { header: 'Empresa', key: 'Empresa', width: 24 },
-  { header: 'Solicitudes', key: 'Solicitudes', width: 14 },
+  { header: 'Solicitudes almuerzo', key: 'Solicitudes', width: 20 },
+  { header: 'Solicitudes cena', key: 'Solicitudes cena', width: 18 },
   { header: 'Raciones', key: 'Raciones', width: 12 },
   { header: 'Almuerzos', key: 'Almuerzos', width: 12 },
   { header: 'Cenas', key: 'Cenas', width: 10 },
@@ -155,7 +156,9 @@ export const useMonthlyExport = ({
     ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
     ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }
     const kpiRows = [
-      ['Solicitudes registradas', model.totals.solicitudesRegistradas],
+      ['Solicitudes de almuerzo', model.totals.solicitudesRegistradas],
+      ['Solicitudes de cena', model.totals.solicitudesCena],
+      ['Solicitudes totales', model.totals.solicitudesTotales],
       ['Raciones totales', model.totals.racionesTotales],
       ['Raciones de almuerzo', model.totals.racionesAlmuerzo],
       ['Raciones de cena', model.totals.racionesCena],
@@ -223,7 +226,9 @@ export const useMonthlyExport = ({
 
   const addValidationsSheet = (wb, model) => {
     const checks = [
-      ['Solicitudes registradas', model.validations.orderRows, '—'],
+      ['Solicitudes totales registradas', model.validations.orderRows, '—'],
+      ['Solicitudes de almuerzo', model.totals.solicitudesRegistradas, '—'],
+      ['Solicitudes de cena', model.totals.solicitudesCena, '—'],
       ['Raciones totales', model.validations.totalItems, '—'],
       ['Diferencia entre solicitudes y raciones', model.validations.rowsVsRationsDifference, '—'],
       ['Solicitudes con más de una ración', model.validations.multiRationOrders, '—'],

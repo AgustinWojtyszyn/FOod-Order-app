@@ -7,6 +7,7 @@ import {
   buildDailyBreakdownFromOrdersByDay,
   buildRangeDates,
   createSideBuckets,
+  getMonthlyOrderService,
   indexOrdersByDay
 } from '../../utils/monthly/monthlyOrderCalculations'
 
@@ -109,6 +110,8 @@ export const useMonthlyMetrics = ({ supabase, db, pushLog }) => {
         const sideBuckets = createSideBuckets()
 
         pedidos.forEach(p => {
+          const service = getMonthlyOrderService(p)
+          if (service === 'dinner') return
           const { normalizedItems, normalizedCustomResponses } = normalizeOrderForReadOnly(p)
           const items = Array.isArray(normalizedItems) ? normalizedItems : []
           items.forEach(item => {
@@ -134,9 +137,13 @@ export const useMonthlyMetrics = ({ supabase, db, pushLog }) => {
             }
           })
         })
+        const lunchPedidos = pedidos.filter(p => getMonthlyOrderService(p) !== 'dinner')
+        const dinnerPedidos = pedidos.filter(p => getMonthlyOrderService(p) === 'dinner')
         return {
           empresa,
-          cantidadPedidos: pedidos.length,
+          cantidadPedidos: lunchPedidos.length,
+          cantidadCenas: dinnerPedidos.length,
+          cantidadPedidosTotal: pedidos.length,
           totalMenus,
           totalMenusPrincipales: totalMenus - totalOpciones,
           totalMenusTotal: totalMenus,
@@ -161,8 +168,10 @@ export const useMonthlyMetrics = ({ supabase, db, pushLog }) => {
 
       const byDay = indexOrdersByDay(orders)
       const rangeDates = buildRangeDates(currentRange.start, currentRange.end)
-      let finalBreakdown = buildDailyBreakdownFromOrdersByDay(rangeDates, byDay)
+      const localBreakdown = buildDailyBreakdownFromOrdersByDay(rangeDates, byDay)
+      let finalBreakdown = localBreakdown
       let breakdownCount = finalBreakdown?.range_totals?.count ?? 0
+      const hasDinnerOrders = orders.some(order => getMonthlyOrderService(order) === 'dinner')
 
       try {
         const { data: breakdown, error: breakdownError } = await db.getDailyBreakdown({ start: currentRange.start, end: currentRange.end })
@@ -173,11 +182,12 @@ export const useMonthlyMetrics = ({ supabase, db, pushLog }) => {
           sample: breakdown?.daily_breakdown?.slice?.(0, 3) || []
         })
         breakdownCount = breakdown?.range_totals?.count ?? 0
-        if (orders.length > 0 && breakdownCount !== orders.length) {
-          finalBreakdown = buildDailyBreakdownFromOrdersByDay(rangeDates, byDay)
+        if (hasDinnerOrders || (orders.length > 0 && breakdownCount !== orders.length)) {
+          finalBreakdown = localBreakdown
           pushLogRef.current?.('breakdown-fallback', {
             days: finalBreakdown.daily_breakdown.length,
             total: finalBreakdown.range_totals.count,
+            dinner: finalBreakdown.range_totals.dinner_count,
             breakdownCount,
             ordersCount: orders.length
           })

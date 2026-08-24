@@ -16,7 +16,10 @@ export const createOptionCounts = () => OPTION_KEYS.reduce((acc, key) => {
   return acc
 }, {})
 
-const getService = (order = {}) => String(order?.service || 'lunch').toLowerCase() === 'dinner' ? 'dinner' : 'lunch'
+export const getMonthlyOrderService = (order = {}) =>
+  String(order?.service || 'lunch').toLowerCase() === 'dinner' ? 'dinner' : 'lunch'
+
+const getService = getMonthlyOrderService
 
 const getOrderQuantity = (order = {}) => {
   return getOrderMenuTotal(order)
@@ -283,6 +286,8 @@ export const buildDailyBreakdownFromOrdersByDay = (dates = [], byDay = {}) => {
   const daily_breakdown = []
   const range_totals = {
     count: 0,
+    dinner_count: 0,
+    total_count: 0,
     total_items: 0,
     lunch_items: 0,
     dinner_items: 0,
@@ -300,6 +305,8 @@ export const buildDailyBreakdownFromOrdersByDay = (dates = [], byDay = {}) => {
     const row = {
       date,
       count: 0,
+      dinner_count: 0,
+      total_count: 0,
       total_items: 0,
       lunch_items: 0,
       dinner_items: 0,
@@ -319,7 +326,9 @@ export const buildDailyBreakdownFromOrdersByDay = (dates = [], byDay = {}) => {
       const operational = summarizeOperationalOrder(o)
       const orderQty = getOrderQuantity(o)
       const service = getService(o)
-      row.count += 1
+      row.total_count += 1
+      if (service === 'dinner') row.dinner_count += 1
+      else row.count += 1
       row.total_items += orderQty
       if (service === 'dinner') {
         row.dinner_items += orderQty
@@ -358,6 +367,8 @@ export const buildDailyBreakdownFromOrdersByDay = (dates = [], byDay = {}) => {
     row.total_postres = sideBuckets.totalPostres
 
     range_totals.count += row.count
+    range_totals.dinner_count += row.dinner_count
+    range_totals.total_count += row.total_count
     range_totals.total_items += row.total_items
     range_totals.lunch_items += row.lunch_items
     range_totals.dinner_items += row.dinner_items
@@ -410,6 +421,7 @@ export const buildMonthlyOperationalSummary = ({
   )
   const calendarDays = dailyBreakdown.length
   const totalPedidos = getPedidoCount(totalsForView?.pedidos ?? dailyDataForView?.range_totals?.count)
+  const totalCenaPedidos = getPedidoCount(totalsForView?.cenasPedidos ?? dailyDataForView?.range_totals?.dinner_count)
   const averagePerDay = calendarDays > 0 ? roundOneDecimal(totalPedidos / calendarDays) : 0
 
   const peakDay = dailyBreakdown.reduce((best, day) => {
@@ -456,8 +468,8 @@ export const buildMonthlyOperationalSummary = ({
   const trendLabel = difference === 0
     ? 'Sin variación'
     : firstHalfTotal === 0
-    ? (secondHalfTotal > 0 ? `+${secondHalfTotal} pedidos en la segunda mitad` : 'Sin variación')
-    : `${difference > 0 ? '+' : ''}${difference} pedidos${percentage !== null ? ` (${percentage > 0 ? '+' : ''}${percentage}%)` : ''}`
+    ? (secondHalfTotal > 0 ? `+${secondHalfTotal} pedidos de almuerzo en la segunda mitad` : 'Sin variación')
+    : `${difference > 0 ? '+' : ''}${difference} pedidos de almuerzo${percentage !== null ? ` (${percentage > 0 ? '+' : ''}${percentage}%)` : ''}`
 
   return {
     hasData: totalPedidos > 0,
@@ -469,7 +481,8 @@ export const buildMonthlyOperationalSummary = ({
     companiesServed: companyRows.length,
     mealMix: {
       lunch: lunchCount,
-      dinner: dinnerCount
+      dinner: dinnerCount,
+      dinnerOrders: totalCenaPedidos
     },
     daysWithoutOrders,
     topCompanies,
@@ -505,7 +518,9 @@ export const createMonthlyExportModel = (orders = [], dates = []) => {
     selectionSum: 0
   }
   const totals = {
-    solicitudesRegistradas: orders.length,
+    solicitudesRegistradas: 0,
+    solicitudesCena: 0,
+    solicitudesTotales: orders.length,
     racionesTotales: 0,
     racionesAlmuerzo: 0,
     racionesCena: 0,
@@ -522,6 +537,8 @@ export const createMonthlyExportModel = (orders = [], dates = []) => {
       map[key] = {
         label,
         solicitudes: 0,
+        solicitudesCena: 0,
+        solicitudesTotales: 0,
         raciones: 0,
         almuerzos: 0,
         cenas: 0,
@@ -551,7 +568,7 @@ export const createMonthlyExportModel = (orders = [], dates = []) => {
     validations.totalItems += orderQty
     if (orderQty > 1) {
       validations.multiRationOrders += 1
-      totals.solicitudesMasDeUnaRacion += 1
+      if (service !== 'dinner') totals.solicitudesMasDeUnaRacion += 1
     }
     if (service === 'dinner') {
       validations.dinnerOrders += 1
@@ -568,11 +585,18 @@ export const createMonthlyExportModel = (orders = [], dates = []) => {
     if (String(order?.status || '').toLowerCase() === 'deleted') validations.deletedOrdersIncluded += 1
 
     totals.racionesTotales += orderQty
-    if (service === 'dinner') totals.racionesCena += orderQty
-    else totals.racionesAlmuerzo += orderQty
+    if (service === 'dinner') {
+      totals.racionesCena += orderQty
+      totals.solicitudesCena += 1
+    } else {
+      totals.racionesAlmuerzo += orderQty
+      totals.solicitudesRegistradas += 1
+    }
 
     groups.forEach(group => {
-      group.solicitudes += 1
+      group.solicitudesTotales += 1
+      if (service === 'dinner') group.solicitudesCena += 1
+      else group.solicitudes += 1
       group.raciones += orderQty
       if (service === 'dinner') group.cenas += orderQty
       else group.almuerzos += orderQty
@@ -744,6 +768,7 @@ export const buildCompanyRowsFromModel = (model) => {
   return (model?.companies || []).map(company => ({
     Empresa: company.label,
     Solicitudes: company.solicitudes,
+    'Solicitudes cena': company.solicitudesCena,
     Raciones: company.raciones,
     Almuerzos: company.almuerzos,
     Cenas: company.cenas,
@@ -769,6 +794,7 @@ export const buildDailyRowsFromModel = (model) => {
   const rows = (model?.days || []).map(day => ({
     Fecha: formatDateDMY(day.label),
     Solicitudes: day.solicitudes,
+    'Solicitudes cena': day.solicitudesCena,
     Raciones: day.raciones,
     Almuerzos: day.almuerzos,
     Cenas: day.cenas,
@@ -792,6 +818,7 @@ export const buildDailyRowsFromModel = (model) => {
   rows.push({
     Fecha: 'Totales',
     Solicitudes: model?.totals?.solicitudesRegistradas || 0,
+    'Solicitudes cena': model?.totals?.solicitudesCena || 0,
     Raciones: model?.totals?.racionesTotales || 0,
     Almuerzos: model?.totals?.racionesAlmuerzo || 0,
     Cenas: model?.totals?.racionesCena || 0,
@@ -857,6 +884,7 @@ export const buildDailyRows = (daily, byDay) => {
     rows.push({
       Fecha: formatDateDMY(d.date),
       Pedidos: d.count,
+      'Pedidos cena': d.dinner_count || 0,
       'Menús principales': d.menus_principales || 0,
       'OPCIÓN 1': d.opciones?.['OPCIÓN 1'] || 0,
       'OPCIÓN 2': d.opciones?.['OPCIÓN 2'] || 0,
@@ -877,6 +905,7 @@ export const buildDailyRows = (daily, byDay) => {
   rows.push({
     Fecha: 'Totales',
     Pedidos: daily.range_totals.count,
+    'Pedidos cena': daily.range_totals.dinner_count || 0,
     'Menús principales': daily.range_totals.menus_principales,
     'OPCIÓN 1': '',
     'OPCIÓN 2': '',

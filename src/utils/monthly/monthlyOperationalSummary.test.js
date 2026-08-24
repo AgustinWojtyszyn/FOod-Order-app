@@ -47,7 +47,7 @@ describe('buildMonthlyOperationalSummary', () => {
     expect(summary.averagePerDay).toBe(5)
     expect(summary.trend.firstHalfTotal).toBe(0)
     expect(summary.trend.secondHalfTotal).toBe(5)
-    expect(summary.trend.label).toBe('+5 pedidos en la segunda mitad')
+    expect(summary.trend.label).toBe('+5 pedidos de almuerzo en la segunda mitad')
   })
 
   it('cuenta cantidades reales de pedidos extra administrativos en el panel mensual', () => {
@@ -73,6 +73,49 @@ describe('buildMonthlyOperationalSummary', () => {
       total_opciones: 20
     })
     expect(result.range_totals.total_items).toBe(20)
+  })
+
+  it('separa pedidos de cena del total de pedidos de almuerzo del rango', () => {
+    const result = buildDailyBreakdownFromOrdersByDay(['2026-08-11'], {
+      '2026-08-11': [
+        {
+          id: 'lunch-1',
+          status: 'pending',
+          delivery_date: '2026-08-11',
+          service: 'lunch',
+          location: 'Genneia',
+          total_items: 2,
+          items: [{ name: 'Opción 1 - Pollo', quantity: 2 }],
+          custom_responses: []
+        },
+        {
+          id: 'dinner-1',
+          status: 'pending',
+          delivery_date: '2026-08-11',
+          service: 'dinner',
+          location: 'Genneia',
+          total_items: 1,
+          items: [{ name: 'Cena: Milanesa', quantity: 1 }],
+          custom_responses: []
+        }
+      ]
+    })
+
+    expect(result.daily_breakdown[0]).toMatchObject({
+      count: 1,
+      dinner_count: 1,
+      total_count: 2,
+      lunch_items: 2,
+      dinner_items: 1,
+      total_opciones: 1,
+      menus_principales: 0
+    })
+    expect(result.range_totals).toMatchObject({
+      count: 1,
+      dinner_count: 1,
+      total_count: 2,
+      total_opciones: 1
+    })
   })
 
   it('usa rango inclusivo y cuenta dias sin pedidos en el promedio', () => {
@@ -171,7 +214,7 @@ describe('buildMonthlyOperationalSummary', () => {
       }
     })
 
-    expect(summary.mealMix).toEqual({ lunch: 5, dinner: 2 })
+    expect(summary.mealMix).toEqual({ lunch: 5, dinner: 2, dinnerOrders: 0 })
   })
 
   it('calcula top 3 empresas en orden descendente y porcentajes proporcionales', () => {
@@ -241,7 +284,7 @@ describe('buildMonthlyOperationalSummary', () => {
     })
 
     expect(summary.trend.percentage).toBeNull()
-    expect(summary.trend.label).toBe('+3 pedidos en la segunda mitad')
+    expect(summary.trend.label).toBe('+3 pedidos de almuerzo en la segunda mitad')
   })
 
   it('calcula tendencia positiva, negativa y estable', () => {

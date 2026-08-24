@@ -60,19 +60,19 @@ const MonthlyOperationalSummary = ({
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <MetricCard label="Promedio diario" value={formatDecimal(summary.averagePerDay)} detail="pedidos por día" />
+        <MetricCard label="Promedio diario" value={formatDecimal(summary.averagePerDay)} detail="pedidos de almuerzo por día" />
         <MetricCard
           label="Día pico"
           value={summary.peakDay.label}
-          detail={summary.peakDay.count > 0 ? `${summary.peakDay.count} pedidos` : 'Sin datos'}
+          detail={summary.peakDay.count > 0 ? `${summary.peakDay.count} pedidos de almuerzo` : 'Sin datos'}
         />
         <MetricCard
           label="Empresa principal"
           value={summary.topCompany.name}
-          detail={summary.topCompany.count > 0 ? `${summary.topCompany.count} pedidos` : 'Sin datos'}
+          detail={summary.topCompany.count > 0 ? `${summary.topCompany.count} pedidos de almuerzo` : 'Sin datos'}
         />
         <MetricCard label="Empresas atendidas" value={summary.companiesServed} detail="con pedidos" />
-        <MetricCard label="Almuerzo / cena" value={`${summary.mealMix.lunch} / ${summary.mealMix.dinner}`} detail="raciones" />
+        <MetricCard label="Almuerzo / cena" value={`${summary.mealMix.lunch} / ${summary.mealMix.dinner}`} detail={`${summary.mealMix.dinnerOrders} pedidos de cena`} />
         <MetricCard label="Días sin pedidos" value={summary.daysWithoutOrders} detail="días calendario" />
       </div>
 
@@ -109,7 +109,7 @@ const MonthlyOperationalSummary = ({
           </div>
           <p className="mt-3 text-2xl font-black">{summary.trend.label}</p>
           <p className="mt-2 text-sm font-semibold">
-            Primera mitad: {summary.trend.firstHalfTotal} pedidos · Segunda mitad: {summary.trend.secondHalfTotal} pedidos
+            Primera mitad: {summary.trend.firstHalfTotal} pedidos de almuerzo · Segunda mitad: {summary.trend.secondHalfTotal} pedidos de almuerzo
           </p>
         </div>
       </div>

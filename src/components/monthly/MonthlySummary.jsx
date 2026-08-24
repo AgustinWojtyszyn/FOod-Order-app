@@ -13,16 +13,40 @@ const MonthlySummary = ({
 }) => {
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 md:gap-4 w-full print-no-break print-full-width">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 w-full print-no-break print-full-width">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 w-full">
           <div className="text-center">
             <img
               src={clipboardImg}
-              alt="Total pedidos"
+              alt="Pedidos de almuerzo"
               className="h-8 w-8 mx-auto mb-2 object-contain"
             />
-            <p className="text-xs md:text-sm text-slate-700 font-semibold">Total Pedidos</p>
+            <p className="text-xs md:text-sm text-slate-700 font-semibold">Pedidos de almuerzo</p>
             <p className="text-2xl md:text-3xl font-bold text-blue-600">{totalsForView.pedidos}</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 w-full">
+          <div className="text-center">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-6 w-6 md:h-8 md:w-8 text-indigo-600 mx-auto mb-2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3v2" />
+              <path d="M12 19v2" />
+              <path d="M4.2 7.8l1.4 1.4" />
+              <path d="M18.4 7.8l1.4-1.4" />
+              <path d="M5 17h14" />
+              <path d="M7 17a5 5 0 0 1 10 0" />
+              <path d="M4 21h16" />
+            </svg>
+            <p className="text-xs md:text-sm text-slate-700 font-semibold">Pedidos de cena</p>
+            <p className="text-2xl md:text-3xl font-bold text-indigo-600">{totalsForView.cenasPedidos || 0}</p>
           </div>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 w-full">

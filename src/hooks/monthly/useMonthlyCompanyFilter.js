@@ -76,6 +76,7 @@ export const useMonthlyCompanyFilter = ({
 
   const totalsForView = empresasForView.reduce((acc, e) => {
     acc.pedidos += e.cantidadPedidos || 0
+    acc.cenasPedidos += e.cantidadCenas || 0
     acc.menusPrincipales += e.totalMenusPrincipales ?? (e.totalMenus - e.totalOpciones)
     acc.opciones += e.totalOpciones || 0
     acc.menusTotal += e.totalMenusTotal ?? e.totalMenus
@@ -85,6 +86,7 @@ export const useMonthlyCompanyFilter = ({
     return acc
   }, {
     pedidos: 0,
+    cenasPedidos: 0,
     menusPrincipales: 0,
     opciones: 0,
     menusTotal: 0,

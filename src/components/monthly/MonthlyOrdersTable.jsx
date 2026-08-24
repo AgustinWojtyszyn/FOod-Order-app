@@ -34,9 +34,10 @@ const MonthlyOrdersTable = ({
                 className={`flex items-center justify-between px-3 py-2 ${isOpen ? 'bg-slate-50' : 'bg-white'}`}
                 onClick={() => onSelectDate(isOpen ? null : d.date)}
               >
-                <div className="grid w-full grid-cols-2 md:grid-cols-5 gap-2 text-sm items-center">
+                <div className="grid w-full grid-cols-2 md:grid-cols-6 gap-2 text-sm items-center">
                   <div className="font-semibold text-slate-800">{formatDateDMY(d.date)}</div>
-                  <div className="text-slate-600">Pedidos: <span className="font-semibold text-slate-800">{d.count}</span></div>
+                  <div className="text-slate-600">Almuerzo: <span className="font-semibold text-slate-800">{d.count}</span></div>
+                  <div className="text-slate-600">Cena: <span className="font-semibold text-slate-800">{d.dinner_count || 0}</span></div>
                   <div className="text-slate-600">Empresas: <span className="font-semibold text-slate-800">{empresasActivas}</span></div>
                   <div className="text-slate-600">Menús: <span className="font-semibold text-slate-800">{menusCount}</span></div>
                   <div className="flex md:justify-end">
