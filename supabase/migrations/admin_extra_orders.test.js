@@ -73,6 +73,7 @@ const greifMolinosRemitoNumberingMigration = readFileSync(
   new URL('./20260824120000_greif_molinos_company_remito_numbering.sql', import.meta.url),
   'utf8'
 )
+const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
 describe('admin extra orders migration', () => {
   it('creates secure RPCs for scoped creation, listing and deletion', () => {
@@ -393,6 +394,10 @@ describe('admin extra orders migration', () => {
     expect(greifMolinosRemitoNumberingMigration).toContain('then public.companies.next_remito_number')
     expect(greifMolinosRemitoNumberingMigration).not.toContain('update public.company_remitos')
     expect(greifMolinosRemitoNumberingMigration).not.toContain('delete from public.company_remitos')
+  })
+
+  it('keeps the Greif and Molinos remito numbering migration versionable', () => {
+    expect(gitignore).toContain('!supabase/migrations/20260824120000_greif_molinos_company_remito_numbering.sql')
   })
 
   it('issues company remitos from canonical companies numbering config without duplicated range CASEs', () => {
