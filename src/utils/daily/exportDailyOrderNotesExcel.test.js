@@ -160,6 +160,51 @@ describe('daily order notes Excel model', () => {
     expect(totalRow).toMatchObject({ producto: 'TOTAL MENÚS / VIANDAS', cantidad: 14 })
   })
 
+  it('adds one Pan per non-celiac menu and remits it as a product', () => {
+    const products = summarizeProducts([
+      makeOrder({
+        company_slug: 'genneia',
+        company_name: 'Genneia',
+        location: 'Genneia',
+        total_items: 8,
+        items: [{ id: 'op-1', name: 'Opción 1 - Pollo', quantity: 8 }]
+      }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        company_slug: 'genneia',
+        company_name: 'Genneia',
+        location: 'Genneia',
+        total_items: 2,
+        items: [{ id: 'cel-1', name: 'Menú celíaco', quantity: 2 }]
+      })
+    ])
+    const detailRows = getPrintableDetailRows(products, getRemitoMenuTotalFromRows(products))
+
+    expect(getRemitoMenuTotalFromRows(products)).toBe(10)
+    expect(products).toContainEqual(expect.objectContaining({
+      producto: 'Pan',
+      cantidad: 8,
+      category: REMITO_ROW_CATEGORIES.additional
+    }))
+    expect(detailRows).toContainEqual(expect.objectContaining({ producto: 'Pan', cantidad: 8 }))
+  })
+
+  it('does not add Pan when the whole order is marked as celiac or sin TACC', () => {
+    const products = summarizeProducts([
+      makeOrder({
+        company_slug: 'genneia',
+        company_name: 'Genneia',
+        location: 'Genneia',
+        total_items: 3,
+        items: [{ id: 'op-1', name: 'Opción 1 - Pollo', quantity: 3 }],
+        custom_responses: [{ title: 'Restricción alimentaria', response: 'Sin TACC' }]
+      })
+    ])
+
+    expect(getRemitoMenuTotalFromRows(products)).toBe(3)
+    expect(products.some((row) => row.producto === 'Pan')).toBe(false)
+  })
+
   it('keeps the canonical order-note file naming for Greif and Molinos', async () => {
     const previousFetch = globalThis.fetch
     globalThis.fetch = async () => ({
@@ -1004,11 +1049,13 @@ describe('daily order notes Excel model', () => {
     const beverageRows = products.filter((row) => row.category === REMITO_ROW_CATEGORIES.drink)
     const dessertRows = products.filter((row) => row.category === REMITO_ROW_CATEGORIES.dessert)
     const sideRows = products.filter((row) => row.category === REMITO_ROW_CATEGORIES.side)
+    const panRow = products.find((row) => row.producto === 'Pan')
 
     expect(total).toBe(7)
     expect(originalRows[totalIndex]).toMatchObject({ producto: 'TOTAL MENÚS / VIANDAS', cantidad: 7 })
     expect(beverageRows.reduce((sum, row) => sum + row.cantidad, 0)).toBe(16)
     expect(dessertRows.reduce((sum, row) => sum + row.cantidad, 0)).toBe(7)
+    expect(panRow).toMatchObject({ producto: 'Pan', cantidad: 7 })
     expect(sideRows).toHaveLength(0)
     expect(originalRows).toEqual(copyRows)
     expect(originalRows.find((row) => row.producto === 'Menú principal - Papas fritas')).toMatchObject({ cantidad: 1 })
@@ -1022,7 +1069,7 @@ describe('daily order notes Excel model', () => {
     expect(products
       .filter((row) => !isMenuCountableCategory(row.category))
       .reduce((sum, row) => sum + Number(row.cantidad || 0), 0)
-    ).toBe(23)
+    ).toBe(30)
   })
 
   it('separates EPSE requesting locations with different delivery locations', () => {

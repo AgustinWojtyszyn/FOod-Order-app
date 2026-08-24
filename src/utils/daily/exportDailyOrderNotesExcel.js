@@ -337,6 +337,7 @@ export const isMenuCountableCategory = (category) =>
 export const getRemitoCategoryForLabel = (label = '') => {
   const text = normalizeRemitoComparisonText(label)
   if (text.startsWith('menu principal') || text.includes('menu principal')) return REMITO_ROW_CATEGORIES.mainMenu
+  if (text.startsWith('menu') && !text.startsWith('menu de cena')) return REMITO_ROW_CATEGORIES.mainMenu
   if (getOptionNumber(label) != null) return REMITO_ROW_CATEGORIES.numberedOption
   if (text.startsWith('menu de cena') || text.startsWith('opcion de cena') || text.startsWith('cena')) {
     return REMITO_ROW_CATEGORIES.dinner
@@ -372,6 +373,37 @@ const sortRemitoRows = (a, b) => {
 
 const isRefrigerioProductLabel = (label = '') =>
   normalizeRemitoComparisonText(label) === 'refrigerio'
+
+const isCeliacMenuText = (value = '') => {
+  const text = normalizeRemitoComparisonText(value)
+  return /\bceliac[oa]s?\b/.test(text) || text.includes('sin tacc')
+}
+
+const getOrderCeliacContextText = (order = {}) => {
+  const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
+  const responseText = Array.isArray(normalizedCustomResponses)
+    ? normalizedCustomResponses.map((response) => JSON.stringify(response)).join(' ')
+    : ''
+  return [
+    order?.notes,
+    order?.comments,
+    order?.observations,
+    order?.observaciones,
+    order?.dietary_notes,
+    order?.food_restrictions,
+    responseText
+  ].filter(Boolean).join(' ')
+}
+
+const getPanQuantityForOrder = (order = {}, menuRows = []) => {
+  const menuTotal = menuRows.reduce((sum, row) => sum + Number(row?.quantity || 0), 0)
+  if (!menuTotal) return 0
+  if (isCeliacMenuText(getOrderCeliacContextText(order))) return 0
+  const celiacMenuTotal = menuRows.reduce((sum, row) => (
+    isCeliacMenuText(row?.label) ? sum + Number(row?.quantity || 0) : sum
+  ), 0)
+  return Math.max(menuTotal - celiacMenuTotal, 0)
+}
 
 const getDinnerDishName = (label = '') =>
   normalizeText(label)
@@ -575,8 +607,11 @@ export const summarizeProducts = (orders = []) => {
     }
 
     const remitoMenuRows = []
+    let panTotal = 0
     orders.forEach((order) => {
-      remitoMenuRows.push(...getRemitoMenuRowsForOrder(order))
+      const orderMenuRows = getRemitoMenuRowsForOrder(order)
+      remitoMenuRows.push(...orderMenuRows)
+      panTotal += getPanQuantityForOrder(order, orderMenuRows)
     })
 
     remitoMenuRows.forEach((row) => {
@@ -584,6 +619,10 @@ export const summarizeProducts = (orders = []) => {
     })
     if (remitoMenuRows.length === 0 && operationalSummary.menuTotal > 0) {
       incrementCategorizedSummary('Menú / vianda', operationalSummary.menuTotal, REMITO_ROW_CATEGORIES.mainMenu)
+      panTotal = operationalSummary.menuTotal
+    }
+    if (panTotal > 0) {
+      incrementCategorizedSummary('Pan', panTotal, REMITO_ROW_CATEGORIES.additional)
     }
     operationalSummary.beverageBreakdown.forEach((row) => {
       incrementCategorizedSummary(`Bebida: ${row.label}`, row.quantity, REMITO_ROW_CATEGORIES.drink)
