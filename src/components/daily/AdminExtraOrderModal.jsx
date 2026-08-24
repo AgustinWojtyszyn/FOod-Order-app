@@ -8,6 +8,7 @@ import { mergeCompanyMenuItems } from '../../utils/order/companyMenuMerge'
 import { filterOrderableMenuItems, getMenuDisplay, withMenuSlotIndex } from '../../utils/order/menuDisplay'
 import { sortMenuItems } from '../../utils/order/orderMenuHelpers'
 import { canChooseCustomSide } from '../../utils/order/orderCustomSideRules'
+import { withGreifDefaultSnackResponse } from '../../utils/order/greifDefaultSnack'
 import { notifyError, notifySuccess } from '../../utils/notice'
 
 const REASONS = [
@@ -457,6 +458,12 @@ const AdminExtraOrderModal = ({
       return
     }
     setSubmitting(true)
+    const customResponsesPayload = withGreifDefaultSnackResponse({
+      companySlug,
+      service,
+      responses: buildResponsePayload(customOptions, customResponses, selectedItems),
+      menuQuantity: totalMenuCount
+    })
     const payload = {
       client_user_id: null,
       customer_name: null,
@@ -474,7 +481,7 @@ const AdminExtraOrderModal = ({
         quantity: item.quantity,
         slotIndex: item.slotIndex ?? 0
       })),
-      custom_responses: buildResponsePayload(customOptions, customResponses, selectedItems),
+      custom_responses: customResponsesPayload,
       quantity: totalMenuCount,
       reason: resolvedReason,
       comment,

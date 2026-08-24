@@ -71,6 +71,57 @@ describe('order payload', () => {
     }))
   })
 
+  it('keeps a single Greif default refrigerio when the payload is rebuilt', () => {
+    const existingSnack = {
+      id: 'greif-default-refrigerio',
+      title: 'Refrigerio',
+      response: 'Refrigerio',
+      quantity: 1,
+      auto_applied: true,
+      source: 'greif-default-refrigerio'
+    }
+    const { orderData } = buildOrderPayload({
+      service: 'lunch',
+      user,
+      formData: {
+        location: 'Greif',
+        comments: ''
+      },
+      deliveryDate: '2026-08-25',
+      itemsForService: [{ id: 'menu-1', name: 'Menu', slotIndex: 0 }],
+      responsesForService: [existingSnack],
+      dinnerOverrideChoice: null,
+      totalItems: 1,
+      idempotencyKey: 'idem-greif-rebuild',
+      companySlug: 'greif'
+    })
+
+    expect(orderData.custom_responses.filter(response => response.id === 'greif-default-refrigerio')).toHaveLength(1)
+  })
+
+  it('also adds the Greif refrigerio for dinner orders with menu', () => {
+    const { orderData } = buildOrderPayload({
+      service: 'dinner',
+      user,
+      formData: {
+        location: 'Greif',
+        comments: ''
+      },
+      deliveryDate: '2026-08-25',
+      itemsForService: [{ id: 'dinner-1', name: 'Cena', slotIndex: 0 }],
+      responsesForService: [],
+      dinnerOverrideChoice: null,
+      totalItems: 1,
+      idempotencyKey: 'idem-greif-dinner',
+      companySlug: 'greif'
+    })
+
+    expect(orderData.custom_responses).toContainEqual(expect.objectContaining({
+      id: 'greif-default-refrigerio',
+      quantity: 1
+    }))
+  })
+
   it('does not add the Greif refrigerio to other companies', () => {
     const { orderData } = buildOrderPayload({
       service: 'lunch',

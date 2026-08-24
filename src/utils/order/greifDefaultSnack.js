@@ -11,14 +11,13 @@ const isGreifDefaultSnackResponse = (response = {}) =>
 
 export const withGreifDefaultSnackResponse = ({
   companySlug = '',
-  service = 'lunch',
   responses = [],
   menuQuantity = 0
 } = {}) => {
   const sourceResponses = Array.isArray(responses) ? responses.filter(Boolean) : []
   const quantity = Number(menuQuantity || 0)
 
-  if (!isGreifCompany(companySlug) || service === 'dinner' || !Number.isFinite(quantity) || quantity <= 0) {
+  if (!isGreifCompany(companySlug) || !Number.isFinite(quantity) || quantity <= 0) {
     return sourceResponses
   }
 

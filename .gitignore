@@ -44,6 +44,7 @@ dist-ssr
 !supabase/migrations/20260824120000_greif_molinos_company_remito_numbering.sql
 !supabase/migrations/20260824133000_add_placo_company.sql
 !supabase/migrations/20260824143000_order_label_print_tracking.sql
+!supabase/migrations/20260824150000_backfill_greif_default_refrigerio.sql
 !supabase/diagnostics/*.sql
 # Python
 __pycache__/

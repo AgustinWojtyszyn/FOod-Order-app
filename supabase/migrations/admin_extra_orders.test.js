@@ -81,6 +81,10 @@ const orderLabelPrintTrackingMigration = readFileSync(
   new URL('./20260824143000_order_label_print_tracking.sql', import.meta.url),
   'utf8'
 )
+const greifDefaultRefrigerioBackfillMigration = readFileSync(
+  new URL('./20260824150000_backfill_greif_default_refrigerio.sql', import.meta.url),
+  'utf8'
+)
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
 describe('admin extra orders migration', () => {
@@ -424,6 +428,18 @@ describe('admin extra orders migration', () => {
     expect(orderLabelPrintTrackingMigration).toContain("'order_labels_printed'")
     expect(orderLabelPrintTrackingMigration).not.toContain('insert into public.orders')
     expect(gitignore).toContain('!supabase/migrations/20260824143000_order_label_print_tracking.sql')
+  })
+
+  it('backfills Greif default refrigerio on existing orders without duplicating it or changing remitos', () => {
+    expect(greifDefaultRefrigerioBackfillMigration).toContain('greif_orders_missing_refrigerio')
+    expect(greifDefaultRefrigerioBackfillMigration).toContain("lower(trim(coalesce(nullif(o.company_slug, ''), o.location, ''))) = 'greif'")
+    expect(greifDefaultRefrigerioBackfillMigration).toContain("response->>'id' = 'greif-default-refrigerio'")
+    expect(greifDefaultRefrigerioBackfillMigration).toContain("'retroactive', true")
+    expect(greifDefaultRefrigerioBackfillMigration).toContain('custom_responses = g.existing_custom_responses || jsonb_build_array')
+    expect(greifDefaultRefrigerioBackfillMigration).toContain('coalesce(nullif(o.total_items, 0), 0)')
+    expect(greifDefaultRefrigerioBackfillMigration).not.toContain('insert into public.orders')
+    expect(greifDefaultRefrigerioBackfillMigration).not.toContain('company_remitos')
+    expect(gitignore).toContain('!supabase/migrations/20260824150000_backfill_greif_default_refrigerio.sql')
   })
 
   it('issues company remitos from canonical companies numbering config without duplicated range CASEs', () => {
