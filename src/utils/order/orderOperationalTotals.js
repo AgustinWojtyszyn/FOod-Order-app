@@ -53,12 +53,6 @@ export const getFallbackItemQuantityTotal = (order = {}) =>
     return isNonMenuItemLabel(label) ? sum : sum + getItemOperationalQuantity(item)
   }, 0)
 
-export const getOrderMenuTotal = (order = {}) => {
-  const storedTotal = safePositiveNumber(order?.total_items)
-  if (storedTotal) return storedTotal
-  return getFallbackItemQuantityTotal(order)
-}
-
 const incrementMap = (map, label, quantity) => {
   const cleanLabel = normalizeText(label)
   const cleanQuantity = safePositiveNumber(quantity)
@@ -69,7 +63,7 @@ const incrementMap = (map, label, quantity) => {
   map.set(key, current)
 }
 
-export const getOrderMenuBreakdown = (order = {}) => {
+const getRawOrderMenuBreakdown = (order = {}) => {
   const menuRows = new Map()
   getRawOrderItems(order).forEach((item) => {
     const label = getItemLabel(item)
@@ -77,6 +71,32 @@ export const getOrderMenuBreakdown = (order = {}) => {
     incrementMap(menuRows, label, getItemOperationalQuantity(item))
   })
   return [...menuRows.values()]
+}
+
+export const getOrderMenuBreakdown = (order = {}) => {
+  const rows = getRawOrderMenuBreakdown(order)
+  const storedTotal = safePositiveNumber(order?.total_items)
+  if (!storedTotal) return rows
+
+  const rowTotal = rows.reduce((sum, row) => sum + safePositiveNumber(row.quantity), 0)
+  if (rowTotal === storedTotal) return rows
+  if (rowTotal > storedTotal) return rows
+  if (rows.length === 0) return [{ label: 'Menú / vianda', quantity: storedTotal }]
+  if (rows.length === 1) return [{ ...rows[0], quantity: storedTotal }]
+  if (rowTotal < storedTotal) {
+    return [
+      ...rows,
+      { label: 'Menú / vianda sin detalle', quantity: storedTotal - rowTotal }
+    ]
+  }
+  return rows
+}
+
+export const getOrderMenuTotal = (order = {}) => {
+  const rows = getOrderMenuBreakdown(order)
+  const rowTotal = rows.reduce((sum, row) => sum + safePositiveNumber(row.quantity), 0)
+  if (rowTotal) return rowTotal
+  return getFallbackItemQuantityTotal(order)
 }
 
 const titleMatches = (response = {}, keywords = []) => {

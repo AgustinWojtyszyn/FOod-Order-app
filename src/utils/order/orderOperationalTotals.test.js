@@ -32,6 +32,38 @@ describe('orderOperationalTotals', () => {
     expect(getOrderDessertBreakdown(order)).toEqual([{ label: DEFAULT_DESSERT_LABEL, quantity: 10 }])
   })
 
+  it('reconcilia una opcion unica de Genneia contra total_items para que la suma cierre exacta', () => {
+    const order = baseOrder({
+      company_slug: 'genneia',
+      location: 'Genneia',
+      total_items: 10,
+      items: [{ name: 'Opción 1 - Pollo', quantity: 1 }]
+    })
+
+    expect(getOrderMenuBreakdown(order)).toEqual([
+      { label: 'Opción 1 - Pollo', quantity: 10 }
+    ])
+    expect(getOrderMenuTotal(order)).toBe(10)
+    expect(summarizeOperationalOrder(order).menuTotal).toBe(10)
+  })
+
+  it('agrega fila sin detalle cuando varias opciones suman menos que total_items', () => {
+    const order = baseOrder({
+      total_items: 10,
+      items: [
+        { name: 'Opción 1 - Pollo', quantity: 3 },
+        { name: 'Opción 2 - Carne', quantity: 4 }
+      ]
+    })
+
+    expect(getOrderMenuBreakdown(order)).toEqual([
+      { label: 'Opción 1 - Pollo', quantity: 3 },
+      { label: 'Opción 2 - Carne', quantity: 4 },
+      { label: 'Menú / vianda sin detalle', quantity: 3 }
+    ])
+    expect(getOrderMenuTotal(order)).toBe(10)
+  })
+
   it('B: usa bebidas y postres explicitos sin duplicar defaults', () => {
     const order = baseOrder({
       total_items: 10,

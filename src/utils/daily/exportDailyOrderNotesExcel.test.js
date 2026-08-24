@@ -129,6 +129,37 @@ describe('daily order notes Excel model', () => {
     expect(detailRows[refrigerioIndex + 1]).toMatchObject({ producto: 'TOTAL REFRIGERIOS', cantidad: 5 })
   })
 
+  it('keeps Genneia menu detail rows summing exactly to total viandas', () => {
+    const products = summarizeProducts([
+      makeOrder({
+        company_slug: 'genneia',
+        company_name: 'Genneia',
+        location: 'Genneia',
+        total_items: 10,
+        items: [{ id: 'op-1', name: 'Opción 1 - Pollo', quantity: 1 }]
+      }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        company_slug: 'genneia',
+        company_name: 'Genneia',
+        location: 'Genneia',
+        total_items: 4,
+        items: [{ id: 'op-2', name: 'Opción 2 - Carne', quantity: 4 }]
+      })
+    ])
+    const detailRows = getPrintableDetailRows(products, getRemitoMenuTotalFromRows(products))
+    const menuRows = detailRows.filter((row) => isMenuCountableCategory(row.category))
+    const menuRowsTotal = menuRows.reduce((sum, row) => sum + Number(row.cantidad || 0), 0)
+    const totalRow = detailRows.find((row) => row.producto === 'TOTAL MENÚS / VIANDAS')
+
+    expect(products).toEqual(expect.arrayContaining([
+      expect.objectContaining({ producto: 'Opción 1 - Pollo', cantidad: 10 }),
+      expect.objectContaining({ producto: 'Opción 2 - Carne', cantidad: 4 })
+    ]))
+    expect(menuRowsTotal).toBe(14)
+    expect(totalRow).toMatchObject({ producto: 'TOTAL MENÚS / VIANDAS', cantidad: 14 })
+  })
+
   it('keeps the canonical order-note file naming for Greif and Molinos', async () => {
     const previousFetch = globalThis.fetch
     globalThis.fetch = async () => ({
