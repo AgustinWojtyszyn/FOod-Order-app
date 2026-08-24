@@ -42,6 +42,7 @@ dist-ssr
 !supabase/migrations/20260820120000_cancel_epse_30005_duplicate_remito.sql
 !supabase/migrations/20260820130000_fix_issue_company_remito_status_ambiguity.sql
 !supabase/migrations/20260824120000_greif_molinos_company_remito_numbering.sql
+!supabase/migrations/20260824133000_add_placo_company.sql
 !supabase/diagnostics/*.sql
 # Python
 __pycache__/

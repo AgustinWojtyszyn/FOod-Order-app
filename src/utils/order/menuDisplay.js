@@ -2,7 +2,7 @@ const normalizeText = (value = '') => (value || '').toString().trim()
 const normalizeSlotTitle = (value = '') => normalizeText(value).toLowerCase()
 const HIDDEN_ORDER_MENU_SLOT_INDEX = 4
 const HIDDEN_ORDER_MENU_COMPANY_SLUG = 'epse'
-const DIETA_COMPANY_SLUGS = new Set(['greif', 'molinos'])
+const DIETA_COMPANY_SLUGS = new Set(['greif', 'placo', 'molinos'])
 
 const getMenuLabelByIndex = (index = 0) => (index === 0 ? 'Menú principal' : `Opción ${index}`)
 

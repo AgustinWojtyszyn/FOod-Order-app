@@ -92,6 +92,16 @@ export const COMPANY_CATALOG = {
     customHint: 'Seleccioná Greif para cargar tu pedido.',
     optionsSourceSlug: 'laja'
   },
+  placo: {
+    slug: 'placo',
+    name: 'Placo',
+    description: 'Pedidos para equipos operativos de Placo.',
+    accent: 'from-rose-500 to-red-700',
+    badgeClass: 'bg-rose-100 text-rose-700',
+    locations: ['Placo'],
+    customHint: 'Seleccioná Placo para cargar tu pedido.',
+    optionsSourceSlug: 'laja'
+  },
   molinos: {
     slug: 'molinos',
     name: 'Molinos',

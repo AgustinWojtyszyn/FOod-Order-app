@@ -73,6 +73,10 @@ const greifMolinosRemitoNumberingMigration = readFileSync(
   new URL('./20260824120000_greif_molinos_company_remito_numbering.sql', import.meta.url),
   'utf8'
 )
+const placoCompanyMigration = readFileSync(
+  new URL('./20260824133000_add_placo_company.sql', import.meta.url),
+  'utf8'
+)
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
 describe('admin extra orders migration', () => {
@@ -398,6 +402,13 @@ describe('admin extra orders migration', () => {
 
   it('keeps the Greif and Molinos remito numbering migration versionable', () => {
     expect(gitignore).toContain('!supabase/migrations/20260824120000_greif_molinos_company_remito_numbering.sql')
+  })
+
+  it('adds Placo as a normal order company without changing historical migrations', () => {
+    expect(placoCompanyMigration).toContain("insert into public.companies (slug, name)")
+    expect(placoCompanyMigration).toContain("values ('placo', 'Placo')")
+    expect(placoCompanyMigration).toContain('on conflict (slug) do update')
+    expect(gitignore).toContain('!supabase/migrations/20260824133000_add_placo_company.sql')
   })
 
   it('issues company remitos from canonical companies numbering config without duplicated range CASEs', () => {
