@@ -370,6 +370,9 @@ const sortRemitoRows = (a, b) => {
   return categoryA - categoryB || numberA - numberB || a.producto.localeCompare(b.producto)
 }
 
+const isRefrigerioProductLabel = (label = '') =>
+  normalizeRemitoComparisonText(label) === 'refrigerio'
+
 const getDinnerDishName = (label = '') =>
   normalizeText(label)
     .replace(/^(men[uú]\s+de\s+cena|opci[oó]n\s+de\s+cena|cena)\s*[:-]?\s*/i, '')
@@ -776,13 +779,16 @@ export const getPrintableDetailRows = (products = [], totalItems = getRemitoMenu
   const menuRows = printableProducts.filter((product) => isMenuCountableCategory(product?.category))
   const beverageRows = printableProducts.filter((product) => product?.category === REMITO_ROW_CATEGORIES.drink)
   const dessertRows = printableProducts.filter((product) => product?.category === REMITO_ROW_CATEGORIES.dessert)
+  const refrigerioRows = printableProducts.filter((product) => isRefrigerioProductLabel(product?.producto))
   const additionalRows = printableProducts.filter((product) => (
     !isMenuCountableCategory(product?.category) &&
     product?.category !== REMITO_ROW_CATEGORIES.drink &&
-    product?.category !== REMITO_ROW_CATEGORIES.dessert
+    product?.category !== REMITO_ROW_CATEGORIES.dessert &&
+    !isRefrigerioProductLabel(product?.producto)
   ))
   const beverageTotal = beverageRows.reduce((sum, product) => sum + Number(product?.cantidad || 0), 0)
   const dessertTotal = dessertRows.reduce((sum, product) => sum + Number(product?.cantidad || 0), 0)
+  const refrigerioTotal = refrigerioRows.reduce((sum, product) => sum + Number(product?.cantidad || 0), 0)
   const beverageDetailRows = beverageRows.length > 0
     ? [
         ...collapseOverflowRows(beverageRows),
@@ -790,6 +796,16 @@ export const getPrintableDetailRows = (products = [], totalItems = getRemitoMenu
           cantidad: beverageTotal,
           producto: 'TOTAL BEBIDAS',
           category: 'total_beverages'
+        }
+      ]
+    : []
+  const refrigerioDetailRows = refrigerioRows.length > 0
+    ? [
+        ...collapseOverflowRows(refrigerioRows),
+        {
+          cantidad: refrigerioTotal,
+          producto: 'TOTAL REFRIGERIOS',
+          category: 'total_refrigerios'
         }
       ]
     : []
@@ -808,6 +824,7 @@ export const getPrintableDetailRows = (products = [], totalItems = getRemitoMenu
       producto: 'TOTAL POSTRES',
       category: 'total_desserts'
     },
+    ...refrigerioDetailRows,
     ...collapseOverflowRows(additionalRows)
   ]
 }

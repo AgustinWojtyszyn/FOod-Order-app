@@ -1,0 +1,268 @@
+Resumen de cambios realizados en ServiFood
+Fecha: 2026-08-24
+
+1. Greif - numeracion de remitos
+
+Se corrigio el flujo para que Greif use numeracion real de backend, igual que el resto de las empresas.
+
+SQL relacionado:
+- supabase/migrations/20260824120000_greif_molinos_company_remito_numbering.sql
+
+Ese SQL configura:
+- Greif: remito_start_number = 80000
+- Greif: remito_end_number = 89999
+- Greif: next_remito_number = 80000, sin retrocederlo si ya existia un contador valido
+- Molinos: remito_start_number = 90000
+- Molinos: remito_end_number = 99999
+- Molinos: next_remito_number = 90000, sin retrocederlo si ya existia un contador valido
+
+Tambien corrige funciones para que la fuente canonica de numeracion sea public.companies:
+- public.issue_company_remito
+- public.update_company_remito_start
+- public.get_companies_remito_config
+- public.normalize_company_remito_slug
+
+Se preserva:
+- idempotencia por empresa + fecha + location_key
+- reutilizacion de remito existente
+- snapshots
+- auditoria
+- numeracion correlativa
+- bloqueo concurrente
+- no retroceder numeros consumidos
+- no modificar remitos ya emitidos
+
+2. Greif - refrigerio automatico
+
+Se agrego una regla para que cada pedido de Greif tenga automaticamente un refrigerio.
+
+Regla aplicada:
+- 1 pedido/menu Greif = 1 refrigerio
+- 5 menus Greif = 5 refrigerios
+- 20 menus Greif = 20 refrigerios
+
+Implementacion:
+- El refrigerio se agrega como custom_response controlado.
+- No se agrega como menu extra.
+- No aumenta total_items.
+- No duplica refrigerios al reconstruir payloads.
+- Aplica a pedidos normales.
+- Aplica a pedidos extra/admin.
+- No afecta otras empresas.
+
+Archivo principal:
+- src/utils/order/greifDefaultSnack.js
+
+Archivos ajustados:
+- src/utils/order/orderPayload.js
+- src/utils/order/orderSubmit.js
+- src/hooks/useOrderSubmit.js
+- src/components/daily/AdminExtraOrderModal.jsx
+- src/utils/daily/dailyOrdersExportModel.js
+- src/utils/daily/exportDailyOrderNotesExcel.js
+
+SQL retroactivo:
+- supabase/migrations/20260824150000_backfill_greif_default_refrigerio.sql
+
+Ese SQL:
+- busca pedidos Greif existentes sin greif-default-refrigerio
+- agrega Refrigerio en custom_responses
+- calcula cantidad desde total_items/items
+- excluye pedidos cancelados
+- no duplica si ya existe
+- no toca remitos
+- no toca correlativos
+- no toca IDs
+- no toca fechas
+- no crea pedidos nuevos
+- no afecta otras empresas
+
+3. Molinos - soporte de remitos
+
+Se incorporo Molinos al mismo flujo de remitos/notas de pedido.
+
+SQL relacionado:
+- supabase/migrations/20260824120000_greif_molinos_company_remito_numbering.sql
+
+Rango:
+- Molinos: 90000 a 99999
+
+El flujo usa la misma logica que las demas empresas:
+- Vista previa
+- Emitir
+- Actualizar
+- Descargar
+- Reimprimir
+- Formato canonico de archivo
+
+Formato conservado:
+- Nota_de_Pedido_EMPRESA_NUMERO_DD-MM-YYYY.xlsx
+
+4. Placo - nueva empresa
+
+Se agrego Placo como empresa disponible para pedidos normales.
+
+SQL:
+- supabase/migrations/20260824133000_add_placo_company.sql
+
+Contenido funcional:
+- Inserta public.companies slug = placo, name = Placo
+- Usa on conflict para actualizar nombre sin duplicar fila
+
+Frontend:
+- Placo aparece en el selector de empresa.
+- Usa location Placo.
+- Usa optionsSourceSlug = laja, igual que Greif.
+- Usa el flujo base de Greif para pedidos.
+
+Archivos relacionados:
+- src/constants/companyConfig.js
+- src/constants/companyConfig.test.js
+
+5. Regla visual de menu para Greif, Molinos y Placo
+
+Se amplio la regla que muestra "Dieta" cuando corresponde para:
+- Greif
+- Molinos
+- Placo
+
+Archivos:
+- src/utils/order/menuDisplay.js
+- src/utils/order/menuDisplay.test.js
+
+6. Etiquetas - eliminar vista previa intermedia
+
+Se modifico el flujo de impresion de etiquetas.
+
+Antes:
+- Seleccionar etiquetas
+- Ir a vista previa
+- Presionar imprimir en la vista previa
+- Imprimir
+
+Ahora:
+- Seleccionar etiquetas
+- Presionar Imprimir
+- Se abre directamente el flujo de impresion del navegador
+
+La superficie imprimible sigue existiendo internamente para generar el documento, pero no se muestra como pantalla intermedia.
+
+Archivos:
+- src/components/OrderLabelsPage.jsx
+- src/components/labels/OrderLabelsPreview.jsx
+- src/components/labels/order-labels.css
+
+7. Etiquetas - multiples seleccionadas como tickets separados
+
+Se ajusto la impresion para que cada etiqueta seleccionada sea una pagina/ticket independiente.
+
+Regla:
+- 1 etiqueta seleccionada = 1 ticket
+- 2 etiquetas seleccionadas = 2 tickets
+- 5 etiquetas seleccionadas = 5 tickets
+
+Se fuerza salto de pagina entre etiquetas:
+- break-after: page
+- page-break-after: always
+
+Archivo:
+- src/components/labels/order-labels.css
+
+8. Etiquetas - estado Falta imprimir / Ya impreso
+
+Se agrego estado persistente de impresion para etiquetas.
+
+SQL:
+- supabase/migrations/20260824143000_order_label_print_tracking.sql
+
+Columnas agregadas en public.orders:
+- label_printed_at timestamptz
+- label_printed_by uuid
+- label_print_count integer
+
+RPC agregada:
+- public.mark_order_labels_printed(p_order_ids uuid[])
+
+Comportamiento:
+- Al imprimir, se marca el pedido como impreso.
+- Se guarda fecha/hora.
+- Se guarda usuario si auth.uid esta disponible.
+- Se incrementa contador de impresion.
+- Se audita con action order_labels_printed si existe public.audit_logs.
+- Reimprimir no crea un pedido nuevo.
+- Reimprimir no duplica etiqueta.
+
+Frontend:
+- Tab Falta imprimir
+- Tab Ya impreso
+- Tab Todos
+- Las etiquetas impresas siguen visibles para consulta y reimpresion.
+
+Archivos:
+- src/hooks/labels/useOrderLabels.js
+- src/components/labels/OrderLabelsResults.jsx
+- src/services/orders/ordersService.js
+- src/services/orders/ordersService.test.js
+- src/components/OrderLabelsPage.regression.test.js
+
+9. Facturacion
+
+No se implemento el cambio de planilla de datos para facturar.
+
+Motivo:
+- El requerimiento especifica no implementar hasta recibir el formato exacto.
+- Se conserva la exportacion actual.
+- No se eliminaron columnas.
+- No se creo una segunda planilla definitiva.
+
+10. Gitignore / versionado de SQL
+
+Se actualizaron referencias de .gitignore para que las migraciones SQL nuevas no queden ignoradas por la regla global *.sql.
+
+Migraciones referenciadas:
+- supabase/migrations/20260824120000_greif_molinos_company_remito_numbering.sql
+- supabase/migrations/20260824133000_add_placo_company.sql
+- supabase/migrations/20260824143000_order_label_print_tracking.sql
+- supabase/migrations/20260824150000_backfill_greif_default_refrigerio.sql
+
+11. Tests agregados o actualizados
+
+Tests de migraciones:
+- supabase/migrations/admin_extra_orders.test.js
+
+Tests de remitos/notas:
+- src/utils/daily/exportDailyOrderNotesExcel.test.js
+
+Tests de payload de pedido:
+- src/utils/order/orderPayload.test.js
+
+Tests de etiquetas:
+- src/components/OrderLabelsPage.regression.test.js
+- src/services/orders/ordersService.test.js
+
+Tests de catalogo/empresa:
+- src/constants/companyConfig.test.js
+
+Tests de visualizacion de menu:
+- src/utils/order/menuDisplay.test.js
+
+12. Validaciones ejecutadas
+
+Se ejecutaron:
+- npm run test -- --run
+- npm run lint
+- npm run build
+
+Resultados reportados:
+- Test suite completo: 47 archivos, 337 tests pasados
+- Lint: sin errores, con 4 warnings existentes de Fast Refresh
+- Build: exitoso, con warnings existentes de Vite/Browserslist/chunk size/import dinamico
+
+13. Acciones no realizadas
+
+No se ejecuto SQL remoto.
+No se hizo commit.
+No se modificaron migraciones historicas.
+No se hicieron cambios destructivos sobre datos historicos.
+No se cambio el layout consolidado de las Notas de Pedido.
+No se implemento la planilla de facturacion pendiente de formato.

@@ -86,6 +86,49 @@ describe('daily order notes Excel model', () => {
     }))
   })
 
+  it('prints Greif refrigerio once and adds total refrigerios directly below it', () => {
+    const products = summarizeProducts([
+      makeOrder({
+        location: 'Greif',
+        company_slug: 'greif',
+        total_items: 2,
+        items: [{ id: 'op-1', name: 'Opción 1 - Pollo', quantity: 2 }],
+        custom_responses: [{
+          id: 'greif-default-refrigerio',
+          title: 'Refrigerio',
+          response: 'Refrigerio',
+          quantity: 2,
+          quantities: { Refrigerio: 2 },
+          auto_applied: true
+        }]
+      }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        location: 'Greif',
+        company_slug: 'greif',
+        total_items: 3,
+        items: [{ id: 'op-2', name: 'Opción 2 - Carne', quantity: 3 }],
+        custom_responses: [{
+          id: 'greif-default-refrigerio',
+          title: 'Refrigerio',
+          response: 'Refrigerio',
+          quantity: 3,
+          quantities: { Refrigerio: 3 },
+          auto_applied: true
+        }]
+      })
+    ])
+    const detailRows = getPrintableDetailRows(products, getRemitoMenuTotalFromRows(products))
+    const refrigerioIndex = detailRows.findIndex((row) => row.producto === 'Refrigerio')
+
+    expect(products.filter((row) => row.producto === 'Refrigerio')).toEqual([
+      expect.objectContaining({ producto: 'Refrigerio', cantidad: 5 })
+    ])
+    expect(refrigerioIndex).toBeGreaterThan(-1)
+    expect(detailRows[refrigerioIndex]).toMatchObject({ producto: 'Refrigerio', cantidad: 5 })
+    expect(detailRows[refrigerioIndex + 1]).toMatchObject({ producto: 'TOTAL REFRIGERIOS', cantidad: 5 })
+  })
+
   it('keeps the canonical order-note file naming for Greif and Molinos', async () => {
     const previousFetch = globalThis.fetch
     globalThis.fetch = async () => ({
