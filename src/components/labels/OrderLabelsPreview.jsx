@@ -1,3 +1,4 @@
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowLeft, Printer, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { expandLabelsForCopies } from '../../utils/labels/labelOrderUtils'
@@ -12,6 +13,44 @@ import OrderLabelCard from './OrderLabelCard'
 const estimateA4Sheets = (count, columns) => {
   const perSheet = Number(columns) === 3 ? 12 : 8
   return Math.max(Math.ceil(count / perSheet), 1)
+}
+
+const PX_TO_MM = 25.4 / 96
+
+const toMm = (value = 0) => `${(Number(value || 0) * PX_TO_MM).toFixed(2)}mm`
+
+const getRectMetrics = (element, pageRect = null) => {
+  if (!element) return null
+  const rect = element.getBoundingClientRect()
+  return {
+    left: pageRect ? rect.left - pageRect.left : rect.left,
+    top: pageRect ? rect.top - pageRect.top : rect.top,
+    right: pageRect ? rect.right - pageRect.left : rect.right,
+    bottom: pageRect ? rect.bottom - pageRect.top : rect.bottom,
+    width: rect.width,
+    height: rect.height
+  }
+}
+
+const formatDiagnostics = ({ index, page, content, card, expectedWidth, expectedHeight, safePadding } = {}) => {
+  if (!page || !content || !card) {
+    return [
+      `Etiqueta ${index}`,
+      `Esperado: ${expectedWidth}x${expectedHeight}mm`,
+      `Safe: ${safePadding}mm`
+    ]
+  }
+
+  return [
+    `Etiqueta ${index}`,
+    `Page rect: ${toMm(page.width)} x ${toMm(page.height)}`,
+    `Page offset: L ${toMm(page.left)} T ${toMm(page.top)}`,
+    `Safe rect: ${toMm(content.width)} x ${toMm(content.height)}`,
+    `Safe offset: L ${toMm(content.left)} T ${toMm(content.top)} R ${toMm(content.right)} B ${toMm(content.bottom)}`,
+    `Card rect: ${toMm(card.width)} x ${toMm(card.height)}`,
+    `Card offset: L ${toMm(card.left)} T ${toMm(card.top)} R ${toMm(card.right)} B ${toMm(card.bottom)}`,
+    `Esperado: ${expectedWidth}x${expectedHeight}mm | Safe ${safePadding}mm`
+  ]
 }
 
 const OrderLabelsPreview = ({
@@ -29,8 +68,11 @@ const OrderLabelsPreview = ({
   onCancel,
   onPrint,
   showControls = true,
-  screenHidden = false
+  screenHidden = false,
+  diagnosticsEnabled = false
 }) => {
+  const previewRef = useRef(null)
+  const [diagnostics, setDiagnostics] = useState([])
   const labels = expandLabelsForCopies(selectedOrders, copiesByOrderId)
   const thermalSize = thermalPreset === 'custom' ? customThermalSize : THERMAL_LABEL_PRESETS[thermalPreset]
   const width = normalizeThermalMillimeters(thermalSize?.width, THERMAL_LABEL_LIMITS.width)
@@ -40,6 +82,35 @@ const OrderLabelsPreview = ({
   const printPageSize = printFormat === 'thermal'
     ? `${width}mm ${height}mm`
     : 'A4'
+  const safePadding = DEFAULT_THERMAL_LABEL_SAFE_PADDING_MM
+
+  const measureDiagnostics = useCallback(() => {
+    if (!diagnosticsEnabled || !previewRef.current) return
+    const nextDiagnostics = [...previewRef.current.querySelectorAll('.print-label')].map((labelElement, index) => {
+      const pageRect = labelElement.getBoundingClientRect()
+      return {
+        index: index + 1,
+        page: getRectMetrics(labelElement),
+        content: getRectMetrics(labelElement.querySelector('.label-content'), pageRect),
+        card: getRectMetrics(labelElement.querySelector('.sf-label-card'), pageRect)
+      }
+    })
+    setDiagnostics(nextDiagnostics)
+  }, [diagnosticsEnabled])
+
+  useLayoutEffect(() => {
+    if (!diagnosticsEnabled) {
+      setDiagnostics([])
+      return undefined
+    }
+
+    const frame = window.requestAnimationFrame(measureDiagnostics)
+    window.addEventListener('beforeprint', measureDiagnostics)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('beforeprint', measureDiagnostics)
+    }
+  }, [diagnosticsEnabled, labels.length, measureDiagnostics, width, height, safePadding])
 
   const updateCustomThermalSize = (dimension, value) => {
     const limits = THERMAL_LABEL_LIMITS[dimension]
@@ -58,7 +129,8 @@ const OrderLabelsPreview = ({
 
   const preview = (
     <section
-      className={`labels-preview-root ${previewModeClass}${screenHidden ? ' labels-print-root-screen-hidden' : ''}`}
+      ref={previewRef}
+      className={`labels-preview-root ${previewModeClass}${screenHidden ? ' labels-print-root-screen-hidden' : ''}${diagnosticsEnabled ? ' labels-diagnostics-enabled' : ''}`}
       style={{
         '--label-a4-columns': a4Columns,
         '--thermal-label-width': `${width}mm`,
@@ -138,10 +210,20 @@ const OrderLabelsPreview = ({
       )}
 
       <div className={`labels-print-surface labels-print-container ${printFormat === 'thermal' ? 'labels-print-thermal' : 'labels-print-a4'}`}>
-        {labels.map(label => (
+        {labels.map((label, index) => (
           <div className="print-label" key={label.labelInstanceId}>
             <div className="label-content">
               <OrderLabelCard label={label} />
+              {diagnosticsEnabled && (
+                <pre className="label-diagnostics-panel" aria-hidden="true">
+                  {formatDiagnostics({
+                    ...(diagnostics.find((item) => item.index === index + 1) || { index: index + 1 }),
+                    expectedWidth: width,
+                    expectedHeight: height,
+                    safePadding
+                  }).join('\n')}
+                </pre>
+              )}
             </div>
           </div>
         ))}

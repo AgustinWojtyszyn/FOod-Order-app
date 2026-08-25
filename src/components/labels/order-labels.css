@@ -42,6 +42,10 @@
   height: 100%;
 }
 
+.label-diagnostics-panel {
+  display: none;
+}
+
 .sf-label-card {
   display: flex;
   box-sizing: border-box;
@@ -264,6 +268,7 @@
   }
 
   .print-label {
+    position: relative !important;
     box-sizing: border-box !important;
     display: block !important;
     width: var(--thermal-label-width, 100mm) !important;
@@ -302,7 +307,7 @@
     margin: 0 !important;
     padding: var(--thermal-label-safe-padding, 2mm) !important;
     overflow: hidden !important;
-    position: static !important;
+    position: relative !important;
     inset: auto !important;
     transform: none !important;
     -webkit-transform: none !important;
@@ -343,6 +348,45 @@
 
   .sf-label-card * {
     color: inherit !important;
+  }
+
+  .labels-diagnostics-enabled .print-label {
+    outline: 0.35mm solid #ef4444 !important;
+    outline-offset: -0.35mm !important;
+  }
+
+  .labels-diagnostics-enabled .label-content {
+    outline: 0.25mm dashed #2563eb !important;
+    outline-offset: -0.25mm !important;
+  }
+
+  .labels-diagnostics-enabled .sf-label-card {
+    outline: 0.2mm dotted #16a34a !important;
+    outline-offset: -0.2mm !important;
+  }
+
+  .labels-diagnostics-enabled .label-diagnostics-panel {
+    display: block !important;
+    position: absolute !important;
+    left: 2.2mm !important;
+    bottom: 2.2mm !important;
+    z-index: 9999 !important;
+    max-width: calc(100% - 4.4mm) !important;
+    max-height: 20mm !important;
+    margin: 0 !important;
+    padding: 1mm !important;
+    overflow: hidden !important;
+    border: 0.25mm solid #111827 !important;
+    background: rgb(255 255 255 / 92%) !important;
+    color: #111827 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 5.6px !important;
+    font-weight: 700 !important;
+    line-height: 1.18 !important;
+    text-transform: none !important;
+    white-space: pre-wrap !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Printer, Tag, X } from 'lucide-react'
+import { Bug, Printer, Tag, X } from 'lucide-react'
 import { useAuthContext } from '../contexts/authContextValue'
 import OrderLabelsFilters from './labels/OrderLabelsFilters'
 import OrderLabelsPreview from './labels/OrderLabelsPreview'
@@ -15,6 +15,7 @@ const OrderLabelsPage = () => {
   const [thermalPreset, setThermalPreset] = useState(DEFAULT_THERMAL_LABEL_PRESET)
   const [customThermalSize, setCustomThermalSize] = useState(DEFAULT_THERMAL_LABEL_SIZE)
   const [printBatch, setPrintBatch] = useState([])
+  const [printDiagnosticsEnabled, setPrintDiagnosticsEnabled] = useState(false)
   const pendingPrintedIdsRef = useRef([])
   const printRequestedRef = useRef(false)
 
@@ -78,6 +79,7 @@ const OrderLabelsPage = () => {
         onPrint={() => {}}
         showControls={false}
         screenHidden
+        diagnosticsEnabled={printDiagnosticsEnabled}
       />
 
         <div className="space-y-5">
@@ -160,6 +162,18 @@ const OrderLabelsPage = () => {
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPrintDiagnosticsEnabled((enabled) => !enabled)}
+                    className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-black ${
+                      printDiagnosticsEnabled
+                        ? 'border-amber-400 bg-amber-100 text-amber-900'
+                        : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Bug className="h-4 w-4" />
+                    Diagnóstico
+                  </button>
                   <button
                     type="button"
                     onClick={labels.allVisibleSelected ? labels.unselectVisible : labels.selectVisible}
