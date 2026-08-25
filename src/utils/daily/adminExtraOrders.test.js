@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  getOrderCustomerDisplay,
   isAdminExtraOrder,
   resolveAdminExtraCreator
 } from './adminExtraOrders'
@@ -68,6 +69,36 @@ describe('adminExtraOrders', () => {
       name: 'Admin Resuelto',
       email: 'resuelto@example.com',
       hasTraceability: true
+    })
+  })
+
+  it('muestra Varios para pedido extra anonimo cargado por admin', () => {
+    const display = getOrderCustomerDisplay({
+      order_origin: 'admin_extra',
+      customer_name: ' ',
+      customer_email: '',
+      created_by_admin_name: ' Claudia Sarmiento '
+    })
+
+    expect(display).toEqual({
+      name: 'Varios',
+      email: '—',
+      loadedBy: 'Claudia Sarmiento'
+    })
+  })
+
+  it('mantiene el cliente real cuando el pedido tiene datos de cliente', () => {
+    const display = getOrderCustomerDisplay({
+      order_origin: 'admin_extra',
+      customer_name: ' Juan Perez ',
+      customer_email: ' juan@example.com ',
+      created_by_admin_name: 'Claudia Sarmiento'
+    })
+
+    expect(display).toEqual({
+      name: 'Juan Perez',
+      email: 'juan@example.com',
+      loadedBy: null
     })
   })
 })

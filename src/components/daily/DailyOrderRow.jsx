@@ -13,7 +13,10 @@ import {
   getStatusColor,
   getStatusText
 } from '../../utils/daily/dailyOrderFormatters'
-import { isAdminExtraOrder, resolveAdminExtraCreator } from '../../utils/daily/adminExtraOrders'
+import {
+  getOrderCustomerDisplay,
+  isAdminExtraOrder
+} from '../../utils/daily/adminExtraOrders'
 
 const DailyOrderRow = ({
   order,
@@ -27,9 +30,9 @@ const DailyOrderRow = ({
   const deliveryDiffers = deliveryLocation && deliveryLocation !== order.location
   const isExtra = isAdminExtraOrder(order)
   const isPostReportExtra = String(order?.status || '').toLowerCase() === 'post_report_extra'
-  const adminCreator = resolveAdminExtraCreator(order)
-  const displayName = isExtra ? adminCreator.label : order.user_name
-  const displayEmail = isExtra ? adminCreator.email : order.user_email
+  const customerDisplay = getOrderCustomerDisplay(order)
+  const displayName = customerDisplay.name
+  const displayEmail = customerDisplay.email
   const menuTotal = getOperationalOrderUnits(order)
 
   if (variant === 'card') {
@@ -48,12 +51,17 @@ const DailyOrderRow = ({
             <User className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-base font-bold text-slate-900 truncate" title={isExtra ? adminCreator.label : undefined}>
+            <p className="text-base font-bold text-slate-900 truncate" title={customerDisplay.loadedBy || undefined}>
               {displayName}
             </p>
             {displayEmail && (
               <p className="text-xs text-slate-500 truncate" title={displayEmail}>
                 {displayEmail}
+              </p>
+            )}
+            {customerDisplay.loadedBy && (
+              <p className="text-xs font-semibold text-violet-700 truncate" title={customerDisplay.loadedBy}>
+                Cargado por: {customerDisplay.loadedBy}
               </p>
             )}
           </div>
@@ -187,12 +195,17 @@ const DailyOrderRow = ({
             <User className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h5 className="text-base font-extrabold text-slate-900 tracking-wide" title={isExtra ? adminCreator.label : undefined}>
+            <h5 className="text-base font-extrabold text-slate-900 tracking-wide" title={customerDisplay.loadedBy || undefined}>
               {displayName}
             </h5>
             {displayEmail && (
               <p className="text-xs text-slate-500" title={displayEmail}>
                 {displayEmail}
+              </p>
+            )}
+            {customerDisplay.loadedBy && (
+              <p className="text-xs font-semibold text-violet-700" title={customerDisplay.loadedBy}>
+                Cargado por: {customerDisplay.loadedBy}
               </p>
             )}
             {isExtra && (

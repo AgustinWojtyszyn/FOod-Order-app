@@ -69,8 +69,33 @@ const resolveAdminExtraCreator = (order = {}, { peopleById } = {}) => {
   }
 }
 
+const getOrderCustomerDisplay = (order = {}) => {
+  const isAnonymousAdminExtra =
+    String(order?.order_origin || '').toLowerCase() === 'admin_extra' &&
+    !normalizeText(order?.customer_name) &&
+    !normalizeText(order?.customer_email)
+
+  if (isAnonymousAdminExtra) {
+    return {
+      name: 'Varios',
+      email: '—',
+      loadedBy:
+        normalizeText(order?.created_by_admin_name || order?.admin_extra_creator_name) ||
+        normalizeText(order?.created_by_admin_email || order?.admin_extra_creator_email) ||
+        'Administrador'
+    }
+  }
+
+  return {
+    name: normalizeText(order?.customer_name || order?.user_name) || 'Cliente sin nombre',
+    email: normalizeText(order?.customer_email || order?.user_email) || 'Sin email',
+    loadedBy: null
+  }
+}
+
 export {
   getAdminExtraOrderLabel,
+  getOrderCustomerDisplay,
   isAdminExtraOrder,
   resolveAdminExtraCreator
 }

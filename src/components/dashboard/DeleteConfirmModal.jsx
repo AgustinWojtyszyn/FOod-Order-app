@@ -1,7 +1,9 @@
 import { X } from 'lucide-react'
+import { getOrderCustomerDisplay } from '../../utils/daily/adminExtraOrders'
 
 const DeleteConfirmModal = ({ order, onConfirm, onClose, submitting, mode = 'delete' }) => {
   if (!order) return null
+  const customerDisplay = getOrderCustomerDisplay(order)
   const isCancel = mode === 'cancel'
   const title = isCancel ? 'Cancelar pedido' : 'Eliminar pedido'
   const message = isCancel
@@ -38,9 +40,12 @@ const DeleteConfirmModal = ({ order, onConfirm, onClose, submitting, mode = 'del
 
           <div className="mt-4 text-sm text-white/90">
             <div className="font-semibold">Pedido #{order.id.slice(-8)}</div>
-            <div className="mt-1">{order.user_name || order.customer_name || 'Usuario'}</div>
-            {order.customer_email && (
-              <div className="mt-1">{order.customer_email}</div>
+            <div className="mt-1">{customerDisplay.name}</div>
+            {customerDisplay.email && (
+              <div className="mt-1">{customerDisplay.email}</div>
+            )}
+            {customerDisplay.loadedBy && (
+              <div className="mt-1">Cargado por: {customerDisplay.loadedBy}</div>
             )}
           </div>
         </div>

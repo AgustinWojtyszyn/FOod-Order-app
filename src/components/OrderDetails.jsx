@@ -8,7 +8,11 @@ import { getUserFriendlyErrorMessage, isOrderEditable, formatDate } from '../uti
 import { EDIT_WINDOW_MINUTES } from '../constants/orderRules'
 import { confirmAction } from '../utils/confirm'
 import { notifyError, notifyInfo, notifySuccess } from '../utils/notice'
-import { isAdminExtraOrder, resolveAdminExtraCreator } from '../utils/daily/adminExtraOrders'
+import {
+  getOrderCustomerDisplay,
+  isAdminExtraOrder,
+  resolveAdminExtraCreator
+} from '../utils/daily/adminExtraOrders'
 import {
   ArrowLeft,
   Building2,
@@ -129,6 +133,7 @@ const OrderDetails = ({ user, loading }) => {
   const company = companyByLocation.get(String(order?.location || '').toLowerCase())
   const isExtra = isAdminExtraOrder(order)
   const adminCreator = resolveAdminExtraCreator(order)
+  const customerDisplay = getOrderCustomerDisplay(order)
   const canEditOrder = order?.created_at
     ? isAdmin || isOrderEditable(order.created_at, EDIT_WINDOW_MINUTES)
     : false
@@ -400,16 +405,25 @@ const OrderDetails = ({ user, loading }) => {
                     <User className="h-5 w-5 text-gray-500 mt-0.5" />
                     <div>
                       <p className="text-gray-600 font-semibold">Nombre</p>
-                      <p className="text-gray-900 font-bold">{order.customer_name || '-'}</p>
+                      <p className="text-gray-900 font-bold">{customerDisplay.name}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Mail className="h-5 w-5 text-gray-500 mt-0.5" />
                     <div>
                       <p className="text-gray-600 font-semibold">Email</p>
-                      <p className="text-gray-900 font-bold">{order.customer_email || '-'}</p>
+                      <p className="text-gray-900 font-bold">{customerDisplay.email}</p>
                     </div>
                   </div>
+                  {customerDisplay.loadedBy && (
+                    <div className="flex items-start gap-3">
+                      <User className="h-5 w-5 text-gray-500 mt-0.5" />
+                      <div>
+                        <p className="text-gray-600 font-semibold">Cargado por</p>
+                        <p className="text-gray-900 font-bold">{customerDisplay.loadedBy}</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-start gap-3">
                     <Phone className="h-5 w-5 text-gray-500 mt-0.5" />
                     <div>
