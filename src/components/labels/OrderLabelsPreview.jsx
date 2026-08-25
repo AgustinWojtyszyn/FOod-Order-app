@@ -1,6 +1,7 @@
 import { ArrowLeft, Printer, X } from 'lucide-react'
 import { expandLabelsForCopies } from '../../utils/labels/labelOrderUtils'
 import {
+  DEFAULT_THERMAL_LABEL_SAFE_PADDING_MM,
   THERMAL_LABEL_LIMITS,
   THERMAL_LABEL_PRESETS,
   normalizeThermalMillimeters
@@ -60,7 +61,8 @@ const OrderLabelsPreview = ({
       style={{
         '--label-a4-columns': a4Columns,
         '--thermal-label-width': `${width}mm`,
-        '--thermal-label-height': `${height}mm`
+        '--thermal-label-height': `${height}mm`,
+        '--thermal-label-safe-padding': `${DEFAULT_THERMAL_LABEL_SAFE_PADDING_MM}mm`
       }}
     >
       <style media="print">

@@ -253,8 +253,10 @@
     max-width: var(--thermal-label-width, 100mm) !important;
     max-height: var(--thermal-label-height, 50mm) !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: var(--thermal-label-safe-padding, 2mm) !important;
     overflow: hidden !important;
+    transform: none !important;
+    transform-origin: initial !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
     break-after: page !important;
@@ -277,6 +279,8 @@
     margin: 0 !important;
     overflow: hidden !important;
     border-radius: 0 !important;
+    transform: none !important;
+    transform-origin: initial !important;
     break-before: auto !important;
     page-break-before: auto !important;
     break-after: auto !important;
