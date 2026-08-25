@@ -93,6 +93,10 @@ const adminExtraAllCompaniesMigration = readFileSync(
   new URL('./20260825100000_enable_admin_extra_all_companies.sql', import.meta.url),
   'utf8'
 )
+const adminExtraHistoryByDeliveryDateMigration = readFileSync(
+  new URL('./20260825103000_admin_extra_history_by_delivery_date.sql', import.meta.url),
+  'utf8'
+)
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
 describe('admin extra orders migration', () => {
@@ -469,6 +473,17 @@ describe('admin extra orders migration', () => {
     expect(adminExtraAllCompaniesMigration).toContain('from public.order_locations loc')
     expect(adminExtraAllCompaniesMigration).not.toContain('else false')
     expect(gitignore).toContain('!supabase/migrations/20260825100000_enable_admin_extra_all_companies.sql')
+  })
+
+  it('shows admin extra history retroactively by delivery date', () => {
+    expect(adminExtraHistoryByDeliveryDateMigration).toContain('create or replace function public.get_late_admin_extra_history_days')
+    expect(adminExtraHistoryByDeliveryDateMigration).toContain('create or replace function public.get_late_admin_extra_history_for_day')
+    expect(adminExtraHistoryByDeliveryDateMigration).toContain('from public.orders o')
+    expect(adminExtraHistoryByDeliveryDateMigration).toContain("lower(coalesce(o.order_origin, '')) = 'admin_extra'")
+    expect(adminExtraHistoryByDeliveryDateMigration).toContain('o.delivery_date = p_operational_date')
+    expect(adminExtraHistoryByDeliveryDateMigration).toContain("a.action = 'admin_extra_order_deleted'")
+    expect(adminExtraHistoryByDeliveryDateMigration).not.toContain('returns setof public.late_admin_extra_order_history')
+    expect(gitignore).toContain('!supabase/migrations/20260825103000_admin_extra_history_by_delivery_date.sql')
   })
 
   it('issues company remitos from canonical companies numbering config without duplicated range CASEs', () => {

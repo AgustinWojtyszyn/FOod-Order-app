@@ -27,12 +27,14 @@ const formatDateTime = (value = '') => {
 }
 
 const getStatusBadge = (status = '') => {
+  if (status === 'history') return 'bg-blue-50 text-blue-700 border-blue-200'
   if (status === 'closed') return 'bg-emerald-50 text-emerald-700 border-emerald-200'
   if (status === 'ready_to_close') return 'bg-amber-50 text-amber-700 border-amber-200'
   return 'bg-blue-50 text-blue-700 border-blue-200'
 }
 
 const getStatusLabel = (status = '') => {
+  if (status === 'history') return 'HISTÓRICO'
   if (status === 'closed') return 'CERRADA'
   if (status === 'ready_to_close') return 'LISTA PARA CERRAR'
   return 'ABIERTA'
@@ -58,7 +60,6 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
   const [detailRows, setDetailRows] = useState([])
   const [loadingDays, setLoadingDays] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
-  const [closingDate, setClosingDate] = useState('')
 
   const selectedStatus = selectedDay?.status || ''
   const selectedOperationalDate = selectedDay?.operational_date || ''
@@ -77,9 +78,18 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
       if (error) {
         notifyError(getUserFriendlyErrorMessage(error, 'No pudimos cargar el histórico de extras.'))
         setDays([])
+        setSelectedDay(null)
+        setDetailRows([])
         return
       }
-      setDays(Array.isArray(data) ? data : [])
+      const nextDays = Array.isArray(data) ? data : []
+      setDays(nextDays)
+      if (nextDays.length > 0) {
+        await viewDay(nextDays[0])
+      } else {
+        setSelectedDay(null)
+        setDetailRows([])
+      }
     } finally {
       setLoadingDays(false)
     }
@@ -103,24 +113,6 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
       setDetailRows(Array.isArray(data) ? data : [])
     } finally {
       setLoadingDetail(false)
-    }
-  }
-
-  const closeDay = async (day) => {
-    setClosingDate(day.operational_date)
-    try {
-      const { error } = await db.closeLateAdminExtraOperationalDay({ operationalDate: day.operational_date })
-      if (error) {
-        notifyError(getUserFriendlyErrorMessage(error, 'No pudimos cerrar la jornada de extras.'))
-        return
-      }
-      notifySuccess('Cierre operativo de extras generado.')
-      await loadDays()
-      if (selectedOperationalDate === day.operational_date) {
-        await viewDay({ ...day, status: 'closed' })
-      }
-    } finally {
-      setClosingDate('')
     }
   }
 
@@ -154,7 +146,7 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 className="text-xl font-black text-slate-900">Histórico de extras</h2>
-            <p className="text-sm font-semibold text-slate-600">Jornadas operativas de pedidos extra fuera de término.</p>
+            <p className="text-sm font-semibold text-slate-600">Pedidos extra agregados en la fecha de entrega seleccionada.</p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
             <label className="text-xs font-semibold text-slate-600">
@@ -175,7 +167,7 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-4 py-3 text-left">Fecha</th>
-                <th className="px-4 py-3 text-left">Ventana</th>
+                <th className="px-4 py-3 text-left">Rango</th>
                 <th className="px-4 py-3 text-right">Pedidos</th>
                 <th className="px-4 py-3 text-right">Viandas</th>
                 <th className="px-4 py-3 text-left">Estado</th>
@@ -186,7 +178,7 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
               {days.map((day) => (
                 <tr key={day.operational_date} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-bold text-slate-900">{formatDate(day.operational_date)}</td>
-                  <td className="px-4 py-3 text-slate-600">{formatDateTime(day.window_started_at)} → {formatDateTime(day.window_closed_at)}</td>
+                  <td className="px-4 py-3 text-slate-600">Fecha de entrega seleccionada</td>
                   <td className="px-4 py-3 text-right font-bold">{day.total_orders}</td>
                   <td className="px-4 py-3 text-right font-bold">{day.total_units}</td>
                   <td className="px-4 py-3">
@@ -200,11 +192,6 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
                         <Eye className="h-3.5 w-3.5" />
                         Ver
                       </button>
-                      {day.status === 'ready_to_close' && (
-                        <button type="button" onClick={() => closeDay(day)} disabled={closingDate === day.operational_date} className="rounded-lg border border-amber-300 px-2 py-1 text-xs font-black text-amber-700 hover:bg-amber-50 disabled:opacity-60">
-                          Cerrar
-                        </button>
-                      )}
                       <button type="button" onClick={() => downloadExcel(day)} className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2 py-1 text-xs font-black text-slate-700 hover:bg-slate-50">
                         <Download className="h-3.5 w-3.5" />
                         Excel
