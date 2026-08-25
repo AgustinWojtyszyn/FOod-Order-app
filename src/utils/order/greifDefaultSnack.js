@@ -23,7 +23,10 @@ export const isGreifRefrigerioMenuItem = (item = {}) =>
   normalizeLabel(item?.name || item?.title || item?.description || item?.label) === normalizeLabel(GREIF_REFRIGERIO_LABEL)
 
 export const withGreifRefrigerioMenuItem = ({
+  companySlug = '',
   items = []
 } = {}) => {
-  return Array.isArray(items) ? items.filter(Boolean) : []
+  const safeItems = Array.isArray(items) ? items.filter(Boolean) : []
+  if (!isGreifCompany(companySlug)) return safeItems
+  return safeItems.filter((item) => !isGreifRefrigerioMenuItem(item))
 }

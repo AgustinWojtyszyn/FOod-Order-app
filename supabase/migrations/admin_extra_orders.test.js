@@ -97,6 +97,10 @@ const adminExtraHistoryByDeliveryDateMigration = readFileSync(
   new URL('./20260825103000_admin_extra_history_by_delivery_date.sql', import.meta.url),
   'utf8'
 )
+const removeGreifRefrigerioMenuOptionMigration = readFileSync(
+  new URL('./20260825110000_remove_greif_refrigerio_menu_option.sql', import.meta.url),
+  'utf8'
+)
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
 describe('admin extra orders migration', () => {
@@ -473,6 +477,16 @@ describe('admin extra orders migration', () => {
     expect(adminExtraAllCompaniesMigration).toContain('from public.order_locations loc')
     expect(adminExtraAllCompaniesMigration).not.toContain('else false')
     expect(gitignore).toContain('!supabase/migrations/20260825100000_enable_admin_extra_all_companies.sql')
+  })
+
+  it('removes Refrigerio as a Greif menu option without touching orders or remitos', () => {
+    expect(removeGreifRefrigerioMenuOptionMigration).toContain('delete from public.menu_items')
+    expect(removeGreifRefrigerioMenuOptionMigration).toContain("lower(trim(coalesce(company_slug, ''))) = 'greif'")
+    expect(removeGreifRefrigerioMenuOptionMigration).toContain(") = 'refrigerio'")
+    expect(removeGreifRefrigerioMenuOptionMigration).not.toContain('delete from public.orders')
+    expect(removeGreifRefrigerioMenuOptionMigration).not.toContain('update public.orders')
+    expect(removeGreifRefrigerioMenuOptionMigration).not.toContain('company_remitos')
+    expect(gitignore).toContain('!supabase/migrations/20260825110000_remove_greif_refrigerio_menu_option.sql')
   })
 
   it('shows admin extra history retroactively by delivery date', () => {

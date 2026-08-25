@@ -48,6 +48,7 @@ dist-ssr
 !supabase/migrations/20260824153000_remove_greif_auto_refrigerio_response.sql
 !supabase/migrations/20260825100000_enable_admin_extra_all_companies.sql
 !supabase/migrations/20260825103000_admin_extra_history_by_delivery_date.sql
+!supabase/migrations/20260825110000_remove_greif_refrigerio_menu_option.sql
 !supabase/diagnostics/*.sql
 # Python
 __pycache__/

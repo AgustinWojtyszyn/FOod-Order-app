@@ -17,9 +17,15 @@ describe('Greif refrigerio menu option', () => {
     expect(molinosItems).toEqual(menuItems)
   })
 
-  it('keeps existing menu items without adding another Refrigerio', () => {
+  it('removes existing Refrigerio menu items for Greif', () => {
     const sourceItems = [...menuItems, { id: 'refrigerio', name: 'Refrigerio' }]
 
-    expect(withGreifRefrigerioMenuItem({ companySlug: 'greif', items: sourceItems })).toEqual(sourceItems)
+    expect(withGreifRefrigerioMenuItem({ companySlug: 'greif', items: sourceItems })).toEqual(menuItems)
+  })
+
+  it('does not remove Refrigerio from other companies', () => {
+    const sourceItems = [...menuItems, { id: 'refrigerio', name: 'Refrigerio' }]
+
+    expect(withGreifRefrigerioMenuItem({ companySlug: 'molinos', items: sourceItems })).toEqual(sourceItems)
   })
 })
