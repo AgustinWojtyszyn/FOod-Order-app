@@ -477,6 +477,7 @@ describe('admin extra orders migration', () => {
 
   it('shows admin extra history retroactively by delivery date', () => {
     expect(adminExtraHistoryByDeliveryDateMigration).toContain('create or replace function public.get_late_admin_extra_history_days')
+    expect(adminExtraHistoryByDeliveryDateMigration).toContain('drop function if exists public.get_late_admin_extra_history_for_day(date)')
     expect(adminExtraHistoryByDeliveryDateMigration).toContain('create or replace function public.get_late_admin_extra_history_for_day')
     expect(adminExtraHistoryByDeliveryDateMigration).toContain('from public.orders o')
     expect(adminExtraHistoryByDeliveryDateMigration).toContain("lower(coalesce(o.order_origin, '')) = 'admin_extra'")
