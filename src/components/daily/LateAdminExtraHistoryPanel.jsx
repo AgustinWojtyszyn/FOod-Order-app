@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Download, Eye, RefreshCw, X } from 'lucide-react'
+import { CheckCircle2, Download, Eye, RefreshCw, X } from 'lucide-react'
 import { db } from '../../supabaseClient'
 import { notifyError, notifySuccess } from '../../utils/notice'
 import { getUserFriendlyErrorMessage } from '../../utils'
@@ -26,18 +26,34 @@ const formatDateTime = (value = '') => {
   }).format(date)
 }
 
+const formatDateTimeFull = (value = '') => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return new Intl.DateTimeFormat('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date)
+}
+
 const getStatusBadge = (status = '') => {
-  if (status === 'history') return 'bg-blue-50 text-blue-700 border-blue-200'
   if (status === 'closed') return 'bg-emerald-50 text-emerald-700 border-emerald-200'
-  if (status === 'ready_to_close') return 'bg-amber-50 text-amber-700 border-amber-200'
   return 'bg-blue-50 text-blue-700 border-blue-200'
 }
 
 const getStatusLabel = (status = '') => {
-  if (status === 'history') return 'HISTÓRICO'
-  if (status === 'closed') return 'CERRADA'
-  if (status === 'ready_to_close') return 'LISTA PARA CERRAR'
-  return 'ABIERTA'
+  if (status === 'closed') return 'Cerrado'
+  return 'Abierto'
+}
+
+const getRowStatusLabel = (row = {}, dayStatus = '') => {
+  if (row.deleted_at) return 'Eliminado'
+  if (dayStatus === 'closed' || row.historical_status === 'closed') return 'Incluido en cierre'
+  return 'Registrado'
 }
 
 const getDetailText = (row = {}) => {
@@ -60,6 +76,7 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
   const [detailRows, setDetailRows] = useState([])
   const [loadingDays, setLoadingDays] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [closingDate, setClosingDate] = useState('')
 
   const selectedStatus = selectedDay?.status || ''
   const selectedOperationalDate = selectedDay?.operational_date || ''
@@ -122,10 +139,6 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
       notifyError(getUserFriendlyErrorMessage(error, 'No pudimos obtener el cierre para descargar.'))
       return
     }
-    if (!closure && day.status === 'ready_to_close') {
-      notifyError('Primero generá el cierre de la jornada para descargar el Excel definitivo.')
-      return
-    }
     let rows = detailRows
     if (!closure && selectedOperationalDate !== day.operational_date) {
       const detail = await db.getLateAdminExtraHistoryForDay({ operationalDate: day.operational_date })
@@ -138,6 +151,33 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
       status: closure ? 'closed' : 'open'
     })
     notifySuccess(`Excel generado: ${fileName}`)
+  }
+
+  const closeDay = async (day) => {
+    setClosingDate(day.operational_date)
+    try {
+      const { data, error } = await db.closeLateAdminExtraOperationalDay({ operationalDate: day.operational_date })
+      if (error) {
+        notifyError(getUserFriendlyErrorMessage(error, 'No pudimos cerrar el histórico de extras.'))
+        return
+      }
+      notifySuccess('Histórico de extras cerrado.')
+      const closedDay = {
+        ...day,
+        status: 'closed',
+        closure_id: data?.id || day.closure_id,
+        closure_version: data?.version || day.closure_version,
+        closed_at: data?.closed_at || day.closed_at,
+        total_orders: data?.total_orders ?? day.total_orders,
+        total_units: data?.total_units ?? day.total_units,
+        window_started_at: data?.window_started_at || day.window_started_at,
+        window_closed_at: data?.window_closed_at || day.window_closed_at
+      }
+      setDays((prev) => prev.map((item) => item.operational_date === day.operational_date ? closedDay : item))
+      await viewDay(closedDay)
+    } finally {
+      setClosingDate('')
+    }
   }
 
   return (
@@ -178,7 +218,7 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
               {days.map((day) => (
                 <tr key={day.operational_date} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-bold text-slate-900">{formatDate(day.operational_date)}</td>
-                  <td className="px-4 py-3 text-slate-600">Fecha de entrega seleccionada</td>
+                  <td className="px-4 py-3 text-slate-600">{formatDateTimeFull(day.window_started_at)} → {formatDateTimeFull(day.window_closed_at)}</td>
                   <td className="px-4 py-3 text-right font-bold">{day.total_orders}</td>
                   <td className="px-4 py-3 text-right font-bold">{day.total_units}</td>
                   <td className="px-4 py-3">
@@ -192,6 +232,12 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
                         <Eye className="h-3.5 w-3.5" />
                         Ver
                       </button>
+                      {day.status !== 'closed' && (
+                        <button type="button" onClick={() => closeDay(day)} disabled={closingDate === day.operational_date} className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 px-2 py-1 text-xs font-black text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Cerrar
+                        </button>
+                      )}
                       <button type="button" onClick={() => downloadExcel(day)} className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2 py-1 text-xs font-black text-slate-700 hover:bg-slate-50">
                         <Download className="h-3.5 w-3.5" />
                         Excel
@@ -214,9 +260,16 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
-              <h3 className="text-lg font-black text-slate-900">Detalle {formatDate(selectedOperationalDate)}</h3>
-              <p className="text-sm font-semibold text-slate-600">
-                {getStatusLabel(selectedStatus)} · {selectedTotals.orders} pedidos · {selectedTotals.units} viandas
+              <h3 className="text-lg font-black text-slate-900">{formatDate(selectedOperationalDate)}</h3>
+              <div className="mt-1 flex flex-wrap gap-2 text-sm font-semibold text-slate-600">
+                <span>{selectedTotals.orders} pedidos</span>
+                <span>{selectedTotals.units} viandas</span>
+                <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-black ${getStatusBadge(selectedStatus)}`}>
+                  {getStatusLabel(selectedStatus)}
+                </span>
+              </div>
+              <p className="mt-2 text-sm font-semibold text-slate-700">
+                Ventana operativa: {formatDateTimeFull(selectedDay.window_started_at)} → {formatDateTimeFull(selectedDay.window_closed_at)}
               </p>
             </div>
             <button type="button" onClick={() => setSelectedDay(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
@@ -231,6 +284,7 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
                 <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                   <tr>
                     <th className="px-3 py-2 text-left">Carga</th>
+                    <th className="px-3 py-2 text-left">Entrega</th>
                     <th className="px-3 py-2 text-left">Empresa</th>
                     <th className="px-3 py-2 text-left">Sede</th>
                     <th className="px-3 py-2 text-left">Detalle</th>
@@ -243,6 +297,7 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
                   {detailRows.map((row) => (
                     <tr key={row.id} className={row.deleted_at ? 'bg-red-50/60' : ''}>
                       <td className="px-3 py-2 text-slate-600">{formatDateTime(row.created_at)}</td>
+                      <td className="px-3 py-2 text-slate-700">{formatDate(row.delivery_date || row.operational_date)}</td>
                       <td className="px-3 py-2 font-semibold text-slate-900">{row.company_name || row.company_slug || '-'}</td>
                       <td className="px-3 py-2 text-slate-700">{row.location || row.delivery_location || '-'}</td>
                       <td className="max-w-md px-3 py-2 text-slate-700">{getDetailText(row)}</td>
@@ -252,7 +307,7 @@ const LateAdminExtraHistoryPanel = ({ operationalDate = '' }) => {
                         {row.deleted_at ? (
                           <span className="font-black text-red-700">Eliminado</span>
                         ) : (
-                          <span className="font-black text-emerald-700">Activo histórico</span>
+                          <span className="font-black text-emerald-700">{getRowStatusLabel(row, selectedStatus)}</span>
                         )}
                       </td>
                     </tr>

@@ -86,32 +86,41 @@ begin
     select * from active_orders
     union all
     select * from deleted_orders
+  ),
+  grouped as (
+    select
+      r.delivery_date,
+      count(*)::integer as total_orders,
+      coalesce(sum(r.total_items), 0)::integer as total_units,
+      count(*) filter (where r.deleted)::integer as deleted_orders
+    from rows r
+    where r.delivery_date is not null
+    group by r.delivery_date
   )
   select
-    r.delivery_date as operational_date,
+    g.delivery_date as operational_date,
     make_timestamptz(
-      extract(year from r.delivery_date)::integer,
-      extract(month from r.delivery_date)::integer,
-      extract(day from r.delivery_date)::integer,
-      0, 0, 0, 'America/Argentina/Buenos_Aires'
+      extract(year from (g.delivery_date - 1))::integer,
+      extract(month from (g.delivery_date - 1))::integer,
+      extract(day from (g.delivery_date - 1))::integer,
+      22, 0, 0, 'America/Argentina/Buenos_Aires'
     ) as window_started_at,
     make_timestamptz(
-      extract(year from (r.delivery_date + 1))::integer,
-      extract(month from (r.delivery_date + 1))::integer,
-      extract(day from (r.delivery_date + 1))::integer,
-      0, 0, 0, 'America/Argentina/Buenos_Aires'
+      extract(year from g.delivery_date)::integer,
+      extract(month from g.delivery_date)::integer,
+      extract(day from g.delivery_date)::integer,
+      18, 0, 0, 'America/Argentina/Buenos_Aires'
     ) as window_closed_at,
-    count(*)::integer as total_orders,
-    coalesce(sum(r.total_items), 0)::integer as total_units,
-    count(*) filter (where r.deleted)::integer as deleted_orders,
-    'history'::text as status,
-    null::uuid as closure_id,
-    null::integer as closure_version,
-    null::timestamptz as closed_at
-  from rows r
-  where r.delivery_date is not null
-  group by r.delivery_date
-  order by r.delivery_date desc;
+    g.total_orders,
+    g.total_units,
+    g.deleted_orders,
+    case when c.id is not null then 'closed' else 'open' end as status,
+    c.id as closure_id,
+    c.version as closure_version,
+    c.closed_at
+  from grouped g
+  left join public.late_admin_extra_order_closures c on c.operational_date = g.delivery_date
+  order by g.delivery_date desc;
 end;
 $$;
 
@@ -162,19 +171,62 @@ begin
   if p_operational_date is null then raise exception 'operational_date_required'; end if;
 
   return query
-  with bounds as (
+  with existing_closure as (
+    select c.*
+    from public.late_admin_extra_order_closures c
+    where c.operational_date = p_operational_date
+    limit 1
+  ),
+  closed_rows as (
     select
+      (row_data->>'id')::uuid as id,
+      nullif(row_data->>'order_id', '')::uuid as order_id,
+      (row_data->>'operational_date')::date as operational_date,
+      (row_data->>'delivery_date')::date as delivery_date,
+      (row_data->>'window_started_at')::timestamptz as window_started_at,
+      (row_data->>'window_closed_at')::timestamptz as window_closed_at,
+      (row_data->>'created_at')::timestamptz as created_at,
+      nullif(row_data->>'created_by', '')::uuid as created_by,
+      row_data->>'created_by_email' as created_by_email,
+      row_data->>'created_by_name' as created_by_name,
+      row_data->>'company_slug' as company_slug,
+      row_data->>'company_name' as company_name,
+      row_data->>'location' as location,
+      row_data->>'delivery_location' as delivery_location,
+      row_data->>'location_key' as location_key,
+      row_data->>'service' as service,
+      coalesce((row_data->>'total_items')::integer, 0) as total_items,
+      coalesce(row_data->'detail', '{}'::jsonb) as detail,
+      coalesce(row_data->'order_snapshot', '{}'::jsonb) as order_snapshot,
+      'closed'::text as historical_status,
+      nullif(row_data->>'deleted_at', '')::timestamptz as deleted_at,
+      nullif(row_data->>'deleted_by', '')::uuid as deleted_by,
+      row_data->>'deleted_by_email' as deleted_by_email,
+      row_data->>'deleted_by_name' as deleted_by_name,
+      row_data->>'deleted_reason' as deleted_reason,
+      row_data->>'create_request_id' as create_request_id,
+      row_data->>'delete_request_id' as delete_request_id,
+      nullif(row_data->>'create_audit_log_id', '')::uuid as create_audit_log_id,
+      nullif(row_data->>'delete_audit_log_id', '')::uuid as delete_audit_log_id,
+      coalesce(row_data->>'source', 'closed_snapshot') as source,
+      coalesce(nullif(row_data->>'created_record_at', '')::timestamptz, (row_data->>'created_at')::timestamptz) as created_record_at,
+      coalesce(nullif(row_data->>'updated_at', '')::timestamptz, (select closed_at from existing_closure)) as updated_at
+    from existing_closure c
+    cross join lateral jsonb_array_elements(coalesce(c.snapshot->'rows', '[]'::jsonb)) as rows(row_data)
+  ),
+  bounds as (
+    select
+      make_timestamptz(
+        extract(year from (p_operational_date - 1))::integer,
+        extract(month from (p_operational_date - 1))::integer,
+        extract(day from (p_operational_date - 1))::integer,
+        22, 0, 0, 'America/Argentina/Buenos_Aires'
+      ) as started_at,
       make_timestamptz(
         extract(year from p_operational_date)::integer,
         extract(month from p_operational_date)::integer,
         extract(day from p_operational_date)::integer,
-        0, 0, 0, 'America/Argentina/Buenos_Aires'
-      ) as started_at,
-      make_timestamptz(
-        extract(year from (p_operational_date + 1))::integer,
-        extract(month from (p_operational_date + 1))::integer,
-        extract(day from (p_operational_date + 1))::integer,
-        0, 0, 0, 'America/Argentina/Buenos_Aires'
+        18, 0, 0, 'America/Argentina/Buenos_Aires'
       ) as closed_at
   ),
   active_orders as (
@@ -198,7 +250,7 @@ begin
       coalesce(o.total_items, public.late_admin_extra_order_units(to_jsonb(o)), 0)::integer as total_items,
       public.late_admin_extra_order_snapshot_detail(to_jsonb(o)) as detail,
       to_jsonb(o) as order_snapshot,
-      'created'::text as historical_status,
+      'registered'::text as historical_status,
       null::timestamptz as deleted_at,
       null::uuid as deleted_by,
       null::text as deleted_by_email,
@@ -293,10 +345,108 @@ begin
         where o.id::text = coalesce(a.metadata->>'order_id', a.metadata->'snapshot'->>'id', '')
       )
   )
+  select * from closed_rows
+  union all
   select * from active_orders
+  where not exists (select 1 from existing_closure)
   union all
   select * from deleted_orders
+  where not exists (select 1 from existing_closure)
   order by created_at asc, id asc;
+end;
+$$;
+
+drop function if exists public.close_late_admin_extra_operational_day(date);
+
+create or replace function public.close_late_admin_extra_operational_day(p_operational_date date)
+returns public.late_admin_extra_order_closures
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_existing public.late_admin_extra_order_closures%rowtype;
+  v_result public.late_admin_extra_order_closures%rowtype;
+  v_actor public.users;
+  v_window_started_at timestamptz;
+  v_window_closed_at timestamptz;
+  v_snapshot jsonb;
+  v_total_orders integer := 0;
+  v_total_units integer := 0;
+begin
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+  if not public.can_manage_late_extra_history(auth.uid()) then raise exception 'not_authorized'; end if;
+  if p_operational_date is null then raise exception 'operational_date_required'; end if;
+
+  select *
+  into v_existing
+  from public.late_admin_extra_order_closures
+  where operational_date = p_operational_date
+  for update;
+
+  if found then
+    return v_existing;
+  end if;
+
+  v_window_started_at := make_timestamptz(
+    extract(year from (p_operational_date - 1))::integer,
+    extract(month from (p_operational_date - 1))::integer,
+    extract(day from (p_operational_date - 1))::integer,
+    22, 0, 0, 'America/Argentina/Buenos_Aires'
+  );
+  v_window_closed_at := make_timestamptz(
+    extract(year from p_operational_date)::integer,
+    extract(month from p_operational_date)::integer,
+    extract(day from p_operational_date)::integer,
+    18, 0, 0, 'America/Argentina/Buenos_Aires'
+  );
+
+  select * into v_actor from public.users where id = auth.uid();
+
+  with rows as (
+    select *
+    from public.get_late_admin_extra_history_for_day(p_operational_date)
+  )
+  select
+    count(*)::integer,
+    coalesce(sum(total_items), 0)::integer,
+    jsonb_build_object(
+      'delivery_date', p_operational_date,
+      'window_started_at', v_window_started_at,
+      'window_closed_at', v_window_closed_at,
+      'closed_at', now(),
+      'closed_by', auth.uid(),
+      'closed_by_email', v_actor.email,
+      'rows', coalesce(jsonb_agg(to_jsonb(rows) order by rows.created_at, rows.id), '[]'::jsonb)
+    )
+  into v_total_orders, v_total_units, v_snapshot
+  from rows;
+
+  insert into public.late_admin_extra_order_closures (
+    operational_date,
+    window_started_at,
+    window_closed_at,
+    closed_by,
+    closed_by_email,
+    total_orders,
+    total_units,
+    snapshot,
+    version
+  )
+  values (
+    p_operational_date,
+    v_window_started_at,
+    v_window_closed_at,
+    auth.uid(),
+    v_actor.email,
+    v_total_orders,
+    v_total_units,
+    coalesce(v_snapshot, jsonb_build_object('rows', '[]'::jsonb)),
+    1
+  )
+  returning * into v_result;
+
+  return v_result;
 end;
 $$;
 
@@ -305,3 +455,6 @@ grant execute on function public.get_late_admin_extra_history_days(date, date) t
 
 revoke all on function public.get_late_admin_extra_history_for_day(date) from public, anon;
 grant execute on function public.get_late_admin_extra_history_for_day(date) to authenticated;
+
+revoke all on function public.close_late_admin_extra_operational_day(date) from public, anon;
+grant execute on function public.close_late_admin_extra_operational_day(date) to authenticated;

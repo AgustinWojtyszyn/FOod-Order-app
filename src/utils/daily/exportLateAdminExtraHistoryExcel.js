@@ -33,6 +33,17 @@ const formatDateTime = (value = '') => {
   }).format(date)
 }
 
+const formatTime = (value = '') => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return new Intl.DateTimeFormat('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date)
+}
+
 const formatFileDate = (value = '') => formatDate(value).replaceAll('/', '-') || String(value || 'sin_fecha')
 
 const normalizeRows = ({ closure = null, rows = [] } = {}) => {
@@ -95,6 +106,7 @@ const buildWorkbook = ({ operationalDate, rows = [], closure = null, status = 'o
   const totalUnits = Number(closure?.total_units ?? closure?.totalUnits ?? normalizedRows.reduce((sum, row) => sum + Number(row.total_items || 0), 0))
   const windowStartedAt = closure?.window_started_at || closure?.windowStartedAt || normalizedRows[0]?.window_started_at || ''
   const windowClosedAt = closure?.window_closed_at || closure?.windowClosedAt || normalizedRows[0]?.window_closed_at || ''
+  const closureStatus = status === 'closed' ? 'Cerrado' : 'Abierto'
 
   const summary = workbook.addWorksheet('Resumen')
   summary.columns = [
@@ -102,11 +114,14 @@ const buildWorkbook = ({ operationalDate, rows = [], closure = null, status = 'o
     { header: 'Valor', key: 'valor', width: 58 }
   ]
   summary.addRows([
-    { concepto: 'PEDIDOS EXTRA - CIERRE OPERATIVO', valor: status === 'closed' ? 'CERRADO' : 'ABIERTA / VISTA PREVIA' },
-    { concepto: 'Jornada', valor: formatDate(operationalDate) },
-    { concepto: 'Ventana', valor: `${formatDateTime(windowStartedAt)} -> ${formatDateTime(windowClosedAt)}` },
-    { concepto: 'Total pedidos extra', valor: totalOrders },
-    { concepto: 'Total unidades/viandas', valor: totalUnits }
+    { concepto: 'HISTÓRICO DE EXTRAS', valor: closureStatus },
+    { concepto: 'Fecha de entrega', valor: formatDate(operationalDate) },
+    { concepto: 'Inicio ventana operativa', valor: formatDateTime(windowStartedAt) },
+    { concepto: 'Fin ventana operativa', valor: formatDateTime(windowClosedAt) },
+    { concepto: 'Ventana operativa', valor: `${formatDateTime(windowStartedAt)} -> ${formatDateTime(windowClosedAt)}` },
+    { concepto: 'Pedidos extra', valor: totalOrders },
+    { concepto: 'Viandas', valor: totalUnits },
+    { concepto: 'Estado del cierre', valor: closureStatus }
   ])
   summary.eachRow((row) => {
     row.eachCell((cell) => {
@@ -120,12 +135,12 @@ const buildWorkbook = ({ operationalDate, rows = [], closure = null, status = 'o
 
   const details = workbook.addWorksheet('Pedidos extra')
   details.columns = [
-    { header: 'Fecha operativa', key: 'operationalDate' },
-    { header: 'Fecha/hora de carga', key: 'createdAt' },
+    { header: 'Fecha de carga', key: 'createdDate' },
+    { header: 'Hora de carga', key: 'createdTime' },
+    { header: 'Fecha de entrega', key: 'deliveryDate' },
     { header: 'Empresa', key: 'company' },
     { header: 'Sede / ubicación', key: 'location' },
-    { header: 'Servicio', key: 'service' },
-    { header: 'Detalle del pedido', key: 'detail' },
+    { header: 'Detalle', key: 'detail' },
     { header: 'Cantidad', key: 'quantity' },
     { header: 'Cargado por', key: 'createdBy' },
     { header: 'Estado', key: 'status' },
@@ -134,15 +149,19 @@ const buildWorkbook = ({ operationalDate, rows = [], closure = null, status = 'o
     { header: 'Motivo eliminación', key: 'deletedReason' }
   ]
   details.addRows(normalizedRows.map((row) => ({
-    operationalDate: formatDate(row.operational_date || row.operationalDate || operationalDate),
-    createdAt: formatDateTime(row.created_at || row.createdAt),
+    createdDate: formatDate(row.created_at || row.createdAt),
+    createdTime: formatTime(row.created_at || row.createdAt),
+    deliveryDate: formatDate(row.delivery_date || row.deliveryDate || row.operational_date || row.operationalDate || operationalDate),
     company: row.company_name || row.companyName || row.company_slug || row.companySlug || '',
     location: row.location || row.delivery_location || row.deliveryLocation || '',
-    service: row.service || '',
     detail: getItemsDetail(row),
     quantity: Number(row.total_items ?? row.totalItems ?? 0),
     createdBy: row.created_by_name || row.createdByName || row.created_by_email || row.createdByEmail || '',
-    status: row.historical_status || row.historicalStatus || '',
+    status: row.deleted_at || row.deletedAt
+      ? 'Eliminado'
+      : status === 'closed' || row.historical_status === 'closed' || row.historicalStatus === 'closed'
+        ? 'Incluido en cierre'
+        : 'Registrado',
     deleted: row.deleted_at || row.deletedAt ? 'Sí' : 'No',
     deletedBy: row.deleted_by_name || row.deletedByName || row.deleted_by_email || row.deletedByEmail || '',
     deletedReason: row.deleted_reason || row.deletedReason || ''
