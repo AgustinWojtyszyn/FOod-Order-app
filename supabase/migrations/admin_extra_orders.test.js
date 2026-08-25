@@ -89,6 +89,10 @@ const removeGreifAutoRefrigerioMigration = readFileSync(
   new URL('./20260824153000_remove_greif_auto_refrigerio_response.sql', import.meta.url),
   'utf8'
 )
+const adminExtraAllCompaniesMigration = readFileSync(
+  new URL('./20260825100000_enable_admin_extra_all_companies.sql', import.meta.url),
+  'utf8'
+)
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
 describe('admin extra orders migration', () => {
@@ -454,6 +458,17 @@ describe('admin extra orders migration', () => {
     expect(removeGreifAutoRefrigerioMigration).not.toContain('insert into public.orders')
     expect(removeGreifAutoRefrigerioMigration).not.toContain('company_remitos')
     expect(gitignore).toContain('!supabase/migrations/20260824153000_remove_greif_auto_refrigerio_response.sql')
+  })
+
+  it('allows admin extra orders for all configured companies including Greif', () => {
+    expect(adminExtraAllCompaniesMigration).toContain('create or replace function public.admin_extra_company_location_allowed')
+    expect(adminExtraAllCompaniesMigration).toContain("('greif', 'Greif')")
+    expect(adminExtraAllCompaniesMigration).toContain("('placo', 'Placo')")
+    expect(adminExtraAllCompaniesMigration).toContain("('molinos', 'Molinos')")
+    expect(adminExtraAllCompaniesMigration).toContain('from public.companies c')
+    expect(adminExtraAllCompaniesMigration).toContain('from public.order_locations loc')
+    expect(adminExtraAllCompaniesMigration).not.toContain('else false')
+    expect(gitignore).toContain('!supabase/migrations/20260825100000_enable_admin_extra_all_companies.sql')
   })
 
   it('issues company remitos from canonical companies numbering config without duplicated range CASEs', () => {

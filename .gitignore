@@ -46,6 +46,7 @@ dist-ssr
 !supabase/migrations/20260824143000_order_label_print_tracking.sql
 !supabase/migrations/20260824150000_backfill_greif_default_refrigerio.sql
 !supabase/migrations/20260824153000_remove_greif_auto_refrigerio_response.sql
+!supabase/migrations/20260825100000_enable_admin_extra_all_companies.sql
 !supabase/diagnostics/*.sql
 # Python
 __pycache__/
