@@ -45,6 +45,11 @@
   display: none;
 }
 
+@page {
+  size: 100mm 50mm;
+  margin: 0;
+}
+
 .sf-label-card {
   display: flex;
   box-sizing: border-box;
@@ -165,6 +170,14 @@
 
   #labels-print-root {
     display: block !important;
+    box-sizing: border-box !important;
+    width: 100mm !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
   }
 
   body:not(.labels-print-mode) #labels-print-root,
@@ -242,13 +255,13 @@
     transform-origin: initial !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
-    break-after: page !important;
-    page-break-after: always !important;
-  }
-
-  .print-label:last-child {
     break-after: auto !important;
     page-break-after: auto !important;
+  }
+
+  .print-label--has-next {
+    break-after: page !important;
+    page-break-after: always !important;
   }
 
   .print-label .label-content {

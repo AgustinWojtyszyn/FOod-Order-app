@@ -105,9 +105,6 @@ const OrderLabelsPreview = ({
   const { width, height, safeArea, contentWidth, contentHeight } = labelGeometry
   const approxSheets = printFormat === 'a4' ? estimateA4Sheets(labels.length, a4Columns) : labels.length
   const previewModeClass = printFormat === 'thermal' ? 'labels-preview-thermal' : 'labels-preview-a4'
-  const printPageSize = printFormat === 'thermal'
-    ? `${width}mm ${height}mm`
-    : 'A4'
 
   const measureDiagnostics = useCallback(() => {
     if (!diagnosticsEnabled || !previewRef.current) return
@@ -162,27 +159,46 @@ const OrderLabelsPreview = ({
     }))
   }
 
+  const previewStyle = {
+    '--label-a4-columns': a4Columns,
+    '--thermal-label-width': `${width}mm`,
+    '--thermal-label-height': `${height}mm`,
+    '--thermal-label-safe-left': `${safeArea.left}mm`,
+    '--thermal-label-safe-right': `${safeArea.right}mm`,
+    '--thermal-label-safe-top': `${safeArea.top}mm`,
+    '--thermal-label-safe-bottom': `${safeArea.bottom}mm`,
+    '--thermal-label-content-width': `${contentWidth}mm`,
+    '--thermal-label-content-height': `${contentHeight}mm`
+  }
+
+  const renderLabel = (label, index) => {
+    const hasNext = index < labels.length - 1
+
+    return (
+      <div className={`print-label${hasNext ? ' print-label--has-next' : ''}`} key={label.labelInstanceId}>
+        <div className="label-content">
+          <OrderLabelCard label={label} />
+          {diagnosticsEnabled && (
+            <pre className="label-diagnostics-panel" aria-hidden="true">
+              {formatDiagnostics({
+                ...(diagnostics.find((item) => item.index === index + 1) || { index: index + 1 }),
+                expectedWidth: width,
+                expectedHeight: height,
+                safeArea
+              }).join('\n')}
+            </pre>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   const preview = (
     <section
-      id={screenHidden ? 'labels-print-root' : undefined}
       ref={previewRef}
-      className={`labels-preview-root ${previewModeClass}${screenHidden ? ' labels-print-root-screen-hidden' : ''}${diagnosticsEnabled ? ' labels-diagnostics-enabled' : ''}`}
-      style={{
-        '--label-a4-columns': a4Columns,
-        '--thermal-label-width': `${width}mm`,
-        '--thermal-label-height': `${height}mm`,
-        '--thermal-label-safe-left': `${safeArea.left}mm`,
-        '--thermal-label-safe-right': `${safeArea.right}mm`,
-        '--thermal-label-safe-top': `${safeArea.top}mm`,
-        '--thermal-label-safe-bottom': `${safeArea.bottom}mm`,
-        '--thermal-label-content-width': `${contentWidth}mm`,
-        '--thermal-label-content-height': `${contentHeight}mm`
-      }}
+      className={`labels-preview-root ${previewModeClass}${diagnosticsEnabled ? ' labels-diagnostics-enabled' : ''}`}
+      style={previewStyle}
     >
-      <style media="print">
-        {`@page { size: ${printPageSize}; margin: 0; }`}
-      </style>
-
       {showControls && (
       <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/50 print-hide">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -251,29 +267,23 @@ const OrderLabelsPreview = ({
       )}
 
       <div className={`labels-print-surface labels-print-container ${printFormat === 'thermal' ? 'labels-print-thermal' : 'labels-print-a4'}`}>
-        {labels.map((label, index) => (
-          <div className="print-label" key={label.labelInstanceId}>
-            <div className="label-content">
-              <OrderLabelCard label={label} />
-              {diagnosticsEnabled && (
-                <pre className="label-diagnostics-panel" aria-hidden="true">
-                  {formatDiagnostics({
-                    ...(diagnostics.find((item) => item.index === index + 1) || { index: index + 1 }),
-                    expectedWidth: width,
-                    expectedHeight: height,
-                    safeArea
-                  }).join('\n')}
-                </pre>
-              )}
-            </div>
-          </div>
-        ))}
+        {labels.map(renderLabel)}
       </div>
     </section>
   )
 
   if (screenHidden && typeof document !== 'undefined') {
-    return createPortal(preview, document.body)
+    return createPortal(
+      <div
+        id="labels-print-root"
+        ref={previewRef}
+        className={`labels-preview-root labels-print-root-screen-hidden labels-print-thermal${diagnosticsEnabled ? ' labels-diagnostics-enabled' : ''}`}
+        style={previewStyle}
+      >
+        {labels.map(renderLabel)}
+      </div>,
+      document.body
+    )
   }
 
   return preview
