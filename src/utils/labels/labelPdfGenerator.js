@@ -151,36 +151,17 @@ export const printOrderLabelsPdf = (orders = [], copiesByOrderId = {}) => {
     const { pdf, labels } = createOrderLabelsPdfDocument(orders, copiesByOrderId)
     if (labels.length === 0) return { labels, pdf: null, error: null }
 
+    pdf.autoPrint({ variant: 'non-conform' })
     const blob = pdf.output('blob')
     const url = URL.createObjectURL(blob)
-    const iframe = document.createElement('iframe')
-    iframe.title = 'Etiquetas ServiFood'
-    iframe.style.position = 'fixed'
-    iframe.style.right = '0'
-    iframe.style.bottom = '0'
-    iframe.style.width = '0'
-    iframe.style.height = '0'
-    iframe.style.border = '0'
 
-    const cleanup = () => {
-      setTimeout(() => {
-        iframe.remove()
-        URL.revokeObjectURL(url)
-      }, 1000)
+    const pdfWindow = window.open(url, '_blank', 'noopener,noreferrer')
+    if (!pdfWindow) {
+      URL.revokeObjectURL(url)
+      return { labels, pdf, error: new Error('No se pudo abrir el PDF de etiquetas.') }
     }
 
-    iframe.onload = () => {
-      try {
-        const printWindow = iframe.contentWindow
-        printWindow?.focus()
-        printWindow?.print()
-      } finally {
-        cleanup()
-      }
-    }
-
-    iframe.src = url
-    document.body.appendChild(iframe)
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
     return { labels, pdf, error: null }
   } catch (error) {
     return { labels: [], pdf: null, error }

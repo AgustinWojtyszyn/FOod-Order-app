@@ -67,7 +67,11 @@ describe('order labels print flow', () => {
     expect(pdfSource).toContain('format: LABEL_PDF_PAGE_SIZE_MM')
     expect(pdfSource).toContain("orientation: 'landscape'")
     expect(pdfSource).toContain('pdf.addPage(LABEL_PDF_PAGE_SIZE_MM, \'landscape\')')
+    expect(pdfSource).toContain("pdf.autoPrint({ variant: 'non-conform' })")
+    expect(pdfSource).toContain("window.open(url, '_blank', 'noopener,noreferrer')")
     expect(pdfSource).not.toContain('window.print()')
+    expect(pdfSource).not.toContain('createElement(\'iframe\')')
+    expect(pdfSource).not.toContain('contentWindow')
   })
 
   it('separates printed and pending labels and keeps printed labels reprintable', () => {
