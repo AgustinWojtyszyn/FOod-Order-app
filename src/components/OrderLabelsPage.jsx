@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Printer, Tag, X } from 'lucide-react'
 import { useAuthContext } from '../contexts/authContextValue'
 import OrderLabelsFilters from './labels/OrderLabelsFilters'
@@ -20,6 +21,7 @@ const OrderLabelsPage = () => {
   const [printBatch, setPrintBatch] = useState([])
   const pendingPrintedIdsRef = useRef([])
   const printRequestedRef = useRef(false)
+  const printFrameRef = useRef(null)
 
   const labels = useOrderLabels({ isAdmin, isCompanyAdmin, adminCompanies })
 
@@ -31,7 +33,10 @@ const OrderLabelsPage = () => {
     }
     pendingPrintedIdsRef.current = [...new Set(safeOrders.map(order => order.id))]
     printRequestedRef.current = true
-    setPrintBatch(safeOrders)
+    flushSync(() => {
+      setPrintBatch(safeOrders)
+    })
+    document.body.classList.add('labels-print-mode')
     labels.setPrintWarning('')
   }, [labels])
 
@@ -42,20 +47,36 @@ const OrderLabelsPage = () => {
   const cleanupPrintState = useCallback(() => {
     printRequestedRef.current = false
     pendingPrintedIdsRef.current = []
+    if (printFrameRef.current) {
+      window.cancelAnimationFrame(printFrameRef.current)
+      printFrameRef.current = null
+    }
     setPrintBatch([])
     document.body.classList.remove('labels-print-mode')
   }, [])
 
   useEffect(() => {
     if (!printRequestedRef.current || printBatch.length === 0) return
-    document.body.classList.add('labels-print-mode')
-    const frame = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
+    printFrameRef.current = window.requestAnimationFrame(() => {
+      printFrameRef.current = window.requestAnimationFrame(() => {
+        const printRoot = document.getElementById('labels-print-root')
+        const mountedLabels = printRoot?.querySelectorAll('.print-label')?.length || 0
+        if (!printRoot || mountedLabels === 0) {
+          labels.setPrintWarning('No se pudo montar el lote de etiquetas para imprimir. Intentá nuevamente.')
+          cleanupPrintState()
+          return
+        }
+        printFrameRef.current = null
         window.print()
       })
     })
-    return () => window.cancelAnimationFrame(frame)
-  }, [printBatch])
+    return () => {
+      if (printFrameRef.current) {
+        window.cancelAnimationFrame(printFrameRef.current)
+        printFrameRef.current = null
+      }
+    }
+  }, [cleanupPrintState, labels, printBatch])
 
   useEffect(() => {
     const handleAfterPrint = () => {

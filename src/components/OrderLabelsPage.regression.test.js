@@ -5,6 +5,7 @@ import {
   DEFAULT_THERMAL_LABEL_SIZE,
   getThermalLabelContentGeometry
 } from './labels/labelPrintConfig'
+import { expandLabelsForCopies } from '../utils/labels/labelOrderUtils'
 
 const pageSource = readFileSync(new URL('./OrderLabelsPage.jsx', import.meta.url), 'utf8')
 const previewSource = readFileSync(new URL('./labels/OrderLabelsPreview.jsx', import.meta.url), 'utf8')
@@ -17,6 +18,12 @@ describe('order labels print flow', () => {
     expect(pageSource).toContain('window.print()')
     expect(pageSource).toContain('onClick={printSelectedLabels}')
     expect(pageSource).toContain('showControls={false}')
+    expect(pageSource).toContain("import { flushSync } from 'react-dom'")
+    expect(pageSource).toContain('flushSync(() =>')
+    expect(pageSource).toContain("document.getElementById('labels-print-root')")
+    expect(pageSource).toContain("querySelectorAll('.print-label')")
+    expect(pageSource).toContain('mountedLabels === 0')
+    expect(pageSource.indexOf('mountedLabels === 0')).toBeLessThan(pageSource.indexOf('window.print()'))
     expect(pageSource).toContain("document.body.classList.add('labels-print-mode')")
     expect(pageSource).toContain("document.body.classList.remove('labels-print-mode')")
     expect(pageSource).not.toContain('labels.markPrinted')
@@ -40,6 +47,11 @@ describe('order labels print flow', () => {
 
   it('prints each selected label as a separate page or ticket', () => {
     const geometry = getThermalLabelContentGeometry()
+    const oneOrderLabels = expandLabelsForCopies([{ id: 'order-1' }], {})
+    const fiveOrderLabels = expandLabelsForCopies(
+      [{ id: 'order-1' }, { id: 'order-2' }, { id: 'order-3' }, { id: 'order-4' }, { id: 'order-5' }],
+      {}
+    )
 
     expect(DEFAULT_THERMAL_LABEL_SIZE.width).toBe(100)
     expect(DEFAULT_THERMAL_LABEL_SIZE.height).toBe(50)
@@ -51,6 +63,8 @@ describe('order labels print flow', () => {
     expect(geometry.contentHeight).toBe(46)
     expect(geometry.rightEdge + DEFAULT_THERMAL_LABEL_SAFE_AREA_MM.right).toBe(100)
     expect(geometry.bottomEdge + DEFAULT_THERMAL_LABEL_SAFE_AREA_MM.bottom).toBe(50)
+    expect(oneOrderLabels).toHaveLength(1)
+    expect(fiveOrderLabels).toHaveLength(5)
 
     expect(cssSource).toContain('.print-label {')
     expect(cssSource).toContain('width: var(--thermal-label-width, 100mm) !important')
@@ -71,10 +85,16 @@ describe('order labels print flow', () => {
     expect(cssSource).toContain('.print-label:last-child')
     expect(cssSource).toContain('break-after: auto !important')
     expect(cssSource).not.toContain('@page')
+    expect(previewSource.match(/@page/g)).toHaveLength(1)
     expect(previewSource).toContain('{`@page { size: ${printPageSize}; margin: 0; }`}')
+    expect(previewSource).toContain("id={screenHidden ? 'labels-print-root' : undefined}")
     expect(cssSource).toContain('.labels-print-root-screen-hidden')
-    expect(cssSource).toContain('body.labels-print-mode > :not(.labels-preview-root)')
+    expect(cssSource).toContain('body.labels-print-mode > *:not(#labels-print-root)')
+    expect(cssSource).toContain('#labels-print-root')
+    expect(cssSource).toContain('display: block !important')
+    expect(cssSource).toContain('body:not(.labels-print-mode) #labels-print-root')
     expect(cssSource).not.toContain('body:has(')
+    expect(cssSource).not.toContain('visibility: hidden')
     expect(previewSource).toContain('createPortal(preview, document.body)')
     expect(previewSource).toContain('--thermal-label-safe-left')
     expect(previewSource).toContain('--thermal-label-safe-right')

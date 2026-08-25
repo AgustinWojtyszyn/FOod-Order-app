@@ -6,12 +6,11 @@
 }
 
 .labels-print-root-screen-hidden {
-  position: fixed;
-  left: -100vw;
-  top: 0;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
+  display: none;
+}
+
+#labels-print-root {
+  display: none;
 }
 
 .labels-print-a4 {
@@ -140,13 +139,12 @@
 
 @media print {
   html,
-  body,
-  #root {
+  body {
     background: #fff !important;
     box-sizing: border-box !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: auto !important;
+    width: 100mm !important;
     min-width: 0 !important;
     min-height: 0 !important;
     height: auto !important;
@@ -161,66 +159,25 @@
     box-sizing: border-box !important;
   }
 
-  .order-labels-page {
-    width: auto !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  [data-debug-component="layout"] {
-    display: block !important;
-    width: auto !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
-    background: #fff !important;
-  }
-
-  [data-debug-component="layout"] > button,
-  [data-debug-component="layout"] aside,
-  [data-debug-component="layout"] > div > :not(main),
-  [data-debug-component="layout"] > :not(div) {
+  body.labels-print-mode > *:not(#labels-print-root) {
     display: none !important;
   }
 
-  [data-debug-component="layout"] > div,
-  [data-debug-component="layout"] main,
-  [data-debug-component="layout"] main > div {
+  #labels-print-root {
     display: block !important;
-    width: auto !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
-    background: #fff !important;
   }
 
-  .order-labels-page > :not(.labels-preview-root),
+  body:not(.labels-print-mode) #labels-print-root,
   .print-hide,
   .no-print {
     display: none !important;
   }
 
-  body * {
-    visibility: hidden !important;
-  }
-
-  body.labels-print-mode > :not(.labels-preview-root) {
-    display: none !important;
-  }
-
-  .labels-preview-root,
-  .labels-preview-root * {
-    visibility: visible !important;
-  }
-
-  .labels-preview-root {
+  #labels-print-root.labels-preview-root {
     display: block !important;
     position: absolute !important;
     inset: 0 auto auto 0 !important;
-    width: auto !important;
+    width: 100mm !important;
     height: auto !important;
     min-height: 0 !important;
     margin: 0 !important;
@@ -231,9 +188,8 @@
   }
 
   .labels-print-root-screen-hidden {
-    left: 0 !important;
-    top: 0 !important;
-    width: auto !important;
+    display: block !important;
+    width: 100mm !important;
     height: auto !important;
     overflow: visible !important;
   }

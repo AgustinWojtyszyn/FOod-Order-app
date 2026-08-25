@@ -164,6 +164,7 @@ const OrderLabelsPreview = ({
 
   const preview = (
     <section
+      id={screenHidden ? 'labels-print-root' : undefined}
       ref={previewRef}
       className={`labels-preview-root ${previewModeClass}${screenHidden ? ' labels-print-root-screen-hidden' : ''}${diagnosticsEnabled ? ' labels-diagnostics-enabled' : ''}`}
       style={{
