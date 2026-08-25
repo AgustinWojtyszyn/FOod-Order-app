@@ -1,4 +1,5 @@
 import { ArrowLeft, Printer, X } from 'lucide-react'
+import { createPortal } from 'react-dom'
 import { expandLabelsForCopies } from '../../utils/labels/labelOrderUtils'
 import {
   DEFAULT_THERMAL_LABEL_SAFE_PADDING_MM,
@@ -55,7 +56,7 @@ const OrderLabelsPreview = ({
     }))
   }
 
-  return (
+  const preview = (
     <section
       className={`labels-preview-root ${previewModeClass}${screenHidden ? ' labels-print-root-screen-hidden' : ''}`}
       style={{
@@ -139,12 +140,20 @@ const OrderLabelsPreview = ({
       <div className={`labels-print-surface labels-print-container ${printFormat === 'thermal' ? 'labels-print-thermal' : 'labels-print-a4'}`}>
         {labels.map(label => (
           <div className="print-label" key={label.labelInstanceId}>
-            <OrderLabelCard label={label} />
+            <div className="label-content">
+              <OrderLabelCard label={label} />
+            </div>
           </div>
         ))}
       </div>
     </section>
   )
+
+  if (screenHidden && typeof document !== 'undefined') {
+    return createPortal(preview, document.body)
+  }
+
+  return preview
 }
 
 export default OrderLabelsPreview

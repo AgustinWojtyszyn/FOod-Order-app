@@ -36,6 +36,12 @@
   height: var(--thermal-label-height, 50mm);
 }
 
+.label-content {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+}
+
 .sf-label-card {
   display: flex;
   box-sizing: border-box;
@@ -62,11 +68,6 @@
 .print-label .sf-label-card {
   width: 100%;
   height: 100%;
-}
-
-.labels-print-thermal .sf-label-card {
-  width: var(--thermal-label-width, 100mm);
-  max-width: var(--thermal-label-width, 100mm);
 }
 
 .sf-label-header {
@@ -135,10 +136,25 @@
 
 @media print {
   html,
-  body {
+  body,
+  #root {
     background: #fff !important;
+    box-sizing: border-box !important;
     margin: 0 !important;
     padding: 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box !important;
   }
 
   .order-labels-page {
@@ -187,6 +203,10 @@
     visibility: hidden !important;
   }
 
+  body:has(> .labels-print-root-screen-hidden) > :not(.labels-preview-root) {
+    display: none !important;
+  }
+
   .labels-preview-root,
   .labels-preview-root * {
     visibility: visible !important;
@@ -194,8 +214,8 @@
 
   .labels-preview-root {
     display: block !important;
-    position: static !important;
-    inset: auto !important;
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
     width: auto !important;
     height: auto !important;
     min-height: 0 !important;
@@ -207,8 +227,8 @@
   }
 
   .labels-print-root-screen-hidden {
-    left: auto !important;
-    top: auto !important;
+    left: 0 !important;
+    top: 0 !important;
     width: auto !important;
     height: auto !important;
     overflow: visible !important;
@@ -253,9 +273,11 @@
     max-width: var(--thermal-label-width, 100mm) !important;
     max-height: var(--thermal-label-height, 50mm) !important;
     margin: 0 !important;
-    padding: var(--thermal-label-safe-padding, 2mm) !important;
+    padding: 0 !important;
+    border: 0 !important;
     overflow: hidden !important;
     transform: none !important;
+    -webkit-transform: none !important;
     transform-origin: initial !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
@@ -268,6 +290,25 @@
     page-break-after: auto !important;
   }
 
+  .print-label .label-content {
+    box-sizing: border-box !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    padding: var(--thermal-label-safe-padding, 2mm) !important;
+    overflow: hidden !important;
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    transform-origin: initial !important;
+  }
+
   .print-label .sf-label-card {
     display: flex !important;
     box-sizing: border-box !important;
@@ -278,8 +319,11 @@
     max-height: none !important;
     margin: 0 !important;
     overflow: hidden !important;
+    position: static !important;
+    inset: auto !important;
     border-radius: 0 !important;
     transform: none !important;
+    -webkit-transform: none !important;
     transform-origin: initial !important;
     break-before: auto !important;
     page-break-before: auto !important;

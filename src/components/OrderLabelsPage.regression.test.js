@@ -25,12 +25,27 @@ describe('order labels print flow', () => {
   })
 
   it('prints each selected label as a separate page or ticket', () => {
+    const physicalWidthMm = 100
+    const physicalHeightMm = 50
+    const safePaddingMm = 2
+    const safeWidthMm = physicalWidthMm - (safePaddingMm * 2)
+    const safeHeightMm = physicalHeightMm - (safePaddingMm * 2)
+
+    expect(safeWidthMm).toBeLessThanOrEqual(physicalWidthMm)
+    expect(safeHeightMm).toBeLessThanOrEqual(physicalHeightMm)
+    expect(safePaddingMm).toBeGreaterThanOrEqual(0)
+    expect(physicalWidthMm - safeWidthMm - safePaddingMm).toBe(safePaddingMm)
+    expect(physicalHeightMm - safeHeightMm - safePaddingMm).toBe(safePaddingMm)
+
     expect(cssSource).toContain('.print-label {')
     expect(cssSource).toContain('width: var(--thermal-label-width, 100mm) !important')
     expect(cssSource).toContain('height: var(--thermal-label-height, 50mm) !important')
+    expect(cssSource).toContain('padding: 0 !important')
+    expect(cssSource).toContain('.print-label .label-content')
     expect(cssSource).toContain('padding: var(--thermal-label-safe-padding, 2mm) !important')
     expect(cssSource).toContain('box-sizing: border-box !important')
     expect(cssSource).toContain('transform: none !important')
+    expect(cssSource).toContain('-webkit-transform: none !important')
     expect(cssSource).toContain('break-after: page !important')
     expect(cssSource).toContain('page-break-after: always !important')
     expect(cssSource).toContain('.print-label:last-child')
@@ -38,8 +53,11 @@ describe('order labels print flow', () => {
     expect(cssSource).toContain('@page')
     expect(cssSource).toContain('size: 100mm 50mm')
     expect(cssSource).toContain('.labels-print-root-screen-hidden')
+    expect(cssSource).toContain('body:has(> .labels-print-root-screen-hidden) > :not(.labels-preview-root)')
+    expect(previewSource).toContain('createPortal(preview, document.body)')
     expect(previewSource).toContain('--thermal-label-safe-padding')
     expect(previewSource).toContain('labels-print-container')
     expect(previewSource).toContain('className="print-label"')
+    expect(previewSource).toContain('className="label-content"')
   })
 })
