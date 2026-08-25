@@ -38,7 +38,7 @@ const OrderLabelsResults = ({
         disabled={orders.length === 0}
         className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {allVisibleSelected ? 'Quitar visibles' : 'Seleccionar visibles'}
+        {allVisibleSelected ? 'Quitar visibles' : 'Seleccionar todos visibles'}
       </button>
     </div>
 

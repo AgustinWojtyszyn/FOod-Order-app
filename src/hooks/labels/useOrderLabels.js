@@ -217,6 +217,11 @@ export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminC
     setSelectedIds(prev => prev.filter(id => id !== orderId))
   }, [])
 
+  const clearSelected = useCallback(() => {
+    setSelectedIds([])
+    setPrintWarning('')
+  }, [])
+
   const setCopiesForOrder = useCallback((orderId, copies) => {
     const safeCopies = Math.min(Math.max(Number(copies) || 1, 1), 99)
     setCopiesByOrderId(prev => ({ ...prev, [orderId]: safeCopies }))
@@ -316,6 +321,7 @@ export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminC
     selectVisible,
     unselectVisible,
     removeSelected,
+    clearSelected,
     copiesByOrderId,
     setCopiesForOrder,
     setCopiesFromRations,

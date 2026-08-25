@@ -11,6 +11,8 @@ describe('order labels print flow', () => {
     expect(pageSource).toContain('window.print()')
     expect(pageSource).toContain('onClick={printSelectedLabels}')
     expect(pageSource).toContain('showControls={false}')
+    expect(pageSource).toContain('Seleccionar todos visibles')
+    expect(pageSource).toContain('1 pedido = 1 etiqueta')
     expect(pageSource).not.toContain('labels.enterPreview')
     expect(pageSource).not.toContain('labels.previewMode')
   })
