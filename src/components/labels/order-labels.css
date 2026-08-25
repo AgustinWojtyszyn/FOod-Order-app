@@ -27,6 +27,15 @@
   justify-content: center;
 }
 
+.print-label {
+  box-sizing: border-box;
+}
+
+.labels-print-thermal .print-label {
+  width: var(--thermal-label-width, 100mm);
+  height: var(--thermal-label-height, 50mm);
+}
+
 .sf-label-card {
   display: flex;
   box-sizing: border-box;
@@ -48,6 +57,11 @@
   font-weight: 700;
   line-height: 1.14;
   text-transform: uppercase;
+}
+
+.print-label .sf-label-card {
+  width: 100%;
+  height: 100%;
 }
 
 .labels-print-thermal .sf-label-card {
@@ -127,6 +141,48 @@
     padding: 0 !important;
   }
 
+  .order-labels-page {
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  [data-debug-component="layout"] {
+    display: block !important;
+    width: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  [data-debug-component="layout"] > button,
+  [data-debug-component="layout"] aside,
+  [data-debug-component="layout"] > div > :not(main),
+  [data-debug-component="layout"] > :not(div) {
+    display: none !important;
+  }
+
+  [data-debug-component="layout"] > div,
+  [data-debug-component="layout"] main,
+  [data-debug-component="layout"] main > div {
+    display: block !important;
+    width: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  .order-labels-page > :not(.labels-preview-root),
+  .print-hide,
+  .no-print {
+    display: none !important;
+  }
+
   body * {
     visibility: hidden !important;
   }
@@ -136,74 +192,101 @@
     visibility: visible !important;
   }
 
-  .print-hide {
-    display: none !important;
-  }
-
   .labels-preview-root {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    background: white;
-    color: #000;
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: white !important;
+    color: #000 !important;
   }
 
   .labels-print-root-screen-hidden {
-    left: 0;
-    width: 100%;
-    height: auto;
-    overflow: visible;
+    left: auto !important;
+    top: auto !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   .labels-print-surface {
-    border: 0;
-    border-radius: 0;
-    background: white;
-    padding: 0;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: white !important;
+    padding: 0 !important;
   }
 
-  .labels-preview-thermal {
-    width: var(--thermal-label-width, 100mm);
+  .labels-print-container {
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    overflow: visible !important;
   }
 
   .labels-print-a4 {
-    display: block;
-    padding: 8mm;
+    display: block !important;
+    padding: 0 !important;
   }
 
   .labels-print-thermal {
-    display: block;
-    padding: 0;
-    width: var(--thermal-label-width, 100mm);
+    display: block !important;
+    padding: 0 !important;
+    width: auto !important;
+    justify-content: initial !important;
   }
 
-  .labels-print-thermal .sf-label-card {
+  .print-label {
+    box-sizing: border-box !important;
+    display: block !important;
+    width: var(--thermal-label-width, 100mm) !important;
+    height: var(--thermal-label-height, 50mm) !important;
+    min-width: var(--thermal-label-width, 100mm) !important;
+    min-height: var(--thermal-label-height, 50mm) !important;
+    max-width: var(--thermal-label-width, 100mm) !important;
+    max-height: var(--thermal-label-height, 50mm) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: page !important;
+    page-break-after: always !important;
+  }
+
+  .print-label:last-child {
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+
+  .print-label .sf-label-card {
     display: flex !important;
-    width: var(--thermal-label-width, 100mm);
-    max-width: var(--thermal-label-width, 100mm);
-    height: auto;
-    min-height: 0;
-    max-height: none;
-    border-radius: 0;
-    margin: 0;
-  }
-
-  .labels-print-surface .sf-label-card:not(:last-child) {
-    break-after: page;
-    page-break-after: always;
-  }
-
-  .labels-print-a4 .sf-label-card {
-    break-inside: avoid;
-    page-break-inside: avoid;
-    margin: 0 auto;
-    max-width: 100%;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    border-radius: 0 !important;
+    break-before: auto !important;
+    page-break-before: auto !important;
+    break-after: auto !important;
+    page-break-after: auto !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   .sf-label-card {
-    box-shadow: none;
+    box-shadow: none !important;
     background: #fff !important;
     color: #000 !important;
     -webkit-print-color-adjust: exact;
@@ -216,6 +299,6 @@
 }
 
 @page {
-  size: A4;
+  size: 100mm 50mm;
   margin: 0;
 }

@@ -5,14 +5,15 @@ import OrderLabelsFilters from './labels/OrderLabelsFilters'
 import OrderLabelsPreview from './labels/OrderLabelsPreview'
 import OrderLabelsResults from './labels/OrderLabelsResults'
 import { useOrderLabels } from '../hooks/labels/useOrderLabels'
+import { DEFAULT_THERMAL_LABEL_PRESET, DEFAULT_THERMAL_LABEL_SIZE } from './labels/labelPrintConfig'
 import './labels/order-labels.css'
 
 const OrderLabelsPage = () => {
   const { isAdmin, isCompanyAdmin, adminCompanies } = useAuthContext()
-  const [printFormat, setPrintFormat] = useState('a4')
+  const [printFormat, setPrintFormat] = useState('thermal')
   const [a4Columns, setA4Columns] = useState(2)
-  const [thermalPreset, setThermalPreset] = useState('100x50')
-  const [customThermalSize, setCustomThermalSize] = useState({ width: 100, height: 50 })
+  const [thermalPreset, setThermalPreset] = useState(DEFAULT_THERMAL_LABEL_PRESET)
+  const [customThermalSize, setCustomThermalSize] = useState(DEFAULT_THERMAL_LABEL_SIZE)
   const [printBatch, setPrintBatch] = useState([])
   const pendingPrintedIdsRef = useRef([])
   const printRequestedRef = useRef(false)
@@ -60,7 +61,7 @@ const OrderLabelsPage = () => {
   }, [labels])
 
   return (
-    <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
+    <div className="order-labels-page mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
       <OrderLabelsPreview
         selectedOrders={printBatch}
         copiesByOrderId={labels.copiesByOrderId}

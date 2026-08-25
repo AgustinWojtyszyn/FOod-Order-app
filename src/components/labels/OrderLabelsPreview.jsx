@@ -1,21 +1,15 @@
 import { ArrowLeft, Printer, X } from 'lucide-react'
 import { expandLabelsForCopies } from '../../utils/labels/labelOrderUtils'
+import {
+  THERMAL_LABEL_LIMITS,
+  THERMAL_LABEL_PRESETS,
+  normalizeThermalMillimeters
+} from './labelPrintConfig'
 import OrderLabelCard from './OrderLabelCard'
-
-const THERMAL_LIMITS = {
-  width: { min: 40, max: 150, fallback: 100 },
-  height: { min: 25, max: 100, fallback: 50 }
-}
 
 const estimateA4Sheets = (count, columns) => {
   const perSheet = Number(columns) === 3 ? 12 : 8
   return Math.max(Math.ceil(count / perSheet), 1)
-}
-
-const normalizeThermalMillimeters = (value, { min, max, fallback }) => {
-  const parsed = Number(String(value ?? '').replace(',', '.'))
-  if (!Number.isFinite(parsed)) return fallback
-  return Math.min(Math.max(parsed, min), max)
 }
 
 const OrderLabelsPreview = ({
@@ -36,12 +30,9 @@ const OrderLabelsPreview = ({
   screenHidden = false
 }) => {
   const labels = expandLabelsForCopies(selectedOrders, copiesByOrderId)
-  const thermalSize = thermalPreset === 'custom' ? customThermalSize : {
-    '100x50': { width: 100, height: 50 },
-    '80x50': { width: 80, height: 50 }
-  }[thermalPreset]
-  const width = normalizeThermalMillimeters(thermalSize?.width, THERMAL_LIMITS.width)
-  const height = normalizeThermalMillimeters(thermalSize?.height, THERMAL_LIMITS.height)
+  const thermalSize = thermalPreset === 'custom' ? customThermalSize : THERMAL_LABEL_PRESETS[thermalPreset]
+  const width = normalizeThermalMillimeters(thermalSize?.width, THERMAL_LABEL_LIMITS.width)
+  const height = normalizeThermalMillimeters(thermalSize?.height, THERMAL_LABEL_LIMITS.height)
   const approxSheets = printFormat === 'a4' ? estimateA4Sheets(labels.length, a4Columns) : labels.length
   const previewModeClass = printFormat === 'thermal' ? 'labels-preview-thermal' : 'labels-preview-a4'
   const printPageSize = printFormat === 'thermal'
@@ -49,14 +40,14 @@ const OrderLabelsPreview = ({
     : 'A4'
 
   const updateCustomThermalSize = (dimension, value) => {
-    const limits = THERMAL_LIMITS[dimension]
+    const limits = THERMAL_LABEL_LIMITS[dimension]
     const parsed = Number(String(value ?? '').replace(',', '.'))
     const nextValue = Number.isFinite(parsed) && parsed > limits.max ? limits.max : value
     setCustomThermalSize(prev => ({ ...prev, [dimension]: nextValue }))
   }
 
   const normalizeCustomThermalSize = (dimension) => {
-    const limits = THERMAL_LIMITS[dimension]
+    const limits = THERMAL_LABEL_LIMITS[dimension]
     setCustomThermalSize(prev => ({
       ...prev,
       [dimension]: normalizeThermalMillimeters(prev?.[dimension], limits)
@@ -143,9 +134,11 @@ const OrderLabelsPreview = ({
       </div>
       )}
 
-      <div className={`labels-print-surface ${printFormat === 'thermal' ? 'labels-print-thermal' : 'labels-print-a4'}`}>
+      <div className={`labels-print-surface labels-print-container ${printFormat === 'thermal' ? 'labels-print-thermal' : 'labels-print-a4'}`}>
         {labels.map(label => (
-          <OrderLabelCard key={label.labelInstanceId} label={label} />
+          <div className="print-label" key={label.labelInstanceId}>
+            <OrderLabelCard label={label} />
+          </div>
         ))}
       </div>
     </section>

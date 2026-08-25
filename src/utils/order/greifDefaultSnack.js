@@ -23,27 +23,7 @@ export const isGreifRefrigerioMenuItem = (item = {}) =>
   normalizeLabel(item?.name || item?.title || item?.description || item?.label) === normalizeLabel(GREIF_REFRIGERIO_LABEL)
 
 export const withGreifRefrigerioMenuItem = ({
-  companySlug = '',
   items = []
 } = {}) => {
-  const sourceItems = Array.isArray(items) ? items.filter(Boolean) : []
-
-  if (!isGreifCompany(companySlug)) return sourceItems
-  if (sourceItems.some(isGreifRefrigerioMenuItem)) return sourceItems
-
-  const maxSlotIndex = sourceItems.reduce((max, item, index) => {
-    const slotIndex = Number.isFinite(item?.slotIndex) ? item.slotIndex : index
-    return Math.max(max, slotIndex)
-  }, -1)
-
-  const refrigerioItem = {
-    id: GREIF_REFRIGERIO_MENU_ITEM_ID,
-    name: GREIF_REFRIGERIO_LABEL,
-    description: '',
-    quantity: 1,
-    slotIndex: maxSlotIndex + 1,
-    isGreifRefrigerio: true
-  }
-
-  return [...sourceItems, refrigerioItem]
+  return Array.isArray(items) ? items.filter(Boolean) : []
 }

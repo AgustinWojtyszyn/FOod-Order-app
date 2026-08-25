@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  GREIF_REFRIGERIO_MENU_ITEM_ID,
   withGreifRefrigerioMenuItem
 } from './greifDefaultSnack'
 
@@ -10,21 +9,16 @@ describe('Greif refrigerio menu option', () => {
     { id: 'option-1', name: 'Opción 1', slotIndex: 1 }
   ]
 
-  it('adds Refrigerio as a menu option only for Greif', () => {
+  it('does not add Refrigerio as a menu option for Greif', () => {
     const greifItems = withGreifRefrigerioMenuItem({ companySlug: 'greif', items: menuItems })
     const molinosItems = withGreifRefrigerioMenuItem({ companySlug: 'molinos', items: menuItems })
 
-    expect(greifItems).toHaveLength(3)
-    expect(greifItems.at(-1)).toMatchObject({
-      id: GREIF_REFRIGERIO_MENU_ITEM_ID,
-      name: 'Refrigerio',
-      isGreifRefrigerio: true
-    })
+    expect(greifItems).toEqual(menuItems)
     expect(molinosItems).toEqual(menuItems)
   })
 
-  it('does not duplicate Refrigerio if it is already in the menu', () => {
-    const sourceItems = [...menuItems, { id: GREIF_REFRIGERIO_MENU_ITEM_ID, name: 'Refrigerio' }]
+  it('keeps existing menu items without adding another Refrigerio', () => {
+    const sourceItems = [...menuItems, { id: 'refrigerio', name: 'Refrigerio' }]
 
     expect(withGreifRefrigerioMenuItem({ companySlug: 'greif', items: sourceItems })).toEqual(sourceItems)
   })
