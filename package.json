@@ -1,11 +1,11 @@
 {
   "name": "food-order-app",
   "private": true,
-    "version": "0.0.0",
-    "type": "module",
-    "scripts": {
-      "dev": "vite",
-      "build": "vite build",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
     "build:analyze": "vite build --mode production && npx vite-bundle-visualizer",
     "lint": "eslint .",
     "test": "vitest run",
@@ -26,6 +26,7 @@
     "dotenv": "^17.2.3",
     "exceljs": "^4.4.0",
     "framer-motion": "^12.23.24",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.553.0",
     "nodemailer": "^9.0.1",
     "react": "^19.1.1",

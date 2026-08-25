@@ -5,27 +5,54 @@ import {
   DEFAULT_THERMAL_LABEL_SIZE,
   getThermalLabelContentGeometry
 } from './labels/labelPrintConfig'
-import { expandLabelsForCopies } from '../utils/labels/labelOrderUtils'
+import {
+  LABEL_PDF_PAGE_SIZE_PT,
+  createOrderLabelsPdfDocument,
+  getPdfPageSizes
+} from '../utils/labels/labelPdfGenerator'
 
 const pageSource = readFileSync(new URL('./OrderLabelsPage.jsx', import.meta.url), 'utf8')
 const previewSource = readFileSync(new URL('./labels/OrderLabelsPreview.jsx', import.meta.url), 'utf8')
 const resultsSource = readFileSync(new URL('./labels/OrderLabelsResults.jsx', import.meta.url), 'utf8')
 const cssSource = readFileSync(new URL('./labels/order-labels.css', import.meta.url), 'utf8')
 const configSource = readFileSync(new URL('./labels/labelPrintConfig.js', import.meta.url), 'utf8')
+const pdfSource = readFileSync(new URL('../utils/labels/labelPdfGenerator.js', import.meta.url), 'utf8')
+
+const buildSampleOrder = (id) => ({
+  id,
+  customer_name: `Cliente ${id}`,
+  company: 'ServiFoo',
+  delivery_date: '2026-08-25',
+  service: 'lunch',
+  total_items: 1,
+  items: [{ name: 'Milanesa con guarnición', quantity: 1 }],
+  custom_responses: [
+    { title: 'Bebida', response: 'Agua' },
+    { title: 'Fruta o postre', response: 'Fruta' }
+  ]
+})
+
+const expectPdfSize = (pdf, expectedPages) => {
+  expect(pdf.getNumberOfPages()).toBe(expectedPages)
+  getPdfPageSizes(pdf).forEach((page) => {
+    expect(page.widthMm).toBeCloseTo(100, 4)
+    expect(page.heightMm).toBeCloseTo(50, 4)
+    expect(page.widthPt).toBeCloseTo(LABEL_PDF_PAGE_SIZE_PT[0], 2)
+    expect(page.heightPt).toBeCloseTo(LABEL_PDF_PAGE_SIZE_PT[1], 2)
+  })
+}
 
 describe('order labels print flow', () => {
   it('prints directly from the selected labels without entering preview mode', () => {
-    expect(pageSource).toContain('window.print()')
     expect(pageSource).toContain('onClick={printSelectedLabels}')
-    expect(pageSource).toContain('showControls={false}')
-    expect(pageSource).toContain("import { flushSync } from 'react-dom'")
-    expect(pageSource).toContain('flushSync(() =>')
-    expect(pageSource).toContain("document.getElementById('labels-print-root')")
-    expect(pageSource).toContain("querySelectorAll('.print-label')")
-    expect(pageSource).toContain('mountedLabels === 0')
-    expect(pageSource.indexOf('mountedLabels === 0')).toBeLessThan(pageSource.indexOf('window.print()'))
-    expect(pageSource).toContain("document.body.classList.add('labels-print-mode')")
-    expect(pageSource).toContain("document.body.classList.remove('labels-print-mode')")
+    expect(pageSource).toContain('printOrderLabelsPdf(safeOrders, labels.copiesByOrderId)')
+    expect(pageSource).not.toContain('window.print()')
+    expect(pageSource).not.toContain('OrderLabelsPreview')
+    expect(pageSource).not.toContain('flushSync')
+    expect(pageSource).not.toContain('printBatch')
+    expect(pageSource).not.toContain('labels-print-mode')
+    expect(pageSource).not.toContain('labels-print-root')
+    expect(pageSource).not.toContain('afterprint')
     expect(pageSource).not.toContain('labels.markPrinted')
     expect(pageSource).not.toContain('localStorage')
     expect(pageSource).not.toContain('labelPrintOffsetX')
@@ -36,6 +63,11 @@ describe('order labels print flow', () => {
     expect(pageSource).toContain('1 pedido = 1 etiqueta')
     expect(pageSource).not.toContain('labels.enterPreview')
     expect(pageSource).not.toContain('labels.previewMode')
+    expect(pdfSource).toContain("unit: 'mm'")
+    expect(pdfSource).toContain('format: LABEL_PDF_PAGE_SIZE_MM')
+    expect(pdfSource).toContain("orientation: 'landscape'")
+    expect(pdfSource).toContain('pdf.addPage(LABEL_PDF_PAGE_SIZE_MM, \'landscape\')')
+    expect(pdfSource).not.toContain('window.print()')
   })
 
   it('separates printed and pending labels and keeps printed labels reprintable', () => {
@@ -45,14 +77,17 @@ describe('order labels print flow', () => {
     expect(resultsSource).toContain('onPrintStateChange')
   })
 
-  it('prints each selected label as a separate page or ticket', () => {
+  it('generates one physical 100 x 50 mm PDF page per selected label', () => {
     const geometry = getThermalLabelContentGeometry()
-    const oneOrderLabels = expandLabelsForCopies([{ id: 'order-1' }], {})
-    const twoOrderLabels = expandLabelsForCopies([{ id: 'order-1' }, { id: 'order-2' }], {})
-    const fiveOrderLabels = expandLabelsForCopies(
-      [{ id: 'order-1' }, { id: 'order-2' }, { id: 'order-3' }, { id: 'order-4' }, { id: 'order-5' }],
-      {}
-    )
+    const one = createOrderLabelsPdfDocument([buildSampleOrder('order-1')], {})
+    const two = createOrderLabelsPdfDocument([buildSampleOrder('order-1'), buildSampleOrder('order-2')], {})
+    const five = createOrderLabelsPdfDocument([
+      buildSampleOrder('order-1'),
+      buildSampleOrder('order-2'),
+      buildSampleOrder('order-3'),
+      buildSampleOrder('order-4'),
+      buildSampleOrder('order-5')
+    ], {})
 
     expect(DEFAULT_THERMAL_LABEL_SIZE.width).toBe(100)
     expect(DEFAULT_THERMAL_LABEL_SIZE.height).toBe(50)
@@ -64,49 +99,30 @@ describe('order labels print flow', () => {
     expect(geometry.contentHeight).toBe(46)
     expect(geometry.rightEdge + DEFAULT_THERMAL_LABEL_SAFE_AREA_MM.right).toBe(100)
     expect(geometry.bottomEdge + DEFAULT_THERMAL_LABEL_SAFE_AREA_MM.bottom).toBe(50)
-    expect(oneOrderLabels).toHaveLength(1)
-    expect(twoOrderLabels).toHaveLength(2)
-    expect(fiveOrderLabels).toHaveLength(5)
-    expect(oneOrderLabels.slice(0, -1)).toHaveLength(0)
-    expect(twoOrderLabels.slice(0, -1)).toHaveLength(1)
-    expect(fiveOrderLabels.slice(0, -1)).toHaveLength(4)
+    expect(one.labels).toHaveLength(1)
+    expect(two.labels).toHaveLength(2)
+    expect(five.labels).toHaveLength(5)
+    expectPdfSize(one.pdf, 1)
+    expectPdfSize(two.pdf, 2)
+    expectPdfSize(five.pdf, 5)
+    expect(one.pdf.output()).toContain('/MediaBox [0 0 283.4645669291338663 141.7322834645669332]')
 
-    expect(cssSource).toContain('.print-label {')
-    expect(cssSource).toContain('width: var(--thermal-label-width, 100mm) !important')
-    expect(cssSource).toContain('height: var(--thermal-label-height, 50mm) !important')
-    expect(cssSource).toContain('padding: 0 !important')
-    expect(cssSource).toContain('.print-label .label-content')
-    expect(cssSource).toContain('width: var(--thermal-label-content-width, 94mm) !important')
-    expect(cssSource).toContain('height: var(--thermal-label-content-height, 46mm) !important')
-    expect(cssSource).toContain('margin: var(--thermal-label-safe-top, 2mm) var(--thermal-label-safe-right, 2mm) var(--thermal-label-safe-bottom, 2mm) var(--thermal-label-safe-left, 4mm) !important')
-    expect(cssSource).toContain('padding: 0 !important')
-    expect(cssSource).toContain('box-sizing: border-box !important')
     expect(cssSource).not.toContain('scale(')
     expect(cssSource).not.toContain('zoom')
     expect(cssSource).not.toContain('rotate(')
     expect(cssSource).not.toContain('translate(var(--label-offset-x')
-    expect(cssSource).toContain('.print-label--has-next')
-    expect(cssSource).toContain('break-after: auto !important')
-    expect(cssSource).toContain('page-break-after: auto !important')
-    expect(cssSource).toContain('break-after: page !important')
-    expect(cssSource).toContain('page-break-after: always !important')
+    expect(cssSource).not.toContain('@page')
+    expect(cssSource).not.toContain('@media print')
+    expect(cssSource).not.toContain('labels-print-mode')
+    expect(cssSource).not.toContain('labels-print-root')
+    expect(cssSource).not.toContain('.print-label--has-next')
     expect(cssSource).not.toContain('.print-label:last-child')
-    expect(cssSource.match(/@page/g)).toHaveLength(1)
-    expect(cssSource).toContain('size: 100mm 50mm')
-    expect(cssSource).toContain('margin: 0;')
     expect(previewSource).not.toContain('@page')
-    expect(previewSource).toContain("const hasNext = index < labels.length - 1")
-    expect(previewSource).toContain("print-label--has-next")
-    expect(previewSource).toContain('id="labels-print-root"')
-    expect(cssSource).toContain('.labels-print-root-screen-hidden')
-    expect(cssSource).toContain('body.labels-print-mode > *:not(#labels-print-root)')
-    expect(cssSource).toContain('#labels-print-root')
-    expect(cssSource).toContain('display: block !important')
-    expect(cssSource).toContain('body:not(.labels-print-mode) #labels-print-root')
+    expect(previewSource).not.toContain('createPortal')
+    expect(previewSource).not.toContain('screenHidden')
+    expect(previewSource).not.toContain('labels-print-root')
     expect(cssSource).not.toContain('body:has(')
     expect(cssSource).not.toContain('visibility: hidden')
-    expect(previewSource).toContain('createPortal(')
-    expect(previewSource).toContain('document.body')
     expect(previewSource).toContain('--thermal-label-safe-left')
     expect(previewSource).toContain('--thermal-label-safe-right')
     expect(previewSource).toContain('--thermal-label-safe-top')
@@ -119,11 +135,9 @@ describe('order labels print flow', () => {
     expect(previewSource).toContain('DOM OK')
     expect(previewSource).toContain("window.addEventListener('beforeprint', measureDiagnostics)")
     expect(previewSource).toContain('labels-print-container')
-    expect(previewSource).toContain("className={`print-label${hasNext ? ' print-label--has-next' : ''}`}")
+    expect(previewSource).toContain('className="print-label"')
     expect(previewSource).toContain('className="label-content"')
     expect(previewSource).not.toContain('label-calibration-test')
-    expect(cssSource).toContain('.labels-diagnostics-enabled .print-label')
-    expect(cssSource).toContain('.labels-diagnostics-enabled .label-content')
     expect(cssSource).toContain('.label-diagnostics-panel')
     expect(configSource).not.toContain('labelPrintOffsetX')
     expect(configSource).not.toContain('labelPrintOffsetY')

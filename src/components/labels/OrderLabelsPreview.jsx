@@ -1,6 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowLeft, Printer, X } from 'lucide-react'
-import { createPortal } from 'react-dom'
 import { expandLabelsForCopies } from '../../utils/labels/labelOrderUtils'
 import {
   DEFAULT_THERMAL_LABEL_SAFE_AREA_MM,
@@ -94,7 +93,6 @@ const OrderLabelsPreview = ({
   onCancel,
   onPrint,
   showControls = true,
-  screenHidden = false,
   diagnosticsEnabled = false
 }) => {
   const previewRef = useRef(null)
@@ -171,27 +169,23 @@ const OrderLabelsPreview = ({
     '--thermal-label-content-height': `${contentHeight}mm`
   }
 
-  const renderLabel = (label, index) => {
-    const hasNext = index < labels.length - 1
-
-    return (
-      <div className={`print-label${hasNext ? ' print-label--has-next' : ''}`} key={label.labelInstanceId}>
-        <div className="label-content">
-          <OrderLabelCard label={label} />
-          {diagnosticsEnabled && (
-            <pre className="label-diagnostics-panel" aria-hidden="true">
-              {formatDiagnostics({
-                ...(diagnostics.find((item) => item.index === index + 1) || { index: index + 1 }),
-                expectedWidth: width,
-                expectedHeight: height,
-                safeArea
-              }).join('\n')}
-            </pre>
-          )}
-        </div>
+  const renderLabel = (label, index) => (
+    <div className="print-label" key={label.labelInstanceId}>
+      <div className="label-content">
+        <OrderLabelCard label={label} />
+        {diagnosticsEnabled && (
+          <pre className="label-diagnostics-panel" aria-hidden="true">
+            {formatDiagnostics({
+              ...(diagnostics.find((item) => item.index === index + 1) || { index: index + 1 }),
+              expectedWidth: width,
+              expectedHeight: height,
+              safeArea
+            }).join('\n')}
+          </pre>
+        )}
       </div>
-    )
-  }
+    </div>
+  )
 
   const preview = (
     <section
@@ -271,20 +265,6 @@ const OrderLabelsPreview = ({
       </div>
     </section>
   )
-
-  if (screenHidden && typeof document !== 'undefined') {
-    return createPortal(
-      <div
-        id="labels-print-root"
-        ref={previewRef}
-        className={`labels-preview-root labels-print-root-screen-hidden labels-print-thermal${diagnosticsEnabled ? ' labels-diagnostics-enabled' : ''}`}
-        style={previewStyle}
-      >
-        {labels.map(renderLabel)}
-      </div>,
-      document.body
-    )
-  }
 
   return preview
 }

@@ -1,27 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { flushSync } from 'react-dom'
+import { useCallback } from 'react'
 import { Printer, Tag, X } from 'lucide-react'
 import { useAuthContext } from '../contexts/authContextValue'
 import OrderLabelsFilters from './labels/OrderLabelsFilters'
-import OrderLabelsPreview from './labels/OrderLabelsPreview'
 import OrderLabelsResults from './labels/OrderLabelsResults'
 import { useOrderLabels } from '../hooks/labels/useOrderLabels'
-import {
-  DEFAULT_THERMAL_LABEL_PRESET,
-  DEFAULT_THERMAL_LABEL_SIZE
-} from './labels/labelPrintConfig'
+import { printOrderLabelsPdf } from '../utils/labels/labelPdfGenerator'
 import './labels/order-labels.css'
 
 const OrderLabelsPage = () => {
   const { isAdmin, isCompanyAdmin, adminCompanies } = useAuthContext()
-  const [printFormat, setPrintFormat] = useState('thermal')
-  const [a4Columns, setA4Columns] = useState(2)
-  const [thermalPreset, setThermalPreset] = useState(DEFAULT_THERMAL_LABEL_PRESET)
-  const [customThermalSize, setCustomThermalSize] = useState(DEFAULT_THERMAL_LABEL_SIZE)
-  const [printBatch, setPrintBatch] = useState([])
-  const pendingPrintedIdsRef = useRef([])
-  const printRequestedRef = useRef(false)
-  const printFrameRef = useRef(null)
 
   const labels = useOrderLabels({ isAdmin, isCompanyAdmin, adminCompanies })
 
@@ -31,103 +18,37 @@ const OrderLabelsPage = () => {
       labels.setPrintWarning('Seleccioná al menos un pedido para imprimir etiquetas.')
       return
     }
-    pendingPrintedIdsRef.current = [...new Set(safeOrders.map(order => order.id))]
-    printRequestedRef.current = true
-    flushSync(() => {
-      setPrintBatch(safeOrders)
-    })
-    document.body.classList.add('labels-print-mode')
-    labels.setPrintWarning('')
+
+    const result = printOrderLabelsPdf(safeOrders, labels.copiesByOrderId)
+    labels.setPrintWarning(result.error ? 'No se pudo generar el PDF de etiquetas. Intentá nuevamente.' : '')
   }, [labels])
 
   const printSelectedLabels = useCallback(() => {
     startPrint(labels.selectedOrders)
   }, [labels.selectedOrders, startPrint])
 
-  const cleanupPrintState = useCallback(() => {
-    printRequestedRef.current = false
-    pendingPrintedIdsRef.current = []
-    if (printFrameRef.current) {
-      window.cancelAnimationFrame(printFrameRef.current)
-      printFrameRef.current = null
-    }
-    setPrintBatch([])
-    document.body.classList.remove('labels-print-mode')
-  }, [])
-
-  useEffect(() => {
-    if (!printRequestedRef.current || printBatch.length === 0) return
-    printFrameRef.current = window.requestAnimationFrame(() => {
-      printFrameRef.current = window.requestAnimationFrame(() => {
-        const printRoot = document.getElementById('labels-print-root')
-        const mountedLabels = printRoot?.querySelectorAll('.print-label')?.length || 0
-        if (!printRoot || mountedLabels === 0) {
-          labels.setPrintWarning('No se pudo montar el lote de etiquetas para imprimir. Intentá nuevamente.')
-          cleanupPrintState()
-          return
-        }
-        printFrameRef.current = null
-        window.print()
-      })
-    })
-    return () => {
-      if (printFrameRef.current) {
-        window.cancelAnimationFrame(printFrameRef.current)
-        printFrameRef.current = null
-      }
-    }
-  }, [cleanupPrintState, labels, printBatch])
-
-  useEffect(() => {
-    const handleAfterPrint = () => {
-      if (!printRequestedRef.current) return
-      cleanupPrintState()
-    }
-
-    window.addEventListener('afterprint', handleAfterPrint)
-    return () => window.removeEventListener('afterprint', handleAfterPrint)
-  }, [cleanupPrintState])
-
   return (
     <div className="order-labels-page mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
-      <OrderLabelsPreview
-        selectedOrders={printBatch}
-        copiesByOrderId={labels.copiesByOrderId}
-        printFormat={printFormat}
-        setPrintFormat={setPrintFormat}
-        a4Columns={a4Columns}
-        setA4Columns={setA4Columns}
-        thermalPreset={thermalPreset}
-        setThermalPreset={setThermalPreset}
-        customThermalSize={customThermalSize}
-        setCustomThermalSize={setCustomThermalSize}
-        onBack={() => {}}
-        onCancel={() => {}}
-        onPrint={() => {}}
-        showControls={false}
-        screenHidden
-      />
-
-        <div className="space-y-5">
-          <section className="rounded-xl border border-white/30 bg-white p-5 shadow-xl shadow-blue-950/10 print-hide md:p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-start gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-blue-700 text-white">
-                  <Tag className="h-6 w-6" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-black text-slate-900 md:text-3xl">Etiquetas</h1>
-                  <p className="mt-1 text-sm font-semibold text-slate-600">
-                    Buscar/filtrar → seleccionar pedidos → imprimir.
-                  </p>
-                </div>
+      <div className="space-y-5">
+        <section className="rounded-xl border border-white/30 bg-white p-5 shadow-xl shadow-blue-950/10 print-hide md:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-blue-700 text-white">
+                <Tag className="h-6 w-6" />
               </div>
-
-              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-black text-blue-900">
-                {labels.selectedCount} etiqueta{labels.selectedCount === 1 ? '' : 's'} seleccionada{labels.selectedCount === 1 ? '' : 's'}
+              <div>
+                <h1 className="text-2xl font-black text-slate-900 md:text-3xl">Etiquetas</h1>
+                <p className="mt-1 text-sm font-semibold text-slate-600">
+                  Buscar/filtrar → seleccionar pedidos → imprimir.
+                </p>
               </div>
             </div>
-          </section>
+
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-black text-blue-900">
+              {labels.selectedCount} etiqueta{labels.selectedCount === 1 ? '' : 's'} seleccionada{labels.selectedCount === 1 ? '' : 's'}
+            </div>
+          </div>
+        </section>
 
           <OrderLabelsFilters
             filters={labels.filters}
@@ -239,7 +160,7 @@ const OrderLabelsPage = () => {
             onPrintStateChange={labels.updatePrintState}
             onPageChange={labels.setPage}
           />
-        </div>
+      </div>
     </div>
   )
 }
