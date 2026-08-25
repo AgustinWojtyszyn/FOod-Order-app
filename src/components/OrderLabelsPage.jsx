@@ -5,8 +5,27 @@ import OrderLabelsFilters from './labels/OrderLabelsFilters'
 import OrderLabelsPreview from './labels/OrderLabelsPreview'
 import OrderLabelsResults from './labels/OrderLabelsResults'
 import { useOrderLabels } from '../hooks/labels/useOrderLabels'
-import { DEFAULT_THERMAL_LABEL_PRESET, DEFAULT_THERMAL_LABEL_SIZE } from './labels/labelPrintConfig'
+import {
+  DEFAULT_LABEL_PRINT_CALIBRATION,
+  DEFAULT_THERMAL_LABEL_PRESET,
+  DEFAULT_THERMAL_LABEL_SIZE,
+  LABEL_PRINT_CALIBRATION_LIMITS,
+  LABEL_PRINT_CALIBRATION_STORAGE_KEYS,
+  normalizeLabelPrintOffset
+} from './labels/labelPrintConfig'
 import './labels/order-labels.css'
+
+const readStoredPrintCalibration = () => {
+  if (typeof window === 'undefined') return DEFAULT_LABEL_PRINT_CALIBRATION
+  try {
+    return {
+      offsetX: normalizeLabelPrintOffset(window.localStorage.getItem(LABEL_PRINT_CALIBRATION_STORAGE_KEYS.offsetX)),
+      offsetY: normalizeLabelPrintOffset(window.localStorage.getItem(LABEL_PRINT_CALIBRATION_STORAGE_KEYS.offsetY))
+    }
+  } catch {
+    return DEFAULT_LABEL_PRINT_CALIBRATION
+  }
+}
 
 const OrderLabelsPage = () => {
   const { isAdmin, isCompanyAdmin, adminCompanies } = useAuthContext()
@@ -16,6 +35,8 @@ const OrderLabelsPage = () => {
   const [customThermalSize, setCustomThermalSize] = useState(DEFAULT_THERMAL_LABEL_SIZE)
   const [printBatch, setPrintBatch] = useState([])
   const [printDiagnosticsEnabled, setPrintDiagnosticsEnabled] = useState(false)
+  const [printCalibration, setPrintCalibration] = useState(readStoredPrintCalibration)
+  const [calibrationTestMode, setCalibrationTestMode] = useState(false)
   const pendingPrintedIdsRef = useRef([])
   const printRequestedRef = useRef(false)
 
@@ -33,12 +54,55 @@ const OrderLabelsPage = () => {
     labels.setPrintWarning('')
   }, [labels])
 
+  const updatePrintCalibration = useCallback((axis, value) => {
+    const normalized = normalizeLabelPrintOffset(value)
+    const key = LABEL_PRINT_CALIBRATION_STORAGE_KEYS[axis]
+    setPrintCalibration(prev => ({ ...prev, [axis]: normalized }))
+    try {
+      if (typeof window !== 'undefined' && key) {
+        window.localStorage.setItem(key, String(normalized))
+      }
+    } catch {
+      // La calibracion sigue activa en memoria aunque el navegador bloquee localStorage.
+    }
+  }, [])
+
+  const resetPrintCalibration = useCallback(() => {
+    setPrintCalibration(DEFAULT_LABEL_PRINT_CALIBRATION)
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(LABEL_PRINT_CALIBRATION_STORAGE_KEYS.offsetX, '0')
+        window.localStorage.setItem(LABEL_PRINT_CALIBRATION_STORAGE_KEYS.offsetY, '0')
+      }
+    } catch {
+      // La calibracion sigue activa en memoria aunque el navegador bloquee localStorage.
+    }
+  }, [])
+
+  const printCalibrationTest = useCallback(() => {
+    pendingPrintedIdsRef.current = []
+    printRequestedRef.current = true
+    setCalibrationTestMode(true)
+    setPrintBatch([{ id: 'label-calibration-test' }])
+    labels.setPrintWarning('')
+  }, [labels])
+
   const printSelectedLabels = useCallback(() => {
+    setCalibrationTestMode(false)
     startPrint(labels.selectedOrders)
   }, [labels.selectedOrders, startPrint])
 
+  const cleanupPrintState = useCallback(() => {
+    printRequestedRef.current = false
+    pendingPrintedIdsRef.current = []
+    setPrintBatch([])
+    setCalibrationTestMode(false)
+    document.body.classList.remove('labels-print-mode')
+  }, [])
+
   useEffect(() => {
     if (!printRequestedRef.current || printBatch.length === 0) return
+    document.body.classList.add('labels-print-mode')
     const frame = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         window.print()
@@ -50,16 +114,12 @@ const OrderLabelsPage = () => {
   useEffect(() => {
     const handleAfterPrint = () => {
       if (!printRequestedRef.current) return
-      printRequestedRef.current = false
-      const printedIds = pendingPrintedIdsRef.current
-      pendingPrintedIdsRef.current = []
-      setPrintBatch([])
-      labels.markPrinted(printedIds)
+      cleanupPrintState()
     }
 
     window.addEventListener('afterprint', handleAfterPrint)
     return () => window.removeEventListener('afterprint', handleAfterPrint)
-  }, [labels])
+  }, [cleanupPrintState])
 
   return (
     <div className="order-labels-page mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
@@ -80,6 +140,8 @@ const OrderLabelsPage = () => {
         showControls={false}
         screenHidden
         diagnosticsEnabled={printDiagnosticsEnabled}
+        printCalibration={printCalibration}
+        calibrationTestMode={calibrationTestMode}
       />
 
         <div className="space-y-5">
@@ -174,6 +236,49 @@ const OrderLabelsPage = () => {
                     <Bug className="h-4 w-4" />
                     Diagnóstico
                   </button>
+                  {printDiagnosticsEnabled && (
+                    <>
+                      <label className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 text-xs font-black text-amber-950">
+                        X mm
+                        <input
+                          type="number"
+                          min={LABEL_PRINT_CALIBRATION_LIMITS.min}
+                          max={LABEL_PRINT_CALIBRATION_LIMITS.max}
+                          step={LABEL_PRINT_CALIBRATION_LIMITS.step}
+                          value={printCalibration.offsetX}
+                          onChange={event => updatePrintCalibration('offsetX', event.target.value)}
+                          className="h-8 w-20 rounded-md border border-amber-300 bg-white px-2 text-sm text-slate-900"
+                        />
+                      </label>
+                      <label className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 text-xs font-black text-amber-950">
+                        Y mm
+                        <input
+                          type="number"
+                          min={LABEL_PRINT_CALIBRATION_LIMITS.min}
+                          max={LABEL_PRINT_CALIBRATION_LIMITS.max}
+                          step={LABEL_PRINT_CALIBRATION_LIMITS.step}
+                          value={printCalibration.offsetY}
+                          onChange={event => updatePrintCalibration('offsetY', event.target.value)}
+                          className="h-8 w-20 rounded-md border border-amber-300 bg-white px-2 text-sm text-slate-900"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={resetPrintCalibration}
+                        className="inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-300 bg-white px-4 text-sm font-black text-amber-900 hover:bg-amber-50"
+                      >
+                        Reset calibración
+                      </button>
+                      <button
+                        type="button"
+                        onClick={printCalibrationTest}
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 text-sm font-black text-white hover:bg-amber-700"
+                      >
+                        <Printer className="h-4 w-4" />
+                        Imprimir prueba de calibración
+                      </button>
+                    </>
+                  )}
                   <button
                     type="button"
                     onClick={labels.allVisibleSelected ? labels.unselectVisible : labels.selectVisible}

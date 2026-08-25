@@ -3,9 +3,11 @@ import { ArrowLeft, Printer, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { expandLabelsForCopies } from '../../utils/labels/labelOrderUtils'
 import {
+  DEFAULT_LABEL_PRINT_CALIBRATION,
   DEFAULT_THERMAL_LABEL_SAFE_PADDING_MM,
   THERMAL_LABEL_LIMITS,
   THERMAL_LABEL_PRESETS,
+  normalizeLabelPrintOffset,
   normalizeThermalMillimeters
 } from './labelPrintConfig'
 import OrderLabelCard from './OrderLabelCard'
@@ -18,6 +20,9 @@ const estimateA4Sheets = (count, columns) => {
 const PX_TO_MM = 25.4 / 96
 
 const toMm = (value = 0) => `${(Number(value || 0) * PX_TO_MM).toFixed(2)}mm`
+const pxToMmNumber = (value = 0) => Number((Number(value || 0) * PX_TO_MM).toFixed(2))
+
+const isNearMm = (actual, expected, tolerance = 0.6) => Math.abs(Number(actual) - Number(expected)) <= tolerance
 
 const getRectMetrics = (element, pageRect = null) => {
   if (!element) return null
@@ -32,26 +37,66 @@ const getRectMetrics = (element, pageRect = null) => {
   }
 }
 
-const formatDiagnostics = ({ index, page, content, card, expectedWidth, expectedHeight, safePadding } = {}) => {
+const classifyDiagnostics = ({ page, content, expectedWidth, expectedHeight, safePadding, offsetX, offsetY } = {}) => {
+  if (!page || !content) return 'Pendiente: imprimí o actualizá para medir el DOM.'
+
+  const pageWidth = pxToMmNumber(page.width)
+  const pageHeight = pxToMmNumber(page.height)
+  const safeLeft = pxToMmNumber(content.left)
+  const safeTop = pxToMmNumber(content.top)
+  const expectedSafeLeft = Number(safePadding) + Number(offsetX || 0)
+  const expectedSafeTop = Number(safePadding) + Number(offsetY || 0)
+
+  if (!isNearMm(pageWidth, expectedWidth) || !isNearMm(pageHeight, expectedHeight)) {
+    return 'TAMANO/ESCALA: el navegador o driver esta escalando/cambiando el tamano fisico.'
+  }
+
+  if (!isNearMm(safeLeft, expectedSafeLeft) || !isNearMm(safeTop, expectedSafeTop)) {
+    return 'CSS: el area segura no coincide con padding/calibracion.'
+  }
+
+  return 'DOM OK: si el borde rojo sale cortado, es offset fisico de impresora/driver.'
+}
+
+const formatDiagnostics = ({ index, page, content, card, expectedWidth, expectedHeight, safePadding, offsetX, offsetY } = {}) => {
   if (!page || !content || !card) {
     return [
       `Etiqueta ${index}`,
       `Esperado: ${expectedWidth}x${expectedHeight}mm`,
-      `Safe: ${safePadding}mm`
+      `Safe: ${safePadding}mm`,
+      `Offset: X ${offsetX}mm Y ${offsetY}mm`
     ]
   }
 
   return [
     `Etiqueta ${index}`,
+    `Clasificacion: ${classifyDiagnostics({ page, content, expectedWidth, expectedHeight, safePadding, offsetX, offsetY })}`,
     `Page rect: ${toMm(page.width)} x ${toMm(page.height)}`,
     `Page offset: L ${toMm(page.left)} T ${toMm(page.top)}`,
     `Safe rect: ${toMm(content.width)} x ${toMm(content.height)}`,
     `Safe offset: L ${toMm(content.left)} T ${toMm(content.top)} R ${toMm(content.right)} B ${toMm(content.bottom)}`,
     `Card rect: ${toMm(card.width)} x ${toMm(card.height)}`,
     `Card offset: L ${toMm(card.left)} T ${toMm(card.top)} R ${toMm(card.right)} B ${toMm(card.bottom)}`,
-    `Esperado: ${expectedWidth}x${expectedHeight}mm | Safe ${safePadding}mm`
+    `Esperado: ${expectedWidth}x${expectedHeight}mm | Safe ${safePadding}mm | Offset X ${offsetX}mm Y ${offsetY}mm`
   ]
 }
+
+const CalibrationTestLabel = ({ width, height, offsetX, offsetY }) => (
+  <div className="label-calibration-test">
+    <span className="calibration-corner calibration-corner-tl" />
+    <span className="calibration-corner calibration-corner-tr" />
+    <span className="calibration-corner calibration-corner-bl" />
+    <span className="calibration-corner calibration-corner-br" />
+    <span className="calibration-axis calibration-axis-x" />
+    <span className="calibration-axis calibration-axis-y" />
+    <span className="calibration-center" />
+    <div className="calibration-text">
+      <strong>PRUEBA {width} x {height} mm</strong>
+      <span>Offset X {offsetX} mm / Y {offsetY} mm</span>
+      <span>Borde rojo: tamano fisico. Azul: area segura.</span>
+    </div>
+  </div>
+)
 
 const OrderLabelsPreview = ({
   selectedOrders,
@@ -69,11 +114,17 @@ const OrderLabelsPreview = ({
   onPrint,
   showControls = true,
   screenHidden = false,
-  diagnosticsEnabled = false
+  diagnosticsEnabled = false,
+  printCalibration = DEFAULT_LABEL_PRINT_CALIBRATION,
+  calibrationTestMode = false
 }) => {
   const previewRef = useRef(null)
   const [diagnostics, setDiagnostics] = useState([])
-  const labels = expandLabelsForCopies(selectedOrders, copiesByOrderId)
+  const offsetX = normalizeLabelPrintOffset(printCalibration?.offsetX)
+  const offsetY = normalizeLabelPrintOffset(printCalibration?.offsetY)
+  const labels = calibrationTestMode
+    ? [{ labelInstanceId: 'label-calibration-test', isCalibrationTest: true }]
+    : expandLabelsForCopies(selectedOrders, copiesByOrderId)
   const thermalSize = thermalPreset === 'custom' ? customThermalSize : THERMAL_LABEL_PRESETS[thermalPreset]
   const width = normalizeThermalMillimeters(thermalSize?.width, THERMAL_LABEL_LIMITS.width)
   const height = normalizeThermalMillimeters(thermalSize?.height, THERMAL_LABEL_LIMITS.height)
@@ -92,7 +143,7 @@ const OrderLabelsPreview = ({
         index: index + 1,
         page: getRectMetrics(labelElement),
         content: getRectMetrics(labelElement.querySelector('.label-content'), pageRect),
-        card: getRectMetrics(labelElement.querySelector('.sf-label-card'), pageRect)
+        card: getRectMetrics(labelElement.querySelector('.sf-label-card, .label-calibration-test'), pageRect)
       }
     })
     setDiagnostics(nextDiagnostics)
@@ -110,7 +161,7 @@ const OrderLabelsPreview = ({
       window.cancelAnimationFrame(frame)
       window.removeEventListener('beforeprint', measureDiagnostics)
     }
-  }, [diagnosticsEnabled, labels.length, measureDiagnostics, width, height, safePadding])
+  }, [diagnosticsEnabled, labels.length, measureDiagnostics, width, height, safePadding, offsetX, offsetY, calibrationTestMode])
 
   const updateCustomThermalSize = (dimension, value) => {
     const limits = THERMAL_LABEL_LIMITS[dimension]
@@ -135,7 +186,9 @@ const OrderLabelsPreview = ({
         '--label-a4-columns': a4Columns,
         '--thermal-label-width': `${width}mm`,
         '--thermal-label-height': `${height}mm`,
-        '--thermal-label-safe-padding': `${DEFAULT_THERMAL_LABEL_SAFE_PADDING_MM}mm`
+        '--thermal-label-safe-padding': `${DEFAULT_THERMAL_LABEL_SAFE_PADDING_MM}mm`,
+        '--label-offset-x': `${offsetX}mm`,
+        '--label-offset-y': `${offsetY}mm`
       }}
     >
       <style media="print">
@@ -213,14 +266,20 @@ const OrderLabelsPreview = ({
         {labels.map((label, index) => (
           <div className="print-label" key={label.labelInstanceId}>
             <div className="label-content">
-              <OrderLabelCard label={label} />
+              {label.isCalibrationTest ? (
+                <CalibrationTestLabel width={width} height={height} offsetX={offsetX} offsetY={offsetY} />
+              ) : (
+                <OrderLabelCard label={label} />
+              )}
               {diagnosticsEnabled && (
                 <pre className="label-diagnostics-panel" aria-hidden="true">
                   {formatDiagnostics({
                     ...(diagnostics.find((item) => item.index === index + 1) || { index: index + 1 }),
                     expectedWidth: width,
                     expectedHeight: height,
-                    safePadding
+                    safePadding,
+                    offsetX,
+                    offsetY
                   }).join('\n')}
                 </pre>
               )}

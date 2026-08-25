@@ -46,6 +46,110 @@
   display: none;
 }
 
+.label-calibration-test {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 0.35mm solid #ef4444;
+  background:
+    linear-gradient(to right, transparent calc(50% - 0.1mm), #111827 calc(50% - 0.1mm), #111827 calc(50% + 0.1mm), transparent calc(50% + 0.1mm)),
+    linear-gradient(to bottom, transparent calc(50% - 0.1mm), #111827 calc(50% - 0.1mm), #111827 calc(50% + 0.1mm), transparent calc(50% + 0.1mm)),
+    #fff;
+  color: #111827;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.label-calibration-test::before {
+  content: "";
+  position: absolute;
+  inset: 2mm;
+  border: 0.25mm dashed #2563eb;
+}
+
+.calibration-corner {
+  position: absolute;
+  width: 4mm;
+  height: 4mm;
+  border-color: #111827;
+}
+
+.calibration-corner-tl {
+  left: 0.7mm;
+  top: 0.7mm;
+  border-left: 0.35mm solid;
+  border-top: 0.35mm solid;
+}
+
+.calibration-corner-tr {
+  right: 0.7mm;
+  top: 0.7mm;
+  border-right: 0.35mm solid;
+  border-top: 0.35mm solid;
+}
+
+.calibration-corner-bl {
+  left: 0.7mm;
+  bottom: 0.7mm;
+  border-left: 0.35mm solid;
+  border-bottom: 0.35mm solid;
+}
+
+.calibration-corner-br {
+  right: 0.7mm;
+  bottom: 0.7mm;
+  border-right: 0.35mm solid;
+  border-bottom: 0.35mm solid;
+}
+
+.calibration-axis {
+  position: absolute;
+  background: #111827;
+}
+
+.calibration-axis-x {
+  left: 2mm;
+  right: 2mm;
+  top: calc(50% - 0.1mm);
+  height: 0.2mm;
+}
+
+.calibration-axis-y {
+  top: 2mm;
+  bottom: 2mm;
+  left: calc(50% - 0.1mm);
+  width: 0.2mm;
+}
+
+.calibration-center {
+  position: absolute;
+  left: calc(50% - 1.2mm);
+  top: calc(50% - 1.2mm);
+  width: 2.4mm;
+  height: 2.4mm;
+  border: 0.3mm solid #111827;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.calibration-text {
+  position: absolute;
+  left: 5mm;
+  right: 5mm;
+  top: 5mm;
+  display: flex;
+  flex-direction: column;
+  gap: 1mm;
+  border: 0.25mm solid #111827;
+  background: rgb(255 255 255 / 92%);
+  padding: 1.4mm;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+
 .sf-label-card {
   display: flex;
   box-sizing: border-box;
@@ -207,7 +311,7 @@
     visibility: hidden !important;
   }
 
-  body:has(> .labels-print-root-screen-hidden) > :not(.labels-preview-root) {
+  body.labels-print-mode > :not(.labels-preview-root) {
     display: none !important;
   }
 
@@ -309,9 +413,9 @@
     overflow: hidden !important;
     position: relative !important;
     inset: auto !important;
-    transform: none !important;
-    -webkit-transform: none !important;
-    transform-origin: initial !important;
+    transform: translate(var(--label-offset-x, 0mm), var(--label-offset-y, 0mm)) !important;
+    -webkit-transform: translate(var(--label-offset-x, 0mm), var(--label-offset-y, 0mm)) !important;
+    transform-origin: 0 0 !important;
   }
 
   .print-label .sf-label-card {
@@ -348,6 +452,12 @@
 
   .sf-label-card * {
     color: inherit !important;
+  }
+
+  .label-calibration-test,
+  .label-calibration-test * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .labels-diagnostics-enabled .print-label {
@@ -388,9 +498,4 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-}
-
-@page {
-  size: 100mm 50mm;
-  margin: 0;
 }
