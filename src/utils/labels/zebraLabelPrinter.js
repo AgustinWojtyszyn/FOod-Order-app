@@ -4,10 +4,13 @@ export const ZEBRA_LABEL_WIDTH_MM = 64
 export const ZEBRA_LABEL_HEIGHT_MM = 32
 export const ZEBRA_DPI = 203
 export const ZEBRA_DOTS_PER_MM = 8
-export const ZEBRA_LABEL_WIDTH_DOTS = Math.round(ZEBRA_LABEL_WIDTH_MM * ZEBRA_DOTS_PER_MM)
-export const ZEBRA_LABEL_HEIGHT_DOTS = Math.round(ZEBRA_LABEL_HEIGHT_MM * ZEBRA_DOTS_PER_MM)
-export const ZEBRA_LABEL_HOME_X_DOTS = 24
-export const ZEBRA_LABEL_HOME_Y_DOTS = 8
+export const ZEBRA_LABEL_LOGICAL_WIDTH_DOTS = Math.round(ZEBRA_LABEL_WIDTH_MM * ZEBRA_DOTS_PER_MM)
+export const ZEBRA_LABEL_LOGICAL_HEIGHT_DOTS = Math.round(ZEBRA_LABEL_HEIGHT_MM * ZEBRA_DOTS_PER_MM)
+export const ZEBRA_LABEL_WIDTH_DOTS = ZEBRA_LABEL_LOGICAL_HEIGHT_DOTS
+export const ZEBRA_LABEL_HEIGHT_DOTS = ZEBRA_LABEL_LOGICAL_WIDTH_DOTS
+export const ZEBRA_LABEL_HOME_X_DOTS = 0
+export const ZEBRA_LABEL_HOME_Y_DOTS = 0
+export const ZEBRA_LABEL_FIELD_ORIENTATION = 'R'
 export const ZEBRA_DEFAULT_PRINTER_ID = '__zebra_default__'
 export const ZEBRA_FALLBACK_PRINTER_ID = '__zebra_fallback_default__'
 export const ZEBRA_BROWSER_PRINT_TIMEOUT_MS = 5000
@@ -35,8 +38,23 @@ const formatDate = (value) => {
   return `${day}/${month}/${year}`
 }
 
+const rotatedPoint = (logicalX, logicalY) => ({
+  x: logicalY,
+  y: logicalX
+})
+
 const zplText = (x, y, fontHeight, fontWidth, width, maxLines, text) =>
-  `^FO${x},${y}^A0N,${fontHeight},${fontWidth}^FB${width},${maxLines},2,L,0^FD${uppercase(text)}^FS`
+  `^FO${rotatedPoint(x, y).x},${rotatedPoint(x, y).y}^A0${ZEBRA_LABEL_FIELD_ORIENTATION},${fontHeight},${fontWidth}^FB${width},${maxLines},2,L,0^FD${uppercase(text)}^FS`
+
+const zplBox = (x, y, width, height, thickness) => {
+  const point = rotatedPoint(x, y)
+  return `^FO${point.x},${point.y}^GB${height},${width},${thickness}^FS`
+}
+
+const zplHorizontalLine = (x, y, width, thickness) => {
+  const point = rotatedPoint(x, y)
+  return `^FO${point.x},${point.y}^GB0,${width},${thickness}^FS`
+}
 
 export const buildZebraLabelZpl = (order = {}) => {
   const label = buildLabelOrder(order)
@@ -59,10 +77,11 @@ export const buildZebraLabelZpl = (order = {}) => {
     `^LH${ZEBRA_LABEL_HOME_X_DOTS},${ZEBRA_LABEL_HOME_Y_DOTS}`,
     '^LS0',
     '^LT0',
-    '^FO8,8^GB496,240,3^FS',
+    `^FW${ZEBRA_LABEL_FIELD_ORIENTATION}`,
+    zplBox(8, 8, 496, 240, 3),
     zplText(22, 20, 30, 26, 405, 1, label.customerName || 'Cliente sin nombre'),
     zplText(423, 19, 18, 16, 66, 1, label.shortCode || ''),
-    '^FO18,56^GB476,0,2^FS',
+    zplHorizontalLine(18, 56, 476, 2),
     zplText(22, 68, 18, 16, 455, 1, meta),
     zplText(22, 102, 20, 18, 455, 2, orderText),
     zplText(22, 164, 18, 16, 455, 1, beverage),

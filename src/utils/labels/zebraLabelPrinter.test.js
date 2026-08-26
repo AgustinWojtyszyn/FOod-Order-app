@@ -5,7 +5,10 @@ import {
   ZEBRA_LABEL_HOME_X_DOTS,
   ZEBRA_LABEL_HOME_Y_DOTS,
   ZEBRA_LABEL_HEIGHT_DOTS,
+  ZEBRA_LABEL_LOGICAL_HEIGHT_DOTS,
+  ZEBRA_LABEL_LOGICAL_WIDTH_DOTS,
   ZEBRA_LABEL_WIDTH_DOTS,
+  ZEBRA_LABEL_FIELD_ORIENTATION,
   buildZebraLabelsZpl,
   dedupeZebraPrinters,
   getDefaultZebraPrinter,
@@ -74,22 +77,76 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+const extractFieldOrigins = (zpl) =>
+  [...zpl.matchAll(/\^FO(\d+),(\d+)/g)].map(match => ({
+    x: Number(match[1]),
+    y: Number(match[2])
+  }))
+
+const extractGraphicBoxes = (zpl) =>
+  [...zpl.matchAll(/\^FO(\d+),(\d+)\^GB(\d+),(\d+),(\d+)/g)].map(match => ({
+    x: Number(match[1]),
+    y: Number(match[2]),
+    width: Number(match[3]),
+    height: Number(match[4]),
+    thickness: Number(match[5])
+  }))
+
+const extractRotatedTextBlocks = (zpl) =>
+  [...zpl.matchAll(/\^FO(\d+),(\d+)\^A0R,(\d+),(\d+)\^FB(\d+),(\d+)/g)].map(match => ({
+    x: Number(match[1]),
+    y: Number(match[2]),
+    fontHeight: Number(match[3]),
+    fontWidth: Number(match[4]),
+    blockWidth: Number(match[5]),
+    maxLines: Number(match[6])
+  }))
+
 describe('zebraLabelPrinter', () => {
-  it('generates one 64 x 32 mm 203 dpi ZPL label per order', () => {
+  it('generates one rotated 64 x 32 mm 203 dpi ZPL label per order', () => {
     const zpl = buildZebraLabelsZpl([buildOrder('order-1'), buildOrder('order-2')])
 
-    expect(ZEBRA_LABEL_WIDTH_DOTS).toBe(512)
-    expect(ZEBRA_LABEL_HEIGHT_DOTS).toBe(256)
-    expect(ZEBRA_LABEL_HOME_X_DOTS).toBe(24)
-    expect(ZEBRA_LABEL_HOME_Y_DOTS).toBe(8)
+    expect(ZEBRA_LABEL_LOGICAL_WIDTH_DOTS).toBe(512)
+    expect(ZEBRA_LABEL_LOGICAL_HEIGHT_DOTS).toBe(256)
+    expect(ZEBRA_LABEL_WIDTH_DOTS).toBe(256)
+    expect(ZEBRA_LABEL_HEIGHT_DOTS).toBe(512)
+    expect(ZEBRA_LABEL_HOME_X_DOTS).toBe(0)
+    expect(ZEBRA_LABEL_HOME_Y_DOTS).toBe(0)
+    expect(ZEBRA_LABEL_FIELD_ORIENTATION).toBe('R')
     expect((zpl.match(/\^XA/g) || [])).toHaveLength(2)
-    expect(zpl).toContain('^PW512')
-    expect(zpl).toContain('^LL256')
-    expect(zpl).toContain('^LH24,8')
+    expect(zpl).toContain('^PW256')
+    expect(zpl).toContain('^LL512')
+    expect(zpl).toContain('^LH0,0')
     expect(zpl).toContain('^LS0')
     expect(zpl).toContain('^LT0')
+    expect(zpl).toContain('^FWR')
+    expect(zpl).toContain('^A0R')
+    expect(zpl).not.toContain('^LH24,8')
+    expect(zpl).not.toContain('^A0N')
     expect(zpl).toContain('^PQ1,0,1,Y')
     expect(zpl).not.toContain('ENTREGA:')
+  })
+
+  it('keeps rotated ZPL field origins and boxes inside the physical 256 x 512 dot canvas', () => {
+    const zpl = buildZebraLabelsZpl([buildOrder('order-1')])
+
+    expect(extractFieldOrigins(zpl).every(({ x, y }) =>
+      x >= 0 && x <= ZEBRA_LABEL_WIDTH_DOTS && y >= 0 && y <= ZEBRA_LABEL_HEIGHT_DOTS
+    )).toBe(true)
+
+    expect(extractGraphicBoxes(zpl).every(({ x, y, width, height }) =>
+      x >= 0 &&
+      y >= 0 &&
+      x + width <= ZEBRA_LABEL_WIDTH_DOTS &&
+      y + height <= ZEBRA_LABEL_HEIGHT_DOTS
+    )).toBe(true)
+
+    expect(extractRotatedTextBlocks(zpl).every(({ x, y, fontHeight, blockWidth }) =>
+      x >= 0 &&
+      y >= 0 &&
+      x + fontHeight <= ZEBRA_LABEL_WIDTH_DOTS &&
+      y + blockWidth <= ZEBRA_LABEL_HEIGHT_DOTS
+    )).toBe(true)
   })
 
   it('lists Zebra printers through the local Browser Print service when the global SDK is absent', async () => {
@@ -129,7 +186,8 @@ describe('zebraLabelPrinter', () => {
     expect(result.printed).toBe(true)
     expect(writeRequest).toMatchObject({ method: 'POST' })
     expect(payload.device.uid).toBe('default-zebra')
-    expect(payload.data).toContain('^PW512')
+    expect(payload.data).toContain('^PW256')
+    expect(payload.data).toContain('^LL512')
     expect(payload.data).toContain('GABRIEL MERCADO')
   })
 
@@ -194,7 +252,7 @@ describe('zebraLabelPrinter', () => {
     expect(printResult.printed).toBe(true)
     expect(getDefaultDevice).toHaveBeenCalledWith('printer', expect.any(Function), expect.any(Function))
     expect(getLocalDevices).toHaveBeenCalled()
-    expect(send).toHaveBeenCalledWith(expect.stringContaining('^PW512'), expect.any(Function), expect.any(Function))
+    expect(send).toHaveBeenCalledWith(expect.stringContaining('^PW256'), expect.any(Function), expect.any(Function))
   })
 
   it('gets the default SDK printer and lists SDK printers when both callbacks succeed', async () => {

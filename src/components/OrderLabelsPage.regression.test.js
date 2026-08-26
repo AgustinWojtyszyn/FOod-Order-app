@@ -7,6 +7,9 @@ import {
   ZEBRA_LABEL_HEIGHT_DOTS,
   ZEBRA_LABEL_HOME_X_DOTS,
   ZEBRA_LABEL_HOME_Y_DOTS,
+  ZEBRA_LABEL_FIELD_ORIENTATION,
+  ZEBRA_LABEL_LOGICAL_HEIGHT_DOTS,
+  ZEBRA_LABEL_LOGICAL_WIDTH_DOTS,
   ZEBRA_LABEL_WIDTH_DOTS,
   buildZebraLabelsZpl
 } from '../utils/labels/zebraLabelPrinter'
@@ -51,28 +54,58 @@ describe('order labels print flow', () => {
     expect(countPrintLabels(renderPreview(0))).toBe(0)
   })
 
-  it('uses only browser printing controls in the preview', () => {
+  it('shows the real Browser Print default printer name when it is available', () => {
     const html = renderToStaticMarkup(React.createElement(OrderLabelsPreview, {
       selectedOrders: [buildSampleOrder('order-1')],
+      defaultPrinter: { name: 'Nombre real desde device.name', uid: 'default-printer' },
+      selectedPrinterId: '__zebra_default__',
       onBack: () => {},
       onCancel: () => {},
       onPrint: () => {}
     }))
 
-    expect(html).toContain('Imprimir desde navegador')
-    expect(html).not.toContain('Impresora Zebra')
-    expect(html).not.toContain('Intentar impresora predeterminada al imprimir')
-    expect(html).not.toContain('Buscar impresoras')
-    expect(html).not.toContain('Imprimir en Zebra')
+    expect(html).toContain('Nombre real desde device.name')
+    expect(html).not.toContain('Impresora predeterminada de Zebra Browser Print</option>')
   })
 
-  it('does not load Zebra Browser Print or allow direct Browser Print localhost endpoints', () => {
+  it('does not represent a null default printer as a detected printer', () => {
+    const html = renderToStaticMarkup(React.createElement(OrderLabelsPreview, {
+      selectedOrders: [buildSampleOrder('order-1')],
+      defaultPrinter: null,
+      selectedPrinterId: '__zebra_fallback_default__',
+      canPrintZebra: true,
+      onBack: () => {},
+      onCancel: () => {},
+      onPrint: () => {}
+    }))
+
+    expect(html).toContain('Intentar impresora predeterminada al imprimir')
+    expect(html).not.toContain('Impresora predeterminada de Zebra Browser Print')
+  })
+
+  it('keeps printer loading cleanup centralized in a finally block', () => {
+    const loadingFalseMatches = pageSource.match(/setPrinterLoading\(false\)/g) || []
+
+    expect(pageSource).toContain('setPrinterLoading(true)')
+    expect(loadingFalseMatches).toHaveLength(1)
+    expect(pageSource).toContain('} finally {\n      setPrinterLoading(false)\n    }')
+  })
+
+  it('loads the local official Zebra Browser Print SDK before the app bundle', () => {
+    const sdkIndex = indexSource.indexOf('/vendor/zebra/browserprint/BrowserPrint-3.0.216.min.js')
+    const appIndex = indexSource.indexOf('/src/main.jsx')
+
+    expect(sdkIndex).toBeGreaterThan(-1)
+    expect(appIndex).toBeGreaterThan(-1)
+    expect(sdkIndex).toBeLessThan(appIndex)
+    expect(indexSource).toContain('window.__zebraBrowserPrintSdkLoadError = true')
+  })
+
+  it('keeps CSP scoped for Zebra Browser Print without wildcard connect permissions', () => {
     expect(indexSource).toContain('script-src')
     expect(indexSource).toContain("script-src 'self'")
-    expect(indexSource).not.toContain('/vendor/zebra/browserprint/BrowserPrint-3.0.216.min.js')
-    expect(indexSource).not.toContain('window.__zebraBrowserPrintSdkLoadError')
-    expect(indexSource).not.toContain('http://localhost:9100')
-    expect(indexSource).not.toContain('https://localhost:9101')
+    expect(indexSource).toContain('http://localhost:9100')
+    expect(indexSource).toContain('https://localhost:9101')
     expect(indexSource).not.toContain('connect-src *')
   })
 
@@ -80,18 +113,24 @@ describe('order labels print flow', () => {
     const one = buildZebraLabelsZpl([buildSampleOrder('order-1')])
     const ten = buildZebraLabelsZpl(Array.from({ length: 10 }, (_, index) => buildSampleOrder(`order-${index + 1}`)))
 
-    expect(ZEBRA_LABEL_WIDTH_DOTS).toBe(512)
-    expect(ZEBRA_LABEL_HEIGHT_DOTS).toBe(256)
-    expect(ZEBRA_LABEL_HOME_X_DOTS).toBe(24)
-    expect(ZEBRA_LABEL_HOME_Y_DOTS).toBe(8)
+    expect(ZEBRA_LABEL_LOGICAL_WIDTH_DOTS).toBe(512)
+    expect(ZEBRA_LABEL_LOGICAL_HEIGHT_DOTS).toBe(256)
+    expect(ZEBRA_LABEL_WIDTH_DOTS).toBe(256)
+    expect(ZEBRA_LABEL_HEIGHT_DOTS).toBe(512)
+    expect(ZEBRA_LABEL_HOME_X_DOTS).toBe(0)
+    expect(ZEBRA_LABEL_HOME_Y_DOTS).toBe(0)
+    expect(ZEBRA_LABEL_FIELD_ORIENTATION).toBe('R')
     expect((one.match(/\^XA/g) || [])).toHaveLength(1)
     expect((ten.match(/\^XA/g) || [])).toHaveLength(10)
-    expect(one).toContain('^PW512')
-    expect(one).toContain('^LL256')
+    expect(one).toContain('^PW256')
+    expect(one).toContain('^LL512')
     expect(one).toContain('^PON')
-    expect(one).toContain('^LH24,8')
+    expect(one).toContain('^LH0,0')
     expect(one).toContain('^LS0')
     expect(one).toContain('^LT0')
+    expect(one).toContain('^FWR')
+    expect(one).toContain('^A0R')
+    expect(one).not.toContain('^LH24,8')
     expect(one).toContain('GABRIEL MERCADO')
     expect(one).toContain('GENNEIA')
     expect(one).not.toContain('ENTREGA:')
@@ -129,9 +168,9 @@ describe('order labels print flow', () => {
     expect(activeSources).not.toContain('localStorage')
     expect(pageSource).toContain('window.print')
     expect(pageSource).toContain("import OrderLabelsPreview from './labels/OrderLabelsPreview'")
-    expect(pageSource).not.toContain('printZebraLabels')
-    expect(pageSource).not.toContain('getZebraPrinters')
-    expect(pageSource).not.toContain('getDefaultZebraPrinter')
+    expect(pageSource).toContain('printZebraLabels')
+    expect(pageSource).toContain('getZebraPrinters')
+    expect(zebraSource).toContain('BrowserPrint')
   })
 
   it('keeps print isolated from UI and prevents an extra trailing page', () => {
@@ -166,13 +205,13 @@ describe('order labels print flow', () => {
     expect(pageSource).toContain('Limpiar selección')
     expect(pageSource).toContain('Imprimir seleccionados')
     expect(pageSource).toContain('openPreview')
+    expect(previewSource).toContain('Impresora Zebra')
+    expect(previewSource).toContain('Intentar impresora predeterminada al imprimir')
+    expect(previewSource).toContain('Buscar impresoras')
     expect(previewSource).toContain('Descargar ZPL')
     expect(previewSource).toContain('Imprimir desde navegador')
-    expect(previewSource).not.toContain('Impresora Zebra')
-    expect(previewSource).not.toContain('Intentar impresora predeterminada al imprimir')
-    expect(previewSource).not.toContain('Buscar impresoras')
-    expect(previewSource).not.toContain('Imprimir en Zebra')
-    expect(previewSource).not.toContain('Enviando a Zebra')
+    expect(previewSource).toContain('Imprimir en Zebra')
+    expect(previewSource).toContain('Enviando a Zebra')
     expect(resultsSource).toContain('Falta imprimir')
     expect(resultsSource).toContain('Ya impreso')
     expect(resultsSource).toContain('Reimprimir')

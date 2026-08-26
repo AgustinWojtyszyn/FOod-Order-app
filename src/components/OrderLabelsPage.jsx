@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { Printer, Tag, X } from 'lucide-react'
 import { useAuthContext } from '../contexts/authContextValue'
 import OrderLabelsFilters from './labels/OrderLabelsFilters'
@@ -7,32 +7,141 @@ import OrderLabelsResults from './labels/OrderLabelsResults'
 import { useOrderLabels } from '../hooks/labels/useOrderLabels'
 import {
   buildZebraLabelsZpl,
-  downloadZpl
+  dedupeZebraPrinters,
+  downloadZpl,
+  getDefaultZebraPrinter,
+  getPrinterId,
+  getZebraPrinters,
+  printZebraLabels,
+  ZEBRA_DEFAULT_PRINTER_ID,
+  ZEBRA_FALLBACK_PRINTER_ID
 } from '../utils/labels/zebraLabelPrinter'
 import './labels/order-labels.css'
 
+const logZebraDebug = (...args) => {
+  if (import.meta.env.DEV) console.log(...args)
+}
+
 const OrderLabelsPage = () => {
   const { isAdmin, isCompanyAdmin, adminCompanies } = useAuthContext()
+  const [printing, setPrinting] = useState(false)
+  const [printerLoading, setPrinterLoading] = useState(false)
+  const [printerError, setPrinterError] = useState('')
+  const [defaultPrinter, setDefaultPrinter] = useState(null)
+  const [zebraPrinters, setZebraPrinters] = useState([])
+  const [selectedPrinterId, setSelectedPrinterId] = useState('')
 
   const labels = useOrderLabels({ isAdmin, isCompanyAdmin, adminCompanies })
 
-  const openPreview = useCallback((order = null) => {
-    labels.enterPreview(order)
-  }, [labels])
+  const useDefaultPrinter = selectedPrinterId === ZEBRA_DEFAULT_PRINTER_ID
+  const useFallbackPrinter = selectedPrinterId === ZEBRA_FALLBACK_PRINTER_ID
+  const selectedPrinter = useDefaultPrinter
+    ? defaultPrinter
+    : zebraPrinters.find(printer => getPrinterId(printer) === selectedPrinterId) || null
+  const canPrintZebra = Boolean(selectedPrinter || (useDefaultPrinter && defaultPrinter) || useFallbackPrinter)
 
-  const printOrdersFromBrowser = useCallback((ordersToPrint = []) => {
+  const refreshPrinters = useCallback(async () => {
+    setPrinterLoading(true)
+    setPrinterError('')
+    try {
+      logZebraDebug('BrowserPrint disponible:', Boolean(globalThis.window?.BrowserPrint || globalThis.BrowserPrint))
+
+      let nextDefaultPrinter = null
+      let nextPrinters = []
+      let defaultError = null
+      let printersError = null
+
+      try {
+        nextDefaultPrinter = await getDefaultZebraPrinter()
+        logZebraDebug('Default printer:', nextDefaultPrinter)
+        logZebraDebug('Default printer name:', nextDefaultPrinter?.name)
+      } catch (error) {
+        defaultError = error
+        logZebraDebug('Default printer:', null)
+        logZebraDebug('Default printer name:', undefined)
+      }
+
+      try {
+        nextPrinters = await getZebraPrinters()
+        logZebraDebug('Local printers:', nextPrinters)
+        logZebraDebug('Local printers error:', null)
+      } catch (error) {
+        printersError = error
+        logZebraDebug('Local printers:', [])
+        logZebraDebug('Local printers error:', error)
+      }
+
+      const dedupedPrinters = dedupeZebraPrinters(nextPrinters, nextDefaultPrinter)
+
+      setDefaultPrinter(nextDefaultPrinter)
+      setZebraPrinters(dedupedPrinters)
+      setSelectedPrinterId(prev => {
+        if (prev === ZEBRA_DEFAULT_PRINTER_ID && nextDefaultPrinter) return prev
+        if (prev === ZEBRA_FALLBACK_PRINTER_ID && !nextDefaultPrinter && dedupedPrinters.length === 0) return prev
+        if (prev && dedupedPrinters.some(printer => getPrinterId(printer) === prev)) return prev
+        if (nextDefaultPrinter) return ZEBRA_DEFAULT_PRINTER_ID
+        return getPrinterId(dedupedPrinters[0] || {}) || ZEBRA_FALLBACK_PRINTER_ID
+      })
+
+      if (nextDefaultPrinter && printersError) {
+        setPrinterError('No se pudo listar, pero se detectó la impresora predeterminada. Podés imprimir en Zebra.')
+      } else if (nextDefaultPrinter && dedupedPrinters.length === 0) {
+        setPrinterError('No se listaron impresoras adicionales. Podés usar la predeterminada detectada.')
+      } else if (!nextDefaultPrinter && printersError) {
+        setPrinterError('No se pudo detectar una impresora ahora. Podés intentar la predeterminada al imprimir.')
+      } else if (!nextDefaultPrinter && dedupedPrinters.length === 0) {
+        setPrinterError(defaultError
+          ? 'No se encontró una impresora Zebra predeterminada ni impresoras listadas.'
+          : 'No se listaron impresoras Zebra disponibles.')
+      }
+    } catch (_error) {
+      setDefaultPrinter(null)
+      setZebraPrinters([])
+      setSelectedPrinterId(ZEBRA_FALLBACK_PRINTER_ID)
+      setPrinterError('No se pudo completar la detección. Podés intentar la predeterminada al imprimir.')
+    } finally {
+      setPrinterLoading(false)
+    }
+  }, [])
+
+  const openPreview = useCallback(async (order = null) => {
+    labels.enterPreview(order)
+    await refreshPrinters()
+  }, [labels, refreshPrinters])
+
+  const printOrders = useCallback(async (ordersToPrint = []) => {
     const safeOrders = Array.isArray(ordersToPrint) ? ordersToPrint.filter(order => order?.id) : []
     if (safeOrders.length === 0) {
       labels.setPrintWarning('Seleccioná al menos un pedido para imprimir etiquetas.')
       return
     }
-    labels.setPrintWarning('')
-    window.requestAnimationFrame(() => window.print())
-  }, [labels])
+    if (!canPrintZebra) {
+      labels.setPrintWarning('Seleccioná una impresora Zebra antes de imprimir.')
+      return
+    }
+
+    setPrinting(true)
+    const result = await printZebraLabels(safeOrders, useFallbackPrinter ? null : selectedPrinter)
+    setPrinting(false)
+
+    if (result.printed) {
+      labels.setPrintWarning('')
+      await labels.markPrinted(safeOrders.map(order => order.id))
+      return
+    }
+
+    labels.setPrintWarning(result.uncertain
+      ? 'No se pudo confirmar si la impresora recibió el trabajo. Verificá la Zebra antes de volver a imprimir.'
+      : 'No se pudo imprimir en la Zebra seleccionada. Revisá que esté conectada y disponible en Zebra Browser Print.')
+  }, [canPrintZebra, labels, selectedPrinter, useFallbackPrinter])
 
   const printSelectedLabels = useCallback(() => {
-    printOrdersFromBrowser(labels.selectedOrders)
-  }, [labels.selectedOrders, printOrdersFromBrowser])
+    printOrders(labels.selectedOrders)
+  }, [labels.selectedOrders, printOrders])
+
+  const printLabelsFromBrowser = useCallback(() => {
+    window.requestAnimationFrame(() => window.print())
+  }, [])
 
   const downloadSelectedZpl = useCallback(() => {
     const safeOrders = labels.selectedOrders.filter(order => order?.id)
@@ -145,7 +254,7 @@ const OrderLabelsPage = () => {
                   <button
                     type="button"
                     onClick={() => openPreview()}
-                    disabled={labels.selectedCount === 0}
+                    disabled={labels.selectedCount === 0 || printing}
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-700 px-5 text-sm font-black text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Printer className="h-4 w-4" />
@@ -178,9 +287,19 @@ const OrderLabelsPage = () => {
       ) : (
         <OrderLabelsPreview
           selectedOrders={labels.selectedOrders}
+          printers={zebraPrinters}
+          defaultPrinter={defaultPrinter}
+          selectedPrinterId={selectedPrinterId}
+          canPrintZebra={canPrintZebra}
+          printerLoading={printerLoading}
+          printerError={printerError}
+          printing={printing}
           onBack={labels.cancelPreview}
           onCancel={labels.cancelPreview}
+          onPrinterChange={setSelectedPrinterId}
+          onRefreshPrinters={refreshPrinters}
           onPrint={printSelectedLabels}
+          onBrowserPrint={printLabelsFromBrowser}
           onDownloadZpl={downloadSelectedZpl}
         />
       )}
