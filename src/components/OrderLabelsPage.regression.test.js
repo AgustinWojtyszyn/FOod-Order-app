@@ -8,7 +8,6 @@ import {
   LABEL_HEIGHT_MM,
   LABEL_PAGE_SIZE_CSS,
   LABEL_PHYSICAL_SIZE_CSS,
-  LABEL_PAGE_ORIENTATION_CSS,
   LABEL_SAFE_PADDING_X_CSS,
   LABEL_SAFE_PADDING_Y_CSS,
   LABEL_WIDTH_CSS,
@@ -82,15 +81,14 @@ describe('order labels print flow', () => {
     expect(LABEL_HEIGHT_CSS).toBe('32mm')
     expect(LABEL_WIDTH_MM).toBeGreaterThan(LABEL_HEIGHT_MM)
     expect(LABEL_PHYSICAL_SIZE_CSS).toBe('64mm 32mm')
-    expect(LABEL_PAGE_ORIENTATION_CSS).toBe('landscape')
-    expect(LABEL_PAGE_SIZE_CSS).toBe('landscape')
+    expect(LABEL_PAGE_SIZE_CSS).toBe('64mm 32mm')
     expect(LABEL_SAFE_PADDING_X_CSS).toBe('2.2mm')
     expect(LABEL_SAFE_PADDING_Y_CSS).toBe('1.7mm')
     expect(geometrySource).toContain('widthMm: 64')
     expect(geometrySource).toContain('heightMm: 32')
     expect(geometrySource).toContain('safePaddingXmm: 2.2')
     expect(geometrySource).toContain('safePaddingYmm: 1.7')
-    expect(html).toContain('@page { size: landscape; margin: 0; }')
+    expect(html).toContain('@page { size: 64mm 32mm; margin: 0; }')
     expect(html).toContain('--label-width:64mm')
     expect(html).toContain('--label-height:32mm')
     expect(html).toContain('--label-safe-x:2.2mm')
@@ -100,7 +98,6 @@ describe('order labels print flow', () => {
     expect(cssSource).toContain('padding: var(--label-safe-y, 1.7mm) var(--label-safe-x, 2.2mm)')
     expect(cssSource).toContain('justify-content: center')
     expect(cssSource).not.toContain('size: A4')
-    expect(previewSource).not.toContain('size: 64mm 32mm')
     expect(previewSource).not.toContain('size: 32mm 64mm')
     expect(previewSource).not.toContain('thermalPreset')
     expect(previewSource).not.toContain('a4Columns')
