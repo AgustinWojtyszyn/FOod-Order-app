@@ -10,7 +10,7 @@
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com;
       img-src 'self' data: https: blob:;
-      connect-src 'self' https://*.supabase.co wss://*.supabase.co ws://localhost:* wss://localhost:* https://www.google-analytics.com https://www.googletagmanager.com;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co http://localhost:9100 http://127.0.0.1:9100 https://localhost:9101 https://127.0.0.1:9101 ws://localhost:* wss://localhost:* https://www.google-analytics.com https://www.googletagmanager.com;
       frame-src 'none';
       object-src 'none';
       base-uri 'self';
