@@ -14,6 +14,7 @@ const isLongLabelContent = (label = {}) => {
   const textLength = [
     label.customerName,
     label.companyLabel,
+    label.deliveryLocation,
     label.itemsText,
     label.beverages?.join?.(', '),
     label.fruitDessertChoice
@@ -37,12 +38,6 @@ const OrderLabelCard = ({ label }) => {
         <span>{formatDate(label.delivery_date)}</span>
         {label.originLabel === 'Extra' && <span>Extra</span>}
       </div>
-
-      {label.deliveryLocation && (
-        <div className="sf-label-line">
-          <strong>Entrega:</strong> {label.deliveryLocation}
-        </div>
-      )}
 
       <div className="sf-label-items">
         <strong>Pedido:</strong> {label.itemsText}

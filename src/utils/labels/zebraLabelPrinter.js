@@ -6,6 +6,12 @@ export const ZEBRA_DPI = 203
 export const ZEBRA_DOTS_PER_MM = 8
 export const ZEBRA_LABEL_WIDTH_DOTS = Math.round(ZEBRA_LABEL_WIDTH_MM * ZEBRA_DOTS_PER_MM)
 export const ZEBRA_LABEL_HEIGHT_DOTS = Math.round(ZEBRA_LABEL_HEIGHT_MM * ZEBRA_DOTS_PER_MM)
+const ZEBRA_BROWSER_PRINT_ENDPOINTS = [
+  'https://localhost:9101/',
+  'https://127.0.0.1:9101/',
+  'http://localhost:9100/',
+  'http://127.0.0.1:9100/'
+]
 
 const normalizeText = (value = '') =>
   String(value || '')
@@ -30,7 +36,6 @@ const zplText = (x, y, fontHeight, fontWidth, width, maxLines, text) =>
 export const buildZebraLabelZpl = (order = {}) => {
   const label = buildLabelOrder(order)
   const meta = [label.companyLabel, label.serviceLabel, formatDate(label.delivery_date)].filter(Boolean).join('   ')
-  const delivery = label.deliveryLocation ? `ENTREGA: ${label.deliveryLocation}` : ''
   const orderText = `PEDIDO: ${label.itemsText || 'Sin detalle'}`
   const beverage = label.beverages.length > 0 ? `BEBIDA: ${label.beverages.join(', ')}` : ''
   const footer = label.fruitDessertChoice ? `FRUTA O POSTRE: ${label.fruitDessertChoice}` : ''
@@ -54,10 +59,9 @@ export const buildZebraLabelZpl = (order = {}) => {
     zplText(423, 19, 18, 16, 66, 1, label.shortCode || ''),
     '^FO18,56^GB476,0,2^FS',
     zplText(22, 68, 18, 16, 455, 1, meta),
-    zplText(22, 96, 17, 15, 455, 1, delivery),
-    zplText(22, 124, 17, 15, 455, 2, orderText),
-    zplText(22, 178, 17, 15, 455, 1, beverage),
-    zplText(22, 206, 16, 14, 455, 1, footer),
+    zplText(22, 102, 20, 18, 455, 2, orderText),
+    zplText(22, 164, 18, 16, 455, 1, beverage),
+    zplText(22, 194, 17, 15, 455, 1, footer),
     '^PQ1,0,1,Y',
     '^XZ'
   ].filter(Boolean).join('\n')
@@ -82,6 +86,42 @@ export const downloadZpl = (zpl) => {
   URL.revokeObjectURL(url)
 }
 
+const requestBrowserPrint = (baseUrl, method, path, body = null) => new Promise((resolve, reject) => {
+  const xhr = new XMLHttpRequest()
+  xhr.open(method, `${baseUrl}${path}`, true)
+  xhr.onreadystatechange = () => {
+    if (xhr.readyState !== XMLHttpRequest.DONE) return
+    if (xhr.status >= 200 && xhr.status < 300) {
+      resolve(xhr.responseText)
+      return
+    }
+    reject(new Error(xhr.responseText || `Zebra Browser Print respondió ${xhr.status}`))
+  }
+  xhr.onerror = () => reject(new Error(`No se pudo conectar a ${baseUrl}`))
+  xhr.send(body ? JSON.stringify(body) : undefined)
+})
+
+const withFirstAvailableEndpoint = async (handler) => {
+  let lastError = null
+  for (const endpoint of ZEBRA_BROWSER_PRINT_ENDPOINTS) {
+    try {
+      return await handler(endpoint)
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError || new Error('No se pudo conectar a Zebra Browser Print.')
+}
+
+const createLocalBrowserPrintDevice = (device, endpoint) => ({
+  ...device,
+  send: (data, success, failure) => {
+    requestBrowserPrint(endpoint, 'POST', 'write', { device, data })
+      .then(response => success?.(response))
+      .catch(error => failure?.(error?.message || String(error)))
+  }
+})
+
 export const isZebraBrowserPrintAvailable = () => Boolean(window.BrowserPrint?.getLocalDevices)
 
 export const getDefaultZebraPrinter = () => new Promise((resolve, reject) => {
@@ -96,16 +136,23 @@ export const getDefaultZebraPrinter = () => new Promise((resolve, reject) => {
 
 export const getZebraPrinters = () => new Promise((resolve, reject) => {
   const browserPrint = window.BrowserPrint
-  if (!browserPrint?.getLocalDevices) {
-    reject(new Error('Zebra Browser Print no esta disponible.'))
+  if (browserPrint?.getLocalDevices) {
+    browserPrint.getLocalDevices(
+      devices => resolve((Array.isArray(devices) ? devices : []).filter(device => device)),
+      reject,
+      'printer'
+    )
     return
   }
 
-  browserPrint.getLocalDevices(
-    devices => resolve((Array.isArray(devices) ? devices : []).filter(device => device)),
-    reject,
-    'printer'
-  )
+  withFirstAvailableEndpoint(async (endpoint) => {
+    const raw = await requestBrowserPrint(endpoint, 'GET', 'available')
+    const response = JSON.parse(raw || '{}')
+    const printers = Array.isArray(response.printer) ? response.printer : []
+    return printers.map(device => createLocalBrowserPrintDevice(device, endpoint))
+  }).then(resolve).catch(() => {
+    reject(new Error('Zebra Browser Print no esta disponible.'))
+  })
 })
 
 const sendToPrinter = (printer, zpl) => new Promise((resolve, reject) => {

@@ -27,7 +27,8 @@ const buildSampleOrder = (id) => ({
   total_items: 1,
   items: [{ name: 'Plato Principal', quantity: 1 }],
   custom_responses: [
-    { title: 'Bebida', response: 'Coca cola' }
+    { title: 'Bebida', response: 'Coca cola' },
+    { title: 'Fruta o postre', response: 'Fruta' }
   ]
 })
 
@@ -62,9 +63,10 @@ describe('order labels print flow', () => {
     expect(one).toContain('^LS0')
     expect(one).toContain('GABRIEL MERCADO')
     expect(one).toContain('GENNEIA')
-    expect(one).toContain('ENTREGA: GENNEIA')
+    expect(one).not.toContain('ENTREGA:')
     expect(one).toContain('PEDIDO:')
     expect(one).toContain('BEBIDA: COCA COLA')
+    expect(one).toContain('FRUTA O POSTRE')
   })
 
   it('uses one canonical 64 x 32 mm page geometry', () => {
