@@ -69,6 +69,7 @@ const LabelPrintSettingsPanel = ({ settings, onChange, onReset, onSave, onSaveCu
               <button type="button" onClick={swapDimensions} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">↔ Intercambiar ancho / alto</button>
             </div>
             {validation.orientationMismatch && <p className="mt-2 text-sm font-bold text-amber-700">La orientación no coincide con las dimensiones actuales.</p>}
+            {settings.profile === 'recommended' && settings.orientation !== 'landscape' && <p className="mt-2 text-sm font-bold text-amber-700">La configuración oficial ServiFood para GC420t requiere Horizontal / Landscape.</p>}
           </section>
 
           <section>
@@ -101,7 +102,16 @@ const LabelPrintSettingsPanel = ({ settings, onChange, onReset, onSave, onSaveCu
               <label className="space-y-1"><span className="text-xs font-bold text-slate-600">Impresora objetivo</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" value={settings.printerName} onChange={event => update('printerName', event.target.value)}><option>ZDesigner GC420t</option><option>Otra</option></select></label>
               <label className="space-y-1"><span className="text-xs font-bold text-slate-600">Escala recomendada de Chrome</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" value={settings.chromeHints.scale} onChange={event => update('chromeHints', { ...settings.chromeHints, scale: event.target.value === 'custom' ? 'custom' : Number(event.target.value) })}><option value="100">100 %</option><option value="81">81 %</option><option value="custom">Personalizada</option></select></label>
             </div>
-            <p className="mt-3 text-xs font-semibold text-slate-500">Destino: {settings.printerName} · Orientación: según este perfil · Tamaño: según este perfil · Márgenes: Ninguno · Encabezado y pie: Desactivado. La aplicación no puede cambiar estos valores del diálogo nativo.</p>
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-950">
+              <p>Destino: {settings.printerName} · Orientación: según este perfil · Tamaño: según este perfil · Márgenes: Ninguno · Encabezado y pie: Desactivado.</p>
+              <p className="mt-2 font-black">ZDesigner Driver v5: Printer Settings → Override Application Default Settings → Always use driver settings, si está disponible.</p>
+              <p className="mt-2">La aplicación no puede seleccionar la impresora ni cambiar la orientación, stock, escala o páginas por hoja del diálogo nativo.</p>
+            </div>
+          </section>
+
+          <section>
+            <h4 className="text-sm font-black uppercase tracking-wide text-slate-800">Procedimiento de calibración</h4>
+            <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">Verificá primero el stock 64 x 32 mm y Horizontal en ZDesigner. Imprimí la Configuration Status Label para revisar Print Width, Label Length, Media Type, Sensor Type, Print Method y Resolution. Si el avance es incorrecto, ejecutá Standard Auto Media Calibration con 2 flashes de FEED; si persiste, Manual Media Calibration con 7 flashes. Para ajustar el ancho, usá Print Width Adjustment con 5 flashes. La calibración de la app no marca pedidos.</p>
           </section>
         </div>
 

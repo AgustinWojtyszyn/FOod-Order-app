@@ -4,7 +4,6 @@ import { buildLabelOrder } from '../../utils/labels/labelOrderUtils'
 import LabelPrintSettingsPanel from './LabelPrintSettingsPanel'
 import { useLabelPrintSettings } from '../../hooks/labels/useLabelPrintSettings'
 import {
-  createDefaultLabelPrintSettings,
   expandLabelInstances,
   getLabelPrintValidation,
   getSafeAreaDimensions
@@ -21,9 +20,11 @@ const CalibrationLabel = ({ settings }) => (
     <div className="calibration-corner calibration-corner--bottom-right" />
     <strong>PAPEL: {settings.widthMm} x {settings.heightMm} mm</strong>
     <span>ORIENTACIÓN: {settings.orientation === 'landscape' ? 'HORIZONTAL' : 'VERTICAL'}</span>
+    <span>SAFE: {settings.widthMm - settings.margins.left - settings.margins.right} x {settings.heightMm - settings.margins.top - settings.margins.bottom} mm</span>
     <span>SAFE: L{settings.margins.left} R{settings.margins.right} T{settings.margins.top} B{settings.margins.bottom}</span>
     <span>OFFSET: X {settings.offsetXmm} / Y {settings.offsetYmm} mm</span>
-    <span>ESCALA APP: {Math.round(settings.contentScale * 100)} % · PERFIL: {settings.profile}</span>
+    <span>ESCALA APP: {Math.round(settings.contentScale * 100)} % · CHROME: {settings.chromeHints.scale} %</span>
+    <span>PERFIL: {settings.profile}</span>
     <div className="calibration-cross calibration-cross--horizontal" />
     <div className="calibration-cross calibration-cross--vertical" />
   </article>
@@ -125,6 +126,20 @@ const OrderLabelsPreview = ({
         <p className="mt-3 text-xs font-bold text-slate-500 print-hide">
           Impresora esperada: {settings.printerName} · Chrome: 1 página por hoja · Márgenes ninguno · Encabezado y pie desactivados. La escala del diálogo de Chrome es sólo una referencia: la aplicación no puede cambiarla.
         </p>
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-950 print-hide">
+          <div className="font-black uppercase tracking-wide">GC420t pre-flight</div>
+          <div className="mt-1 grid gap-x-4 gap-y-0.5 sm:grid-cols-2">
+            <span>✓ App: {settings.widthMm} x {settings.heightMm} mm · {settings.orientation === 'landscape' ? 'Horizontal' : 'Vertical'}</span>
+            <span>□ Zebra: Horizontal / Landscape</span>
+            <span>□ Stock User Defined: {settings.widthMm} x {settings.heightMm} mm</span>
+            <span>□ 1 página por hoja · márgenes ninguno</span>
+            <span>□ Encabezados y pies desactivados</span>
+            <span>□ Escala Chrome: {settings.chromeHints.scale} % (manual)</span>
+          </div>
+          {settings.profile === 'recommended' && settings.orientation !== 'landscape' && (
+            <p className="mt-2 text-red-700">La configuración oficial ServiFood para GC420t requiere Horizontal / Landscape.</p>
+          )}
+        </div>
       </div>
 
       <div className={`labels-print-root print-pages labels-print-surface${calibrationMode ? ' calibration-print-root' : ''}`} aria-label="Etiquetas seleccionadas para imprimir">

@@ -192,6 +192,20 @@ describe('order labels print flow', () => {
     expect(cssSource).toContain('page-break-inside: avoid !important')
   })
 
+  it('keeps the physical page, safe area, border, and content responsibilities separate', () => {
+    const html = renderPreview(1)
+
+    expect(html).toContain('class="print-safe-area"')
+    expect(html).toContain('class="sf-label-card print-label')
+    expect(html).toContain('class="print-label-content"')
+    expect(cssSource).toContain('inset: var(--label-safe-top) var(--label-safe-right) var(--label-safe-bottom) var(--label-safe-left)')
+    expect(cssSource).toContain('border: 0.35mm solid #111827')
+    expect(cssSource).toContain('top: var(--label-offset-y)')
+    expect(cssSource).toContain('left: var(--label-offset-x)')
+    expect(previewSource).toContain('widthMm - settings.margins.left - settings.margins.right')
+    expect(previewSource).toContain('heightMm - settings.margins.top - settings.margins.bottom')
+  })
+
   it('preserves current selection, filters, and print-state controls outside print', () => {
     expect(pageSource).toContain('Seleccionar todos visibles')
     expect(pageSource).toContain('Limpiar selección')
