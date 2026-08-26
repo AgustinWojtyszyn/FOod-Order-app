@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import OrderLabelsPreview from './labels/OrderLabelsPreview'
+import {
+  ZEBRA_LABEL_HEIGHT_DOTS,
+  ZEBRA_LABEL_WIDTH_DOTS,
+  buildZebraLabelsZpl
+} from '../utils/labels/zebraLabelPrinter'
 
 const pageSource = readFileSync(new URL('./OrderLabelsPage.jsx', import.meta.url), 'utf8')
 const previewSource = readFileSync(new URL('./labels/OrderLabelsPreview.jsx', import.meta.url), 'utf8')
@@ -10,6 +15,7 @@ const cardSource = readFileSync(new URL('./labels/OrderLabelCard.jsx', import.me
 const resultsSource = readFileSync(new URL('./labels/OrderLabelsResults.jsx', import.meta.url), 'utf8')
 const cssSource = readFileSync(new URL('./labels/order-labels.css', import.meta.url), 'utf8')
 const labelUtilsSource = readFileSync(new URL('../utils/labels/labelOrderUtils.js', import.meta.url), 'utf8')
+const zebraSource = readFileSync(new URL('../utils/labels/zebraLabelPrinter.js', import.meta.url), 'utf8')
 
 const buildSampleOrder = (id) => ({
   id,
@@ -41,6 +47,26 @@ describe('order labels print flow', () => {
     expect(countPrintLabels(renderPreview(0))).toBe(0)
   })
 
+  it('builds one 203 dpi Zebra ZPL label per selected order', () => {
+    const one = buildZebraLabelsZpl([buildSampleOrder('order-1')])
+    const ten = buildZebraLabelsZpl(Array.from({ length: 10 }, (_, index) => buildSampleOrder(`order-${index + 1}`)))
+
+    expect(ZEBRA_LABEL_WIDTH_DOTS).toBe(512)
+    expect(ZEBRA_LABEL_HEIGHT_DOTS).toBe(256)
+    expect((one.match(/\^XA/g) || [])).toHaveLength(1)
+    expect((ten.match(/\^XA/g) || [])).toHaveLength(10)
+    expect(one).toContain('^PW512')
+    expect(one).toContain('^LL256')
+    expect(one).toContain('^PON')
+    expect(one).toContain('^LH0,0')
+    expect(one).toContain('^LS0')
+    expect(one).toContain('GABRIEL MERCADO')
+    expect(one).toContain('GENNEIA')
+    expect(one).toContain('ENTREGA: GENNEIA')
+    expect(one).toContain('PEDIDO:')
+    expect(one).toContain('BEBIDA: COCA COLA')
+  })
+
   it('uses one canonical 64 x 32 mm page geometry', () => {
     expect(cssSource).toContain('@page')
     expect(cssSource).toContain('size: 64mm 32mm;')
@@ -57,7 +83,7 @@ describe('order labels print flow', () => {
   })
 
   it('does not leave old dimensions or copy expansion in the active label pipeline', () => {
-    const activeSources = [pageSource, previewSource, cardSource, resultsSource, cssSource, labelUtilsSource].join('\n')
+    const activeSources = [pageSource, previewSource, cardSource, resultsSource, cssSource, labelUtilsSource, zebraSource].join('\n')
     expect(activeSources).not.toContain('100mm')
     expect(activeSources).not.toContain('50mm')
     expect(activeSources).not.toContain('94mm')
@@ -68,6 +94,9 @@ describe('order labels print flow', () => {
     expect(activeSources).not.toContain('copiesByOrderId')
     expect(activeSources).not.toContain('labelPrintOffset')
     expect(activeSources).not.toContain('localStorage')
+    expect(pageSource).not.toContain('window.print')
+    expect(pageSource).toContain('printZebraLabels')
+    expect(zebraSource).toContain('BrowserPrint')
   })
 
   it('keeps print isolated from UI and prevents an extra trailing page', () => {
@@ -101,6 +130,7 @@ describe('order labels print flow', () => {
     expect(pageSource).toContain('Seleccionar todos visibles')
     expect(pageSource).toContain('Limpiar selección')
     expect(pageSource).toContain('Imprimir seleccionados')
+    expect(pageSource).toContain('Enviando a Zebra')
     expect(resultsSource).toContain('Falta imprimir')
     expect(resultsSource).toContain('Ya impreso')
     expect(resultsSource).toContain('Reimprimir')

@@ -1,19 +1,45 @@
+import { useCallback, useState } from 'react'
 import { Printer, Tag, X } from 'lucide-react'
 import { useAuthContext } from '../contexts/authContextValue'
 import OrderLabelsFilters from './labels/OrderLabelsFilters'
-import OrderLabelsPreview from './labels/OrderLabelsPreview'
 import OrderLabelsResults from './labels/OrderLabelsResults'
 import { useOrderLabels } from '../hooks/labels/useOrderLabels'
+import { printZebraLabels } from '../utils/labels/zebraLabelPrinter'
 import './labels/order-labels.css'
 
 const OrderLabelsPage = () => {
   const { isAdmin, isCompanyAdmin, adminCompanies } = useAuthContext()
+  const [printing, setPrinting] = useState(false)
 
   const labels = useOrderLabels({ isAdmin, isCompanyAdmin, adminCompanies })
 
-  const printLabels = () => {
-    window.requestAnimationFrame(() => window.print())
-  }
+  const printOrders = useCallback(async (ordersToPrint = []) => {
+    const safeOrders = Array.isArray(ordersToPrint) ? ordersToPrint.filter(order => order?.id) : []
+    if (safeOrders.length === 0) {
+      labels.setPrintWarning('Seleccioná al menos un pedido para imprimir etiquetas.')
+      return
+    }
+
+    setPrinting(true)
+    const result = await printZebraLabels(safeOrders)
+    setPrinting(false)
+
+    if (result.printed) {
+      labels.setPrintWarning('')
+      await labels.markPrinted(safeOrders.map(order => order.id))
+      return
+    }
+
+    labels.setPrintWarning(
+      result.downloaded
+        ? 'No se detectó Zebra Browser Print. Se descargó un archivo .zpl para enviar a la impresora Zebra.'
+        : 'No se pudo imprimir en la Zebra. Revisá la conexión de la impresora.'
+    )
+  }, [labels])
+
+  const printSelectedLabels = useCallback(() => {
+    printOrders(labels.selectedOrders)
+  }, [labels.selectedOrders, printOrders])
 
   return (
     <div className="order-labels-page mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
@@ -116,12 +142,12 @@ const OrderLabelsPage = () => {
                   )}
                   <button
                     type="button"
-                    onClick={() => labels.enterPreview()}
-                    disabled={labels.selectedCount === 0}
+                    onClick={printSelectedLabels}
+                    disabled={labels.selectedCount === 0 || printing}
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-700 px-5 text-sm font-black text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Printer className="h-4 w-4" />
-                    Imprimir seleccionados
+                    {printing ? 'Enviando a Zebra...' : 'Imprimir seleccionados'}
                   </button>
                 </div>
               </div>
@@ -142,19 +168,12 @@ const OrderLabelsPage = () => {
             onToggleOrder={labels.toggleOrder}
             onSelectVisible={labels.selectVisible}
             onUnselectVisible={labels.unselectVisible}
-            onPrintOne={labels.enterPreview}
+            onPrintOne={(order) => printOrders([order])}
             onPrintStateChange={labels.updatePrintState}
             onPageChange={labels.setPage}
           />
         </div>
-      ) : (
-        <OrderLabelsPreview
-          selectedOrders={labels.selectedOrders}
-          onBack={labels.cancelPreview}
-          onCancel={labels.cancelPreview}
-          onPrint={printLabels}
-        />
-      )}
+      ) : null}
     </div>
   )
 }
