@@ -1,13 +1,34 @@
 const formatDate = (value) => {
   const raw = String(value || '').slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return 'Sin fecha'
-  const [year, month, day] = raw.split('-').map(Number)
-  return new Intl.DateTimeFormat('es-AR', {
-    timeZone: 'UTC',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  }).format(new Date(Date.UTC(year, month - 1, day, 12, 0, 0)))
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return 'Sin fecha'
+  }
+
+  const [year, month, day] = raw
+    .split('-')
+    .map(Number)
+
+  return new Intl.DateTimeFormat(
+    'es-AR',
+    {
+      timeZone: 'UTC',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }
+  ).format(
+    new Date(
+      Date.UTC(
+        year,
+        month - 1,
+        day,
+        12,
+        0,
+        0
+      )
+    )
+  )
 }
 
 const isLongLabelContent = (label = {}) => {
@@ -19,49 +40,72 @@ const isLongLabelContent = (label = {}) => {
     label.beverages?.join?.(', '),
     label.fruitDessertChoice
   ].join(' ').length
+
   return textLength > 220
 }
 
 const OrderLabelCard = ({ label }) => {
-  const densityClass = isLongLabelContent(label) ? ' sf-label-card--dense' : ''
+  const densityClass = isLongLabelContent(label)
+    ? ' sf-label-card--dense'
+    : ''
 
   return (
-    <article className={`sf-label-card print-label${densityClass}`}>
-      <div className="print-label-content">
-        <header className="sf-label-header">
-          <div className="sf-label-customer">{label.customerName}</div>
-          <div className="sf-label-code">{label.shortCode}</div>
-        </header>
+    <article className={`sf-label-card${densityClass}`}>
+      <header className="sf-label-header">
+        <div className="sf-label-customer">
+          {label.customerName}
+        </div>
 
-        <div className="sf-label-company">{label.companyLabel}</div>
-        {label.deliveryLocation && label.deliveryLocation !== label.companyLabel && (
-          <div className="sf-label-location">{label.deliveryLocation}</div>
+        <div className="sf-label-code">
+          {label.shortCode}
+        </div>
+      </header>
+
+      <div className="sf-label-meta">
+        <strong>
+          {label.companyLabel}
+        </strong>
+
+        {label.deliveryLocation &&
+          label.deliveryLocation !== label.companyLabel && (
+            <span>
+              {label.deliveryLocation}
+            </span>
+          )}
+
+        <span>
+          {label.serviceLabel}
+        </span>
+
+        <span>
+          {formatDate(label.delivery_date)}
+        </span>
+
+        {label.originLabel === 'Extra' && (
+          <span>
+            Extra
+          </span>
         )}
-
-        <div className="sf-label-service-date">
-          <span>{label.serviceLabel}</span>
-          <span>{formatDate(label.delivery_date)}</span>
-          {label.originLabel === 'Extra' && <span>Extra</span>}
-        </div>
-
-        <div className="sf-label-body">
-          <div className="sf-label-items">
-            <strong>Pedido:</strong> {label.itemsText}
-          </div>
-
-          {label.beverages.length > 0 && (
-            <div className="sf-label-line">
-              <strong>Bebida:</strong> {label.beverages.join(', ')}
-            </div>
-          )}
-
-          {label.fruitDessertChoice && (
-            <div className="sf-label-line">
-              <strong>Fruta o postre:</strong> {label.fruitDessertChoice}
-            </div>
-          )}
-        </div>
       </div>
+
+      <div className="sf-label-items">
+        <strong>Pedido:</strong>{' '}
+        {label.itemsText}
+      </div>
+
+      {label.beverages?.length > 0 && (
+        <div className="sf-label-line">
+          <strong>Bebida:</strong>{' '}
+          {label.beverages.join(', ')}
+        </div>
+      )}
+
+      {label.fruitDessertChoice && (
+        <div className="sf-label-line">
+          <strong>Fruta o postre:</strong>{' '}
+          {label.fruitDessertChoice}
+        </div>
+      )}
     </article>
   )
 }
