@@ -48,6 +48,20 @@ describe('order labels print flow', () => {
     expect(countPrintLabels(renderPreview(0))).toBe(0)
   })
 
+  it('shows the real Browser Print default printer name when it is available', () => {
+    const html = renderToStaticMarkup(React.createElement(OrderLabelsPreview, {
+      selectedOrders: [buildSampleOrder('order-1')],
+      defaultPrinter: { name: 'Nombre real desde device.name', uid: 'default-printer' },
+      selectedPrinterId: '__zebra_default__',
+      onBack: () => {},
+      onCancel: () => {},
+      onPrint: () => {}
+    }))
+
+    expect(html).toContain('Nombre real desde device.name')
+    expect(html).not.toContain('Impresora predeterminada de Zebra Browser Print</option>')
+  })
+
   it('builds one 203 dpi Zebra ZPL label per selected order', () => {
     const one = buildZebraLabelsZpl([buildSampleOrder('order-1')])
     const ten = buildZebraLabelsZpl(Array.from({ length: 10 }, (_, index) => buildSampleOrder(`order-${index + 1}`)))

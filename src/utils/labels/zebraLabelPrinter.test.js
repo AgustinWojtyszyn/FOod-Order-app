@@ -129,4 +129,22 @@ describe('zebraLabelPrinter', () => {
       'https://127.0.0.1:9101/available'
     ])
   })
+
+  it('prints through the default SDK printer even when local device listing fails', async () => {
+    const send = vi.fn((zpl, success) => success?.('OK'))
+    const defaultPrinter = { name: 'Impresora real desde Browser Print', uid: 'default-sdk-printer', send }
+    const getLocalDevices = vi.fn((_success, failure) => failure?.(new Error('list failed')))
+    const getDefaultDevice = vi.fn((_type, success) => success(defaultPrinter))
+
+    vi.stubGlobal('BrowserPrint', { getDefaultDevice, getLocalDevices })
+
+    const listResult = await getZebraPrinters().catch(error => error)
+    const printResult = await printZebraLabels([buildOrder()])
+
+    expect(listResult).toBeInstanceOf(Error)
+    expect(printResult.printed).toBe(true)
+    expect(getDefaultDevice).toHaveBeenCalledWith('printer', expect.any(Function), expect.any(Function))
+    expect(getLocalDevices).toHaveBeenCalled()
+    expect(send).toHaveBeenCalledWith(expect.stringContaining('^PW512'), expect.any(Function), expect.any(Function))
+  })
 })

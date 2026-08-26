@@ -6,6 +6,7 @@ import OrderLabelCard from './OrderLabelCard'
 const OrderLabelsPreview = ({
   selectedOrders,
   printers = [],
+  defaultPrinter = null,
   selectedPrinterId = '',
   printerLoading = false,
   printerError = '',
@@ -21,6 +22,9 @@ const OrderLabelsPreview = ({
     ...buildLabelOrder(order),
     labelInstanceId: order?.id || `selected-${index}`
   }))
+  const defaultPrinterLabel = defaultPrinter
+    ? getPrinterLabel(defaultPrinter)
+    : 'Impresora predeterminada de Zebra Browser Print'
 
   return (
     <section className="labels-preview-root">
@@ -43,7 +47,7 @@ const OrderLabelsPreview = ({
                 disabled={printerLoading}
               >
                 <option value="">{printerLoading ? 'Buscando impresoras...' : 'Seleccionar impresora'}</option>
-                <option value={ZEBRA_DEFAULT_PRINTER_ID}>Impresora predeterminada de Zebra Browser Print</option>
+                <option value={ZEBRA_DEFAULT_PRINTER_ID}>{defaultPrinterLabel}</option>
                 {printers.map(printer => (
                   <option key={getPrinterId(printer)} value={getPrinterId(printer)}>
                     {getPrinterLabel(printer)}
