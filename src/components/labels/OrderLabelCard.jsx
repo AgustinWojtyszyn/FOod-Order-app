@@ -38,6 +38,12 @@ const OrderLabelCard = ({ label }) => {
         {label.originLabel === 'Extra' && <span>Extra</span>}
       </div>
 
+      {label.deliveryLocation && (
+        <div className="sf-label-line">
+          <strong>Entrega:</strong> {label.deliveryLocation}
+        </div>
+      )}
+
       <div className="sf-label-items">
         <strong>Pedido:</strong> {label.itemsText}
       </div>

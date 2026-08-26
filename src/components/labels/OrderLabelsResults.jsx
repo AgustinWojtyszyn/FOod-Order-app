@@ -7,7 +7,6 @@ const OrderLabelsResults = ({
   orders,
   loading,
   selectedIds,
-  copiesByOrderId,
   allVisibleSelected,
   totalCount,
   printState,
@@ -18,8 +17,6 @@ const OrderLabelsResults = ({
   onToggleOrder,
   onSelectVisible,
   onUnselectVisible,
-  onCopiesChange,
-  onCopiesFromRations,
   onPrintOne,
   onPrintStateChange,
   onPageChange
@@ -88,7 +85,6 @@ const OrderLabelsResults = ({
                 <th className="min-w-70 px-4 py-3">Resumen</th>
                 <th className="min-w-27.5 px-4 py-3">Estado</th>
                 <th className="min-w-32 px-4 py-3">Impresión</th>
-                <th className="min-w-42.5 px-4 py-3">Copias</th>
                 <th className="min-w-37.5 px-4 py-3">Acción</th>
               </tr>
             </thead>
@@ -132,21 +128,6 @@ const OrderLabelsResults = ({
                       )}
                     </td>
                     <td className="border-b border-slate-200 px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="1"
-                          max="99"
-                          className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-sm"
-                          value={copiesByOrderId[order.id] || 1}
-                          onChange={event => onCopiesChange(order.id, event.target.value)}
-                        />
-                        <button type="button" className="text-xs font-bold text-blue-700 hover:text-blue-900" onClick={() => onCopiesFromRations(order)}>
-                          usar raciones
-                        </button>
-                      </div>
-                    </td>
-                    <td className="border-b border-slate-200 px-4 py-4">
                       <button type="button" className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white hover:bg-blue-800" onClick={() => onPrintOne(order)}>
                         <Printer className="h-4 w-4" />
                         {order.label_printed_at ? 'Reimprimir' : 'Imprimir una'}
@@ -181,8 +162,6 @@ const OrderLabelsResults = ({
                     </p>
                     <p className="mt-1 text-sm text-slate-700">{label.itemsText}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <input type="number" min="1" max="99" className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-sm" value={copiesByOrderId[order.id] || 1} onChange={event => onCopiesChange(order.id, event.target.value)} />
-                      <button type="button" className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700" onClick={() => onCopiesFromRations(order)}>usar raciones</button>
                       <button type="button" className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white" onClick={() => onPrintOne(order)}>{order.label_printed_at ? 'Reimprimir' : 'Imprimir una'}</button>
                     </div>
                   </div>

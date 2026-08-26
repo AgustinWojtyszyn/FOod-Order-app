@@ -1,98 +1,103 @@
+import React from 'react'
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { expandLabelsForCopies } from '../utils/labels/labelOrderUtils'
+import { renderToStaticMarkup } from 'react-dom/server'
+import OrderLabelsPreview from './labels/OrderLabelsPreview'
 
 const pageSource = readFileSync(new URL('./OrderLabelsPage.jsx', import.meta.url), 'utf8')
 const previewSource = readFileSync(new URL('./labels/OrderLabelsPreview.jsx', import.meta.url), 'utf8')
 const cardSource = readFileSync(new URL('./labels/OrderLabelCard.jsx', import.meta.url), 'utf8')
 const resultsSource = readFileSync(new URL('./labels/OrderLabelsResults.jsx', import.meta.url), 'utf8')
 const cssSource = readFileSync(new URL('./labels/order-labels.css', import.meta.url), 'utf8')
+const labelUtilsSource = readFileSync(new URL('../utils/labels/labelOrderUtils.js', import.meta.url), 'utf8')
 
 const buildSampleOrder = (id) => ({
   id,
-  customer_name: `Cliente ${id}`,
-  company: 'ServiFoo',
-  delivery_date: '2026-08-25',
+  customer_name: `Gabriel Mercado ${id}`,
+  company: 'Genneia',
+  delivery_location: 'Genneia',
+  delivery_date: '2026-08-05',
   service: 'lunch',
   total_items: 1,
-  items: [{ name: 'Opcion 4 - Bife del dia con ensalada completa de hojas verdes y vegetales', quantity: 1 }],
+  items: [{ name: 'Plato Principal', quantity: 1 }],
   custom_responses: [
-    { title: 'Guarnicion', response: 'Pure' },
-    { title: 'Bebida', response: 'Agua' },
-    { title: 'Fruta o postre', response: 'Fruta' }
+    { title: 'Bebida', response: 'Coca cola' }
   ]
 })
 
+const renderPreview = (count) => renderToStaticMarkup(React.createElement(OrderLabelsPreview, {
+  selectedOrders: Array.from({ length: count }, (_, index) => buildSampleOrder(`order-${index + 1}`)),
+  onBack: () => {},
+  onCancel: () => {},
+  onPrint: () => {}
+}))
+
+const countPrintLabels = (html) => (html.match(/\bprint-label\b/g) || []).length
+
 describe('order labels print flow', () => {
-  it('uses the August 5 DOM print pipeline for selected labels', () => {
-    expect(pageSource).toContain("useState('thermal')")
-    expect(pageSource).toContain('OrderLabelsPreview')
-    expect(pageSource).toContain('window.requestAnimationFrame(() => window.print())')
-    expect(pageSource).toContain('onClick={() => labels.enterPreview()}')
-    expect(pageSource).toContain('disabled={labels.selectedCount === 0}')
-    expect(pageSource).toContain('selectedOrders={labels.selectedOrders}')
-    expect(pageSource).toContain('1 pedido = 1 etiqueta')
-    expect(pageSource).not.toContain('printOrderLabelsPdf')
-    expect(pageSource).not.toContain('localStorage')
-    expect(pageSource).not.toContain('labelPrintOffsetX')
-    expect(pageSource).not.toContain('labelPrintOffsetY')
+  it('renders one print-label for one selected order and ten for ten selected orders', () => {
+    expect(countPrintLabels(renderPreview(1))).toBe(1)
+    expect(countPrintLabels(renderPreview(10))).toBe(10)
+    expect(countPrintLabels(renderPreview(0))).toBe(0)
   })
 
-  it('keeps the August 5 physical print geometry and page breaks', () => {
-    expect(previewSource).toContain('const THERMAL_LIMITS = {')
-    expect(previewSource).toContain("'100x50': { width: 100, height: 50 }")
-    expect(previewSource).toContain("'80x50': { width: 80, height: 50 }")
-    expect(previewSource).toContain('const printPageSize = printFormat ===')
-    expect(previewSource).toContain('<style media="print">')
-    expect(previewSource).toContain('@page { size: ${printPageSize}; margin: 0; }')
-    expect(previewSource).toContain('labels.map(label =>')
-    expect(previewSource).not.toContain('getBoundingClientRect')
-    expect(previewSource).not.toContain('diagnostics')
-    expect(previewSource).not.toContain('safeArea')
-    expect(previewSource).not.toContain('label-content')
-
-    expect(cardSource).toContain('sf-label-card print-label')
-
-    expect(cssSource).toContain('@media print')
+  it('uses one canonical 64 x 32 mm page geometry', () => {
     expect(cssSource).toContain('@page')
-    expect(cssSource).toContain('size: A4')
-    expect(cssSource).toContain('margin: 0')
+    expect(cssSource).toContain('size: 64mm 32mm;')
+    expect(cssSource).toContain('width: 64mm;')
+    expect(cssSource).toContain('height: 32mm;')
+    expect(cssSource).toContain('min-height: 32mm;')
+    expect(cssSource).toContain('max-height: 32mm;')
+    expect(cssSource.match(/@page/g)).toHaveLength(1)
+    expect(previewSource).not.toContain('@page')
+    expect(previewSource).not.toContain('printPageSize')
+    expect(previewSource).not.toContain('thermalPreset')
+    expect(previewSource).not.toContain('a4Columns')
+    expect(previewSource).not.toContain('printFormat')
+  })
+
+  it('does not leave old dimensions or copy expansion in the active label pipeline', () => {
+    const activeSources = [pageSource, previewSource, cardSource, resultsSource, cssSource, labelUtilsSource].join('\n')
+    expect(activeSources).not.toContain('100mm')
+    expect(activeSources).not.toContain('50mm')
+    expect(activeSources).not.toContain('94mm')
+    expect(activeSources).not.toContain('46mm')
+    expect(activeSources).not.toContain('100x50')
+    expect(activeSources).not.toContain('80x50')
+    expect(activeSources).not.toContain('expandLabelsForCopies')
+    expect(activeSources).not.toContain('copiesByOrderId')
+    expect(activeSources).not.toContain('labelPrintOffset')
+    expect(activeSources).not.toContain('localStorage')
+  })
+
+  it('keeps print isolated from UI and prevents an extra trailing page', () => {
+    expect(cssSource).toContain('@media print')
     expect(cssSource).toContain('body *')
     expect(cssSource).toContain('visibility: hidden !important')
     expect(cssSource).toContain('.labels-preview-root')
     expect(cssSource).toContain('visibility: visible !important')
     expect(cssSource).toContain('.print-hide')
     expect(cssSource).toContain('display: none !important')
-    expect(cssSource).toContain('.labels-print-thermal .print-label:not(:last-child)')
     expect(cssSource).toContain('break-after: page')
     expect(cssSource).toContain('page-break-after: always')
+    expect(cssSource).toContain('.print-label:last-child')
+    expect(cssSource).toContain('break-after: auto')
+    expect(cssSource).toContain('page-break-after: auto')
+  })
+
+  it('keeps print-label height fixed regardless of content length', () => {
+    expect(cssSource).toContain('overflow: hidden')
+    expect(cssSource).toContain('box-sizing: border-box')
+    expect(cssSource).toContain('max-height: 32mm')
+    expect(cssSource).toContain('-webkit-line-clamp')
+    expect(cssSource).not.toContain('height: auto !important;\n    min-height: 32mm')
     expect(cssSource).not.toContain('scale(')
     expect(cssSource).not.toContain('zoom')
     expect(cssSource).not.toContain('rotate(')
     expect(cssSource).not.toContain('translate(')
-    expect(cssSource).not.toContain('label-offset')
-    expect(cssSource).not.toContain('label-diagnostics')
-    expect(cssSource).not.toContain('min-height: 100vh')
   })
 
-  it('selection changes which labels exist, not the label geometry', () => {
-    const one = expandLabelsForCopies([buildSampleOrder('order-1')], {})
-    const five = expandLabelsForCopies([
-      buildSampleOrder('order-1'),
-      buildSampleOrder('order-2'),
-      buildSampleOrder('order-3'),
-      buildSampleOrder('order-4'),
-      buildSampleOrder('order-5')
-    ], {})
-    const none = expandLabelsForCopies([], {})
-
-    expect(one).toHaveLength(1)
-    expect(five).toHaveLength(5)
-    expect(none).toHaveLength(0)
-    expect(new Set(five.map(label => label.labelInstanceId)).size).toBe(5)
-  })
-
-  it('preserves current selection and print-state controls around the print layout', () => {
+  it('preserves current selection, filters, and print-state controls outside print', () => {
     expect(pageSource).toContain('Seleccionar todos visibles')
     expect(pageSource).toContain('Limpiar selección')
     expect(pageSource).toContain('Imprimir seleccionados')

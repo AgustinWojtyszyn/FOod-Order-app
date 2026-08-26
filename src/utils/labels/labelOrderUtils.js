@@ -254,13 +254,3 @@ export const orderMatchesLabelFilters = (order = {}, filters = {}) => {
 
   return true
 }
-
-export const expandLabelsForCopies = (orders = [], copiesByOrderId = {}) =>
-  asArray(orders).flatMap((order) => {
-    const copies = Math.min(Math.max(Number(copiesByOrderId[order.id] || 1), 1), 99)
-    const labelOrder = buildLabelOrder(order)
-    return Array.from({ length: copies }, (_, copyIndex) => ({
-      ...labelOrder,
-      labelInstanceId: `${order.id}-${copyIndex}`
-    }))
-  })

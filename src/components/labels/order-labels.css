@@ -1,121 +1,144 @@
 .labels-print-surface {
+  display: grid;
+  grid-template-columns: minmax(0, 64mm);
+  justify-content: center;
+  gap: 12px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 16px;
 }
 
-.labels-print-a4 {
-  display: grid;
-  grid-template-columns: repeat(var(--label-a4-columns, 2), minmax(0, 1fr));
-  gap: 10mm;
-}
-
-.labels-print-thermal {
-  display: grid;
-  grid-template-columns: minmax(0, var(--thermal-label-width, 100mm));
-  gap: 12px;
-  justify-content: center;
-}
-
-.sf-label-card {
+.print-label {
   display: flex;
   box-sizing: border-box;
+  width: 64mm;
+  height: 32mm;
+  min-width: 64mm;
+  max-width: 64mm;
+  min-height: 32mm;
+  max-height: 32mm;
   break-inside: avoid;
   page-break-inside: avoid;
   break-before: auto;
-  break-after: auto;
   page-break-before: auto;
+  break-after: auto;
   page-break-after: auto;
   flex-direction: column;
-  gap: 1.45mm;
-  overflow: visible;
-  border: 1.5px solid #111827;
-  border-radius: 4px;
+  gap: 0.8mm;
+  overflow: hidden;
+  border: 0.45mm solid #111827;
+  border-radius: 1mm;
   background: white;
   color: #111827;
-  padding: 2.6mm;
+  padding: 1.35mm 1.6mm;
   font-family: Arial, Helvetica, sans-serif;
   font-weight: 700;
-  line-height: 1.14;
+  line-height: 1.08;
   text-transform: uppercase;
-}
-
-.labels-print-thermal .sf-label-card {
-  width: var(--thermal-label-width, 100mm);
-  max-width: var(--thermal-label-width, 100mm);
 }
 
 .sf-label-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 2mm;
-  border-bottom: 1px solid #111827;
-  padding-bottom: 1.2mm;
+  gap: 1.2mm;
+  border-bottom: 0.25mm solid #111827;
+  padding-bottom: 0.65mm;
 }
 
 .sf-label-customer {
   min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: 20px;
+  overflow: hidden;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sf-label-code {
   flex-shrink: 0;
-  border: 1px solid #111827;
-  padding: 0.8mm 1.4mm;
-  font-size: 11px;
+  border: 0.25mm solid #111827;
+  padding: 0.35mm 0.8mm;
+  font-size: 7px;
   font-weight: 800;
+  line-height: 1.05;
+  max-width: 16mm;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sf-label-meta {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1.2mm 2.2mm;
-  font-size: 12.2px;
-  font-weight: 700;
+  flex-wrap: nowrap;
+  gap: 1mm;
+  overflow: hidden;
+  font-size: 7.6px;
+  font-weight: 800;
   text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sf-label-meta > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sf-label-line,
 .sf-label-items {
+  display: -webkit-box;
+  overflow: hidden;
   overflow-wrap: anywhere;
-  font-size: 12.3px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  font-size: 7.4px;
 }
 
 .sf-label-items {
-  font-size: 13.4px;
-  font-weight: 700;
+  -webkit-line-clamp: 2;
+  font-size: 7.8px;
+  font-weight: 800;
 }
 
 .sf-label-card--dense {
-  gap: 1.15mm;
-  padding: 2.2mm;
-  line-height: 1.1;
+  gap: 0.55mm;
+  padding: 1.1mm 1.3mm;
+  line-height: 1.03;
 }
 
 .sf-label-card--dense .sf-label-customer {
-  font-size: 18.5px;
+  font-size: 10.8px;
 }
 
 .sf-label-card--dense .sf-label-meta,
 .sf-label-card--dense .sf-label-line {
-  font-size: 11.3px;
+  font-size: 6.9px;
 }
 
 .sf-label-card--dense .sf-label-items {
-  font-size: 12.2px;
+  font-size: 7.1px;
 }
 
 @media print {
+  @page {
+    size: 64mm 32mm;
+    margin: 0;
+  }
+
   html,
   body {
     background: #fff !important;
     margin: 0 !important;
     padding: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 
   body * {
@@ -132,73 +155,65 @@
   }
 
   .labels-preview-root {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    background: white;
-    color: #000;
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    display: block !important;
+    width: 64mm !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: white !important;
+    color: #000 !important;
+    transform: none !important;
   }
 
   .labels-print-surface {
-    border: 0;
-    border-radius: 0;
-    background: white;
-    padding: 0;
+    display: block !important;
+    width: 64mm !important;
+    height: auto !important;
+    min-height: 0 !important;
+    gap: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: white !important;
+    transform: none !important;
   }
 
-  .labels-preview-thermal {
-    width: var(--thermal-label-width, 100mm);
-  }
-
-  .labels-print-a4 {
-    gap: 6mm;
-    grid-template-columns: repeat(var(--label-a4-columns, 2), minmax(0, 1fr));
-    padding: 8mm;
-  }
-
-  .labels-print-thermal {
-    display: block;
-    padding: 0;
-    width: var(--thermal-label-width, 100mm);
-  }
-
-  .labels-print-thermal .print-label {
+  .print-label {
     display: flex !important;
-    width: var(--thermal-label-width, 100mm);
-    max-width: var(--thermal-label-width, 100mm);
-    height: auto;
-    min-height: 0;
-    max-height: none;
-    border-radius: 0;
-    margin: 0;
-  }
-
-  .labels-print-thermal .print-label:not(:last-child) {
-    break-after: page;
-    page-break-after: always;
-  }
-
-  .labels-print-a4 .print-label {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  .sf-label-card {
-    box-shadow: none;
+    box-sizing: border-box !important;
+    width: 64mm !important;
+    height: 32mm !important;
+    min-width: 64mm !important;
+    max-width: 64mm !important;
+    min-height: 32mm !important;
+    max-height: 32mm !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
     background: #fff !important;
     color: #000 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: page;
+    page-break-after: always;
+    transform: none !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .sf-label-card * {
+  .print-label:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .print-label * {
     color: inherit !important;
   }
-}
-
-@page {
-  size: A4;
-  margin: 0;
 }

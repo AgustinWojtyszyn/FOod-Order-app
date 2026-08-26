@@ -43,7 +43,6 @@ export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminC
   const [error, setError] = useState('')
   const [selectedIds, setSelectedIds] = useState([])
   const [selectedOrderById, setSelectedOrderById] = useState({})
-  const [copiesByOrderId, setCopiesByOrderId] = useState({})
   const [previewMode, setPreviewMode] = useState(false)
   const [printWarning, setPrintWarning] = useState('')
   const [printState, setPrintState] = useState('pending')
@@ -222,21 +221,10 @@ export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminC
     setPrintWarning('')
   }, [])
 
-  const setCopiesForOrder = useCallback((orderId, copies) => {
-    const safeCopies = Math.min(Math.max(Number(copies) || 1, 1), 99)
-    setCopiesByOrderId(prev => ({ ...prev, [orderId]: safeCopies }))
-  }, [])
-
-  const setCopiesFromRations = useCallback((order) => {
-    const rationCount = Math.min(Math.max(Number(order?.total_items || 1) || 1, 1), 99)
-    setCopiesForOrder(order.id, rationCount)
-  }, [setCopiesForOrder])
-
   const enterPreview = useCallback((order = null) => {
     if (order?.id) {
       setSelectedOrderById(prev => ({ ...prev, [order.id]: order }))
       setSelectedIds([order.id])
-      setCopiesByOrderId(prev => ({ ...prev, [order.id]: prev[order.id] || 1 }))
       setPreviewMode(true)
       setPrintWarning('')
       return
@@ -322,9 +310,6 @@ export const useOrderLabels = ({ isAdmin = false, isCompanyAdmin = false, adminC
     unselectVisible,
     removeSelected,
     clearSelected,
-    copiesByOrderId,
-    setCopiesForOrder,
-    setCopiesFromRations,
     previewMode,
     enterPreview,
     cancelPreview,

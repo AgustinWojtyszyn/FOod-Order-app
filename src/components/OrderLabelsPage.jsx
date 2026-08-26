@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Printer, Tag, X } from 'lucide-react'
 import { useAuthContext } from '../contexts/authContextValue'
 import OrderLabelsFilters from './labels/OrderLabelsFilters'
@@ -9,10 +8,6 @@ import './labels/order-labels.css'
 
 const OrderLabelsPage = () => {
   const { isAdmin, isCompanyAdmin, adminCompanies } = useAuthContext()
-  const [printFormat, setPrintFormat] = useState('thermal')
-  const [a4Columns, setA4Columns] = useState(2)
-  const [thermalPreset, setThermalPreset] = useState('100x50')
-  const [customThermalSize, setCustomThermalSize] = useState({ width: 100, height: 50 })
 
   const labels = useOrderLabels({ isAdmin, isCompanyAdmin, adminCompanies })
 
@@ -137,7 +132,6 @@ const OrderLabelsPage = () => {
             orders={labels.visibleOrders}
             loading={labels.loading}
             selectedIds={labels.selectedIds}
-            copiesByOrderId={labels.copiesByOrderId}
             allVisibleSelected={labels.allVisibleSelected}
             totalCount={labels.totalCount}
             printState={labels.printState}
@@ -148,8 +142,6 @@ const OrderLabelsPage = () => {
             onToggleOrder={labels.toggleOrder}
             onSelectVisible={labels.selectVisible}
             onUnselectVisible={labels.unselectVisible}
-            onCopiesChange={labels.setCopiesForOrder}
-            onCopiesFromRations={labels.setCopiesFromRations}
             onPrintOne={labels.enterPreview}
             onPrintStateChange={labels.updatePrintState}
             onPageChange={labels.setPage}
@@ -158,15 +150,6 @@ const OrderLabelsPage = () => {
       ) : (
         <OrderLabelsPreview
           selectedOrders={labels.selectedOrders}
-          copiesByOrderId={labels.copiesByOrderId}
-          printFormat={printFormat}
-          setPrintFormat={setPrintFormat}
-          a4Columns={a4Columns}
-          setA4Columns={setA4Columns}
-          thermalPreset={thermalPreset}
-          setThermalPreset={setThermalPreset}
-          customThermalSize={customThermalSize}
-          setCustomThermalSize={setCustomThermalSize}
           onBack={labels.cancelPreview}
           onCancel={labels.cancelPreview}
           onPrint={printLabels}
