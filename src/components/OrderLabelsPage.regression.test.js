@@ -62,6 +62,29 @@ describe('order labels print flow', () => {
     expect(html).not.toContain('Impresora predeterminada de Zebra Browser Print</option>')
   })
 
+  it('does not represent a null default printer as a detected printer', () => {
+    const html = renderToStaticMarkup(React.createElement(OrderLabelsPreview, {
+      selectedOrders: [buildSampleOrder('order-1')],
+      defaultPrinter: null,
+      selectedPrinterId: '__zebra_fallback_default__',
+      canPrintZebra: true,
+      onBack: () => {},
+      onCancel: () => {},
+      onPrint: () => {}
+    }))
+
+    expect(html).toContain('Intentar impresora predeterminada al imprimir')
+    expect(html).not.toContain('Impresora predeterminada de Zebra Browser Print')
+  })
+
+  it('keeps printer loading cleanup centralized in a finally block', () => {
+    const loadingFalseMatches = pageSource.match(/setPrinterLoading\(false\)/g) || []
+
+    expect(pageSource).toContain('setPrinterLoading(true)')
+    expect(loadingFalseMatches).toHaveLength(1)
+    expect(pageSource).toContain('} finally {\n      setPrinterLoading(false)\n    }')
+  })
+
   it('builds one 203 dpi Zebra ZPL label per selected order', () => {
     const one = buildZebraLabelsZpl([buildSampleOrder('order-1')])
     const ten = buildZebraLabelsZpl(Array.from({ length: 10 }, (_, index) => buildSampleOrder(`order-${index + 1}`)))
@@ -150,7 +173,7 @@ describe('order labels print flow', () => {
     expect(pageSource).toContain('Imprimir seleccionados')
     expect(pageSource).toContain('openPreview')
     expect(previewSource).toContain('Impresora Zebra')
-    expect(previewSource).toContain('Impresora predeterminada de Zebra Browser Print')
+    expect(previewSource).toContain('Intentar impresora predeterminada al imprimir')
     expect(previewSource).toContain('Buscar impresoras')
     expect(previewSource).toContain('Descargar ZPL')
     expect(previewSource).toContain('Imprimir en Zebra')

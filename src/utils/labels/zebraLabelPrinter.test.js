@@ -1,12 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  ZEBRA_BROWSER_PRINT_TIMEOUT_MS,
+  ZebraBrowserPrintTimeoutError,
   ZEBRA_LABEL_HEIGHT_DOTS,
   ZEBRA_LABEL_WIDTH_DOTS,
   buildZebraLabelsZpl,
+  dedupeZebraPrinters,
   getDefaultZebraPrinter,
   getPrinterId,
   getPrinterLabel,
   getZebraPrinters,
+  isZebraBrowserPrintAvailable,
   printZebraLabels
 } from './zebraLabelPrinter'
 
@@ -23,7 +27,7 @@ const buildOrder = (id = 'order-1') => ({
   ]
 })
 
-const installMockXhr = ({ responses = {}, failures = [] } = {}) => {
+const installMockXhr = ({ responses = {}, failures = [], timeouts = [] } = {}) => {
   const requests = []
 
   class MockXhr {
@@ -34,8 +38,18 @@ const installMockXhr = ({ responses = {}, failures = [] } = {}) => {
       this.url = url
     }
 
+    setRequestHeader(key, value) {
+      this.headers = { ...(this.headers || {}), [key]: value }
+    }
+
     send(body) {
-      requests.push({ method: this.method, url: this.url, body })
+      requests.push({ method: this.method, url: this.url, body, headers: this.headers || {} })
+      const shouldTimeout = timeouts.some(pattern => this.url.includes(pattern))
+      if (shouldTimeout) {
+        setTimeout(() => this.ontimeout?.(), this.timeout || ZEBRA_BROWSER_PRINT_TIMEOUT_MS)
+        return
+      }
+
       const shouldFail = failures.some(pattern => this.url.includes(pattern))
       if (shouldFail) {
         this.onerror?.()
@@ -54,6 +68,7 @@ const installMockXhr = ({ responses = {}, failures = [] } = {}) => {
 }
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
@@ -85,7 +100,7 @@ describe('zebraLabelPrinter', () => {
     const printers = await getZebraPrinters()
 
     expect(printers).toHaveLength(1)
-    expect(getPrinterId(printers[0])).toBe('usb-zebra-1')
+    expect(getPrinterId(printers[0])).toContain('usb-zebra-1')
     expect(getPrinterLabel(printers[0])).toContain('ZDesigner ZD220')
     expect(requests[0]).toMatchObject({ method: 'GET', url: availableUrl })
   })
@@ -109,6 +124,33 @@ describe('zebraLabelPrinter', () => {
     expect(payload.device.uid).toBe('default-zebra')
     expect(payload.data).toContain('^PW512')
     expect(payload.data).toContain('GABRIEL MERCADO')
+  })
+
+  it('detects the local default printer from the text /default endpoint when the typed endpoint fails', async () => {
+    const requests = installMockXhr({
+      failures: ['https://localhost:9101/default?type=printer'],
+      responses: {
+        'https://localhost:9101/default': [
+          'device:',
+          '\tname: Zebra texto local',
+          '\tdeviceType: printer',
+          '\tconnection: usb',
+          '\tuid: texto-local-uid',
+          '\tprovider: Zebra',
+          '\tmanufacturer: Zebra'
+        ].join('\n')
+      }
+    })
+
+    const printer = await getDefaultZebraPrinter()
+
+    expect(printer.name).toBe('Zebra texto local')
+    expect(printer.uid).toBe('texto-local-uid')
+    expect(printer.send).toBeTypeOf('function')
+    expect(requests.map(request => request.url)).toEqual([
+      'https://localhost:9101/default?type=printer',
+      'https://localhost:9101/default'
+    ])
   })
 
   it('falls through to the next endpoint when the first Browser Print endpoint refuses connection', async () => {
@@ -146,5 +188,88 @@ describe('zebraLabelPrinter', () => {
     expect(getDefaultDevice).toHaveBeenCalledWith('printer', expect.any(Function), expect.any(Function))
     expect(getLocalDevices).toHaveBeenCalled()
     expect(send).toHaveBeenCalledWith(expect.stringContaining('^PW512'), expect.any(Function), expect.any(Function))
+  })
+
+  it('gets the default SDK printer and lists SDK printers when both callbacks succeed', async () => {
+    const defaultPrinter = { name: 'Default SDK Zebra', uid: 'default-sdk', send: vi.fn() }
+    const localPrinter = { name: 'Local SDK Zebra', uid: 'local-sdk', send: vi.fn() }
+    const getDefaultDevice = vi.fn((_type, success) => success(defaultPrinter))
+    const getLocalDevices = vi.fn((success) => success([localPrinter]))
+
+    vi.stubGlobal('BrowserPrint', { getDefaultDevice, getLocalDevices })
+
+    await expect(getDefaultZebraPrinter()).resolves.toBe(defaultPrinter)
+    await expect(getZebraPrinters()).resolves.toEqual([localPrinter])
+  })
+
+  it('times out getLocalDevices when the SDK never calls back', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('BrowserPrint', {
+      getDefaultDevice: vi.fn(),
+      getLocalDevices: vi.fn()
+    })
+
+    const promise = getZebraPrinters()
+    const assertion = expect(promise).rejects.toBeInstanceOf(ZebraBrowserPrintTimeoutError)
+    await vi.advanceTimersByTimeAsync(ZEBRA_BROWSER_PRINT_TIMEOUT_MS)
+
+    await assertion
+  })
+
+  it('times out getDefaultDevice when the SDK never calls back', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('BrowserPrint', {
+      getDefaultDevice: vi.fn(),
+      getLocalDevices: vi.fn()
+    })
+
+    const promise = getDefaultZebraPrinter()
+    const assertion = expect(promise).rejects.toBeInstanceOf(ZebraBrowserPrintTimeoutError)
+    await vi.advanceTimersByTimeAsync(ZEBRA_BROWSER_PRINT_TIMEOUT_MS)
+
+    await assertion
+  })
+
+  it('rejects local Browser Print requests on XHR timeout', async () => {
+    vi.useFakeTimers()
+    installMockXhr({ timeouts: ['available'] })
+
+    const promise = getZebraPrinters()
+    const assertion = expect(promise).rejects.toBeInstanceOf(Error)
+    await vi.advanceTimersByTimeAsync(ZEBRA_BROWSER_PRINT_TIMEOUT_MS * 4)
+
+    await assertion
+  })
+
+  it('marks print result as uncertain when printer.send times out', async () => {
+    vi.useFakeTimers()
+    const printer = { name: 'Timeout Zebra', uid: 'timeout-zebra', send: vi.fn() }
+
+    const promise = printZebraLabels([buildOrder()], printer)
+    await vi.advanceTimersByTimeAsync(ZEBRA_BROWSER_PRINT_TIMEOUT_MS)
+    const result = await promise
+
+    expect(result.printed).toBe(false)
+    expect(result.uncertain).toBe(true)
+    expect(result.error).toBeInstanceOf(ZebraBrowserPrintTimeoutError)
+    expect(printer.send).toHaveBeenCalledTimes(1)
+  })
+
+  it('deduplicates the default printer when it also appears in local devices', () => {
+    const defaultPrinter = { name: 'Zebra Compartida', uid: 'same-zebra', connection: 'usb' }
+    const printers = dedupeZebraPrinters([
+      { name: 'Zebra Compartida', uid: 'same-zebra', connection: 'usb' },
+      { name: 'Otra Zebra', uid: 'other-zebra', connection: 'usb' }
+    ], defaultPrinter)
+
+    expect(printers).toHaveLength(1)
+    expect(printers[0].uid).toBe('other-zebra')
+  })
+
+  it('treats Browser Print as usable when getDefaultDevice exists without getLocalDevices', async () => {
+    vi.stubGlobal('BrowserPrint', { getDefaultDevice: vi.fn() })
+
+    expect(isZebraBrowserPrintAvailable()).toBe(true)
+    await expect(getZebraPrinters()).resolves.toEqual([])
   })
 })

@@ -1,6 +1,11 @@
 import { ArrowLeft, Download, Printer, RefreshCw, X } from 'lucide-react'
 import { buildLabelOrder } from '../../utils/labels/labelOrderUtils'
-import { getPrinterId, getPrinterLabel, ZEBRA_DEFAULT_PRINTER_ID } from '../../utils/labels/zebraLabelPrinter'
+import {
+  getPrinterId,
+  getPrinterLabel,
+  ZEBRA_DEFAULT_PRINTER_ID,
+  ZEBRA_FALLBACK_PRINTER_ID
+} from '../../utils/labels/zebraLabelPrinter'
 import OrderLabelCard from './OrderLabelCard'
 
 const OrderLabelsPreview = ({
@@ -8,6 +13,7 @@ const OrderLabelsPreview = ({
   printers = [],
   defaultPrinter = null,
   selectedPrinterId = '',
+  canPrintZebra = false,
   printerLoading = false,
   printerError = '',
   printing = false,
@@ -22,9 +28,7 @@ const OrderLabelsPreview = ({
     ...buildLabelOrder(order),
     labelInstanceId: order?.id || `selected-${index}`
   }))
-  const defaultPrinterLabel = defaultPrinter
-    ? getPrinterLabel(defaultPrinter)
-    : 'Impresora predeterminada de Zebra Browser Print'
+  const fallbackPrinterLabel = 'Intentar impresora predeterminada al imprimir'
 
   return (
     <section className="labels-preview-root">
@@ -47,7 +51,11 @@ const OrderLabelsPreview = ({
                 disabled={printerLoading}
               >
                 <option value="">{printerLoading ? 'Buscando impresoras...' : 'Seleccionar impresora'}</option>
-                <option value={ZEBRA_DEFAULT_PRINTER_ID}>{defaultPrinterLabel}</option>
+                {defaultPrinter ? (
+                  <option value={ZEBRA_DEFAULT_PRINTER_ID}>{getPrinterLabel(defaultPrinter)}</option>
+                ) : (
+                  <option value={ZEBRA_FALLBACK_PRINTER_ID}>{fallbackPrinterLabel}</option>
+                )}
                 {printers.map(printer => (
                   <option key={getPrinterId(printer)} value={getPrinterId(printer)}>
                     {getPrinterLabel(printer)}
@@ -78,7 +86,7 @@ const OrderLabelsPreview = ({
             <Download className="h-4 w-4" />
             Descargar ZPL
           </button>
-          <button type="button" onClick={onPrint} disabled={labels.length === 0 || !selectedPrinterId || printing} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="button" onClick={onPrint} disabled={labels.length === 0 || !canPrintZebra || printing} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">
             <Printer className="h-4 w-4" />
             {printing ? 'Enviando a Zebra...' : 'Imprimir en Zebra'}
           </button>
