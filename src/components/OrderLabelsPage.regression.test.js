@@ -95,6 +95,7 @@ describe('order labels print flow', () => {
     expect(activeSources).not.toContain('labelPrintOffset')
     expect(activeSources).not.toContain('localStorage')
     expect(pageSource).not.toContain('window.print')
+    expect(pageSource).toContain("import OrderLabelsPreview from './labels/OrderLabelsPreview'")
     expect(pageSource).toContain('printZebraLabels')
     expect(pageSource).toContain('getZebraPrinters')
     expect(zebraSource).toContain('BrowserPrint')
