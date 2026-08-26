@@ -10,7 +10,7 @@
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com;
       img-src 'self' data: https: blob:;
-      connect-src 'self' https://*.supabase.co wss://*.supabase.co http://localhost:9100 http://127.0.0.1:9100 https://localhost:9101 https://127.0.0.1:9101 ws://localhost:* wss://localhost:* https://www.google-analytics.com https://www.googletagmanager.com;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co ws://localhost:* wss://localhost:* https://www.google-analytics.com https://www.googletagmanager.com;
       frame-src 'none';
       object-src 'none';
       base-uri 'self';
@@ -85,18 +85,6 @@
         console.info('[PWA] appinstalled disparado');
       });
     </script>
-
-    <!--
-      Zebra Browser Print JavaScript SDK.
-      These files must come from Zebra's official "Browser Print JavaScript Library"
-      download and be hosted locally under public/vendor/zebra/browserprint/.
-      If they are not present, the app keeps the HTTP and browser-print fallbacks.
-    -->
-    <script
-      src="/vendor/zebra/browserprint/BrowserPrint-3.0.216.min.js"
-      defer
-      onerror="window.__zebraBrowserPrintSdkLoadError = true"
-    ></script>
 
     <!-- Performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
