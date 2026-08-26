@@ -61,13 +61,15 @@ const OrderLabelsPreview = ({
           </button>
         </div>
         <p className="mt-3 text-xs font-bold text-slate-500 print-hide">
-          Para Zebra: {LABEL_DIMENSIONS_TEXT} · 100 % · Sin márgenes · 1 página por hoja. Si Chrome muestra una hoja grande alrededor de la etiqueta, revisá el tamaño de papel de ZDesigner GC420t.
+          Zebra: {LABEL_DIMENSIONS_TEXT} · Horizontal · 100 % · Sin márgenes · 1 página por hoja. No usar escala personalizada ni Ajustar a página. Si Chrome muestra una hoja grande alrededor de la etiqueta, revisá el tamaño de papel de ZDesigner GC420t.
         </p>
       </div>
 
       <div className="labels-print-root labels-print-surface" aria-label="Etiquetas seleccionadas para imprimir">
         {labels.map(label => (
-          <OrderLabelCard key={label.labelInstanceId} label={label} />
+          <section className="print-page" key={label.labelInstanceId}>
+            <OrderLabelCard label={label} />
+          </section>
         ))}
       </div>
     </section>

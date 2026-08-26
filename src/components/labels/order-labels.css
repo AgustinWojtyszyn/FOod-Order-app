@@ -9,6 +9,22 @@
   padding: 16px;
 }
 
+.print-page {
+  display: flex;
+  box-sizing: border-box;
+  width: var(--label-width);
+  height: var(--label-height);
+  min-width: var(--label-width);
+  max-width: var(--label-width);
+  min-height: var(--label-height);
+  max-height: var(--label-height);
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
 .print-label {
   display: flex;
   box-sizing: border-box;
@@ -240,14 +256,41 @@
     print-color-adjust: exact;
   }
 
-  body.labels-print-mode .print-label:not(:last-child) {
-    break-after: page;
-    page-break-after: always;
+  body.labels-print-mode .print-pages,
+  body.labels-print-mode .labels-print-root {
+    display: block !important;
+    width: var(--label-width) !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    overflow: visible !important;
   }
 
-  body.labels-print-mode .print-label:last-child {
-    break-after: auto;
-    page-break-after: auto;
+  body.labels-print-mode .print-page {
+    display: block !important;
+    box-sizing: border-box !important;
+    width: var(--label-width) !important;
+    height: var(--label-height) !important;
+    min-width: var(--label-width) !important;
+    max-width: var(--label-width) !important;
+    min-height: var(--label-height) !important;
+    max-height: var(--label-height) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  body.labels-print-mode .print-page:not(:last-child) {
+    break-after: page;
+    page-break-after: always !important;
+  }
+
+  body.labels-print-mode .print-page:last-child {
+    break-after: auto !important;
+    page-break-after: auto !important;
   }
 
   body.labels-print-mode .print-label * {

@@ -47,6 +47,7 @@ const renderPreview = (count) => renderToStaticMarkup(React.createElement(OrderL
 }))
 
 const countPrintLabels = (html) => (html.match(/\bprint-label\b/g) || []).length
+const countPrintPages = (html) => (html.match(/\bprint-page\b/g) || []).length
 
 const renderPreviewWithOrders = (orders) => renderToStaticMarkup(React.createElement(OrderLabelsPreview, {
   selectedOrders: orders,
@@ -56,11 +57,15 @@ const renderPreviewWithOrders = (orders) => renderToStaticMarkup(React.createEle
 }))
 
 describe('order labels print flow', () => {
-  it('renders one print-label for one selected order and ten for ten selected orders', () => {
+  it('renders one physical print-page per selected order', () => {
     expect(countPrintLabels(renderPreview(1))).toBe(1)
+    expect(countPrintPages(renderPreview(1))).toBe(1)
     expect(countPrintLabels(renderPreview(2))).toBe(2)
+    expect(countPrintPages(renderPreview(2))).toBe(2)
     expect(countPrintLabels(renderPreview(5))).toBe(5)
+    expect(countPrintPages(renderPreview(5))).toBe(5)
     expect(countPrintLabels(renderPreview(0))).toBe(0)
+    expect(countPrintPages(renderPreview(0))).toBe(0)
   })
 
   it('uses window.print as the primary label print engine', () => {
@@ -106,7 +111,9 @@ describe('order labels print flow', () => {
     expect(previewSource).not.toContain('a4Columns')
     expect(previewSource).not.toContain('printFormat')
     expect(previewSource).toContain('LABEL_DIMENSIONS_TEXT')
-    expect(previewSource).toContain('Para Zebra:')
+    expect(previewSource).toContain('Zebra:')
+    expect(previewSource).toContain('Horizontal')
+    expect(previewSource).toContain('No usar escala personalizada ni Ajustar a página')
   })
 
   it('does not leave old dimensions or copy expansion in the active label pipeline', () => {
@@ -133,15 +140,19 @@ describe('order labels print flow', () => {
     expect(cssSource).toContain('visibility: hidden !important')
     expect(cssSource).toContain('.labels-preview-root')
     expect(cssSource).toContain('.labels-print-root')
+    expect(cssSource).toContain('.print-page:not(:last-child)')
+    expect(cssSource).toContain('.print-page:last-child')
     expect(cssSource).toContain('visibility: visible !important')
     expect(cssSource).toContain('.print-hide')
     expect(cssSource).toContain('display: none !important')
-    expect(cssSource).toContain('.print-label:not(:last-child)')
+    expect(cssSource).toContain('.print-page:not(:last-child)')
     expect(cssSource).toContain('break-after: page')
     expect(cssSource).toContain('page-break-after: always')
-    expect(cssSource).toContain('.print-label:last-child')
+    expect(cssSource).toContain('.print-page:last-child')
     expect(cssSource).toContain('break-after: auto')
     expect(cssSource).toContain('page-break-after: auto')
+    expect(cssSource).toContain('body.labels-print-mode .labels-print-root')
+    expect(cssSource).toContain('display: block !important')
     expect(cssSource).not.toContain('body:has')
   })
 
@@ -159,6 +170,15 @@ describe('order labels print flow', () => {
     expect(cssSource).not.toContain('rotate(90deg)')
     expect(cssSource).not.toContain('rotate(-90deg)')
     expect(cssSource).not.toContain('translate(')
+  })
+
+  it('gives every print-page the canonical physical geometry', () => {
+    expect(cssSource).toContain('.print-page')
+    expect(cssSource).toContain('width: var(--label-width)')
+    expect(cssSource).toContain('height: var(--label-height)')
+    expect(cssSource).toContain('box-sizing: border-box')
+    expect(cssSource).toContain('break-inside: avoid !important')
+    expect(cssSource).toContain('page-break-inside: avoid !important')
   })
 
   it('preserves current selection, filters, and print-state controls outside print', () => {
