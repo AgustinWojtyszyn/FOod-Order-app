@@ -20,75 +20,86 @@ const requestPrintSuccessConfirmation = (count) => new Promise((resolve) => {
   }))
 })
 
-const waitForPrintLayout = () => new Promise((resolve) => {
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(resolve)
-  })
+const waitForPrintFrame = () => new Promise((resolve) => {
+  window.requestAnimationFrame(resolve)
 })
 
 const OrderLabelsPage = () => {
   const { isAdmin, isCompanyAdmin, adminCompanies } = useAuthContext()
+
+  // Configuración histórica del 05/08.
+  const [printFormat, setPrintFormat] = useState('a4')
+  const [a4Columns, setA4Columns] = useState(2)
+  const [thermalPreset, setThermalPreset] = useState('100x50')
+  const [customThermalSize, setCustomThermalSize] = useState({
+    width: 100,
+    height: 50
+  })
+
   const [printing, setPrinting] = useState(false)
 
-  const labels = useOrderLabels({ isAdmin, isCompanyAdmin, adminCompanies })
+  const labels = useOrderLabels({
+    isAdmin,
+    isCompanyAdmin,
+    adminCompanies
+  })
 
   const openPreview = useCallback((order = null) => {
     labels.enterPreview(order)
   }, [labels])
 
-  const printOrders = useCallback((ordersToPrint = [], printedLabelCount = null) => {
-    const safeOrders = Array.isArray(ordersToPrint) ? ordersToPrint.filter(order => order?.id) : []
+  const printOrders = useCallback(async (
+    ordersToPrint = [],
+    printedLabelCount = null
+  ) => {
+    const safeOrders = Array.isArray(ordersToPrint)
+      ? ordersToPrint.filter(order => order?.id)
+      : []
+
     if (safeOrders.length === 0) {
-      labels.setPrintWarning('Seleccioná al menos un pedido para imprimir etiquetas.')
+      labels.setPrintWarning(
+        'Seleccioná al menos un pedido para imprimir etiquetas.'
+      )
       return
     }
 
     setPrinting(true)
     labels.setPrintWarning('')
-    document.body.classList.add('labels-print-mode')
-    waitForPrintLayout().then(async () => {
-      const cleanupPrintMode = () => {
-        document.body.classList.remove('labels-print-mode')
-      }
-      window.addEventListener('afterprint', cleanupPrintMode, { once: true })
 
-      try {
-        window.print()
-      } finally {
-        window.removeEventListener('afterprint', cleanupPrintMode)
-        cleanupPrintMode()
-        setPrinting(false)
-      }
-      const confirmed = await requestPrintSuccessConfirmation(printedLabelCount || safeOrders.length)
-      if (confirmed) {
-        await labels.markPrinted(safeOrders.map(order => order.id))
-        return
-      }
-      labels.setPrintWarning('La impresión no se marcó como completada. Podés reimprimir o confirmar manualmente si salió correctamente.')
-    })
-  }, [labels])
-
-  const printCalibration = useCallback(async () => {
-    document.body.classList.add('labels-print-mode', 'labels-calibration-mode')
-    await waitForPrintLayout()
-    const cleanup = () => {
-      document.body.classList.remove('labels-print-mode', 'labels-calibration-mode')
-    }
-    window.addEventListener('afterprint', cleanup, { once: true })
     try {
+      // Igual que el flujo funcional del 05/08:
+      // esperar el frame y abrir impresión del navegador.
+      await waitForPrintFrame()
       window.print()
     } finally {
-      window.removeEventListener('afterprint', cleanup)
-      cleanup()
+      setPrinting(false)
     }
-  }, [])
+
+    const confirmed = await requestPrintSuccessConfirmation(
+      printedLabelCount || safeOrders.length
+    )
+
+    if (confirmed) {
+      await labels.markPrinted(
+        safeOrders.map(order => order.id)
+      )
+      return
+    }
+
+    labels.setPrintWarning(
+      'La impresión no se marcó como completada. Podés reimprimir o confirmar manualmente si salió correctamente.'
+    )
+  }, [labels])
 
   const printSelectedLabels = useCallback((printedLabelCount) => {
-    printOrders(labels.selectedOrders, printedLabelCount)
+    printOrders(
+      labels.selectedOrders,
+      printedLabelCount
+    )
   }, [labels.selectedOrders, printOrders])
 
   return (
-    <div className="order-labels-page mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
+    <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
       {!labels.previewMode ? (
         <div className="space-y-5">
           <section className="rounded-xl border border-white/30 bg-white p-5 shadow-xl shadow-blue-950/10 print-hide md:p-6">
@@ -97,16 +108,22 @@ const OrderLabelsPage = () => {
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-blue-700 text-white">
                   <Tag className="h-6 w-6" />
                 </div>
+
                 <div>
-                  <h1 className="text-2xl font-black text-slate-900 md:text-3xl">Etiquetas</h1>
+                  <h1 className="text-2xl font-black text-slate-900 md:text-3xl">
+                    Etiquetas
+                  </h1>
+
                   <p className="mt-1 text-sm font-semibold text-slate-600">
-                    Buscar/filtrar → seleccionar pedidos → imprimir.
+                    Buscar/filtrar → seleccionar pedidos → elegir formato → revisar → imprimir.
                   </p>
                 </div>
               </div>
 
               <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-black text-blue-900">
-                {labels.selectedCount} etiqueta{labels.selectedCount === 1 ? '' : 's'} seleccionada{labels.selectedCount === 1 ? '' : 's'}
+                {labels.selectedCount} etiqueta
+                {labels.selectedCount === 1 ? '' : 's'} seleccionada
+                {labels.selectedCount === 1 ? '' : 's'}
               </div>
             </div>
           </section>
@@ -147,10 +164,14 @@ const OrderLabelsPage = () => {
                             className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700"
                             title="Quitar de la selección"
                           >
-                            {order.customer_name || order.user_name || order.user_email || 'Pedido'}
+                            {order.customer_name ||
+                              order.user_name ||
+                              order.user_email ||
+                              'Pedido'}
                             <X className="h-3 w-3" />
                           </button>
                         ))}
+
                         {labels.selectedCount > 5 && (
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
                             +{labels.selectedCount - 5} más
@@ -163,20 +184,31 @@ const OrderLabelsPage = () => {
                       </span>
                     )}
                   </div>
+
                   {labels.selectedCount > 0 && (
                     <p className="mt-1 text-xs font-bold text-slate-500">
-                      {labels.selectedCount} pedido{labels.selectedCount === 1 ? '' : 's'} seleccionado{labels.selectedCount === 1 ? '' : 's'} · 1 pedido = 1 etiqueta
+                      {labels.selectedCount} pedido
+                      {labels.selectedCount === 1 ? '' : 's'} seleccionado
+                      {labels.selectedCount === 1 ? '' : 's'} · 1 pedido = 1 etiqueta
                     </p>
                   )}
                 </div>
+
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={labels.allVisibleSelected ? labels.unselectVisible : labels.selectVisible}
+                    onClick={
+                      labels.allVisibleSelected
+                        ? labels.unselectVisible
+                        : labels.selectVisible
+                    }
                     className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 hover:bg-slate-50"
                   >
-                    {labels.allVisibleSelected ? 'Quitar visibles' : 'Seleccionar todos visibles'}
+                    {labels.allVisibleSelected
+                      ? 'Quitar visibles'
+                      : 'Seleccionar todos visibles'}
                   </button>
+
                   {labels.selectedCount > 0 && (
                     <button
                       type="button"
@@ -186,6 +218,7 @@ const OrderLabelsPage = () => {
                       Limpiar selección
                     </button>
                   )}
+
                   <button
                     type="button"
                     onClick={() => openPreview()}
@@ -223,10 +256,17 @@ const OrderLabelsPage = () => {
         <OrderLabelsPreview
           selectedOrders={labels.selectedOrders}
           printing={printing}
+          printFormat={printFormat}
+          setPrintFormat={setPrintFormat}
+          a4Columns={a4Columns}
+          setA4Columns={setA4Columns}
+          thermalPreset={thermalPreset}
+          setThermalPreset={setThermalPreset}
+          customThermalSize={customThermalSize}
+          setCustomThermalSize={setCustomThermalSize}
           onBack={labels.cancelPreview}
           onCancel={labels.cancelPreview}
           onPrint={printSelectedLabels}
-          onPrintCalibration={printCalibration}
         />
       )}
     </div>
