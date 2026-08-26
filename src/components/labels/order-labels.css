@@ -1,6 +1,6 @@
 .labels-print-surface {
   display: grid;
-  grid-template-columns: minmax(0, 64mm);
+  grid-template-columns: minmax(0, var(--label-width, 64mm));
   justify-content: center;
   gap: 12px;
   background: #f8fafc;
@@ -12,12 +12,12 @@
 .print-label {
   display: flex;
   box-sizing: border-box;
-  width: 64mm;
-  height: 32mm;
-  min-width: 64mm;
-  max-width: 64mm;
-  min-height: 32mm;
-  max-height: 32mm;
+  width: var(--label-width, 64mm);
+  height: var(--label-height, 32mm);
+  min-width: var(--label-width, 64mm);
+  max-width: var(--label-width, 64mm);
+  min-height: var(--label-height, 32mm);
+  max-height: var(--label-height, 32mm);
   break-inside: avoid;
   page-break-inside: avoid;
   break-before: auto;
@@ -124,41 +124,37 @@
 }
 
 @media print {
-  @page {
-    size: 64mm 32mm;
-    margin: 0;
-  }
-
-  html,
-  body {
+  body.labels-print-mode {
     background: #fff !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: auto !important;
+    width: var(--label-width, 64mm) !important;
     height: auto !important;
     min-width: 0 !important;
     min-height: 0 !important;
     overflow: visible !important;
   }
 
-  body * {
+  body.labels-print-mode * {
     visibility: hidden !important;
   }
 
-  .labels-preview-root,
-  .labels-preview-root * {
+  body.labels-print-mode .labels-preview-root,
+  body.labels-print-mode .labels-preview-root * {
     visibility: visible !important;
   }
 
-  .print-hide {
+  body.labels-print-mode .print-hide,
+  body.labels-print-mode .print-hide * {
     display: none !important;
+    visibility: hidden !important;
   }
 
-  .labels-preview-root {
+  body.labels-print-mode .labels-preview-root {
     position: absolute !important;
     inset: 0 auto auto 0 !important;
     display: block !important;
-    width: 64mm !important;
+    width: var(--label-width, 64mm) !important;
     height: auto !important;
     min-height: 0 !important;
     margin: 0 !important;
@@ -169,9 +165,9 @@
     transform: none !important;
   }
 
-  .labels-print-surface {
+  body.labels-print-mode .labels-print-surface {
     display: block !important;
-    width: 64mm !important;
+    width: var(--label-width, 64mm) !important;
     height: auto !important;
     min-height: 0 !important;
     gap: 0 !important;
@@ -184,15 +180,15 @@
     transform: none !important;
   }
 
-  .print-label {
+  body.labels-print-mode .print-label {
     display: flex !important;
     box-sizing: border-box !important;
-    width: 64mm !important;
-    height: 32mm !important;
-    min-width: 64mm !important;
-    max-width: 64mm !important;
-    min-height: 32mm !important;
-    max-height: 32mm !important;
+    width: var(--label-width, 64mm) !important;
+    height: var(--label-height, 32mm) !important;
+    min-width: var(--label-width, 64mm) !important;
+    max-width: var(--label-width, 64mm) !important;
+    min-height: var(--label-height, 32mm) !important;
+    max-height: var(--label-height, 32mm) !important;
     margin: 0 !important;
     overflow: hidden !important;
     border-radius: 0 !important;
@@ -201,19 +197,24 @@
     color: #000 !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
-    break-after: page;
-    page-break-after: always;
+    break-after: auto;
+    page-break-after: auto;
     transform: none !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .print-label:last-child {
+  body.labels-print-mode .print-label:not(:last-child) {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  body.labels-print-mode .print-label:last-child {
     break-after: auto;
     page-break-after: auto;
   }
 
-  .print-label * {
+  body.labels-print-mode .print-label * {
     color: inherit !important;
   }
 }
