@@ -22,6 +22,7 @@ const OrderLabelsPreview = ({
   onPrinterChange,
   onRefreshPrinters,
   onPrint,
+  onBrowserPrint,
   onDownloadZpl
 }) => {
   const labels = selectedOrders.map((order, index) => ({
@@ -85,6 +86,10 @@ const OrderLabelsPreview = ({
           <button type="button" onClick={onDownloadZpl} disabled={labels.length === 0} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
             <Download className="h-4 w-4" />
             Descargar ZPL
+          </button>
+          <button type="button" onClick={onBrowserPrint} disabled={labels.length === 0} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+            <Printer className="h-4 w-4" />
+            Imprimir desde navegador
           </button>
           <button type="button" onClick={onPrint} disabled={labels.length === 0 || !canPrintZebra || printing} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">
             <Printer className="h-4 w-4" />

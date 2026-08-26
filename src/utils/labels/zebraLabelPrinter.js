@@ -10,10 +10,10 @@ export const ZEBRA_DEFAULT_PRINTER_ID = '__zebra_default__'
 export const ZEBRA_FALLBACK_PRINTER_ID = '__zebra_fallback_default__'
 export const ZEBRA_BROWSER_PRINT_TIMEOUT_MS = 5000
 const ZEBRA_BROWSER_PRINT_ENDPOINTS = [
-  'https://localhost:9101/',
-  'https://127.0.0.1:9101/',
   'http://localhost:9100/',
-  'http://127.0.0.1:9100/'
+  'http://127.0.0.1:9100/',
+  'https://localhost:9101/',
+  'https://127.0.0.1:9101/'
 ]
 
 const normalizeText = (value = '') =>

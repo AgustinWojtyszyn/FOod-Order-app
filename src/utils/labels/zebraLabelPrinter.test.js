@@ -86,7 +86,7 @@ describe('zebraLabelPrinter', () => {
   })
 
   it('lists Zebra printers through the local Browser Print service when the global SDK is absent', async () => {
-    const availableUrl = 'https://localhost:9101/available'
+    const availableUrl = 'http://localhost:9100/available'
     const requests = installMockXhr({
       responses: {
         [availableUrl]: JSON.stringify({
@@ -106,17 +106,17 @@ describe('zebraLabelPrinter', () => {
   })
 
   it('gets the default printer and sends ZPL through the local write endpoint', async () => {
-    const defaultUrl = 'https://localhost:9101/default?type=printer'
+    const defaultUrl = 'http://localhost:9100/default?type=printer'
     const requests = installMockXhr({
       responses: {
         [defaultUrl]: JSON.stringify({ name: 'Zebra default', uid: 'default-zebra', connection: 'usb', deviceType: 'printer' }),
-        'https://localhost:9101/write': 'OK'
+        'http://localhost:9100/write': 'OK'
       }
     })
 
     const printer = await getDefaultZebraPrinter()
     const result = await printZebraLabels([buildOrder()], printer)
-    const writeRequest = requests.find(request => request.url === 'https://localhost:9101/write')
+    const writeRequest = requests.find(request => request.url === 'http://localhost:9100/write')
     const payload = JSON.parse(writeRequest.body)
 
     expect(result.printed).toBe(true)
@@ -128,9 +128,9 @@ describe('zebraLabelPrinter', () => {
 
   it('detects the local default printer from the text /default endpoint when the typed endpoint fails', async () => {
     const requests = installMockXhr({
-      failures: ['https://localhost:9101/default?type=printer'],
+      failures: ['http://localhost:9100/default?type=printer'],
       responses: {
-        'https://localhost:9101/default': [
+        'http://localhost:9100/default': [
           'device:',
           '\tname: Zebra texto local',
           '\tdeviceType: printer',
@@ -148,16 +148,16 @@ describe('zebraLabelPrinter', () => {
     expect(printer.uid).toBe('texto-local-uid')
     expect(printer.send).toBeTypeOf('function')
     expect(requests.map(request => request.url)).toEqual([
-      'https://localhost:9101/default?type=printer',
-      'https://localhost:9101/default'
+      'http://localhost:9100/default?type=printer',
+      'http://localhost:9100/default'
     ])
   })
 
   it('falls through to the next endpoint when the first Browser Print endpoint refuses connection', async () => {
     const requests = installMockXhr({
-      failures: ['https://localhost:9101/available'],
+      failures: ['http://localhost:9100/available'],
       responses: {
-        'https://127.0.0.1:9101/available': JSON.stringify({
+        'http://127.0.0.1:9100/available': JSON.stringify({
           printer: [{ name: 'Fallback Zebra', uid: 'fallback-zebra', connection: 'usb', deviceType: 'printer' }]
         })
       }
@@ -167,8 +167,8 @@ describe('zebraLabelPrinter', () => {
 
     expect(printers[0].uid).toBe('fallback-zebra')
     expect(requests.map(request => request.url)).toEqual([
-      'https://localhost:9101/available',
-      'https://127.0.0.1:9101/available'
+      'http://localhost:9100/available',
+      'http://127.0.0.1:9100/available'
     ])
   })
 

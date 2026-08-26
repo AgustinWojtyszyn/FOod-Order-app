@@ -139,6 +139,10 @@ const OrderLabelsPage = () => {
     printOrders(labels.selectedOrders)
   }, [labels.selectedOrders, printOrders])
 
+  const printLabelsFromBrowser = useCallback(() => {
+    window.requestAnimationFrame(() => window.print())
+  }, [])
+
   const downloadSelectedZpl = useCallback(() => {
     const safeOrders = labels.selectedOrders.filter(order => order?.id)
     if (safeOrders.length === 0) {
@@ -295,6 +299,7 @@ const OrderLabelsPage = () => {
           onPrinterChange={setSelectedPrinterId}
           onRefreshPrinters={refreshPrinters}
           onPrint={printSelectedLabels}
+          onBrowserPrint={printLabelsFromBrowser}
           onDownloadZpl={downloadSelectedZpl}
         />
       )}
