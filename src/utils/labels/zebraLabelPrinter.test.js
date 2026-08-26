@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ZEBRA_BROWSER_PRINT_TIMEOUT_MS,
   ZebraBrowserPrintTimeoutError,
+  ZEBRA_LABEL_HOME_X_DOTS,
+  ZEBRA_LABEL_HOME_Y_DOTS,
   ZEBRA_LABEL_HEIGHT_DOTS,
   ZEBRA_LABEL_WIDTH_DOTS,
   buildZebraLabelsZpl,
@@ -78,9 +80,14 @@ describe('zebraLabelPrinter', () => {
 
     expect(ZEBRA_LABEL_WIDTH_DOTS).toBe(512)
     expect(ZEBRA_LABEL_HEIGHT_DOTS).toBe(256)
+    expect(ZEBRA_LABEL_HOME_X_DOTS).toBe(24)
+    expect(ZEBRA_LABEL_HOME_Y_DOTS).toBe(8)
     expect((zpl.match(/\^XA/g) || [])).toHaveLength(2)
     expect(zpl).toContain('^PW512')
     expect(zpl).toContain('^LL256')
+    expect(zpl).toContain('^LH24,8')
+    expect(zpl).toContain('^LS0')
+    expect(zpl).toContain('^LT0')
     expect(zpl).toContain('^PQ1,0,1,Y')
     expect(zpl).not.toContain('ENTREGA:')
   })
@@ -202,29 +209,63 @@ describe('zebraLabelPrinter', () => {
     await expect(getZebraPrinters()).resolves.toEqual([localPrinter])
   })
 
-  it('times out getLocalDevices when the SDK never calls back', async () => {
+  it('falls back to local listing when getLocalDevices never calls back', async () => {
     vi.useFakeTimers()
+    const requests = installMockXhr({
+      responses: {
+        'http://localhost:9100/available': JSON.stringify({
+          printer: [{ name: 'Local despues de timeout SDK', uid: 'local-after-sdk-timeout', connection: 'usb', deviceType: 'printer' }]
+        })
+      }
+    })
     vi.stubGlobal('BrowserPrint', {
       getDefaultDevice: vi.fn(),
       getLocalDevices: vi.fn()
     })
 
     const promise = getZebraPrinters()
-    const assertion = expect(promise).rejects.toBeInstanceOf(ZebraBrowserPrintTimeoutError)
     await vi.advanceTimersByTimeAsync(ZEBRA_BROWSER_PRINT_TIMEOUT_MS)
+    const printers = await promise
 
-    await assertion
+    expect(printers[0].uid).toBe('local-after-sdk-timeout')
+    expect(requests.map(request => request.url)).toContain('http://localhost:9100/available')
   })
 
-  it('times out getDefaultDevice when the SDK never calls back', async () => {
+  it('falls back to local default when getDefaultDevice never calls back', async () => {
     vi.useFakeTimers()
+    const requests = installMockXhr({
+      responses: {
+        'http://localhost:9100/default?type=printer': JSON.stringify({
+          name: 'Default local despues de timeout SDK',
+          uid: 'default-local-after-sdk-timeout',
+          connection: 'usb',
+          deviceType: 'printer'
+        })
+      }
+    })
     vi.stubGlobal('BrowserPrint', {
       getDefaultDevice: vi.fn(),
       getLocalDevices: vi.fn()
     })
 
     const promise = getDefaultZebraPrinter()
-    const assertion = expect(promise).rejects.toBeInstanceOf(ZebraBrowserPrintTimeoutError)
+    await vi.advanceTimersByTimeAsync(ZEBRA_BROWSER_PRINT_TIMEOUT_MS)
+    const printer = await promise
+
+    expect(printer.uid).toBe('default-local-after-sdk-timeout')
+    expect(requests.map(request => request.url)).toContain('http://localhost:9100/default?type=printer')
+  })
+
+  it('fails clearly when SDK times out and the local service is absent', async () => {
+    vi.useFakeTimers()
+    installMockXhr({ failures: ['default', 'available'] })
+    vi.stubGlobal('BrowserPrint', {
+      getDefaultDevice: vi.fn(),
+      getLocalDevices: vi.fn()
+    })
+
+    const promise = getDefaultZebraPrinter()
+    const assertion = expect(promise).rejects.toThrow('Zebra Browser Print no esta disponible.')
     await vi.advanceTimersByTimeAsync(ZEBRA_BROWSER_PRINT_TIMEOUT_MS)
 
     await assertion

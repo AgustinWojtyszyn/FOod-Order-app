@@ -6,6 +6,8 @@ export const ZEBRA_DPI = 203
 export const ZEBRA_DOTS_PER_MM = 8
 export const ZEBRA_LABEL_WIDTH_DOTS = Math.round(ZEBRA_LABEL_WIDTH_MM * ZEBRA_DOTS_PER_MM)
 export const ZEBRA_LABEL_HEIGHT_DOTS = Math.round(ZEBRA_LABEL_HEIGHT_MM * ZEBRA_DOTS_PER_MM)
+export const ZEBRA_LABEL_HOME_X_DOTS = 24
+export const ZEBRA_LABEL_HOME_Y_DOTS = 8
 export const ZEBRA_DEFAULT_PRINTER_ID = '__zebra_default__'
 export const ZEBRA_FALLBACK_PRINTER_ID = '__zebra_fallback_default__'
 export const ZEBRA_BROWSER_PRINT_TIMEOUT_MS = 5000
@@ -54,7 +56,7 @@ export const buildZebraLabelZpl = (order = {}) => {
     '^MD10',
     `^PW${ZEBRA_LABEL_WIDTH_DOTS}`,
     `^LL${ZEBRA_LABEL_HEIGHT_DOTS}`,
-    '^LH0,0',
+    `^LH${ZEBRA_LABEL_HOME_X_DOTS},${ZEBRA_LABEL_HOME_Y_DOTS}`,
     '^LS0',
     '^LT0',
     '^FO8,8^GB496,240,3^FS',
@@ -228,49 +230,60 @@ const getBrowserPrintSdk = () => globalThis.window?.BrowserPrint || globalThis.B
 
 export const isZebraBrowserPrintAvailable = () => Boolean(getBrowserPrintSdk()?.getDefaultDevice)
 
-export const getDefaultZebraPrinter = () => new Promise((resolve, reject) => {
-  const browserPrint = getBrowserPrintSdk()
-  if (browserPrint?.getDefaultDevice) {
-    withBrowserPrintTimeout(
-      'BrowserPrint.getDefaultDevice',
-      (success, failure) => browserPrint.getDefaultDevice('printer', success, failure)
-    ).then(resolve).catch(reject)
-    return
-  }
-
-  withFirstAvailableEndpoint(getDefaultPrinterFromLocalEndpoint).then(resolve).catch(() => {
-    reject(new Error('Zebra Browser Print no esta disponible.'))
+const getDefaultZebraPrinterFromLocalService = () =>
+  withFirstAvailableEndpoint(getDefaultPrinterFromLocalEndpoint).catch(() => {
+    throw new Error('Zebra Browser Print no esta disponible.')
   })
-})
 
-export const getZebraPrinters = () => new Promise((resolve, reject) => {
+export const getDefaultZebraPrinter = async () => {
   const browserPrint = getBrowserPrintSdk()
-  if (browserPrint?.getLocalDevices) {
-    withBrowserPrintTimeout(
-      'BrowserPrint.getLocalDevices',
-      (success, failure) => browserPrint.getLocalDevices(
-        devices => success((Array.isArray(devices) ? devices : []).filter(device => device)),
-        failure,
-        'printer'
-      )
-    ).then(resolve).catch(reject)
-    return
-  }
-
   if (browserPrint?.getDefaultDevice) {
-    resolve([])
-    return
+    try {
+      return await withBrowserPrintTimeout(
+        'BrowserPrint.getDefaultDevice',
+        (success, failure) => browserPrint.getDefaultDevice('printer', success, failure)
+      )
+    } catch (_error) {
+      return getDefaultZebraPrinterFromLocalService()
+    }
   }
 
+  return getDefaultZebraPrinterFromLocalService()
+}
+
+const getZebraPrintersFromLocalService = () =>
   withFirstAvailableEndpoint(async (endpoint) => {
     const raw = await requestBrowserPrint(endpoint, 'GET', 'available')
     const response = JSON.parse(raw || '{}')
     const printers = Array.isArray(response.printer) ? response.printer : []
     return printers.map(device => createLocalBrowserPrintDevice(device, endpoint))
-  }).then(resolve).catch(() => {
-    reject(new Error('Zebra Browser Print no esta disponible.'))
+  }).catch(() => {
+    throw new Error('Zebra Browser Print no esta disponible.')
   })
-})
+
+export const getZebraPrinters = async () => {
+  const browserPrint = getBrowserPrintSdk()
+  if (browserPrint?.getLocalDevices) {
+    try {
+      return await withBrowserPrintTimeout(
+        'BrowserPrint.getLocalDevices',
+        (success, failure) => browserPrint.getLocalDevices(
+          devices => success((Array.isArray(devices) ? devices : []).filter(device => device)),
+          failure,
+          'printer'
+        )
+      )
+    } catch (_error) {
+      return getZebraPrintersFromLocalService()
+    }
+  }
+
+  if (browserPrint?.getDefaultDevice) {
+    return []
+  }
+
+  return getZebraPrintersFromLocalService()
+}
 
 const sendToPrinter = (printer, zpl) => {
   if (!printer?.send) {

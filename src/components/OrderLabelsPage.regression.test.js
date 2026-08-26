@@ -5,6 +5,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import OrderLabelsPreview from './labels/OrderLabelsPreview'
 import {
   ZEBRA_LABEL_HEIGHT_DOTS,
+  ZEBRA_LABEL_HOME_X_DOTS,
+  ZEBRA_LABEL_HOME_Y_DOTS,
   ZEBRA_LABEL_WIDTH_DOTS,
   buildZebraLabelsZpl
 } from '../utils/labels/zebraLabelPrinter'
@@ -16,6 +18,7 @@ const resultsSource = readFileSync(new URL('./labels/OrderLabelsResults.jsx', im
 const cssSource = readFileSync(new URL('./labels/order-labels.css', import.meta.url), 'utf8')
 const labelUtilsSource = readFileSync(new URL('../utils/labels/labelOrderUtils.js', import.meta.url), 'utf8')
 const zebraSource = readFileSync(new URL('../utils/labels/zebraLabelPrinter.js', import.meta.url), 'utf8')
+const indexSource = readFileSync(new URL('../../index.html', import.meta.url), 'utf8')
 
 const buildSampleOrder = (id) => ({
   id,
@@ -85,19 +88,40 @@ describe('order labels print flow', () => {
     expect(pageSource).toContain('} finally {\n      setPrinterLoading(false)\n    }')
   })
 
+  it('loads the local official Zebra Browser Print SDK before the app bundle', () => {
+    const sdkIndex = indexSource.indexOf('/vendor/zebra/browserprint/BrowserPrint-3.0.216.min.js')
+    const appIndex = indexSource.indexOf('/src/main.jsx')
+
+    expect(sdkIndex).toBeGreaterThan(-1)
+    expect(appIndex).toBeGreaterThan(-1)
+    expect(sdkIndex).toBeLessThan(appIndex)
+    expect(indexSource).toContain('window.__zebraBrowserPrintSdkLoadError = true')
+  })
+
+  it('keeps CSP scoped for Zebra Browser Print without wildcard connect permissions', () => {
+    expect(indexSource).toContain('script-src')
+    expect(indexSource).toContain("script-src 'self'")
+    expect(indexSource).toContain('http://localhost:9100')
+    expect(indexSource).toContain('https://localhost:9101')
+    expect(indexSource).not.toContain('connect-src *')
+  })
+
   it('builds one 203 dpi Zebra ZPL label per selected order', () => {
     const one = buildZebraLabelsZpl([buildSampleOrder('order-1')])
     const ten = buildZebraLabelsZpl(Array.from({ length: 10 }, (_, index) => buildSampleOrder(`order-${index + 1}`)))
 
     expect(ZEBRA_LABEL_WIDTH_DOTS).toBe(512)
     expect(ZEBRA_LABEL_HEIGHT_DOTS).toBe(256)
+    expect(ZEBRA_LABEL_HOME_X_DOTS).toBe(24)
+    expect(ZEBRA_LABEL_HOME_Y_DOTS).toBe(8)
     expect((one.match(/\^XA/g) || [])).toHaveLength(1)
     expect((ten.match(/\^XA/g) || [])).toHaveLength(10)
     expect(one).toContain('^PW512')
     expect(one).toContain('^LL256')
     expect(one).toContain('^PON')
-    expect(one).toContain('^LH0,0')
+    expect(one).toContain('^LH24,8')
     expect(one).toContain('^LS0')
+    expect(one).toContain('^LT0')
     expect(one).toContain('GABRIEL MERCADO')
     expect(one).toContain('GENNEIA')
     expect(one).not.toContain('ENTREGA:')
