@@ -11,6 +11,7 @@
 
 .print-page {
   display: flex;
+  position: relative;
   box-sizing: border-box;
   width: var(--label-width);
   height: var(--label-height);
@@ -107,6 +108,16 @@
   white-space: nowrap;
 }
 
+.sf-label-location {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 6.7px;
+  font-weight: 800;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sf-label-service-date {
   display: flex;
   flex-wrap: nowrap;
@@ -160,6 +171,7 @@
 }
 
 .sf-label-card--dense .sf-label-company,
+  .sf-label-card--dense .sf-label-location,
 .sf-label-card--dense .sf-label-service-date,
 .sf-label-card--dense .sf-label-line {
   font-size: 6.4px;

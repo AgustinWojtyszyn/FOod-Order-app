@@ -33,6 +33,9 @@ const OrderLabelCard = ({ label }) => {
       </header>
 
       <div className="sf-label-company">{label.companyLabel}</div>
+      {label.deliveryLocation && label.deliveryLocation !== label.companyLabel && (
+        <div className="sf-label-location">{label.deliveryLocation}</div>
+      )}
 
       <div className="sf-label-service-date">
         <span>{label.serviceLabel}</span>

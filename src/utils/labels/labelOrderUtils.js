@@ -243,6 +243,21 @@ export const orderMatchesLabelFilters = (order = {}, filters = {}) => {
     ...labelOrder.responses.map(response => `${response.title} ${response.value}`)
   ].join(' '))
 
+  if (filters.company && filters.company !== 'all') {
+    const configuredCompany = getCompanyByLocationOrSlug(
+      order.company_slug || order.company || getOrderOriginLocation(order)
+    )
+    const orderCompanyKeys = [
+      order.company_slug,
+      order.company,
+      order.company_name,
+      labelOrder.companyLabel,
+      configuredCompany?.slug,
+      configuredCompany?.name
+    ].map(normalizeText).filter(Boolean)
+    if (!orderCompanyKeys.includes(normalizeText(filters.company))) return false
+  }
+
   if (filters.search && !normalizeText(labelOrder.customerName).includes(normalizeText(filters.search))) return false
   if (filters.email && !normalizeText(labelOrder.customerEmail).includes(normalizeText(filters.email))) return false
   if (filters.location && !haystack.includes(normalizeText(filters.location))) return false

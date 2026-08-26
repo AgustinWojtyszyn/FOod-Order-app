@@ -3,7 +3,8 @@ import {
   buildLabelOrder,
   getFruitDessertChoice,
   getOrderCustomerEmail,
-  getOrderCustomerName
+  getOrderCustomerName,
+  orderMatchesLabelFilters
 } from './labelOrderUtils'
 
 describe('labelOrderUtils', () => {
@@ -98,5 +99,20 @@ describe('labelOrderUtils', () => {
 
     expect(buildLabelOrder(orderWithDrink).beverages).toEqual([])
     expect(buildLabelOrder({ ...orderWithDrink, company_slug: 'laja', company_name: 'La Laja' }).beverages).toEqual(['Agua'])
+  })
+
+  it('filtra explícitamente por empresa sin confundir empresas representativas', () => {
+    const orders = [
+      { company_slug: 'genneia', company_name: 'Genneia' },
+      { company_slug: 'greif', company_name: 'Greif' },
+      { company_slug: 'molinos', company_name: 'Molinos' },
+      { company_slug: 'placo', company_name: 'Placo' },
+      { company_slug: 'epse', company_name: 'EPSE', location: 'EPSE – Planta Fotovoltaica' }
+    ]
+
+    orders.forEach((order) => {
+      expect(orderMatchesLabelFilters(order, { company: order.company_slug })).toBe(true)
+      expect(orders.filter(candidate => orderMatchesLabelFilters(candidate, { company: order.company_slug }))).toEqual([order])
+    })
   })
 })
