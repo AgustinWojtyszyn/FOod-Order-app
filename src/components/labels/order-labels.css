@@ -18,25 +18,6 @@
   justify-content: center;
 }
 
-.print-label {
-  box-sizing: border-box;
-}
-
-.labels-print-thermal .print-label {
-  width: var(--thermal-label-width, 100mm);
-  height: var(--thermal-label-height, 50mm);
-}
-
-.label-content {
-  box-sizing: border-box;
-  width: 100%;
-  height: 100%;
-}
-
-.label-diagnostics-panel {
-  display: none;
-}
-
 .sf-label-card {
   display: flex;
   box-sizing: border-box;
@@ -60,9 +41,9 @@
   text-transform: uppercase;
 }
 
-.print-label .sf-label-card {
-  width: 100%;
-  height: 100%;
+.labels-print-thermal .sf-label-card {
+  width: var(--thermal-label-width, 100mm);
+  max-width: var(--thermal-label-width, 100mm);
 }
 
 .sf-label-header {
@@ -127,4 +108,97 @@
 
 .sf-label-card--dense .sf-label-items {
   font-size: 12.2px;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .labels-preview-root,
+  .labels-preview-root * {
+    visibility: visible !important;
+  }
+
+  .print-hide {
+    display: none !important;
+  }
+
+  .labels-preview-root {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: white;
+    color: #000;
+  }
+
+  .labels-print-surface {
+    border: 0;
+    border-radius: 0;
+    background: white;
+    padding: 0;
+  }
+
+  .labels-preview-thermal {
+    width: var(--thermal-label-width, 100mm);
+  }
+
+  .labels-print-a4 {
+    gap: 6mm;
+    grid-template-columns: repeat(var(--label-a4-columns, 2), minmax(0, 1fr));
+    padding: 8mm;
+  }
+
+  .labels-print-thermal {
+    display: block;
+    padding: 0;
+    width: var(--thermal-label-width, 100mm);
+  }
+
+  .labels-print-thermal .print-label {
+    display: flex !important;
+    width: var(--thermal-label-width, 100mm);
+    max-width: var(--thermal-label-width, 100mm);
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    border-radius: 0;
+    margin: 0;
+  }
+
+  .labels-print-thermal .print-label:not(:last-child) {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .labels-print-a4 .print-label {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .sf-label-card {
+    box-shadow: none;
+    background: #fff !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .sf-label-card * {
+    color: inherit !important;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 0;
 }

@@ -25,7 +25,7 @@ const OrderLabelCard = ({ label }) => {
   const densityClass = isLongLabelContent(label) ? ' sf-label-card--dense' : ''
 
   return (
-    <article className={`sf-label-card${densityClass}`}>
+    <article className={`sf-label-card print-label${densityClass}`}>
       <header className="sf-label-header">
         <div className="sf-label-customer">{label.customerName}</div>
         <div className="sf-label-code">{label.shortCode}</div>

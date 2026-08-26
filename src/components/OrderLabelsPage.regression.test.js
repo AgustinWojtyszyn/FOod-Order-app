@@ -1,22 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import {
-  DEFAULT_THERMAL_LABEL_SAFE_AREA_MM,
-  DEFAULT_THERMAL_LABEL_SIZE,
-  getThermalLabelContentGeometry
-} from './labels/labelPrintConfig'
-import {
-  LABEL_PDF_PAGE_SIZE_PT,
-  createOrderLabelsPdfDocument,
-  getPdfPageSizes
-} from '../utils/labels/labelPdfGenerator'
+import { expandLabelsForCopies } from '../utils/labels/labelOrderUtils'
 
 const pageSource = readFileSync(new URL('./OrderLabelsPage.jsx', import.meta.url), 'utf8')
 const previewSource = readFileSync(new URL('./labels/OrderLabelsPreview.jsx', import.meta.url), 'utf8')
+const cardSource = readFileSync(new URL('./labels/OrderLabelCard.jsx', import.meta.url), 'utf8')
 const resultsSource = readFileSync(new URL('./labels/OrderLabelsResults.jsx', import.meta.url), 'utf8')
 const cssSource = readFileSync(new URL('./labels/order-labels.css', import.meta.url), 'utf8')
-const configSource = readFileSync(new URL('./labels/labelPrintConfig.js', import.meta.url), 'utf8')
-const pdfSource = readFileSync(new URL('../utils/labels/labelPdfGenerator.js', import.meta.url), 'utf8')
 
 const buildSampleOrder = (id) => ({
   id,
@@ -25,126 +15,90 @@ const buildSampleOrder = (id) => ({
   delivery_date: '2026-08-25',
   service: 'lunch',
   total_items: 1,
-  items: [{ name: 'Milanesa con guarnición', quantity: 1 }],
+  items: [{ name: 'Opcion 4 - Bife del dia con ensalada completa de hojas verdes y vegetales', quantity: 1 }],
   custom_responses: [
+    { title: 'Guarnicion', response: 'Pure' },
     { title: 'Bebida', response: 'Agua' },
     { title: 'Fruta o postre', response: 'Fruta' }
   ]
 })
 
-const expectPdfSize = (pdf, expectedPages) => {
-  expect(pdf.getNumberOfPages()).toBe(expectedPages)
-  getPdfPageSizes(pdf).forEach((page) => {
-    expect(page.widthMm).toBeCloseTo(100, 4)
-    expect(page.heightMm).toBeCloseTo(50, 4)
-    expect(page.widthPt).toBeCloseTo(LABEL_PDF_PAGE_SIZE_PT[0], 2)
-    expect(page.heightPt).toBeCloseTo(LABEL_PDF_PAGE_SIZE_PT[1], 2)
-  })
-}
-
 describe('order labels print flow', () => {
-  it('prints directly from the selected labels without entering preview mode', () => {
-    expect(pageSource).toContain('onClick={printSelectedLabels}')
-    expect(pageSource).toContain('printOrderLabelsPdf(safeOrders, labels.copiesByOrderId)')
-    expect(pageSource).not.toContain('window.print()')
-    expect(pageSource).not.toContain('OrderLabelsPreview')
-    expect(pageSource).not.toContain('flushSync')
-    expect(pageSource).not.toContain('printBatch')
-    expect(pageSource).not.toContain('labels-print-mode')
-    expect(pageSource).not.toContain('labels-print-root')
-    expect(pageSource).not.toContain('afterprint')
-    expect(pageSource).not.toContain('labels.markPrinted')
+  it('uses the August 5 DOM print pipeline for selected labels', () => {
+    expect(pageSource).toContain("useState('thermal')")
+    expect(pageSource).toContain('OrderLabelsPreview')
+    expect(pageSource).toContain('window.requestAnimationFrame(() => window.print())')
+    expect(pageSource).toContain('onClick={() => labels.enterPreview()}')
+    expect(pageSource).toContain('disabled={labels.selectedCount === 0}')
+    expect(pageSource).toContain('selectedOrders={labels.selectedOrders}')
+    expect(pageSource).toContain('1 pedido = 1 etiqueta')
+    expect(pageSource).not.toContain('printOrderLabelsPdf')
     expect(pageSource).not.toContain('localStorage')
     expect(pageSource).not.toContain('labelPrintOffsetX')
     expect(pageSource).not.toContain('labelPrintOffsetY')
-    expect(pageSource).not.toContain('Imprimir prueba de calibración')
-    expect(pageSource).not.toContain('Reset calibración')
-    expect(pageSource).toContain('Seleccionar todos visibles')
-    expect(pageSource).toContain('1 pedido = 1 etiqueta')
-    expect(pageSource).not.toContain('labels.enterPreview')
-    expect(pageSource).not.toContain('labels.previewMode')
-    expect(pdfSource).toContain("unit: 'mm'")
-    expect(pdfSource).toContain('format: LABEL_PDF_PAGE_SIZE_MM')
-    expect(pdfSource).toContain("orientation: 'landscape'")
-    expect(pdfSource).toContain('pdf.addPage(LABEL_PDF_PAGE_SIZE_MM, \'landscape\')')
-    expect(pdfSource).toContain("pdf.autoPrint({ variant: 'non-conform' })")
-    expect(pdfSource).toContain("window.open(url, '_blank', 'noopener,noreferrer')")
-    expect(pdfSource).not.toContain('window.print()')
-    expect(pdfSource).not.toContain('createElement(\'iframe\')')
-    expect(pdfSource).not.toContain('contentWindow')
   })
 
-  it('separates printed and pending labels and keeps printed labels reprintable', () => {
-    expect(resultsSource).toContain('Falta imprimir')
-    expect(resultsSource).toContain('Ya impreso')
-    expect(resultsSource).toContain('Reimprimir')
-    expect(resultsSource).toContain('onPrintStateChange')
+  it('keeps the August 5 physical print geometry and page breaks', () => {
+    expect(previewSource).toContain('const THERMAL_LIMITS = {')
+    expect(previewSource).toContain("'100x50': { width: 100, height: 50 }")
+    expect(previewSource).toContain("'80x50': { width: 80, height: 50 }")
+    expect(previewSource).toContain('const printPageSize = printFormat ===')
+    expect(previewSource).toContain('<style media="print">')
+    expect(previewSource).toContain('@page { size: ${printPageSize}; margin: 0; }')
+    expect(previewSource).toContain('labels.map(label =>')
+    expect(previewSource).not.toContain('getBoundingClientRect')
+    expect(previewSource).not.toContain('diagnostics')
+    expect(previewSource).not.toContain('safeArea')
+    expect(previewSource).not.toContain('label-content')
+
+    expect(cardSource).toContain('sf-label-card print-label')
+
+    expect(cssSource).toContain('@media print')
+    expect(cssSource).toContain('@page')
+    expect(cssSource).toContain('size: A4')
+    expect(cssSource).toContain('margin: 0')
+    expect(cssSource).toContain('body *')
+    expect(cssSource).toContain('visibility: hidden !important')
+    expect(cssSource).toContain('.labels-preview-root')
+    expect(cssSource).toContain('visibility: visible !important')
+    expect(cssSource).toContain('.print-hide')
+    expect(cssSource).toContain('display: none !important')
+    expect(cssSource).toContain('.labels-print-thermal .print-label:not(:last-child)')
+    expect(cssSource).toContain('break-after: page')
+    expect(cssSource).toContain('page-break-after: always')
+    expect(cssSource).not.toContain('scale(')
+    expect(cssSource).not.toContain('zoom')
+    expect(cssSource).not.toContain('rotate(')
+    expect(cssSource).not.toContain('translate(')
+    expect(cssSource).not.toContain('label-offset')
+    expect(cssSource).not.toContain('label-diagnostics')
+    expect(cssSource).not.toContain('min-height: 100vh')
   })
 
-  it('generates one physical 100 x 50 mm PDF page per selected label', () => {
-    const geometry = getThermalLabelContentGeometry()
-    const one = createOrderLabelsPdfDocument([buildSampleOrder('order-1')], {})
-    const two = createOrderLabelsPdfDocument([buildSampleOrder('order-1'), buildSampleOrder('order-2')], {})
-    const five = createOrderLabelsPdfDocument([
+  it('selection changes which labels exist, not the label geometry', () => {
+    const one = expandLabelsForCopies([buildSampleOrder('order-1')], {})
+    const five = expandLabelsForCopies([
       buildSampleOrder('order-1'),
       buildSampleOrder('order-2'),
       buildSampleOrder('order-3'),
       buildSampleOrder('order-4'),
       buildSampleOrder('order-5')
     ], {})
+    const none = expandLabelsForCopies([], {})
 
-    expect(DEFAULT_THERMAL_LABEL_SIZE.width).toBe(100)
-    expect(DEFAULT_THERMAL_LABEL_SIZE.height).toBe(50)
-    expect(DEFAULT_THERMAL_LABEL_SAFE_AREA_MM.left).toBe(4)
-    expect(DEFAULT_THERMAL_LABEL_SAFE_AREA_MM.right).toBe(2)
-    expect(DEFAULT_THERMAL_LABEL_SAFE_AREA_MM.top).toBe(2)
-    expect(DEFAULT_THERMAL_LABEL_SAFE_AREA_MM.bottom).toBe(2)
-    expect(geometry.contentWidth).toBe(94)
-    expect(geometry.contentHeight).toBe(46)
-    expect(geometry.rightEdge + DEFAULT_THERMAL_LABEL_SAFE_AREA_MM.right).toBe(100)
-    expect(geometry.bottomEdge + DEFAULT_THERMAL_LABEL_SAFE_AREA_MM.bottom).toBe(50)
-    expect(one.labels).toHaveLength(1)
-    expect(two.labels).toHaveLength(2)
-    expect(five.labels).toHaveLength(5)
-    expectPdfSize(one.pdf, 1)
-    expectPdfSize(two.pdf, 2)
-    expectPdfSize(five.pdf, 5)
-    expect(one.pdf.output()).toContain('/MediaBox [0 0 283.4645669291338663 141.7322834645669332]')
+    expect(one).toHaveLength(1)
+    expect(five).toHaveLength(5)
+    expect(none).toHaveLength(0)
+    expect(new Set(five.map(label => label.labelInstanceId)).size).toBe(5)
+  })
 
-    expect(cssSource).not.toContain('scale(')
-    expect(cssSource).not.toContain('zoom')
-    expect(cssSource).not.toContain('rotate(')
-    expect(cssSource).not.toContain('translate(var(--label-offset-x')
-    expect(cssSource).not.toContain('@page')
-    expect(cssSource).not.toContain('@media print')
-    expect(cssSource).not.toContain('labels-print-mode')
-    expect(cssSource).not.toContain('labels-print-root')
-    expect(cssSource).not.toContain('.print-label--has-next')
-    expect(cssSource).not.toContain('.print-label:last-child')
-    expect(previewSource).not.toContain('@page')
-    expect(previewSource).not.toContain('createPortal')
-    expect(previewSource).not.toContain('screenHidden')
-    expect(previewSource).not.toContain('labels-print-root')
-    expect(cssSource).not.toContain('body:has(')
-    expect(cssSource).not.toContain('visibility: hidden')
-    expect(previewSource).toContain('--thermal-label-safe-left')
-    expect(previewSource).toContain('--thermal-label-safe-right')
-    expect(previewSource).toContain('--thermal-label-safe-top')
-    expect(previewSource).toContain('--thermal-label-safe-bottom')
-    expect(previewSource).toContain('--thermal-label-content-width')
-    expect(previewSource).toContain('--thermal-label-content-height')
-    expect(previewSource).toContain('getBoundingClientRect()')
-    expect(previewSource).toContain('Clasificacion')
-    expect(previewSource).toContain('TAMANO/ESCALA')
-    expect(previewSource).toContain('DOM OK')
-    expect(previewSource).toContain("window.addEventListener('beforeprint', measureDiagnostics)")
-    expect(previewSource).toContain('labels-print-container')
-    expect(previewSource).toContain('className="print-label"')
-    expect(previewSource).toContain('className="label-content"')
-    expect(previewSource).not.toContain('label-calibration-test')
-    expect(cssSource).toContain('.label-diagnostics-panel')
-    expect(configSource).not.toContain('labelPrintOffsetX')
-    expect(configSource).not.toContain('labelPrintOffsetY')
-    expect(configSource).not.toContain('localStorage')
+  it('preserves current selection and print-state controls around the print layout', () => {
+    expect(pageSource).toContain('Seleccionar todos visibles')
+    expect(pageSource).toContain('Limpiar selección')
+    expect(pageSource).toContain('Imprimir seleccionados')
+    expect(resultsSource).toContain('Falta imprimir')
+    expect(resultsSource).toContain('Ya impreso')
+    expect(resultsSource).toContain('Reimprimir')
+    expect(resultsSource).toContain('onPrintStateChange')
   })
 })
