@@ -6,6 +6,7 @@ import OrderLabelsPreview from './labels/OrderLabelsPreview'
 import {
   LABEL_HEIGHT_CSS,
   LABEL_HEIGHT_MM,
+  LABEL_DIMENSIONS_TEXT,
   LABEL_PAGE_SIZE_CSS,
   LABEL_PHYSICAL_SIZE_CSS,
   LABEL_SAFE_PADDING_X_CSS,
@@ -57,7 +58,8 @@ const renderPreviewWithOrders = (orders) => renderToStaticMarkup(React.createEle
 describe('order labels print flow', () => {
   it('renders one print-label for one selected order and ten for ten selected orders', () => {
     expect(countPrintLabels(renderPreview(1))).toBe(1)
-    expect(countPrintLabels(renderPreview(10))).toBe(10)
+    expect(countPrintLabels(renderPreview(2))).toBe(2)
+    expect(countPrintLabels(renderPreview(5))).toBe(5)
     expect(countPrintLabels(renderPreview(0))).toBe(0)
   })
 
@@ -82,6 +84,7 @@ describe('order labels print flow', () => {
     expect(LABEL_WIDTH_MM).toBeGreaterThan(LABEL_HEIGHT_MM)
     expect(LABEL_PHYSICAL_SIZE_CSS).toBe('64mm 32mm')
     expect(LABEL_PAGE_SIZE_CSS).toBe('64mm 32mm')
+    expect(LABEL_DIMENSIONS_TEXT).toBe('64 x 32 mm')
     expect(LABEL_SAFE_PADDING_X_CSS).toBe('2.2mm')
     expect(LABEL_SAFE_PADDING_Y_CSS).toBe('1.7mm')
     expect(geometrySource).toContain('widthMm: 64')
@@ -93,15 +96,17 @@ describe('order labels print flow', () => {
     expect(html).toContain('--label-height:32mm')
     expect(html).toContain('--label-safe-x:2.2mm')
     expect(html).toContain('--label-safe-y:1.7mm')
-    expect(cssSource).toContain('width: var(--label-width, 64mm)')
-    expect(cssSource).toContain('height: var(--label-height, 32mm)')
-    expect(cssSource).toContain('padding: var(--label-safe-y, 1.7mm) var(--label-safe-x, 2.2mm)')
+    expect(cssSource).toContain('width: var(--label-width)')
+    expect(cssSource).toContain('height: var(--label-height)')
+    expect(cssSource).toContain('padding: var(--label-safe-y) var(--label-safe-x)')
     expect(cssSource).toContain('justify-content: center')
     expect(cssSource).not.toContain('size: A4')
     expect(previewSource).not.toContain('size: 32mm 64mm')
     expect(previewSource).not.toContain('thermalPreset')
     expect(previewSource).not.toContain('a4Columns')
     expect(previewSource).not.toContain('printFormat')
+    expect(previewSource).toContain('LABEL_DIMENSIONS_TEXT')
+    expect(previewSource).toContain('Para Zebra:')
   })
 
   it('does not leave old dimensions or copy expansion in the active label pipeline', () => {
@@ -127,6 +132,7 @@ describe('order labels print flow', () => {
     expect(cssSource).toContain('body.labels-print-mode *')
     expect(cssSource).toContain('visibility: hidden !important')
     expect(cssSource).toContain('.labels-preview-root')
+    expect(cssSource).toContain('.labels-print-root')
     expect(cssSource).toContain('visibility: visible !important')
     expect(cssSource).toContain('.print-hide')
     expect(cssSource).toContain('display: none !important')
@@ -142,7 +148,7 @@ describe('order labels print flow', () => {
   it('keeps print-label height fixed regardless of content length', () => {
     expect(cssSource).toContain('overflow: hidden')
     expect(cssSource).toContain('box-sizing: border-box')
-    expect(cssSource).toContain('max-height: var(--label-height, 32mm)')
+    expect(cssSource).toContain('max-height: var(--label-height)')
     expect(cssSource).toContain('contain: layout paint')
     expect(cssSource).toContain('-webkit-line-clamp')
     expect(cssSource).toContain('text-overflow: ellipsis')

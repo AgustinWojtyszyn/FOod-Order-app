@@ -2,6 +2,7 @@ import { ArrowLeft, Printer, X } from 'lucide-react'
 import { buildLabelOrder } from '../../utils/labels/labelOrderUtils'
 import {
   LABEL_HEIGHT_CSS,
+  LABEL_DIMENSIONS_TEXT,
   LABEL_PAGE_SIZE_CSS,
   LABEL_SAFE_PADDING_X_CSS,
   LABEL_SAFE_PADDING_Y_CSS,
@@ -40,7 +41,7 @@ const OrderLabelsPreview = ({
           <div>
             <h2 className="text-xl font-black text-slate-900">Vista previa de etiquetas</h2>
             <p className="text-sm font-semibold text-slate-500">
-              {labels.length} etiqueta{labels.length === 1 ? '' : 's'} · 64 x 32 mm · 1 pedido = 1 etiqueta
+              {labels.length} etiqueta{labels.length === 1 ? '' : 's'} · {LABEL_DIMENSIONS_TEXT} · 1 pedido = 1 etiqueta
             </p>
           </div>
         </div>
@@ -59,9 +60,12 @@ const OrderLabelsPreview = ({
             {printing ? 'Abriendo impresión...' : 'Imprimir etiquetas'}
           </button>
         </div>
+        <p className="mt-3 text-xs font-bold text-slate-500 print-hide">
+          Para Zebra: {LABEL_DIMENSIONS_TEXT} · 100 % · Sin márgenes · 1 página por hoja. Si Chrome muestra una hoja grande alrededor de la etiqueta, revisá el tamaño de papel de ZDesigner GC420t.
+        </p>
       </div>
 
-      <div className="labels-print-surface" aria-label="Etiquetas seleccionadas para imprimir">
+      <div className="labels-print-root labels-print-surface" aria-label="Etiquetas seleccionadas para imprimir">
         {labels.map(label => (
           <OrderLabelCard key={label.labelInstanceId} label={label} />
         ))}

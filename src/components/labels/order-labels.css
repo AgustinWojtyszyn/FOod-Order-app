@@ -1,6 +1,6 @@
 .labels-print-surface {
   display: grid;
-  grid-template-columns: minmax(0, var(--label-width, 64mm));
+  grid-template-columns: minmax(0, var(--label-width));
   justify-content: center;
   gap: 12px;
   background: #f8fafc;
@@ -12,12 +12,12 @@
 .print-label {
   display: flex;
   box-sizing: border-box;
-  width: var(--label-width, 64mm);
-  height: var(--label-height, 32mm);
-  min-width: var(--label-width, 64mm);
-  max-width: var(--label-width, 64mm);
-  min-height: var(--label-height, 32mm);
-  max-height: var(--label-height, 32mm);
+  width: var(--label-width);
+  height: var(--label-height);
+  min-width: var(--label-width);
+  max-width: var(--label-width);
+  min-height: var(--label-height);
+  max-height: var(--label-height);
   break-inside: avoid;
   page-break-inside: avoid;
   break-before: auto;
@@ -33,7 +33,7 @@
   border-radius: 1mm;
   background: white;
   color: #111827;
-  padding: var(--label-safe-y, 1.7mm) var(--label-safe-x, 2.2mm);
+  padding: var(--label-safe-y) var(--label-safe-x);
   font-family: Arial, Helvetica, sans-serif;
   font-weight: 700;
   line-height: 1.08;
@@ -151,7 +151,6 @@
     background: #fff !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: var(--label-width, 64mm) !important;
     height: auto !important;
     min-width: 0 !important;
     min-height: 0 !important;
@@ -164,7 +163,8 @@
 
   body.labels-print-mode .labels-preview-root,
   body.labels-print-mode .order-labels-page,
-  body.labels-print-mode .labels-preview-root * {
+  body.labels-print-mode .labels-print-root,
+  body.labels-print-mode .labels-print-root * {
     visibility: visible !important;
   }
 
@@ -178,7 +178,7 @@
     position: absolute !important;
     inset: 0 auto auto 0 !important;
     display: block !important;
-    width: var(--label-width, 64mm) !important;
+    width: var(--label-width) !important;
     height: auto !important;
     min-height: 0 !important;
     margin: 0 !important;
@@ -191,7 +191,7 @@
 
   body.labels-print-mode .order-labels-page {
     display: block !important;
-    width: var(--label-width, 64mm) !important;
+    width: 100% !important;
     max-width: none !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -199,9 +199,9 @@
     background: white !important;
   }
 
-  body.labels-print-mode .labels-print-surface {
+  body.labels-print-mode .labels-print-root {
     display: block !important;
-    width: var(--label-width, 64mm) !important;
+    width: var(--label-width) !important;
     height: auto !important;
     min-height: 0 !important;
     gap: 0 !important;
@@ -217,15 +217,15 @@
   body.labels-print-mode .print-label {
     display: flex !important;
     box-sizing: border-box !important;
-    width: var(--label-width, 64mm) !important;
-    height: var(--label-height, 32mm) !important;
-    min-width: var(--label-width, 64mm) !important;
-    max-width: var(--label-width, 64mm) !important;
-    min-height: var(--label-height, 32mm) !important;
-    max-height: var(--label-height, 32mm) !important;
+    width: var(--label-width) !important;
+    height: var(--label-height) !important;
+    min-width: var(--label-width) !important;
+    max-width: var(--label-width) !important;
+    min-height: var(--label-height) !important;
+    max-height: var(--label-height) !important;
     margin: 0 !important;
     overflow: hidden !important;
-    flex: 0 0 var(--label-height, 32mm) !important;
+    flex: 0 0 var(--label-height) !important;
     justify-content: center !important;
     border-radius: 0 !important;
     box-shadow: none !important;
