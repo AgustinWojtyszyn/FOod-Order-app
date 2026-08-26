@@ -123,10 +123,12 @@ const createLocalBrowserPrintDevice = (device, endpoint) => ({
   }
 })
 
-export const isZebraBrowserPrintAvailable = () => Boolean(window.BrowserPrint?.getLocalDevices)
+const getBrowserPrintSdk = () => globalThis.window?.BrowserPrint || globalThis.BrowserPrint || null
+
+export const isZebraBrowserPrintAvailable = () => Boolean(getBrowserPrintSdk()?.getLocalDevices)
 
 export const getDefaultZebraPrinter = () => new Promise((resolve, reject) => {
-  const browserPrint = window.BrowserPrint
+  const browserPrint = getBrowserPrintSdk()
   if (browserPrint?.getDefaultDevice) {
     browserPrint.getDefaultDevice('printer', resolve, reject)
     return
@@ -142,7 +144,7 @@ export const getDefaultZebraPrinter = () => new Promise((resolve, reject) => {
 })
 
 export const getZebraPrinters = () => new Promise((resolve, reject) => {
-  const browserPrint = window.BrowserPrint
+  const browserPrint = getBrowserPrintSdk()
   if (browserPrint?.getLocalDevices) {
     browserPrint.getLocalDevices(
       devices => resolve((Array.isArray(devices) ? devices : []).filter(device => device)),
