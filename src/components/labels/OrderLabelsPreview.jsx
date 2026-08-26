@@ -1,158 +1,362 @@
-import { useState } from 'react'
-import { ArrowLeft, Printer, Settings, X } from 'lucide-react'
+import { ArrowLeft, Printer, X } from 'lucide-react'
 import { buildLabelOrder } from '../../utils/labels/labelOrderUtils'
-import LabelPrintSettingsPanel from './LabelPrintSettingsPanel'
-import { useLabelPrintSettings } from '../../hooks/labels/useLabelPrintSettings'
-import {
-  expandLabelInstances,
-  getLabelPrintValidation,
-  getSafeAreaDimensions
-} from '../../utils/labels/labelPrintSettings'
 import OrderLabelCard from './OrderLabelCard'
 
-const waitForPreviewFrame = () => new Promise(resolve => window.requestAnimationFrame(resolve))
+const THERMAL_LIMITS = {
+  width: {
+    min: 40,
+    max: 150,
+    fallback: 100
+  },
+  height: {
+    min: 25,
+    max: 100,
+    fallback: 50
+  }
+}
 
-const CalibrationLabel = ({ settings }) => (
-  <article className="calibration-label print-label">
-    <div className="calibration-corner calibration-corner--top-left" />
-    <div className="calibration-corner calibration-corner--top-right" />
-    <div className="calibration-corner calibration-corner--bottom-left" />
-    <div className="calibration-corner calibration-corner--bottom-right" />
-    <strong>PAPEL: {settings.widthMm} x {settings.heightMm} mm</strong>
-    <span>ORIENTACIÓN: {settings.orientation === 'landscape' ? 'HORIZONTAL' : 'VERTICAL'}</span>
-    <span>SAFE: {settings.widthMm - settings.margins.left - settings.margins.right} x {settings.heightMm - settings.margins.top - settings.margins.bottom} mm</span>
-    <span>SAFE: L{settings.margins.left} R{settings.margins.right} T{settings.margins.top} B{settings.margins.bottom}</span>
-    <span>OFFSET: X {settings.offsetXmm} / Y {settings.offsetYmm} mm</span>
-    <span>ESCALA APP: {Math.round(settings.contentScale * 100)} % · CHROME: {settings.chromeHints.scale} %</span>
-    <span>PERFIL: {settings.profile}</span>
-    <div className="calibration-cross calibration-cross--horizontal" />
-    <div className="calibration-cross calibration-cross--vertical" />
-  </article>
-)
+const estimateA4Sheets = (count, columns) => {
+  const perSheet = Number(columns) === 3 ? 12 : 8
+  return Math.max(
+    Math.ceil(count / perSheet),
+    1
+  )
+}
+
+const normalizeThermalMillimeters = (
+  value,
+  { min, max, fallback }
+) => {
+  const parsed = Number(
+    String(value ?? '').replace(',', '.')
+  )
+
+  if (!Number.isFinite(parsed)) {
+    return fallback
+  }
+
+  return Math.min(
+    Math.max(parsed, min),
+    max
+  )
+}
 
 const OrderLabelsPreview = ({
   selectedOrders,
   printing = false,
+  printFormat,
+  setPrintFormat,
+  a4Columns,
+  setA4Columns,
+  thermalPreset,
+  setThermalPreset,
+  customThermalSize,
+  setCustomThermalSize,
   onBack,
   onCancel,
-  onPrint,
-  onPrintCalibration = () => {}
+  onPrint
 }) => {
-  const printSettings = useLabelPrintSettings()
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [draftSettings, setDraftSettings] = useState(printSettings.settings)
-  const [calibrationMode, setCalibrationMode] = useState(false)
-  const settings = settingsOpen ? draftSettings : printSettings.settings
-  const validation = getLabelPrintValidation(settings)
-  const safeArea = getSafeAreaDimensions(settings)
-  const labels = expandLabelInstances(selectedOrders, settings.copiesPerOrder).map(({ order, labelInstanceId }) => ({
-    ...buildLabelOrder(order),
-    labelInstanceId
-  }))
-  const openSettings = () => {
-    setDraftSettings(printSettings.settings)
-    setSettingsOpen(true)
+  // 1 pedido = 1 etiqueta.
+  // Se conserva buildLabelOrder moderno.
+  const labels = selectedOrders
+    .filter(order => order?.id)
+    .map(order => ({
+      ...buildLabelOrder(order),
+      labelInstanceId: `${order.id}-0`
+    }))
+
+  const thermalSize =
+    thermalPreset === 'custom'
+      ? customThermalSize
+      : {
+          '100x50': {
+            width: 100,
+            height: 50
+          },
+          '80x50': {
+            width: 80,
+            height: 50
+          }
+        }[thermalPreset]
+
+  const width = normalizeThermalMillimeters(
+    thermalSize?.width,
+    THERMAL_LIMITS.width
+  )
+
+  const height = normalizeThermalMillimeters(
+    thermalSize?.height,
+    THERMAL_LIMITS.height
+  )
+
+  const approxSheets =
+    printFormat === 'a4'
+      ? estimateA4Sheets(labels.length, a4Columns)
+      : labels.length
+
+  const previewModeClass =
+    printFormat === 'thermal'
+      ? 'labels-preview-thermal'
+      : 'labels-preview-a4'
+
+  const printPageSize =
+    printFormat === 'thermal'
+      ? `${width}mm ${height}mm`
+      : 'A4'
+
+  const updateCustomThermalSize = (
+    dimension,
+    value
+  ) => {
+    const limits = THERMAL_LIMITS[dimension]
+
+    const parsed = Number(
+      String(value ?? '').replace(',', '.')
+    )
+
+    const nextValue =
+      Number.isFinite(parsed) &&
+      parsed > limits.max
+        ? limits.max
+        : value
+
+    setCustomThermalSize(prev => ({
+      ...prev,
+      [dimension]: nextValue
+    }))
   }
-  const saveSettings = () => {
-    printSettings.save(draftSettings)
-    setSettingsOpen(false)
-  }
-  const saveCustomProfile = (nextSettings) => {
-    printSettings.save(nextSettings)
-    setDraftSettings(nextSettings)
-  }
-  const printCalibration = async () => {
-    setCalibrationMode(true)
-    await waitForPreviewFrame()
-    await onPrintCalibration()
-    setCalibrationMode(false)
-  }
-  const resetSettings = () => {
-    const defaults = printSettings.reset()
-    setDraftSettings(defaults)
-  }
-  const printStyle = {
-    '--label-width': `${settings.widthMm}mm`,
-    '--label-height': `${settings.heightMm}mm`,
-    '--label-safe-left': `${settings.margins.left}mm`,
-    '--label-safe-right': `${settings.margins.right}mm`,
-    '--label-safe-top': `${settings.margins.top}mm`,
-    '--label-safe-bottom': `${settings.margins.bottom}mm`,
-    '--label-offset-x': `${settings.offsetXmm}mm`,
-    '--label-offset-y': `${settings.offsetYmm}mm`,
-    '--label-content-scale': settings.contentScale,
-    '--label-font-scale': settings.fontScale
+
+  const normalizeCustomThermalSize = (dimension) => {
+    const limits = THERMAL_LIMITS[dimension]
+
+    setCustomThermalSize(prev => ({
+      ...prev,
+      [dimension]: normalizeThermalMillimeters(
+        prev?.[dimension],
+        limits
+      )
+    }))
   }
 
   return (
     <section
-      className="labels-preview-root"
-      style={printStyle}
+      className={`labels-preview-root ${previewModeClass}`}
+      style={{
+        '--label-a4-columns': a4Columns,
+        '--thermal-label-width': `${width}mm`,
+        '--thermal-label-height': `${height}mm`
+      }}
     >
       <style media="print">
-        {`@page { size: ${settings.widthMm}mm ${settings.heightMm}mm; margin: 0; }`}
+        {`@page { size: ${printPageSize}; margin: 0; }`}
       </style>
 
       <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/50 print-hide">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <h2 className="text-xl font-black text-slate-900">Vista previa de etiquetas</h2>
+            <h2 className="text-xl font-black text-slate-900">
+              Vista previa de etiquetas
+            </h2>
+
             <p className="text-sm font-semibold text-slate-500">
-              Perfil: {settings.profile} · Página: {settings.widthMm} x {settings.heightMm} mm · {settings.orientation === 'landscape' ? 'Horizontal' : 'Vertical'}
+              {labels.length} etiqueta
+              {labels.length === 1 ? '' : 's'} final
+              {labels.length === 1 ? '' : 'es'}
+              {' · '}
+              {printFormat === 'a4'
+                ? `${approxSheets} hoja${approxSheets === 1 ? '' : 's'} A4 aprox.`
+                : `${approxSheets} página${approxSheets === 1 ? '' : 's'} térmica${approxSheets === 1 ? '' : 's'}`}
             </p>
-            <p className="text-xs font-black text-slate-700">Pedidos seleccionados: {selectedOrders.length} · Copias por pedido: {settings.copiesPerOrder} · Etiquetas a imprimir: {labels.length}</p>
-            <p className="text-xs font-bold text-slate-500">Safe: {safeArea.widthMm} x {safeArea.heightMm} mm · L {settings.margins.left} · R {settings.margins.right} · T {settings.margins.top} · B {settings.margins.bottom} mm · Offset: X {settings.offsetXmm} · Y {settings.offsetYmm} mm · Escala: {Math.round(settings.contentScale * 100)} % · Tipografía: {Math.round(settings.fontScale * 100)} %</p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-4 xl:min-w-[760px]">
+            <label className="space-y-1">
+              <span className="text-xs font-bold uppercase text-slate-600">
+                Formato
+              </span>
+
+              <select
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                value={printFormat}
+                onChange={event =>
+                  setPrintFormat(event.target.value)
+                }
+              >
+                <option value="a4">
+                  Hoja A4
+                </option>
+
+                <option value="thermal">
+                  Etiqueta térmica
+                </option>
+              </select>
+            </label>
+
+            {printFormat === 'a4' ? (
+              <label className="space-y-1">
+                <span className="text-xs font-bold uppercase text-slate-600">
+                  Densidad
+                </span>
+
+                <select
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  value={a4Columns}
+                  onChange={event =>
+                    setA4Columns(
+                      Number(event.target.value)
+                    )
+                  }
+                >
+                  <option value={2}>
+                    2 columnas
+                  </option>
+
+                  <option value={3}>
+                    3 columnas
+                  </option>
+                </select>
+              </label>
+            ) : (
+              <>
+                <label className="space-y-1">
+                  <span className="text-xs font-bold uppercase text-slate-600">
+                    Tamaño
+                  </span>
+
+                  <select
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    value={thermalPreset}
+                    onChange={event =>
+                      setThermalPreset(
+                        event.target.value
+                      )
+                    }
+                  >
+                    <option value="100x50">
+                      100 x 50 mm
+                    </option>
+
+                    <option value="80x50">
+                      80 x 50 mm
+                    </option>
+
+                    <option value="custom">
+                      Personalizado
+                    </option>
+                  </select>
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs font-bold uppercase text-slate-600">
+                    Ancho mm
+                  </span>
+
+                  <input
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
+                    type="number"
+                    min="40"
+                    max="150"
+                    step="1"
+                    disabled={thermalPreset !== 'custom'}
+                    value={customThermalSize.width}
+                    onChange={event =>
+                      updateCustomThermalSize(
+                        'width',
+                        event.target.value
+                      )
+                    }
+                    onBlur={() =>
+                      normalizeCustomThermalSize(
+                        'width'
+                      )
+                    }
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs font-bold uppercase text-slate-600">
+                    Alto mm
+                  </span>
+
+                  <input
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
+                    type="number"
+                    min="25"
+                    max="100"
+                    step="1"
+                    disabled={thermalPreset !== 'custom'}
+                    value={customThermalSize.height}
+                    onChange={event =>
+                      updateCustomThermalSize(
+                        'height',
+                        event.target.value
+                      )
+                    }
+                    onBlur={() =>
+                      normalizeCustomThermalSize(
+                        'height'
+                      )
+                    }
+                  />
+                </label>
+              </>
+            )}
           </div>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" onClick={onBack} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+          >
             <ArrowLeft className="h-4 w-4" />
             Volver a editar selección
           </button>
-          <button type="button" onClick={onCancel} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+
+          <button
+            type="button"
+            onClick={onCancel}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+          >
             <X className="h-4 w-4" />
             Cancelar vista previa
           </button>
-          <button type="button" onClick={openSettings} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
-            <Settings className="h-4 w-4" />
-            Configurar impresión
-          </button>
-          <button type="button" onClick={() => onPrint(labels.length)} disabled={labels.length === 0 || printing || !validation.valid} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">
+
+          <button
+            type="button"
+            onClick={() => onPrint(labels.length)}
+            disabled={labels.length === 0 || printing}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
             <Printer className="h-4 w-4" />
-            {printing ? 'Abriendo impresión...' : 'Imprimir etiquetas'}
+            {printing
+              ? 'Abriendo impresión...'
+              : 'Imprimir etiquetas'}
           </button>
         </div>
-        <p className="mt-3 text-xs font-bold text-slate-500 print-hide">
-          Impresora esperada: {settings.printerName} · Chrome: 1 página por hoja · Márgenes ninguno · Encabezado y pie desactivados. La escala del diálogo de Chrome es sólo una referencia: la aplicación no puede cambiarla.
-        </p>
-        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-950 print-hide">
-          <div className="font-black uppercase tracking-wide">GC420t pre-flight</div>
-          <div className="mt-1 grid gap-x-4 gap-y-0.5 sm:grid-cols-2">
-            <span>✓ App: {settings.widthMm} x {settings.heightMm} mm · {settings.orientation === 'landscape' ? 'Horizontal' : 'Vertical'}</span>
-            <span>□ Zebra: Horizontal / Landscape</span>
-            <span>□ Stock User Defined: {settings.widthMm} x {settings.heightMm} mm</span>
-            <span>□ 1 página por hoja · márgenes ninguno</span>
-            <span>□ Encabezados y pies desactivados</span>
-            <span>□ Escala Chrome: {settings.chromeHints.scale} % (manual)</span>
-          </div>
-          {settings.profile === 'recommended' && settings.orientation !== 'landscape' && (
-            <p className="mt-2 text-red-700">La configuración oficial ServiFood para GC420t requiere Horizontal / Landscape.</p>
-          )}
-        </div>
+
+        {printFormat === 'thermal' && (
+          <p className="mt-3 text-xs font-bold text-slate-500 print-hide">
+            Para la Zebra GC420t usar orientación Horizontal en el controlador de impresión.
+          </p>
+        )}
       </div>
 
-      <div className={`labels-print-root print-pages labels-print-surface${calibrationMode ? ' calibration-print-root' : ''}`} aria-label="Etiquetas seleccionadas para imprimir">
-        {calibrationMode ? <section className="print-page"><div className="print-safe-area"><CalibrationLabel settings={settings} /></div></section> : null}
-        {!calibrationMode && labels.map(label => (
-          <section className="print-page" key={label.labelInstanceId}>
-            <div className="print-safe-area">
-              <OrderLabelCard label={label} />
-            </div>
-          </section>
+      <div
+        className={`labels-print-surface ${
+          printFormat === 'thermal'
+            ? 'labels-print-thermal'
+            : 'labels-print-a4'
+        }`}
+      >
+        {labels.map(label => (
+          <OrderLabelCard
+            key={label.labelInstanceId}
+            label={label}
+          />
         ))}
       </div>
-      {settingsOpen && <LabelPrintSettingsPanel settings={draftSettings} onChange={setDraftSettings} onReset={resetSettings} onSave={saveSettings} onSaveCustomProfile={saveCustomProfile} onCancel={() => setSettingsOpen(false)} onPrintCalibration={printCalibration} />}
     </section>
   )
 }
