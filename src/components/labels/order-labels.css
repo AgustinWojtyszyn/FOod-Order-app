@@ -25,6 +25,13 @@
   page-break-inside: avoid;
 }
 
+.print-pages {
+  display: grid;
+  grid-template-columns: minmax(0, var(--label-width));
+  justify-content: center;
+  gap: 12px;
+}
+
 .print-label {
   display: flex;
   box-sizing: border-box;
@@ -284,7 +291,7 @@
   }
 
   body.labels-print-mode .print-page:not(:last-child) {
-    break-after: page;
+    break-after: page !important;
     page-break-after: always !important;
   }
 

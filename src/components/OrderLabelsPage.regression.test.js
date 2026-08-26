@@ -156,6 +156,19 @@ describe('order labels print flow', () => {
     expect(cssSource).not.toContain('body:has')
   })
 
+  it('forces a page break after every physical page except the last one', () => {
+    const html = renderPreview(2)
+    const pageMarkup = html.match(/<section class="print-page"[\s\S]*?<\/section>/g) || []
+
+    expect(pageMarkup).toHaveLength(2)
+    expect(cssSource).toContain('.print-page:not(:last-child)')
+    expect(cssSource).toContain('break-after: page !important')
+    expect(cssSource).toContain('page-break-after: always !important')
+    expect(cssSource).toContain('.print-page:last-child')
+    expect(cssSource).toContain('break-after: auto !important')
+    expect(cssSource).toContain('page-break-after: auto !important')
+  })
+
   it('keeps print-label height fixed regardless of content length', () => {
     expect(cssSource).toContain('overflow: hidden')
     expect(cssSource).toContain('box-sizing: border-box')

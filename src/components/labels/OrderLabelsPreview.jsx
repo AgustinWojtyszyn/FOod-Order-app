@@ -65,7 +65,7 @@ const OrderLabelsPreview = ({
         </p>
       </div>
 
-      <div className="labels-print-root labels-print-surface" aria-label="Etiquetas seleccionadas para imprimir">
+      <div className="labels-print-root print-pages labels-print-surface" aria-label="Etiquetas seleccionadas para imprimir">
         {labels.map(label => (
           <section className="print-page" key={label.labelInstanceId}>
             <OrderLabelCard label={label} />
