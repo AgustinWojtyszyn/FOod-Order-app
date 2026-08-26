@@ -3,7 +3,15 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import OrderLabelsPreview from './labels/OrderLabelsPreview'
-import { LABEL_HEIGHT_CSS, LABEL_PAGE_SIZE_CSS, LABEL_WIDTH_CSS } from '../utils/labels/labelPrintGeometry'
+import {
+  LABEL_HEIGHT_CSS,
+  LABEL_HEIGHT_MM,
+  LABEL_PAGE_SIZE_CSS,
+  LABEL_SAFE_PADDING_X_CSS,
+  LABEL_SAFE_PADDING_Y_CSS,
+  LABEL_WIDTH_CSS,
+  LABEL_WIDTH_MM
+} from '../utils/labels/labelPrintGeometry'
 
 const pageSource = readFileSync(new URL('./OrderLabelsPage.jsx', import.meta.url), 'utf8')
 const previewSource = readFileSync(new URL('./labels/OrderLabelsPreview.jsx', import.meta.url), 'utf8')
@@ -38,6 +46,13 @@ const renderPreview = (count) => renderToStaticMarkup(React.createElement(OrderL
 
 const countPrintLabels = (html) => (html.match(/\bprint-label\b/g) || []).length
 
+const renderPreviewWithOrders = (orders) => renderToStaticMarkup(React.createElement(OrderLabelsPreview, {
+  selectedOrders: orders,
+  onBack: () => {},
+  onCancel: () => {},
+  onPrint: () => {}
+}))
+
 describe('order labels print flow', () => {
   it('renders one print-label for one selected order and ten for ten selected orders', () => {
     expect(countPrintLabels(renderPreview(1))).toBe(1)
@@ -46,8 +61,10 @@ describe('order labels print flow', () => {
   })
 
   it('uses window.print as the primary label print engine', () => {
+    expect(pageSource).toContain('waitForPrintLayout')
     expect(pageSource).toContain('window.requestAnimationFrame')
     expect(pageSource).toContain('window.print()')
+    expect(pageSource.indexOf('document.body.classList.add')).toBeLessThan(pageSource.indexOf('window.print()'))
     expect(pageSource).not.toContain('printZebraLabels')
     expect(pageSource).not.toContain('zebraLabelPrinter')
     expect(previewSource).not.toContain('BrowserPrint')
@@ -61,14 +78,23 @@ describe('order labels print flow', () => {
 
     expect(LABEL_WIDTH_CSS).toBe('64mm')
     expect(LABEL_HEIGHT_CSS).toBe('32mm')
+    expect(LABEL_WIDTH_MM).toBeGreaterThan(LABEL_HEIGHT_MM)
     expect(LABEL_PAGE_SIZE_CSS).toBe('64mm 32mm')
-    expect(geometrySource).toContain('LABEL_WIDTH_MM = 64')
-    expect(geometrySource).toContain('LABEL_HEIGHT_MM = 32')
+    expect(LABEL_SAFE_PADDING_X_CSS).toBe('2.2mm')
+    expect(LABEL_SAFE_PADDING_Y_CSS).toBe('1.7mm')
+    expect(geometrySource).toContain('widthMm: 64')
+    expect(geometrySource).toContain('heightMm: 32')
+    expect(geometrySource).toContain('safePaddingXmm: 2.2')
+    expect(geometrySource).toContain('safePaddingYmm: 1.7')
     expect(html).toContain('@page { size: 64mm 32mm; margin: 0; }')
     expect(html).toContain('--label-width:64mm')
     expect(html).toContain('--label-height:32mm')
+    expect(html).toContain('--label-safe-x:2.2mm')
+    expect(html).toContain('--label-safe-y:1.7mm')
     expect(cssSource).toContain('width: var(--label-width, 64mm)')
     expect(cssSource).toContain('height: var(--label-height, 32mm)')
+    expect(cssSource).toContain('padding: var(--label-safe-y, 1.7mm) var(--label-safe-x, 2.2mm)')
+    expect(cssSource).toContain('justify-content: center')
     expect(cssSource).not.toContain('size: A4')
     expect(previewSource).not.toContain('thermalPreset')
     expect(previewSource).not.toContain('a4Columns')
@@ -114,7 +140,9 @@ describe('order labels print flow', () => {
     expect(cssSource).toContain('overflow: hidden')
     expect(cssSource).toContain('box-sizing: border-box')
     expect(cssSource).toContain('max-height: var(--label-height, 32mm)')
+    expect(cssSource).toContain('contain: layout paint')
     expect(cssSource).toContain('-webkit-line-clamp')
+    expect(cssSource).toContain('text-overflow: ellipsis')
     expect(cssSource).not.toContain('height: auto !important;\n    min-height: 32mm')
     expect(cssSource).not.toContain('scale(')
     expect(cssSource).not.toContain('zoom')
@@ -134,6 +162,31 @@ describe('order labels print flow', () => {
     expect(resultsSource).toContain('Ya impreso')
     expect(resultsSource).toContain('Reimprimir')
     expect(resultsSource).toContain('onPrintStateChange')
+  })
+
+  it('keeps long content inside the same physical label without adding copy pages', () => {
+    const longOrder = {
+      ...buildSampleOrder('long-order'),
+      customer_name: 'Maria De Los Angeles Fernandez Rodriguez Del Departamento Comercial Central',
+      company: 'Empresa Corporativa Internacional De Servicios Alimentarios Integrales',
+      delivery_location: 'Piso 23 Ala Norte Oficina Central Sala De Directorio',
+      items: [
+        { name: 'Milanesa napolitana con pure mixto y ensalada completa', quantity: 2 },
+        { name: 'Tarta integral de verduras con guarnicion especial', quantity: 1 },
+        { name: 'Wrap de pollo con vegetales asados y salsa adicional', quantity: 1 }
+      ],
+      custom_responses: [
+        { title: 'Bebida', response: 'Agua mineral sin gas, gaseosa lima limon y jugo de naranja' },
+        { title: 'Fruta o postre', response: 'Ensalada de frutas con yogurt' }
+      ]
+    }
+    const html = renderPreviewWithOrders([longOrder])
+
+    expect(countPrintLabels(html)).toBe(1)
+    expect(html).toContain('sf-label-card--dense')
+    expect(html.indexOf('Maria De Los Angeles')).toBeGreaterThan(html.indexOf('<article'))
+    expect(html.indexOf('Maria De Los Angeles')).toBeLessThan(html.indexOf('</article>'))
+    expect(html).toContain('Pedido:')
   })
 
   it('does not mark labels as printed until the operator explicitly confirms success', () => {

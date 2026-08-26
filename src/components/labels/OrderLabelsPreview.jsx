@@ -1,6 +1,12 @@
 import { ArrowLeft, Printer, X } from 'lucide-react'
 import { buildLabelOrder } from '../../utils/labels/labelOrderUtils'
-import { LABEL_HEIGHT_CSS, LABEL_PAGE_SIZE_CSS, LABEL_WIDTH_CSS } from '../../utils/labels/labelPrintGeometry'
+import {
+  LABEL_HEIGHT_CSS,
+  LABEL_PAGE_SIZE_CSS,
+  LABEL_SAFE_PADDING_X_CSS,
+  LABEL_SAFE_PADDING_Y_CSS,
+  LABEL_WIDTH_CSS
+} from '../../utils/labels/labelPrintGeometry'
 import OrderLabelCard from './OrderLabelCard'
 
 const OrderLabelsPreview = ({
@@ -20,7 +26,9 @@ const OrderLabelsPreview = ({
       className="labels-preview-root"
       style={{
         '--label-width': LABEL_WIDTH_CSS,
-        '--label-height': LABEL_HEIGHT_CSS
+        '--label-height': LABEL_HEIGHT_CSS,
+        '--label-safe-x': LABEL_SAFE_PADDING_X_CSS,
+        '--label-safe-y': LABEL_SAFE_PADDING_Y_CSS
       }}
     >
       <style media="print">

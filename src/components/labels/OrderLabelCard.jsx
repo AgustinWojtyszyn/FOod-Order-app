@@ -32,28 +32,31 @@ const OrderLabelCard = ({ label }) => {
         <div className="sf-label-code">{label.shortCode}</div>
       </header>
 
-      <div className="sf-label-meta">
-        <strong>{label.companyLabel}</strong>
+      <div className="sf-label-company">{label.companyLabel}</div>
+
+      <div className="sf-label-service-date">
         <span>{label.serviceLabel}</span>
         <span>{formatDate(label.delivery_date)}</span>
         {label.originLabel === 'Extra' && <span>Extra</span>}
       </div>
 
-      <div className="sf-label-items">
-        <strong>Pedido:</strong> {label.itemsText}
+      <div className="sf-label-body">
+        <div className="sf-label-items">
+          <strong>Pedido:</strong> {label.itemsText}
+        </div>
+
+        {label.beverages.length > 0 && (
+          <div className="sf-label-line">
+            <strong>Bebida:</strong> {label.beverages.join(', ')}
+          </div>
+        )}
+
+        {label.fruitDessertChoice && (
+          <div className="sf-label-line">
+            <strong>Fruta o postre:</strong> {label.fruitDessertChoice}
+          </div>
+        )}
       </div>
-
-      {label.beverages.length > 0 && (
-        <div className="sf-label-line">
-          <strong>Bebida:</strong> {label.beverages.join(', ')}
-        </div>
-      )}
-
-      {label.fruitDessertChoice && (
-        <div className="sf-label-line">
-          <strong>Fruta o postre:</strong> {label.fruitDessertChoice}
-        </div>
-      )}
     </article>
   )
 }

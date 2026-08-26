@@ -24,33 +24,36 @@
   page-break-before: auto;
   break-after: auto;
   page-break-after: auto;
+  flex: 0 0 auto;
   flex-direction: column;
-  gap: 0.8mm;
+  justify-content: center;
+  gap: 0.55mm;
   overflow: hidden;
-  border: 0.45mm solid #111827;
+  border: 0.35mm solid #111827;
   border-radius: 1mm;
   background: white;
   color: #111827;
-  padding: 1.35mm 1.6mm;
+  padding: var(--label-safe-y, 1.7mm) var(--label-safe-x, 2.2mm);
   font-family: Arial, Helvetica, sans-serif;
   font-weight: 700;
   line-height: 1.08;
   text-transform: uppercase;
+  contain: layout paint;
 }
 
 .sf-label-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 1.2mm;
   border-bottom: 0.25mm solid #111827;
-  padding-bottom: 0.65mm;
+  padding-bottom: 0.45mm;
 }
 
 .sf-label-customer {
   min-width: 0;
   overflow: hidden;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
   letter-spacing: 0;
   line-height: 1.05;
@@ -62,30 +65,49 @@
   flex-shrink: 0;
   border: 0.25mm solid #111827;
   padding: 0.35mm 0.8mm;
-  font-size: 7px;
+  font-size: 6.6px;
   font-weight: 800;
   line-height: 1.05;
-  max-width: 16mm;
+  max-width: 14mm;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sf-label-meta {
+.sf-label-company {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 7.4px;
+  font-weight: 900;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sf-label-service-date {
   display: flex;
   flex-wrap: nowrap;
-  gap: 1mm;
+  justify-content: center;
+  gap: 1.1mm;
   overflow: hidden;
-  font-size: 7.6px;
-  font-weight: 800;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.05;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
-.sf-label-meta > * {
+.sf-label-service-date > * {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.sf-label-body {
+  display: grid;
+  gap: 0.35mm;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sf-label-line,
@@ -93,34 +115,35 @@
   display: -webkit-box;
   overflow: hidden;
   overflow-wrap: anywhere;
+  line-height: 1.08;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
-  font-size: 7.4px;
+  font-size: 6.9px;
 }
 
 .sf-label-items {
   -webkit-line-clamp: 2;
-  font-size: 7.8px;
+  font-size: 7.1px;
   font-weight: 800;
 }
 
 .sf-label-card--dense {
-  gap: 0.55mm;
-  padding: 1.1mm 1.3mm;
+  gap: 0.4mm;
   line-height: 1.03;
 }
 
 .sf-label-card--dense .sf-label-customer {
-  font-size: 10.8px;
+  font-size: 9.7px;
 }
 
-.sf-label-card--dense .sf-label-meta,
+.sf-label-card--dense .sf-label-company,
+.sf-label-card--dense .sf-label-service-date,
 .sf-label-card--dense .sf-label-line {
-  font-size: 6.9px;
+  font-size: 6.4px;
 }
 
 .sf-label-card--dense .sf-label-items {
-  font-size: 7.1px;
+  font-size: 6.6px;
 }
 
 @media print {
@@ -140,6 +163,7 @@
   }
 
   body.labels-print-mode .labels-preview-root,
+  body.labels-print-mode .order-labels-page,
   body.labels-print-mode .labels-preview-root * {
     visibility: visible !important;
   }
@@ -163,6 +187,16 @@
     background: white !important;
     color: #000 !important;
     transform: none !important;
+  }
+
+  body.labels-print-mode .order-labels-page {
+    display: block !important;
+    width: var(--label-width, 64mm) !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: white !important;
   }
 
   body.labels-print-mode .labels-print-surface {
@@ -191,6 +225,8 @@
     max-height: var(--label-height, 32mm) !important;
     margin: 0 !important;
     overflow: hidden !important;
+    flex: 0 0 var(--label-height, 32mm) !important;
+    justify-content: center !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     background: #fff !important;

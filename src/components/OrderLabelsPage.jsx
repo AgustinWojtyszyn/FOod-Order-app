@@ -20,6 +20,12 @@ const requestPrintSuccessConfirmation = (count) => new Promise((resolve) => {
   }))
 })
 
+const waitForPrintLayout = () => new Promise((resolve) => {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(resolve)
+  })
+})
+
 const OrderLabelsPage = () => {
   const { isAdmin, isCompanyAdmin, adminCompanies } = useAuthContext()
   const [printing, setPrinting] = useState(false)
@@ -40,14 +46,19 @@ const OrderLabelsPage = () => {
     setPrinting(true)
     labels.setPrintWarning('')
     document.body.classList.add('labels-print-mode')
-    window.requestAnimationFrame(async () => {
+    waitForPrintLayout().then(async () => {
+      const cleanupPrintMode = () => {
+        document.body.classList.remove('labels-print-mode')
+      }
+      window.addEventListener('afterprint', cleanupPrintMode, { once: true })
+
       try {
         window.print()
       } finally {
-        document.body.classList.remove('labels-print-mode')
+        window.removeEventListener('afterprint', cleanupPrintMode)
+        cleanupPrintMode()
         setPrinting(false)
       }
-
       const confirmed = await requestPrintSuccessConfirmation(safeOrders.length)
       if (confirmed) {
         await labels.markPrinted(safeOrders.map(order => order.id))
