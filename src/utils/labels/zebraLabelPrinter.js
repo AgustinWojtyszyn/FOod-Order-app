@@ -69,7 +69,7 @@ export const buildZebraLabelsZpl = (orders = []) =>
     .map(buildZebraLabelZpl)
     .join('\n')
 
-const downloadZpl = (zpl) => {
+export const downloadZpl = (zpl) => {
   const blob = new Blob([zpl], { type: 'application/vnd.zebra-zpl' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -82,7 +82,9 @@ const downloadZpl = (zpl) => {
   URL.revokeObjectURL(url)
 }
 
-const getDefaultZebraPrinter = () => new Promise((resolve, reject) => {
+export const isZebraBrowserPrintAvailable = () => Boolean(window.BrowserPrint?.getLocalDevices)
+
+export const getDefaultZebraPrinter = () => new Promise((resolve, reject) => {
   const browserPrint = window.BrowserPrint
   if (!browserPrint?.getDefaultDevice) {
     reject(new Error('Zebra Browser Print no esta disponible.'))
@@ -90,6 +92,20 @@ const getDefaultZebraPrinter = () => new Promise((resolve, reject) => {
   }
 
   browserPrint.getDefaultDevice('printer', resolve, reject)
+})
+
+export const getZebraPrinters = () => new Promise((resolve, reject) => {
+  const browserPrint = window.BrowserPrint
+  if (!browserPrint?.getLocalDevices) {
+    reject(new Error('Zebra Browser Print no esta disponible.'))
+    return
+  }
+
+  browserPrint.getLocalDevices(
+    devices => resolve((Array.isArray(devices) ? devices : []).filter(device => device)),
+    reject,
+    'printer'
+  )
 })
 
 const sendToPrinter = (printer, zpl) => new Promise((resolve, reject) => {
@@ -100,7 +116,24 @@ const sendToPrinter = (printer, zpl) => new Promise((resolve, reject) => {
   printer.send(zpl, resolve, reject)
 })
 
-export const printZebraLabels = async (orders = []) => {
+export const getPrinterId = (printer = {}) =>
+  String(printer.uid || printer.name || printer.deviceType || '').trim()
+
+export const getPrinterLabel = (printer = {}) =>
+  [printer.name, printer.connection, printer.uid].map(value => String(value || '').trim()).filter(Boolean).join(' · ') || 'Impresora Zebra'
+
+export const printZebraLabelsToPrinter = async (orders = [], printer = null) => {
+  const safeOrders = (Array.isArray(orders) ? orders : []).filter(order => order?.id)
+  if (safeOrders.length === 0) {
+    return { printed: false, count: 0, error: new Error('No hay etiquetas para imprimir.') }
+  }
+
+  const zpl = buildZebraLabelsZpl(safeOrders)
+  await sendToPrinter(printer, zpl)
+  return { printed: true, count: safeOrders.length, zpl, error: null }
+}
+
+export const printZebraLabels = async (orders = [], printer = null) => {
   const safeOrders = (Array.isArray(orders) ? orders : []).filter(order => order?.id)
   if (safeOrders.length === 0) {
     return { printed: false, downloaded: false, count: 0, error: new Error('No hay etiquetas para imprimir.') }
@@ -109,11 +142,10 @@ export const printZebraLabels = async (orders = []) => {
   const zpl = buildZebraLabelsZpl(safeOrders)
 
   try {
-    const printer = await getDefaultZebraPrinter()
-    await sendToPrinter(printer, zpl)
+    const targetPrinter = printer || await getDefaultZebraPrinter()
+    await sendToPrinter(targetPrinter, zpl)
     return { printed: true, downloaded: false, count: safeOrders.length, zpl, error: null }
   } catch (error) {
-    downloadZpl(zpl)
-    return { printed: false, downloaded: true, count: safeOrders.length, zpl, error }
+    return { printed: false, downloaded: false, count: safeOrders.length, zpl, error }
   }
 }
