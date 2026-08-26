@@ -6,7 +6,8 @@ import { useLabelPrintSettings } from '../../hooks/labels/useLabelPrintSettings'
 import {
   createDefaultLabelPrintSettings,
   expandLabelInstances,
-  getLabelPrintValidation
+  getLabelPrintValidation,
+  getSafeAreaDimensions
 } from '../../utils/labels/labelPrintSettings'
 import OrderLabelCard from './OrderLabelCard'
 
@@ -34,7 +35,7 @@ const OrderLabelsPreview = ({
   onBack,
   onCancel,
   onPrint,
-  onPrintCalibration
+  onPrintCalibration = () => {}
 }) => {
   const printSettings = useLabelPrintSettings()
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -42,6 +43,7 @@ const OrderLabelsPreview = ({
   const [calibrationMode, setCalibrationMode] = useState(false)
   const settings = settingsOpen ? draftSettings : printSettings.settings
   const validation = getLabelPrintValidation(settings)
+  const safeArea = getSafeAreaDimensions(settings)
   const labels = expandLabelInstances(selectedOrders, settings.copiesPerOrder).map(({ order, labelInstanceId }) => ({
     ...buildLabelOrder(order),
     labelInstanceId
@@ -63,6 +65,10 @@ const OrderLabelsPreview = ({
     await waitForPreviewFrame()
     await onPrintCalibration()
     setCalibrationMode(false)
+  }
+  const resetSettings = () => {
+    const defaults = printSettings.reset()
+    setDraftSettings(defaults)
   }
   const printStyle = {
     '--label-width': `${settings.widthMm}mm`,
@@ -93,7 +99,8 @@ const OrderLabelsPreview = ({
             <p className="text-sm font-semibold text-slate-500">
               Perfil: {settings.profile} · Página: {settings.widthMm} x {settings.heightMm} mm · {settings.orientation === 'landscape' ? 'Horizontal' : 'Vertical'}
             </p>
-            <p className="text-xs font-bold text-slate-500">Safe: L {settings.margins.left} · R {settings.margins.right} · T {settings.margins.top} · B {settings.margins.bottom} mm · Offset: X {settings.offsetXmm} · Y {settings.offsetYmm} mm · Escala: {Math.round(settings.contentScale * 100)} % · Copias: {settings.copiesPerOrder}</p>
+            <p className="text-xs font-black text-slate-700">Pedidos seleccionados: {selectedOrders.length} · Copias por pedido: {settings.copiesPerOrder} · Etiquetas a imprimir: {labels.length}</p>
+            <p className="text-xs font-bold text-slate-500">Safe: {safeArea.widthMm} x {safeArea.heightMm} mm · L {settings.margins.left} · R {settings.margins.right} · T {settings.margins.top} · B {settings.margins.bottom} mm · Offset: X {settings.offsetXmm} · Y {settings.offsetYmm} mm · Escala: {Math.round(settings.contentScale * 100)} % · Tipografía: {Math.round(settings.fontScale * 100)} %</p>
           </div>
         </div>
 
@@ -121,14 +128,16 @@ const OrderLabelsPreview = ({
       </div>
 
       <div className={`labels-print-root print-pages labels-print-surface${calibrationMode ? ' calibration-print-root' : ''}`} aria-label="Etiquetas seleccionadas para imprimir">
-        {calibrationMode ? <section className="print-page"><CalibrationLabel settings={settings} /></section> : null}
+        {calibrationMode ? <section className="print-page"><div className="print-safe-area"><CalibrationLabel settings={settings} /></div></section> : null}
         {!calibrationMode && labels.map(label => (
           <section className="print-page" key={label.labelInstanceId}>
-            <OrderLabelCard label={label} />
+            <div className="print-safe-area">
+              <OrderLabelCard label={label} />
+            </div>
           </section>
         ))}
       </div>
-      {settingsOpen && <LabelPrintSettingsPanel settings={draftSettings} onChange={setDraftSettings} onReset={() => setDraftSettings(createDefaultLabelPrintSettings())} onSave={saveSettings} onSaveCustomProfile={saveCustomProfile} onCancel={() => setSettingsOpen(false)} onPrintCalibration={printCalibration} />}
+      {settingsOpen && <LabelPrintSettingsPanel settings={draftSettings} onChange={setDraftSettings} onReset={resetSettings} onSave={saveSettings} onSaveCustomProfile={saveCustomProfile} onCancel={() => setSettingsOpen(false)} onPrintCalibration={printCalibration} />}
     </section>
   )
 }

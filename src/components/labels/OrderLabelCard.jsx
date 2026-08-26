@@ -27,38 +27,40 @@ const OrderLabelCard = ({ label }) => {
 
   return (
     <article className={`sf-label-card print-label${densityClass}`}>
-      <header className="sf-label-header">
-        <div className="sf-label-customer">{label.customerName}</div>
-        <div className="sf-label-code">{label.shortCode}</div>
-      </header>
+      <div className="print-label-content">
+        <header className="sf-label-header">
+          <div className="sf-label-customer">{label.customerName}</div>
+          <div className="sf-label-code">{label.shortCode}</div>
+        </header>
 
-      <div className="sf-label-company">{label.companyLabel}</div>
-      {label.deliveryLocation && label.deliveryLocation !== label.companyLabel && (
-        <div className="sf-label-location">{label.deliveryLocation}</div>
-      )}
+        <div className="sf-label-company">{label.companyLabel}</div>
+        {label.deliveryLocation && label.deliveryLocation !== label.companyLabel && (
+          <div className="sf-label-location">{label.deliveryLocation}</div>
+        )}
 
-      <div className="sf-label-service-date">
-        <span>{label.serviceLabel}</span>
-        <span>{formatDate(label.delivery_date)}</span>
-        {label.originLabel === 'Extra' && <span>Extra</span>}
-      </div>
-
-      <div className="sf-label-body">
-        <div className="sf-label-items">
-          <strong>Pedido:</strong> {label.itemsText}
+        <div className="sf-label-service-date">
+          <span>{label.serviceLabel}</span>
+          <span>{formatDate(label.delivery_date)}</span>
+          {label.originLabel === 'Extra' && <span>Extra</span>}
         </div>
 
-        {label.beverages.length > 0 && (
-          <div className="sf-label-line">
-            <strong>Bebida:</strong> {label.beverages.join(', ')}
+        <div className="sf-label-body">
+          <div className="sf-label-items">
+            <strong>Pedido:</strong> {label.itemsText}
           </div>
-        )}
 
-        {label.fruitDessertChoice && (
-          <div className="sf-label-line">
-            <strong>Fruta o postre:</strong> {label.fruitDessertChoice}
-          </div>
-        )}
+          {label.beverages.length > 0 && (
+            <div className="sf-label-line">
+              <strong>Bebida:</strong> {label.beverages.join(', ')}
+            </div>
+          )}
+
+          {label.fruitDessertChoice && (
+            <div className="sf-label-line">
+              <strong>Fruta o postre:</strong> {label.fruitDessertChoice}
+            </div>
+          )}
+        </div>
       </div>
     </article>
   )

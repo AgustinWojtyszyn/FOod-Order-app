@@ -1,10 +1,11 @@
 import { LABEL_HEIGHT_MM, LABEL_WIDTH_MM } from './labelPrintGeometry'
 
-export const LABEL_PRINT_SETTINGS_KEY = 'servifood.labelPrintSettings.v1'
+export const LABEL_PRINT_SETTINGS_KEY = 'servifood.labelPrintSettings.v2'
+const LEGACY_LABEL_PRINT_SETTINGS_KEY = 'servifood.labelPrintSettings.v1'
 
 export const LABEL_PRINT_PROFILES = {
   recommended: {
-    label: 'Zebra GC420t - 64x32',
+    label: 'ZDesigner GC420t - ServiFood',
     widthMm: LABEL_WIDTH_MM,
     heightMm: LABEL_HEIGHT_MM,
     orientation: 'landscape'
@@ -46,7 +47,7 @@ export const createDefaultLabelPrintSettings = () => ({
   widthMm: 64,
   heightMm: 32,
   orientation: 'landscape',
-  margins: { top: 2, right: 2, bottom: 2, left: 2 },
+  margins: { top: 1.5, right: 2, bottom: 1.5, left: 2 },
   offsetXmm: 0,
   offsetYmm: 0,
   contentScale: 1,
@@ -101,6 +102,7 @@ const normalizeSettings = (value) => {
 export const readLabelPrintSettings = () => {
   if (typeof window === 'undefined') return createDefaultLabelPrintSettings()
   try {
+    window.localStorage.removeItem(LEGACY_LABEL_PRINT_SETTINGS_KEY)
     return normalizeSettings(JSON.parse(window.localStorage.getItem(LABEL_PRINT_SETTINGS_KEY) || 'null'))
   } catch {
     return createDefaultLabelPrintSettings()
@@ -110,6 +112,7 @@ export const readLabelPrintSettings = () => {
 export const saveLabelPrintSettings = (settings) => {
   const normalized = normalizeSettings(settings)
   if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(LEGACY_LABEL_PRINT_SETTINGS_KEY)
     window.localStorage.setItem(LABEL_PRINT_SETTINGS_KEY, JSON.stringify(normalized))
   }
   return normalized
@@ -162,5 +165,10 @@ export const getLabelPrintValidation = (settings) => {
       Number(settings?.fontScale) < 0.8 || Number(settings?.fontScale) > 1.2
   }
 }
+
+export const getSafeAreaDimensions = (settings) => ({
+  widthMm: Number(settings?.widthMm) - Number(settings?.margins?.left || 0) - Number(settings?.margins?.right || 0),
+  heightMm: Number(settings?.heightMm) - Number(settings?.margins?.top || 0) - Number(settings?.margins?.bottom || 0)
+})
 
 export { normalizeSettings }

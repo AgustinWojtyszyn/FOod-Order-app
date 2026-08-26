@@ -16,8 +16,8 @@ export const useLabelPrintSettings = () => {
 
   const reset = () => {
     const defaults = createDefaultLabelPrintSettings()
-    setSettings(defaults)
-    return defaults
+    if (typeof window !== 'undefined') window.localStorage.removeItem('servifood.labelPrintSettings.v1')
+    return save(defaults)
   }
 
   return { settings, setSettings, save, reset }

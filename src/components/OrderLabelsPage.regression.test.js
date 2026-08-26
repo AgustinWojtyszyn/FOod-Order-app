@@ -46,7 +46,7 @@ const renderPreview = (count) => renderToStaticMarkup(React.createElement(OrderL
   onPrint: () => {}
 }))
 
-const countPrintLabels = (html) => (html.match(/\bprint-label\b/g) || []).length
+const countPrintLabels = (html) => (html.match(/class="sf-label-card print-label(?: |")/g) || []).length
 const countPrintPages = (html) => (html.match(/\bprint-page\b/g) || []).length
 
 const renderPreviewWithOrders = (orders) => renderToStaticMarkup(React.createElement(OrderLabelsPreview, {
@@ -101,12 +101,14 @@ describe('order labels print flow', () => {
     expect(html).toContain('--label-height:32mm')
     expect(html).toContain('--label-safe-left:2mm')
     expect(html).toContain('--label-safe-right:2mm')
-    expect(html).toContain('--label-safe-top:2mm')
-    expect(html).toContain('--label-safe-bottom:2mm')
+    expect(html).toContain('--label-safe-top:1.5mm')
+    expect(html).toContain('--label-safe-bottom:1.5mm')
     expect(cssSource).toContain('width: var(--label-width)')
     expect(cssSource).toContain('height: var(--label-height)')
     expect(cssSource).toContain('var(--label-safe-left)')
     expect(cssSource).toContain('var(--label-safe-top)')
+    expect(cssSource).toContain('.print-safe-area')
+    expect(cardSource).toContain('className={`sf-label-card print-label${densityClass}`}')
     expect(cssSource).toContain('justify-content: center')
     expect(cssSource).not.toContain('size: A4')
     expect(previewSource).not.toContain('size: 32mm 64mm')
@@ -168,7 +170,7 @@ describe('order labels print flow', () => {
   it('keeps print-label height fixed regardless of content length', () => {
     expect(cssSource).toContain('overflow: hidden')
     expect(cssSource).toContain('box-sizing: border-box')
-    expect(cssSource).toContain('max-height: var(--label-height)')
+    expect(cssSource).toContain('height: 100%')
     expect(cssSource).toContain('contain: layout paint')
     expect(cssSource).toContain('-webkit-line-clamp')
     expect(cssSource).toContain('text-overflow: ellipsis')
