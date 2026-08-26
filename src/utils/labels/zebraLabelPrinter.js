@@ -6,6 +6,7 @@ export const ZEBRA_DPI = 203
 export const ZEBRA_DOTS_PER_MM = 8
 export const ZEBRA_LABEL_WIDTH_DOTS = Math.round(ZEBRA_LABEL_WIDTH_MM * ZEBRA_DOTS_PER_MM)
 export const ZEBRA_LABEL_HEIGHT_DOTS = Math.round(ZEBRA_LABEL_HEIGHT_MM * ZEBRA_DOTS_PER_MM)
+export const ZEBRA_DEFAULT_PRINTER_ID = '__zebra_default__'
 const ZEBRA_BROWSER_PRINT_ENDPOINTS = [
   'https://localhost:9101/',
   'https://127.0.0.1:9101/',
@@ -126,12 +127,18 @@ export const isZebraBrowserPrintAvailable = () => Boolean(window.BrowserPrint?.g
 
 export const getDefaultZebraPrinter = () => new Promise((resolve, reject) => {
   const browserPrint = window.BrowserPrint
-  if (!browserPrint?.getDefaultDevice) {
-    reject(new Error('Zebra Browser Print no esta disponible.'))
+  if (browserPrint?.getDefaultDevice) {
+    browserPrint.getDefaultDevice('printer', resolve, reject)
     return
   }
 
-  browserPrint.getDefaultDevice('printer', resolve, reject)
+  withFirstAvailableEndpoint(async (endpoint) => {
+    const raw = await requestBrowserPrint(endpoint, 'GET', 'default?type=printer')
+    if (!raw) return null
+    return createLocalBrowserPrintDevice(JSON.parse(raw), endpoint)
+  }).then(resolve).catch(() => {
+    reject(new Error('Zebra Browser Print no esta disponible.'))
+  })
 })
 
 export const getZebraPrinters = () => new Promise((resolve, reject) => {

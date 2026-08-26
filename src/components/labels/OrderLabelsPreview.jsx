@@ -1,6 +1,6 @@
 import { ArrowLeft, Download, Printer, RefreshCw, X } from 'lucide-react'
 import { buildLabelOrder } from '../../utils/labels/labelOrderUtils'
-import { getPrinterId, getPrinterLabel } from '../../utils/labels/zebraLabelPrinter'
+import { getPrinterId, getPrinterLabel, ZEBRA_DEFAULT_PRINTER_ID } from '../../utils/labels/zebraLabelPrinter'
 import OrderLabelCard from './OrderLabelCard'
 
 const OrderLabelsPreview = ({
@@ -40,9 +40,10 @@ const OrderLabelsPreview = ({
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold"
                 value={selectedPrinterId}
                 onChange={event => onPrinterChange(event.target.value)}
-                disabled={printerLoading || printers.length === 0}
+                disabled={printerLoading}
               >
                 <option value="">{printerLoading ? 'Buscando impresoras...' : 'Seleccionar impresora'}</option>
+                <option value={ZEBRA_DEFAULT_PRINTER_ID}>Impresora predeterminada de Zebra Browser Print</option>
                 {printers.map(printer => (
                   <option key={getPrinterId(printer)} value={getPrinterId(printer)}>
                     {getPrinterLabel(printer)}

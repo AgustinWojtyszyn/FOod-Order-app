@@ -136,6 +136,7 @@ describe('order labels print flow', () => {
     expect(pageSource).toContain('Imprimir seleccionados')
     expect(pageSource).toContain('openPreview')
     expect(previewSource).toContain('Impresora Zebra')
+    expect(previewSource).toContain('Impresora predeterminada de Zebra Browser Print')
     expect(previewSource).toContain('Buscar impresoras')
     expect(previewSource).toContain('Descargar ZPL')
     expect(previewSource).toContain('Imprimir en Zebra')

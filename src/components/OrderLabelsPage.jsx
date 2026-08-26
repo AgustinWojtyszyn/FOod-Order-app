@@ -10,7 +10,8 @@ import {
   downloadZpl,
   getPrinterId,
   getZebraPrinters,
-  printZebraLabels
+  printZebraLabels,
+  ZEBRA_DEFAULT_PRINTER_ID
 } from '../utils/labels/zebraLabelPrinter'
 import './labels/order-labels.css'
 
@@ -25,6 +26,7 @@ const OrderLabelsPage = () => {
   const labels = useOrderLabels({ isAdmin, isCompanyAdmin, adminCompanies })
 
   const selectedPrinter = zebraPrinters.find(printer => getPrinterId(printer) === selectedPrinterId) || null
+  const useDefaultPrinter = selectedPrinterId === ZEBRA_DEFAULT_PRINTER_ID
 
   const refreshPrinters = useCallback(async () => {
     setPrinterLoading(true)
@@ -34,15 +36,16 @@ const OrderLabelsPage = () => {
       setZebraPrinters(printers)
       setSelectedPrinterId(prev => {
         if (prev && printers.some(printer => getPrinterId(printer) === prev)) return prev
-        return getPrinterId(printers[0] || {})
+        if (prev === ZEBRA_DEFAULT_PRINTER_ID) return prev
+        return getPrinterId(printers[0] || {}) || ZEBRA_DEFAULT_PRINTER_ID
       })
       if (printers.length === 0) {
-        setPrinterError('No se encontraron impresoras Zebra disponibles.')
+        setPrinterError('No se listaron impresoras. Podés usar la predeterminada de Zebra Browser Print.')
       }
     } catch (_error) {
       setZebraPrinters([])
-      setSelectedPrinterId('')
-      setPrinterError('No se detectó Zebra Browser Print. Instalalo y volvé a buscar impresoras.')
+      setSelectedPrinterId(ZEBRA_DEFAULT_PRINTER_ID)
+      setPrinterError('No se pudo listar. Probá con la impresora predeterminada o revisá Zebra Browser Print.')
     } finally {
       setPrinterLoading(false)
     }
@@ -59,13 +62,13 @@ const OrderLabelsPage = () => {
       labels.setPrintWarning('Seleccioná al menos un pedido para imprimir etiquetas.')
       return
     }
-    if (!selectedPrinter) {
+    if (!selectedPrinter && !useDefaultPrinter) {
       labels.setPrintWarning('Seleccioná una impresora Zebra antes de imprimir.')
       return
     }
 
     setPrinting(true)
-    const result = await printZebraLabels(safeOrders, selectedPrinter)
+    const result = await printZebraLabels(safeOrders, useDefaultPrinter ? null : selectedPrinter)
     setPrinting(false)
 
     if (result.printed) {
@@ -75,7 +78,7 @@ const OrderLabelsPage = () => {
     }
 
     labels.setPrintWarning('No se pudo imprimir en la Zebra seleccionada. Revisá que esté conectada y disponible en Zebra Browser Print.')
-  }, [labels, selectedPrinter])
+  }, [labels, selectedPrinter, useDefaultPrinter])
 
   const printSelectedLabels = useCallback(() => {
     printOrders(labels.selectedOrders)
