@@ -36,7 +36,7 @@ const OrderLabelsPage = () => {
     labels.enterPreview(order)
   }, [labels])
 
-  const printOrders = useCallback((ordersToPrint = []) => {
+  const printOrders = useCallback((ordersToPrint = [], printedLabelCount = null) => {
     const safeOrders = Array.isArray(ordersToPrint) ? ordersToPrint.filter(order => order?.id) : []
     if (safeOrders.length === 0) {
       labels.setPrintWarning('Seleccioná al menos un pedido para imprimir etiquetas.')
@@ -59,7 +59,7 @@ const OrderLabelsPage = () => {
         cleanupPrintMode()
         setPrinting(false)
       }
-      const confirmed = await requestPrintSuccessConfirmation(safeOrders.length)
+      const confirmed = await requestPrintSuccessConfirmation(printedLabelCount || safeOrders.length)
       if (confirmed) {
         await labels.markPrinted(safeOrders.map(order => order.id))
         return
@@ -68,8 +68,23 @@ const OrderLabelsPage = () => {
     })
   }, [labels])
 
-  const printSelectedLabels = useCallback(() => {
-    printOrders(labels.selectedOrders)
+  const printCalibration = useCallback(async () => {
+    document.body.classList.add('labels-print-mode', 'labels-calibration-mode')
+    await waitForPrintLayout()
+    const cleanup = () => {
+      document.body.classList.remove('labels-print-mode', 'labels-calibration-mode')
+    }
+    window.addEventListener('afterprint', cleanup, { once: true })
+    try {
+      window.print()
+    } finally {
+      window.removeEventListener('afterprint', cleanup)
+      cleanup()
+    }
+  }, [])
+
+  const printSelectedLabels = useCallback((printedLabelCount) => {
+    printOrders(labels.selectedOrders, printedLabelCount)
   }, [labels.selectedOrders, printOrders])
 
   return (
@@ -211,6 +226,7 @@ const OrderLabelsPage = () => {
           onBack={labels.cancelPreview}
           onCancel={labels.cancelPreview}
           onPrint={printSelectedLabels}
+          onPrintCalibration={printCalibration}
         />
       )}
     </div>

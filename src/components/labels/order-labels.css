@@ -10,7 +10,7 @@
 }
 
 .print-page {
-  display: flex;
+  display: block;
   position: relative;
   box-sizing: border-box;
   width: var(--label-width);
@@ -36,12 +36,14 @@
 .print-label {
   display: flex;
   box-sizing: border-box;
-  width: var(--label-width);
-  height: var(--label-height);
-  min-width: var(--label-width);
-  max-width: var(--label-width);
-  min-height: var(--label-height);
-  max-height: var(--label-height);
+  width: calc(var(--label-width) - var(--label-safe-left) - var(--label-safe-right));
+  height: calc(var(--label-height) - var(--label-safe-top) - var(--label-safe-bottom));
+  min-width: 0;
+  max-width: none;
+  min-height: 0;
+  max-height: none;
+  margin-top: calc(var(--label-safe-top) + var(--label-offset-y));
+  margin-left: calc(var(--label-safe-left) + var(--label-offset-x));
   break-inside: avoid;
   page-break-inside: avoid;
   break-before: auto;
@@ -51,13 +53,13 @@
   flex: 0 0 auto;
   flex-direction: column;
   justify-content: center;
-  gap: 0.55mm;
+  gap: calc(0.55mm * var(--label-content-scale));
   overflow: hidden;
   border: 0.35mm solid #111827;
   border-radius: 1mm;
   background: white;
   color: #111827;
-  padding: var(--label-safe-y) var(--label-safe-x);
+  padding: calc(0.4mm * var(--label-content-scale)) calc(0.5mm * var(--label-content-scale));
   font-family: Arial, Helvetica, sans-serif;
   font-weight: 700;
   line-height: 1.08;
@@ -77,7 +79,7 @@
 .sf-label-customer {
   min-width: 0;
   overflow: hidden;
-  font-size: 11px;
+  font-size: calc(11px * var(--label-content-scale) * var(--label-font-scale));
   font-weight: 900;
   letter-spacing: 0;
   line-height: 1.05;
@@ -88,8 +90,8 @@
 .sf-label-code {
   flex-shrink: 0;
   border: 0.25mm solid #111827;
-  padding: 0.35mm 0.8mm;
-  font-size: 6.6px;
+  padding: calc(0.35mm * var(--label-content-scale)) calc(0.8mm * var(--label-content-scale));
+  font-size: calc(6.6px * var(--label-content-scale) * var(--label-font-scale));
   font-weight: 800;
   line-height: 1.05;
   max-width: 14mm;
@@ -101,7 +103,7 @@
 .sf-label-company {
   min-width: 0;
   overflow: hidden;
-  font-size: 7.4px;
+  font-size: calc(7.4px * var(--label-content-scale) * var(--label-font-scale));
   font-weight: 900;
   line-height: 1.05;
   text-overflow: ellipsis;
@@ -111,7 +113,7 @@
 .sf-label-location {
   min-width: 0;
   overflow: hidden;
-  font-size: 6.7px;
+  font-size: calc(6.7px * var(--label-content-scale) * var(--label-font-scale));
   font-weight: 800;
   line-height: 1.05;
   text-overflow: ellipsis;
@@ -122,9 +124,9 @@
   display: flex;
   flex-wrap: nowrap;
   justify-content: center;
-  gap: 1.1mm;
+  gap: calc(1.1mm * var(--label-content-scale));
   overflow: hidden;
-  font-size: 8px;
+  font-size: calc(8px * var(--label-content-scale) * var(--label-font-scale));
   font-weight: 900;
   line-height: 1.05;
   text-transform: uppercase;
@@ -139,7 +141,7 @@
 
 .sf-label-body {
   display: grid;
-  gap: 0.35mm;
+  gap: calc(0.35mm * var(--label-content-scale));
   min-height: 0;
   overflow: hidden;
 }
@@ -152,34 +154,66 @@
   line-height: 1.08;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
-  font-size: 6.9px;
+  font-size: calc(6.9px * var(--label-content-scale) * var(--label-font-scale));
 }
 
 .sf-label-items {
   -webkit-line-clamp: 2;
-  font-size: 7.1px;
+  font-size: calc(7.1px * var(--label-content-scale) * var(--label-font-scale));
   font-weight: 800;
 }
 
 .sf-label-card--dense {
-  gap: 0.4mm;
+  gap: calc(0.4mm * var(--label-content-scale));
   line-height: 1.03;
 }
 
 .sf-label-card--dense .sf-label-customer {
-  font-size: 9.7px;
+  font-size: calc(9.7px * var(--label-content-scale) * var(--label-font-scale));
 }
 
 .sf-label-card--dense .sf-label-company,
-  .sf-label-card--dense .sf-label-location,
+.sf-label-card--dense .sf-label-location,
 .sf-label-card--dense .sf-label-service-date,
 .sf-label-card--dense .sf-label-line {
-  font-size: 6.4px;
+  font-size: calc(6.4px * var(--label-content-scale) * var(--label-font-scale));
 }
 
 .sf-label-card--dense .sf-label-items {
-  font-size: 6.6px;
+  font-size: calc(6.6px * var(--label-content-scale) * var(--label-font-scale));
 }
+
+.calibration-label {
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  gap: 1mm;
+  border: 0.4mm dashed #dc2626;
+  color: #111827;
+  font-size: 7px;
+  text-align: center;
+}
+
+.calibration-corner,
+.calibration-cross {
+  position: absolute;
+  background: #dc2626;
+}
+
+.calibration-corner {
+  width: 3mm;
+  height: 3mm;
+  background: transparent;
+  border-color: #dc2626;
+  border-style: solid;
+}
+
+.calibration-corner--top-left { top: 0; left: 0; border-width: 0.5mm 0 0 0.5mm; }
+.calibration-corner--top-right { top: 0; right: 0; border-width: 0.5mm 0.5mm 0 0; }
+.calibration-corner--bottom-left { bottom: 0; left: 0; border-width: 0 0 0.5mm 0.5mm; }
+.calibration-corner--bottom-right { right: 0; bottom: 0; border-width: 0 0.5mm 0.5mm 0; }
+.calibration-cross--horizontal { width: 8mm; height: 0.3mm; }
+.calibration-cross--vertical { width: 0.3mm; height: 8mm; }
 
 @media print {
   body.labels-print-mode {
@@ -252,13 +286,14 @@
   body.labels-print-mode .print-label {
     display: flex !important;
     box-sizing: border-box !important;
-    width: var(--label-width) !important;
-    height: var(--label-height) !important;
-    min-width: var(--label-width) !important;
-    max-width: var(--label-width) !important;
-    min-height: var(--label-height) !important;
-    max-height: var(--label-height) !important;
-    margin: 0 !important;
+    width: calc(var(--label-width) - var(--label-safe-left) - var(--label-safe-right)) !important;
+    height: calc(var(--label-height) - var(--label-safe-top) - var(--label-safe-bottom)) !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin-top: calc(var(--label-safe-top) + var(--label-offset-y)) !important;
+    margin-left: calc(var(--label-safe-left) + var(--label-offset-x)) !important;
     overflow: hidden !important;
     flex: 0 0 var(--label-height) !important;
     justify-content: center !important;
@@ -281,7 +316,7 @@
     width: var(--label-width) !important;
     height: auto !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: calc(0.4mm * var(--label-content-scale)) calc(0.5mm * var(--label-content-scale)) !important;
     gap: 0 !important;
     overflow: visible !important;
   }
