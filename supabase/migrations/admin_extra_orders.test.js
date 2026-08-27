@@ -101,6 +101,10 @@ const removeGreifRefrigerioMenuOptionMigration = readFileSync(
   new URL('./20260825110000_remove_greif_refrigerio_menu_option.sql', import.meta.url),
   'utf8'
 )
+const placoRemitoNumberingMigration = readFileSync(
+  new URL('./20260827120000_placo_company_remito_numbering.sql', import.meta.url),
+  'utf8'
+)
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
 describe('admin extra orders migration', () => {
@@ -435,6 +439,16 @@ describe('admin extra orders migration', () => {
     expect(gitignore).toContain('!supabase/migrations/20260824133000_add_placo_company.sql')
   })
 
+  it('configures Placo remito numbering without moving valid counters backwards', () => {
+    expect(placoRemitoNumberingMigration).toContain("('placo', 'Placo', 100000, 109999, 100000)")
+    expect(placoRemitoNumberingMigration).toContain("when slug = 'placo' or slug like 'placo_%' then 'placo'")
+    expect(placoRemitoNumberingMigration).toContain('public.companies.next_remito_number between excluded.remito_start_number and excluded.remito_end_number + 1')
+    expect(placoRemitoNumberingMigration).toContain('then public.companies.next_remito_number')
+    expect(placoRemitoNumberingMigration).not.toContain('update public.company_remitos')
+    expect(placoRemitoNumberingMigration).not.toContain('delete from public.company_remitos')
+    expect(gitignore).toContain('!supabase/migrations/20260827120000_placo_company_remito_numbering.sql')
+  })
+
   it('persists label print state on orders without duplicating orders', () => {
     expect(orderLabelPrintTrackingMigration).toContain('add column if not exists label_printed_at timestamptz')
     expect(orderLabelPrintTrackingMigration).toContain('add column if not exists label_printed_by uuid references auth.users(id) on delete set null')
@@ -564,7 +578,8 @@ describe('admin extra orders migration', () => {
       ['losberros', 60000, 69999],
       ['padrebueno', 70000, 79999],
       ['greif', 80000, 89999],
-      ['molinos', 90000, 99999]
+      ['molinos', 90000, 99999],
+      ['placo', 100000, 109999]
     ]
 
     for (let index = 0; index < expectedRanges.length - 1; index += 1) {
@@ -572,5 +587,6 @@ describe('admin extra orders migration', () => {
     }
     expect(greifMolinosRemitoNumberingMigration).toContain("('greif', 'Greif', 80000, 89999, 80000)")
     expect(greifMolinosRemitoNumberingMigration).toContain("('molinos', 'Molinos', 90000, 99999, 90000)")
+    expect(placoRemitoNumberingMigration).toContain("('placo', 'Placo', 100000, 109999, 100000)")
   })
 })

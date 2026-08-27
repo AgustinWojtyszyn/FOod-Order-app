@@ -34,21 +34,23 @@ const makeOrder = (overrides = {}) => ({
 })
 
 describe('daily order notes Excel model', () => {
-  it('includes Greif and Molinos in remito grouping and excludes global/admin companies', () => {
+  it('includes Greif, Placo and Molinos in remito grouping and excludes global/admin companies', () => {
     const groups = buildCompanyGroups([
       makeOrder({ location: 'Greif', company_slug: 'greif' }),
+      makeOrder({ id: crypto.randomUUID(), location: 'Placo', company_slug: 'placo' }),
       makeOrder({ id: crypto.randomUUID(), location: 'Molinos', company_slug: 'molinos' }),
       makeOrder({ id: crypto.randomUUID(), location: 'global', company_slug: 'global' }),
       makeOrder({ id: crypto.randomUUID(), location: 'Administración ServiFood', company_slug: 'administracion_servifood' })
     ])
 
-    expect(groups.map((group) => group.slug).sort()).toEqual(['greif', 'molinos'])
+    expect(groups.map((group) => group.slug).sort()).toEqual(['greif', 'molinos', 'placo'])
   })
 
-  it('validates Greif and Molinos remito numbers from backend company config', () => {
+  it('validates Greif, Placo and Molinos remito numbers from backend company config', () => {
     const configBySlug = buildRemitoConfigBySlug([
       { slug: 'greif', remito_start_number: 80000, remito_end_number: 89999, next_remito_number: 80000 },
       { slug: 'molinos', remito_start_number: 90000, remito_end_number: 99999, next_remito_number: 90000 },
+      { slug: 'placo', remito_start_number: 100000, remito_end_number: 109999, next_remito_number: 100000 },
       { slug: 'sin_config', remito_start_number: null, remito_end_number: null, next_remito_number: null }
     ])
 
@@ -58,6 +60,9 @@ describe('daily order notes Excel model', () => {
     expect(isRemitoNumberInCompanyRange('greif', 90000, configBySlug)).toBe(false)
     expect(isRemitoNumberInCompanyRange('molinos', 90000, configBySlug)).toBe(true)
     expect(isRemitoNumberInCompanyRange('molinos', 89999, configBySlug)).toBe(false)
+    expect(isValidRemitoNumberingConfig(configBySlug.get('placo'))).toBe(true)
+    expect(isRemitoNumberInCompanyRange('placo', 100000, configBySlug)).toBe(true)
+    expect(isRemitoNumberInCompanyRange('placo', 99999, configBySlug)).toBe(false)
     expect(isValidRemitoNumberingConfig(configBySlug.get('sin_config'))).toBe(false)
   })
 
