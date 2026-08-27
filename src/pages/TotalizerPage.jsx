@@ -130,6 +130,7 @@ export default function TotalizerPage() {
     unmapped: []
   })
   const [loading, setLoading] = useState(true)
+  const [loadWarnings, setLoadWarnings] = useState([])
   const [savingKey, setSavingKey] = useState('')
   const [reconciliationFilter, setReconciliationFilter] = useState('all')
   const [conceptForm, setConceptForm] = useState({ name: '', code: '', category: 'menu', countsAsMenu: false, sortOrder: 100, active: true })
@@ -153,6 +154,7 @@ export default function TotalizerPage() {
       notifyError(`No se pudo cargar Totalizadora.${message}`)
       return
     }
+    setLoadWarnings(Array.isArray(data?._warnings) ? data._warnings : [])
     setPayload({
       accounts: data?.accounts || [],
       concepts: data?.concepts || [],
@@ -165,7 +167,6 @@ export default function TotalizerPage() {
     })
     if (Array.isArray(data?._warnings) && data._warnings.length > 0) {
       console.warn('[totalizer] partial payload', data)
-      notifyError(`Totalizadora cargó parcial: ${data._warnings[0]?.message || 'revisá configuración de vistas.'}`)
     }
   }, [deliveryDate, service])
 
@@ -323,6 +324,12 @@ export default function TotalizerPage() {
             </button>
           ))}
         </nav>
+
+        {loadWarnings.length > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Algunas secciones todavía no respondieron a tiempo. Podés seguir usando la pantalla; el detalle técnico quedó en consola.
+          </div>
+        )}
 
         {loading ? (
           <div className="rounded-lg bg-white p-8 text-center font-bold text-slate-600 shadow-sm ring-1 ring-slate-200">Cargando Totalizadora...</div>

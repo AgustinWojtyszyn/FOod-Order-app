@@ -56,6 +56,20 @@ begin
     v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'concepts', 'message', sqlerrm, 'sqlstate', sqlstate));
   end;
 
+  if jsonb_array_length(v_concepts) = 0 then
+    return jsonb_build_object(
+      'accounts', v_accounts,
+      'concepts', v_concepts,
+      'daily', v_daily,
+      'appDaily', v_app_daily,
+      'values', v_values,
+      'reconciliation', v_reconciliation,
+      'remitos', v_remitos,
+      'unmapped', v_unmapped,
+      '_warnings', v_warnings
+    );
+  end if;
+
   begin
     v_sql := 'select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from (select * from public.v_totalizer_daily where delivery_date = $1';
     if v_service is not null then

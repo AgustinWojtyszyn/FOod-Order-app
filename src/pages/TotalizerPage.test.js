@@ -49,6 +49,7 @@ describe('Totalizer admin module', () => {
     expect(migrationSource).toContain("'_warnings', v_warnings")
     expect(migrationSource).toContain("jsonb_build_object('section', 'daily'")
     expect(migrationSource).toContain("perform set_config('statement_timeout', '1200ms', true)")
+    expect(migrationSource).toContain('if jsonb_array_length(v_concepts) = 0 then')
     expect(migrationSource).toContain('exception when query_canceled then')
     expect(migrationSource).toContain('limit 5000')
     expect(migrationSource).toContain('limit 500) u')
