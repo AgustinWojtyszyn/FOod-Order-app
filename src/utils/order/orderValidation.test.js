@@ -194,6 +194,50 @@ describe('order validation', () => {
     ])
   })
 
+  it('requires one beverage choice for Placo lunch', () => {
+    const result = validateOrderSubmission(baseArgs({
+      formData: {
+        location: 'Placo',
+        name: '',
+        email: '',
+        phone: '',
+        comments: ''
+      },
+      companyConfig: { slug: 'placo', name: 'Placo' },
+      visibleLunchOptions: [
+        { id: 'bebida', title: 'Bebida', required: true, options: ['Agua', 'Coca cola', 'Coca Zero', 'Soda'] }
+      ],
+      customResponses: {}
+    }))
+
+    expect(result.error).toBe('Por favor completa (almuerzo): Bebida')
+  })
+
+  it('keeps Placo beverage as a required custom response', () => {
+    const result = validateOrderSubmission(baseArgs({
+      formData: {
+        location: 'Placo',
+        name: '',
+        email: '',
+        phone: '',
+        comments: ''
+      },
+      companyConfig: { slug: 'placo', name: 'Placo' },
+      visibleLunchOptions: [
+        { id: 'bebida', title: 'Bebida', required: true, options: ['Agua', 'Coca cola', 'Coca Zero', 'Soda'] }
+      ],
+      customResponses: {
+        bebida: 'Coca Zero'
+      }
+    }))
+
+    expect(result.error).toBe('')
+    expect(result.data.selectedItemsList).toHaveLength(1)
+    expect(result.data.customResponsesArray).toEqual([
+      { id: 'bebida', title: 'Bebida', response: 'Coca Zero' }
+    ])
+  })
+
   it('blocks custom side for menus that do not accept it', () => {
     const result = validateOrderSubmission(baseArgs({
       getSelectedItemsList: () => [{ id: 'option-5', name: 'Opción 5 - Ensalada', slotIndex: 5 }],

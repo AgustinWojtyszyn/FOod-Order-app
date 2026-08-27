@@ -9,6 +9,7 @@ import { filterOrderableMenuItems, getMenuDisplay, withMenuSlotIndex } from '../
 import { sortMenuItems } from '../../utils/order/orderMenuHelpers'
 import { canChooseCustomSide } from '../../utils/order/orderCustomSideRules'
 import { isGreifRefrigerioMenuItem, withGreifRefrigerioMenuItem } from '../../utils/order/greifDefaultSnack'
+import { getMenuBeverageTitle, requiresMenuBeverageChoice } from '../../utils/order/companySpecialRules'
 import { notifyError, notifySuccess } from '../../utils/notice'
 
 const REASONS = [
@@ -89,6 +90,18 @@ const normalizeText = (value = '') => String(value || '').trim()
 
 const getOptionTitle = (option = {}) => option.title || option.label || option.name || 'Opción'
 const isCustomSideOption = (option = {}) => getOptionTitle(option).toLowerCase().includes('guarn')
+const isBeverageOption = (option = {}) => {
+  const text = [
+    getOptionTitle(option),
+    ...safeOptions(option)
+  ].join(' ').toLowerCase()
+  return text.includes('bebida') ||
+    text.includes('coca') ||
+    text.includes('agua') ||
+    text.includes('gaseosa') ||
+    text.includes('soda') ||
+    text.includes('jugo')
+}
 
 const safeOptions = (option = {}) => {
   if (Array.isArray(option.options)) return option.options
@@ -174,6 +187,26 @@ const hasOptionResponse = (value) => {
 
 const getCounterTotal = (counts = {}) =>
   Object.values(counts || {}).reduce((sum, quantity) => sum + Math.max(Number(quantity) || 0, 0), 0)
+
+const mergeFallbackBeverageOptions = ({
+  options = [],
+  fallbackOptions = [],
+  idPrefix = 'beverage-fallback',
+  title = 'Bebida'
+} = {}) => {
+  if ((options || []).some(isBeverageOption)) return options
+  const existingIds = new Set((options || []).map((option) => option?.id).filter(Boolean))
+  const additions = (fallbackOptions || [])
+    .filter(isBeverageOption)
+    .filter((option) => !existingIds.has(option?.id))
+    .map((option) => ({
+      ...option,
+      id: `${idPrefix}-${option.id}`,
+      title,
+      required: true
+    }))
+  return [...options, ...additions]
+}
 
 const CounterControl = ({ value = 0, onChange, min = 0, max = 99, ariaLabel }) => {
   const safeValue = Math.min(Math.max(Number(value) || 0, min), max)
@@ -361,9 +394,24 @@ const AdminExtraOrderModal = ({
           date: resolvedOperationalDate
         })
         if (optionsError) throw optionsError
+        let nextCustomOptions = Array.isArray(optionsData) ? optionsData : []
+        if (requiresMenuBeverageChoice(companySlug) && !nextCustomOptions.some(isBeverageOption)) {
+          const { data: fallbackOptionsData, error: fallbackOptionsError } = await db.getVisibleCustomOptions({
+            company: 'genneia',
+            meal: service,
+            date: resolvedOperationalDate
+          })
+          if (fallbackOptionsError) throw fallbackOptionsError
+          nextCustomOptions = mergeFallbackBeverageOptions({
+            options: nextCustomOptions,
+            fallbackOptions: Array.isArray(fallbackOptionsData) ? fallbackOptionsData : [],
+            idPrefix: companySlug,
+            title: getMenuBeverageTitle(companySlug)
+          })
+        }
         if (!cancelled) {
           setMenuItems(nextMenuItems)
-          setCustomOptions(Array.isArray(optionsData) ? optionsData : [])
+          setCustomOptions(nextCustomOptions)
           if (nextMenuItems.length === 0) {
             setMenuMessage('No hay menú cargado para esa fecha, empresa y turno.')
           }
@@ -459,6 +507,17 @@ const AdminExtraOrderModal = ({
       .map(getOptionTitle)
     if (missingRequired.length > 0) {
       notifyError(`Completá las opciones requeridas: ${missingRequired.join(', ')}.`)
+      return
+    }
+    const beverageOptions = requiresMenuBeverageChoice(companySlug)
+      ? customOptions.filter(isBeverageOption)
+      : []
+    if (requiresMenuBeverageChoice(companySlug) && beverageOptions.length === 0) {
+      notifyError(`No pudimos cargar las bebidas para ${selectedCompany?.name || 'esta empresa'}. Intentá nuevamente.`)
+      return
+    }
+    if (requiresMenuBeverageChoice(companySlug) && !beverageOptions.some((option) => hasOptionResponse(customResponses[option.id]))) {
+      notifyError(`Completá las opciones requeridas: ${getMenuBeverageTitle(companySlug)}.`)
       return
     }
     const blockedCustomSide = !selectedItems.some(canChooseCustomSide) && customOptions.some((option) =>

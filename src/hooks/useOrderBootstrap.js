@@ -8,6 +8,7 @@ import { buildSuggestionSummary, buildOptionsSummary } from '../utils/order/orde
 import { hasMainMenuSelected } from '../utils/order/orderSelectionHelpers'
 import { getTomorrowISOInTimeZone } from '../utils/dateUtils'
 import { withGreifRefrigerioMenuItem } from '../utils/order/greifDefaultSnack'
+import { getMenuBeverageTitle, requiresMenuBeverageChoice } from '../utils/order/companySpecialRules'
 
 const DEFAULT_MENU_ITEMS = [
   { id: 1, name: 'Plato Principal 1', description: 'Delicioso plato principal' },
@@ -72,6 +73,26 @@ const mergeMissingBeverageOptions = (options = [], fallbackOptions = []) => {
     .filter(isGenneiaBeverageOptionTitle)
     .filter(option => !existingIds.has(option?.id))
     .map(option => ({ ...option, id: `dinner-${option.id}` }))
+  return [...options, ...additions]
+}
+
+const mergeFallbackBeverageOptions = ({
+  options = [],
+  fallbackOptions = [],
+  idPrefix = 'beverage-fallback',
+  title = 'Bebida'
+} = {}) => {
+  if ((options || []).some(isBeverageOption)) return options
+  const existingIds = new Set((options || []).map(option => option?.id).filter(Boolean))
+  const additions = (fallbackOptions || [])
+    .filter(isBeverageOption)
+    .filter(option => !existingIds.has(option?.id))
+    .map(option => ({
+      ...option,
+      id: `${idPrefix}-${option.id}`,
+      title,
+      required: true
+    }))
   return [...options, ...additions]
 }
 
@@ -176,6 +197,20 @@ const useOrderBootstrap = ({
         return
       }
       let lunchOptions = filterByMealScope(data, 'lunch')
+      if (requiresMenuBeverageChoice(rawCompanySlug || companyOptionsSlug) && !lunchOptions.some(isBeverageOption)) {
+        const { data: fallbackData, error: fallbackError } = await db.getVisibleCustomOptions({
+          company: 'genneia',
+          meal: 'lunch',
+          date: deliveryDate
+        })
+        if (fallbackError) console.error('Error fetching beverage fallback options:', fallbackError)
+        lunchOptions = mergeFallbackBeverageOptions({
+          options: lunchOptions,
+          fallbackOptions: filterByMealScope(fallbackData, 'lunch'),
+          idPrefix: companyOptionsSlug,
+          title: getMenuBeverageTitle(rawCompanySlug || companyOptionsSlug)
+        })
+      }
       if (companyOptionsSlug === 'distro_cuyo' && !hasBeverageDessertOrFruitOption(lunchOptions)) {
         const { data: fallbackData, error: fallbackError } = await db.getVisibleCustomOptions({
           company: 'genneia',
@@ -190,7 +225,7 @@ const useOrderBootstrap = ({
       console.error('Error fetching lunch custom options:', err)
       setCustomOptionsLunch([])
     }
-  }, [companyOptionsSlug, setCustomOptionsLunch])
+  }, [companyOptionsSlug, rawCompanySlug, setCustomOptionsLunch])
 
   const fetchDinnerCustomOptions = useCallback(async () => {
     try {
@@ -208,6 +243,20 @@ const useOrderBootstrap = ({
       }
       // Cena siempre se resuelve con su consulta específica, sin reutilizar catálogo de almuerzo.
       let dinnerOptions = filterByMealScope(data, 'dinner')
+      if (requiresMenuBeverageChoice(rawCompanySlug || companyOptionsSlug) && !dinnerOptions.some(isBeverageOption)) {
+        const { data: fallbackData, error: fallbackError } = await db.getVisibleCustomOptions({
+          company: 'genneia',
+          meal: 'dinner',
+          date: dinnerDate
+        })
+        if (fallbackError) console.error('Error fetching dinner beverage fallback options:', fallbackError)
+        dinnerOptions = mergeFallbackBeverageOptions({
+          options: dinnerOptions,
+          fallbackOptions: filterByMealScope(fallbackData, 'dinner'),
+          idPrefix: `dinner-${companyOptionsSlug}`,
+          title: getMenuBeverageTitle(rawCompanySlug || companyOptionsSlug)
+        })
+      }
       if (companyOptionsSlug === 'genneia' && !dinnerOptions.some(isBeverageOption)) {
         const { data: lunchFallbackData, error: lunchFallbackError } = await db.getVisibleCustomOptions({
           company: 'genneia',
@@ -231,7 +280,7 @@ const useOrderBootstrap = ({
       console.error('Error fetching dinner custom options:', err)
       setCustomOptionsDinner([])
     }
-  }, [companyOptionsSlug, selectedDinnerDate, setCustomOptionsDinner])
+  }, [companyOptionsSlug, rawCompanySlug, selectedDinnerDate, setCustomOptionsDinner])
 
   const fetchDinnerMenuSpecial = useCallback(async () => {
     try {

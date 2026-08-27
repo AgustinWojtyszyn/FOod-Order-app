@@ -190,6 +190,50 @@ describe('daily order notes Excel model', () => {
     expect(products.some((row) => row.producto === 'Pan')).toBe(false)
   })
 
+  it('adds Placo beverages to remitos by menu unit', () => {
+    const products = summarizeProducts([
+      makeOrder({
+        company_slug: 'placo',
+        company_name: 'Placo',
+        location: 'Placo',
+        total_items: 4,
+        items: [{ id: 'op-1', name: 'Opción 1 - Pollo', quantity: 4 }],
+        custom_responses: [{ title: 'Bebida', response: 'Coca Zero' }]
+      }),
+      makeOrder({
+        id: crypto.randomUUID(),
+        company_slug: 'placo',
+        company_name: 'Placo',
+        location: 'Placo',
+        total_items: 2,
+        items: [{ id: 'op-2', name: 'Opción 2 - Carne', quantity: 2 }],
+        custom_responses: []
+      })
+    ])
+    const detailRows = getPrintableDetailRows(products)
+
+    expect(products).toEqual(expect.arrayContaining([
+      expect.objectContaining({ producto: 'Bebida: Coca Zero', cantidad: 4, category: REMITO_ROW_CATEGORIES.drink }),
+      expect.objectContaining({ producto: 'Bebida: Agua sin gas', cantidad: 2, category: REMITO_ROW_CATEGORIES.drink })
+    ]))
+    expect(detailRows.find((row) => row.producto === 'TOTAL BEBIDAS')).toMatchObject({ cantidad: 6 })
+  })
+
+  it('keeps non-beverage companies out of remito beverage totals', () => {
+    const products = summarizeProducts([
+      makeOrder({
+        company_slug: 'molinos',
+        company_name: 'Molinos',
+        location: 'Molinos',
+        total_items: 4,
+        items: [{ id: 'op-1', name: 'Opción 1 - Pollo', quantity: 4 }],
+        custom_responses: [{ title: 'Bebida', response: 'Coca Zero' }]
+      })
+    ])
+
+    expect(products.some((row) => row.category === REMITO_ROW_CATEGORIES.drink)).toBe(false)
+  })
+
   it('keeps the canonical order-note file naming for Greif and Molinos', async () => {
     const previousFetch = globalThis.fetch
     globalThis.fetch = async () => ({

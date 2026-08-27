@@ -1,7 +1,7 @@
 import { getTomorrowISOInTimeZone } from '../dateUtils'
 import { resolveCustomerName } from './orderCustomerName'
 import { canChooseCustomSide } from './orderCustomSideRules'
-import { hasGenneiaOptionRules } from './companySpecialRules'
+import { getMenuBeverageTitle, hasGenneiaOptionRules, requiresMenuBeverageChoice } from './companySpecialRules'
 import { hasHiddenOrderMenuSelection } from './menuDisplay'
 import { isBeverageOption, isBeverageOrDessertOption } from './orderBusinessRules'
 import { isGreifCompany, isGreifRefrigerioMenuItem } from './greifDefaultSnack'
@@ -200,6 +200,8 @@ const validateOrderSubmission = ({
   const isGenneiaCompany = hasGenneiaOptionRules(companyConfig)
   const companySlug = (companyConfig?.slug || '').toString().trim().toLowerCase()
   const isGenneiaSlug = companySlug === 'genneia'
+  const needsMenuBeverage = requiresMenuBeverageChoice(companyConfig)
+  const menuBeverageTitle = getMenuBeverageTitle(companyConfig)
 
   if (lunchSelected && selectedItemsList.length === 0) {
     return { error: 'Selecciona al menos un plato para almuerzo.' }
@@ -252,6 +254,16 @@ const validateOrderSubmission = ({
       }
     }
 
+    const lunchBeverageOptions = needsMenuBeverage
+      ? (visibleLunchOptions || []).filter(isBeverageOption)
+      : []
+    if (needsMenuBeverage && lunchBeverageOptions.length === 0) {
+      return { error: `No pudimos cargar las bebidas para ${companyConfig?.name || 'esta empresa'}. Intentá nuevamente.` }
+    }
+    if (needsMenuBeverage && !lunchBeverageOptions.some(opt => hasValidResponse(customResponses[opt.id]))) {
+      return { error: `Por favor completa (almuerzo): ${menuBeverageTitle}` }
+    }
+
     const missingRequiredOptions = getMissingRequiredOptionTitles({
       options: visibleLunchOptions,
       responses: customResponses,
@@ -270,7 +282,7 @@ const validateOrderSubmission = ({
       selectedItems: selectedItemsList,
       service: 'lunch',
       getTitle: (opt) => {
-        if (isGenneiaSlug && isBeverageOption(opt)) return GENNEIA_BEVERAGE_TITLE
+        if ((isGenneiaSlug || needsMenuBeverage) && isBeverageOption(opt)) return menuBeverageTitle
         return opt.title
       }
     })
@@ -301,6 +313,15 @@ const validateOrderSubmission = ({
     }
     if (isGenneiaSlug && !genneiaDinnerBeverageOptions.some(opt => hasValidResponse(customResponsesDinner[opt.id]))) {
       return { error: 'Para cena completa: Bebidas (solo Genneia)' }
+    }
+    const dinnerBeverageOptions = needsMenuBeverage
+      ? (visibleDinnerOptions || []).filter(isBeverageOption)
+      : []
+    if (needsMenuBeverage && dinnerBeverageOptions.length === 0) {
+      return { error: `No pudimos cargar las bebidas para ${companyConfig?.name || 'esta empresa'}. Intentá nuevamente.` }
+    }
+    if (needsMenuBeverage && !dinnerBeverageOptions.some(opt => hasValidResponse(customResponsesDinner[opt.id]))) {
+      return { error: `Para cena completa: ${menuBeverageTitle}` }
     }
 
     const missingRequiredOptionsDinner = getMissingRequiredOptionTitles({
@@ -337,7 +358,7 @@ const validateOrderSubmission = ({
           return isGenneia && isCustomSideOption(opt) && !canChooseCustomSideForDinner
         },
         getTitle: (opt) => {
-          if (isGenneiaSlug && isBeverageOption(opt)) return GENNEIA_BEVERAGE_TITLE
+          if ((isGenneiaSlug || needsMenuBeverage) && isBeverageOption(opt)) return menuBeverageTitle
           return opt.title
         }
       })

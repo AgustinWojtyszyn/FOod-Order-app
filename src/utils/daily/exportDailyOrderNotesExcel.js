@@ -58,7 +58,7 @@ const THICK_BORDER = {
 const INVALID_SHEET_CHARS = new Set(['[', ']', '*', '?', ':', '/', '\\', "'"])
 const INVALID_FILE_CHARS = new Set(['<', '>', ':', '"', '/', '\\', '|', '?', '*'])
 const EXCLUDED_REMITO_COMPANY_SLUGS = new Set(['global', 'administracion_servifood'])
-const REMITO_BEVERAGE_COMPANY_SLUG = 'genneia'
+const REMITO_BEVERAGE_COMPANY_SLUGS = new Set(['genneia', 'placo'])
 const UNSPECIFIED_BEVERAGE_LABEL = 'Bebida sin especificar'
 const REMITO_DEBUG_PREFIX = '[ServiFood remitos]'
 const normalizeText = (value) => String(value ?? '').trim()
@@ -206,7 +206,7 @@ export const isRemitoEligibleCompany = (company = {}) =>
   company?.slug && !EXCLUDED_REMITO_COMPANY_SLUGS.has(company.slug)
 
 const allowsRemitoBeverages = (order = {}) =>
-  resolveCompanyForOrder(order).slug === REMITO_BEVERAGE_COMPANY_SLUG
+  REMITO_BEVERAGE_COMPANY_SLUGS.has(resolveCompanyForOrder(order).slug)
 
 const summarizeRemitoOperationalOrders = (orders = []) => {
   const operationalSummary = summarizeOperationalOrders(orders)

@@ -99,8 +99,8 @@ export const COMPANY_CATALOG = {
     accent: 'from-rose-500 to-red-700',
     badgeClass: 'bg-rose-100 text-rose-700',
     locations: ['Placo'],
-    customHint: 'Seleccioná Placo para cargar tu pedido.',
-    optionsSourceSlug: 'laja'
+    customHint: 'Seleccioná Placo para cargar tu pedido y bebida.',
+    optionsSourceSlug: 'placo'
   },
   molinos: {
     slug: 'molinos',

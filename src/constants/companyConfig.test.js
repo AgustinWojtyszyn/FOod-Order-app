@@ -7,7 +7,7 @@ describe('company catalog', () => {
       slug: 'placo',
       name: 'Placo',
       locations: ['Placo'],
-      optionsSourceSlug: 'laja'
+      optionsSourceSlug: 'placo'
     })
     expect(COMPANY_LIST.some((company) => company.slug === 'placo')).toBe(true)
     expect(getCompanyByLocationOrSlug('Placo')?.slug).toBe('placo')
