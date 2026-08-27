@@ -21,8 +21,7 @@ export const requiresMenuBeverageChoice = (companyOrSlug) => {
   return MENU_BEVERAGE_CHOICE_COMPANIES.has(normalizeCompanySlug(slug))
 }
 
-export const getMenuBeverageTitle = (companyOrSlug) =>
-  requiresMenuBeverageChoice(companyOrSlug) ? 'Bebida' : 'Bebidas (solo Genneia)'
+export const getMenuBeverageTitle = () => 'Bebidas (solo Genneia)'
 
 export const isPostreDeliveryDate = (isoDate) => {
   const deliveryDate = String(isoDate || getTomorrowISOInTimeZone() || '')

@@ -210,7 +210,7 @@ describe('order validation', () => {
       customResponses: {}
     }))
 
-    expect(result.error).toBe('Por favor completa (almuerzo): Bebida')
+    expect(result.error).toBe('Por favor completa (almuerzo): Bebidas (solo Genneia)')
   })
 
   it('keeps Placo beverage as a required custom response', () => {
@@ -234,7 +234,7 @@ describe('order validation', () => {
     expect(result.error).toBe('')
     expect(result.data.selectedItemsList).toHaveLength(1)
     expect(result.data.customResponsesArray).toEqual([
-      { id: 'bebida', title: 'Bebida', response: 'Coca Zero' }
+      { id: 'bebida', title: 'Bebidas (solo Genneia)', response: 'Coca Zero' }
     ])
   })
 

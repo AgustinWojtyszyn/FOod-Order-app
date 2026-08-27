@@ -105,6 +105,10 @@ const placoRemitoNumberingMigration = readFileSync(
   new URL('./20260827120000_placo_company_remito_numbering.sql', import.meta.url),
   'utf8'
 )
+const placoGenneiaBeverageOptionMigration = readFileSync(
+  new URL('./20260827123000_placo_genneia_beverage_option.sql', import.meta.url),
+  'utf8'
+)
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
 describe('admin extra orders migration', () => {
@@ -447,6 +451,19 @@ describe('admin extra orders migration', () => {
     expect(placoRemitoNumberingMigration).not.toContain('update public.company_remitos')
     expect(placoRemitoNumberingMigration).not.toContain('delete from public.company_remitos')
     expect(gitignore).toContain('!supabase/migrations/20260827120000_placo_company_remito_numbering.sql')
+  })
+
+  it('adds the Genneia beverage option to Placo orders', () => {
+    expect(placoGenneiaBeverageOptionMigration).toContain("'placo'")
+    expect(placoGenneiaBeverageOptionMigration).toContain("'Bebidas (solo Genneia)'")
+    expect(placoGenneiaBeverageOptionMigration).toContain('"Agua"')
+    expect(placoGenneiaBeverageOptionMigration).toContain('"Soda"')
+    expect(placoGenneiaBeverageOptionMigration).toContain('"Agua saborizada"')
+    expect(placoGenneiaBeverageOptionMigration).toContain('"Coca cola"')
+    expect(placoGenneiaBeverageOptionMigration).toContain('"Coca Zero"')
+    expect(placoGenneiaBeverageOptionMigration).toContain('required')
+    expect(placoGenneiaBeverageOptionMigration).toContain('true')
+    expect(gitignore).toContain('!supabase/migrations/20260827123000_placo_genneia_beverage_option.sql')
   })
 
   it('persists label print state on orders without duplicating orders', () => {

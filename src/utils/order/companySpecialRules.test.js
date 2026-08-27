@@ -17,7 +17,7 @@ describe('company special rules', () => {
 
   it('requires a beverage choice for Placo without enabling Genneia dessert rules', () => {
     expect(requiresMenuBeverageChoice('placo')).toBe(true)
-    expect(getMenuBeverageTitle('placo')).toBe('Bebida')
+    expect(getMenuBeverageTitle('placo')).toBe('Bebidas (solo Genneia)')
     expect(requiresMenuBeverageChoice('genneia')).toBe(false)
     expect(getMenuBeverageTitle('genneia')).toBe('Bebidas (solo Genneia)')
   })
