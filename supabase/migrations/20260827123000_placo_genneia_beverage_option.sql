@@ -11,19 +11,15 @@ alter table public.custom_options
 with updated as (
   update public.custom_options
   set title = 'Bebidas (solo Genneia)',
-      name = 'Bebidas (solo Genneia)',
-      label = 'Bebidas (solo Genneia)',
       type = 'multiple_choice',
       options = '["Agua", "Soda", "Agua saborizada", "Coca cola", "Coca Zero"]'::jsonb,
       required = true,
       active = true,
-      enabled = true,
       meal_scope = 'both',
-      meal = 'both',
       order_position = 0,
       updated_at = now()
   where lower(trim(coalesce(company, ''))) = 'placo'
-    and lower(trim(coalesce(title, name, label, ''))) in (
+    and lower(trim(coalesce(title, ''))) in (
       'bebida',
       'bebidas',
       'bebidas (solo genneia)'
@@ -33,29 +29,21 @@ with updated as (
 insert into public.custom_options (
   company,
   title,
-  name,
-  label,
   type,
   options,
   required,
   active,
-  enabled,
   meal_scope,
-  meal,
   order_position,
   updated_at
 )
 select
   'placo',
   'Bebidas (solo Genneia)',
-  'Bebidas (solo Genneia)',
-  'Bebidas (solo Genneia)',
   'multiple_choice',
   '["Agua", "Soda", "Agua saborizada", "Coca cola", "Coca Zero"]'::jsonb,
   true,
   true,
-  true,
-  'both',
   'both',
   0,
   now()

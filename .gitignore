@@ -51,6 +51,7 @@ dist-ssr
 !supabase/migrations/20260825110000_remove_greif_refrigerio_menu_option.sql
 !supabase/migrations/20260827120000_placo_company_remito_numbering.sql
 !supabase/migrations/20260827123000_placo_genneia_beverage_option.sql
+!supabase/migrations/20260827130000_ensure_all_company_remito_numbering.sql
 !supabase/diagnostics/*.sql
 # Python
 __pycache__/

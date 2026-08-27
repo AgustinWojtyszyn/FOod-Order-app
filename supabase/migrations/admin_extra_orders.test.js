@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { COMPANY_CATALOG } from '../../src/constants/companyConfig.js'
+
+const EXPECTED_REMITO_RANGES = [
+  ['ccp', 10000, 19999],
+  ['distro_cuyo', 20000, 29999],
+  ['epse', 30000, 39999],
+  ['genneia', 40000, 49999],
+  ['laja', 50000, 59999],
+  ['losberros', 60000, 69999],
+  ['padrebueno', 70000, 79999],
+  ['greif', 80000, 89999],
+  ['molinos', 90000, 99999],
+  ['placo', 100000, 109999]
+]
+const REMITO_EXCLUDED_COMPANY_SLUGS = new Set(['administracion_servifood'])
 
 const migration = readFileSync(
   new URL('./20260806153000_admin_extra_orders.sql', import.meta.url),
@@ -107,6 +122,10 @@ const placoRemitoNumberingMigration = readFileSync(
 )
 const placoGenneiaBeverageOptionMigration = readFileSync(
   new URL('./20260827123000_placo_genneia_beverage_option.sql', import.meta.url),
+  'utf8'
+)
+const ensureAllCompanyRemitoNumberingMigration = readFileSync(
+  new URL('./20260827130000_ensure_all_company_remito_numbering.sql', import.meta.url),
   'utf8'
 )
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
@@ -466,6 +485,28 @@ describe('admin extra orders migration', () => {
     expect(gitignore).toContain('!supabase/migrations/20260827123000_placo_genneia_beverage_option.sql')
   })
 
+  it('ensures every order company has remito numbering configured', () => {
+    const orderCompanySlugs = Object.values(COMPANY_CATALOG)
+      .filter((company) => !company.adminOnly && !REMITO_EXCLUDED_COMPANY_SLUGS.has(company.slug))
+      .map((company) => company.slug)
+      .sort()
+
+    expect(EXPECTED_REMITO_RANGES.map(([slug]) => slug).sort()).toEqual(orderCompanySlugs)
+    for (const [slug, startNumber, endNumber] of EXPECTED_REMITO_RANGES) {
+      expect(ensureAllCompanyRemitoNumberingMigration).toContain(
+        `('${slug}', `
+      )
+      expect(ensureAllCompanyRemitoNumberingMigration).toContain(
+        `${startNumber}, ${endNumber}`
+      )
+    }
+    expect(ensureAllCompanyRemitoNumberingMigration).toContain('coalesce(i.last_remito_number + 1, r.remito_start_number)')
+    expect(ensureAllCompanyRemitoNumberingMigration).toContain("values ('administracion_servifood', 'Administración ServiFood', null, null, null)")
+    expect(ensureAllCompanyRemitoNumberingMigration).toContain("where slug = 'global'")
+    expect(ensureAllCompanyRemitoNumberingMigration).not.toContain('delete from public.company_remitos')
+    expect(gitignore).toContain('!supabase/migrations/20260827130000_ensure_all_company_remito_numbering.sql')
+  })
+
   it('persists label print state on orders without duplicating orders', () => {
     expect(orderLabelPrintTrackingMigration).toContain('add column if not exists label_printed_at timestamptz')
     expect(orderLabelPrintTrackingMigration).toContain('add column if not exists label_printed_by uuid references auth.users(id) on delete set null')
@@ -586,24 +627,12 @@ describe('admin extra orders migration', () => {
   })
 
   it('keeps all definitive remito ranges non-overlapping', () => {
-    const expectedRanges = [
-      ['ccp', 10000, 19999],
-      ['distro_cuyo', 20000, 29999],
-      ['epse', 30000, 39999],
-      ['genneia', 40000, 49999],
-      ['laja', 50000, 59999],
-      ['losberros', 60000, 69999],
-      ['padrebueno', 70000, 79999],
-      ['greif', 80000, 89999],
-      ['molinos', 90000, 99999],
-      ['placo', 100000, 109999]
-    ]
-
-    for (let index = 0; index < expectedRanges.length - 1; index += 1) {
-      expect(expectedRanges[index][2]).toBeLessThan(expectedRanges[index + 1][1])
+    for (let index = 0; index < EXPECTED_REMITO_RANGES.length - 1; index += 1) {
+      expect(EXPECTED_REMITO_RANGES[index][2]).toBeLessThan(EXPECTED_REMITO_RANGES[index + 1][1])
     }
     expect(greifMolinosRemitoNumberingMigration).toContain("('greif', 'Greif', 80000, 89999, 80000)")
     expect(greifMolinosRemitoNumberingMigration).toContain("('molinos', 'Molinos', 90000, 99999, 90000)")
     expect(placoRemitoNumberingMigration).toContain("('placo', 'Placo', 100000, 109999, 100000)")
+    expect(ensureAllCompanyRemitoNumberingMigration).toContain("('placo', 'Placo', 100000, 109999, 100000)")
   })
 })
