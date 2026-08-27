@@ -103,13 +103,13 @@ create or replace function public.totalizer_upsert_value(
   p_value_type text,
   p_quantity numeric
 )
-returns public.totalizer_values
+returns jsonb
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
 declare
-  v_row public.totalizer_values%rowtype;
+  v_row record;
   v_service text := lower(trim(coalesce(p_service, '')));
   v_value_type text := lower(trim(coalesce(p_value_type, '')));
 begin
@@ -142,7 +142,21 @@ begin
       and value_type = v_value_type
     returning * into v_row;
 
-    return v_row;
+    return coalesce(to_jsonb(v_row), '{}'::jsonb);
+  end if;
+
+  update public.totalizer_values
+  set quantity = p_quantity,
+      updated_at = now()
+  where delivery_date = p_delivery_date
+    and account_id = p_account_id
+    and service = v_service
+    and concept_id = p_concept_id
+    and value_type = v_value_type
+  returning * into v_row;
+
+  if found then
+    return to_jsonb(v_row);
   end if;
 
   insert into public.totalizer_values (
@@ -163,12 +177,9 @@ begin
     p_quantity,
     now()
   )
-  on conflict (delivery_date, account_id, service, concept_id, value_type) do update
-  set quantity = excluded.quantity,
-      updated_at = now()
   returning * into v_row;
 
-  return v_row;
+  return to_jsonb(v_row);
 end;
 $$;
 
@@ -177,15 +188,16 @@ create or replace function public.totalizer_create_manual_account(
   p_sort_order integer default 999,
   p_active boolean default true
 )
-returns public.totalizer_accounts
+returns jsonb
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
 declare
   v_name text := nullif(trim(coalesce(p_name, '')), '');
+  v_slug text;
   v_code text;
-  v_row public.totalizer_accounts%rowtype;
+  v_row record;
 begin
   if auth.uid() is null then
     raise exception 'not_authenticated';
@@ -199,18 +211,33 @@ begin
     raise exception 'account_name_required';
   end if;
 
-  v_code := trim(both '_' from regexp_replace(
+  v_slug := trim(both '_' from regexp_replace(
     translate(lower(v_name), 'áéíóúüñ', 'aeiouun'),
     '[^a-z0-9]+',
     '_',
     'g'
   ));
+  v_code := 'manual_' || v_slug;
 
-  insert into public.totalizer_accounts (name, code, source_mode, sort_order, active, updated_at)
-  values (v_name, v_code, 'manual', coalesce(p_sort_order, 999), coalesce(p_active, true), now())
+  insert into public.totalizer_accounts (
+    name,
+    code,
+    source_mode,
+    sort_order,
+    active,
+    updated_at
+  )
+  values (
+    v_name,
+    v_code,
+    'manual',
+    coalesce(p_sort_order, 999),
+    coalesce(p_active, true),
+    now()
+  )
   returning * into v_row;
 
-  return v_row;
+  return to_jsonb(v_row);
 end;
 $$;
 
@@ -222,7 +249,7 @@ create or replace function public.totalizer_create_concept(
   p_sort_order integer default 999,
   p_active boolean default true
 )
-returns public.totalizer_concepts
+returns jsonb
 language plpgsql
 security definer
 set search_path = public, pg_temp
@@ -231,7 +258,7 @@ declare
   v_name text := nullif(trim(coalesce(p_name, '')), '');
   v_code text := nullif(trim(coalesce(p_code, '')), '');
   v_category text := lower(trim(coalesce(p_category, 'other')));
-  v_row public.totalizer_concepts%rowtype;
+  v_row record;
 begin
   if auth.uid() is null then
     raise exception 'not_authenticated';
@@ -247,6 +274,20 @@ begin
 
   if v_category not in ('menu', 'option', 'diet', 'side_dish', 'snack', 'route', 'return', 'other') then
     raise exception 'invalid_category';
+  end if;
+
+  update public.totalizer_concepts
+  set name = v_name,
+      category = v_category,
+      counts_as_menu = coalesce(p_counts_as_menu, false),
+      sort_order = coalesce(p_sort_order, 999),
+      active = coalesce(p_active, true),
+      updated_at = now()
+  where code = v_code
+  returning * into v_row;
+
+  if found then
+    return to_jsonb(v_row);
   end if;
 
   insert into public.totalizer_concepts (
@@ -267,16 +308,9 @@ begin
     coalesce(p_active, true),
     now()
   )
-  on conflict (code) do update
-  set name = excluded.name,
-      category = excluded.category,
-      counts_as_menu = excluded.counts_as_menu,
-      sort_order = excluded.sort_order,
-      active = excluded.active,
-      updated_at = now()
   returning * into v_row;
 
-  return v_row;
+  return to_jsonb(v_row);
 end;
 $$;
 
@@ -289,14 +323,14 @@ create or replace function public.totalizer_create_mapping(
   p_match_mode text default 'exact',
   p_priority integer default 100
 )
-returns public.totalizer_concept_mappings
+returns jsonb
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
 declare
   v_match_mode text := lower(trim(coalesce(p_match_mode, 'exact')));
-  v_row public.totalizer_concept_mappings%rowtype;
+  v_row record;
 begin
   if auth.uid() is null then
     raise exception 'not_authenticated';
@@ -308,6 +342,22 @@ begin
 
   if v_match_mode not in ('exact', 'contains') then
     raise exception 'invalid_match_mode';
+  end if;
+
+  update public.totalizer_concept_mappings
+  set concept_id = p_concept_id,
+      match_mode = v_match_mode,
+      priority = coalesce(p_priority, 100),
+      active = true,
+      updated_at = now()
+  where source_kind = nullif(trim(coalesce(p_source_kind, '')), '')
+    and coalesce(source_title, '') = coalesce(nullif(trim(coalesce(p_source_title, '')), ''), '')
+    and coalesce(source_value, '') = coalesce(nullif(trim(coalesce(p_source_value, '')), ''), '')
+    and coalesce(company_slug, '') = coalesce(nullif(trim(coalesce(p_company_slug, '')), ''), '')
+  returning * into v_row;
+
+  if found then
+    return to_jsonb(v_row);
   end if;
 
   insert into public.totalizer_concept_mappings (
@@ -334,7 +384,7 @@ begin
   )
   returning * into v_row;
 
-  return v_row;
+  return to_jsonb(v_row);
 end;
 $$;
 
@@ -342,14 +392,14 @@ create or replace function public.totalizer_save_order_note(
   p_remito_id uuid,
   p_order_note_number text
 )
-returns public.totalizer_documents
+returns jsonb
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
 declare
   v_note text := nullif(trim(coalesce(p_order_note_number, '')), '');
-  v_row public.totalizer_documents%rowtype;
+  v_row record;
 begin
   if auth.uid() is null then
     raise exception 'not_authenticated';
@@ -359,16 +409,38 @@ begin
     raise exception 'not_authorized';
   end if;
 
-  insert into public.totalizer_documents (remito_id, order_note_number, updated_at)
-  values (p_remito_id, v_note, now())
-  on conflict (remito_id) do update
-  set order_note_number = excluded.order_note_number,
+  update public.totalizer_documents
+  set order_note_number = v_note,
       updated_at = now()
+  where remito_id = p_remito_id
   returning * into v_row;
 
-  return v_row;
+  if found then
+    return to_jsonb(v_row);
+  end if;
+
+  insert into public.totalizer_documents (
+    remito_id,
+    order_note_number,
+    updated_at
+  )
+  values (
+    p_remito_id,
+    v_note,
+    now()
+  )
+  returning * into v_row;
+
+  return to_jsonb(v_row);
 end;
 $$;
+
+revoke execute on function public.totalizer_get_daily_payload(date, text) from public, anon;
+revoke execute on function public.totalizer_upsert_value(date, uuid, text, uuid, text, numeric) from public, anon;
+revoke execute on function public.totalizer_create_manual_account(text, integer, boolean) from public, anon;
+revoke execute on function public.totalizer_create_concept(text, text, text, boolean, integer, boolean) from public, anon;
+revoke execute on function public.totalizer_create_mapping(uuid, text, text, text, text, text, integer) from public, anon;
+revoke execute on function public.totalizer_save_order_note(uuid, text) from public, anon;
 
 grant execute on function public.totalizer_get_daily_payload(date, text) to authenticated;
 grant execute on function public.totalizer_upsert_value(date, uuid, text, uuid, text, numeric) to authenticated;

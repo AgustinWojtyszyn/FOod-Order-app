@@ -137,7 +137,6 @@ export default function TotalizerPage() {
   const [mappingDrafts, setMappingDrafts] = useState({})
 
   const accounts = useMemo(() => [...(payload.accounts || [])].sort((a, b) => {
-    const mode = String(a.source_mode || '').localeCompare(String(b.source_mode || ''))
     if ((a.source_mode === 'app') !== (b.source_mode === 'app')) return a.source_mode === 'app' ? -1 : 1
     return Number(a.sort_order || 9999) - Number(b.sort_order || 9999) || String(a.name || '').localeCompare(String(b.name || ''))
   }), [payload.accounts])
