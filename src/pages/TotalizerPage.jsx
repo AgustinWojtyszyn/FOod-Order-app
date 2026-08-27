@@ -163,9 +163,9 @@ export default function TotalizerPage() {
       remitos: data?.remitos || [],
       unmapped: data?.unmapped || []
     })
-    if (data?._error) {
+    if (Array.isArray(data?._warnings) && data._warnings.length > 0) {
       console.warn('[totalizer] partial payload', data)
-      notifyError(`Totalizadora cargó parcial: ${data._error}`)
+      notifyError(`Totalizadora cargó parcial: ${data._warnings[0]?.message || 'revisá configuración de vistas.'}`)
     }
   }, [deliveryDate, service])
 
