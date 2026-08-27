@@ -1,8 +1,17 @@
 begin;
 
-create or replace function public.totalizer_get_daily_payload(
-  p_delivery_date date,
-  p_service text default null
+drop function if exists public.totalizer_get_daily_payload(date, text);
+drop function if exists public.totalizer_upsert_value(date, uuid, text, uuid, text, numeric);
+drop function if exists public.totalizer_create_manual_account(text, integer, boolean);
+drop function if exists public.totalizer_create_concept(text, text, text, boolean, integer, boolean);
+drop function if exists public.totalizer_create_mapping(uuid, text, text, text, text, text, integer);
+drop function if exists public.totalizer_save_order_note(uuid, text);
+
+create or replace function public.totalizer_get_summary(
+  p_from_date date,
+  p_to_date date,
+  p_service text default 'all',
+  p_company_slugs text[] default null
 )
 returns jsonb
 language plpgsql
@@ -10,17 +19,8 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-  v_service text := nullif(lower(trim(coalesce(p_service, ''))), '');
-  v_accounts jsonb := '[]'::jsonb;
-  v_concepts jsonb := '[]'::jsonb;
-  v_daily jsonb := '[]'::jsonb;
-  v_app_daily jsonb := '[]'::jsonb;
-  v_values jsonb := '[]'::jsonb;
-  v_reconciliation jsonb := '[]'::jsonb;
-  v_remitos jsonb := '[]'::jsonb;
-  v_unmapped jsonb := '[]'::jsonb;
-  v_warnings jsonb := '[]'::jsonb;
-  v_sql text;
+  v_service text := lower(trim(coalesce(p_service, 'all')));
+  v_payload jsonb;
 begin
   if auth.uid() is null then
     raise exception 'not_authenticated';
@@ -30,505 +30,180 @@ begin
     raise exception 'not_authorized';
   end if;
 
-  if v_service = 'all' then
-    v_service := null;
+  if p_from_date is null or p_to_date is null or p_to_date < p_from_date then
+    raise exception 'invalid_date_range';
   end if;
 
-  perform set_config('statement_timeout', '1200ms', true);
-
-  begin
-    select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb)
-    into v_accounts
-    from (select * from public.totalizer_accounts limit 1000) t;
-  exception when query_canceled then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'accounts', 'message', 'statement timeout', 'sqlstate', sqlstate));
-  when others then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'accounts', 'message', sqlerrm, 'sqlstate', sqlstate));
-  end;
-
-  begin
-    select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb)
-    into v_concepts
-    from (select * from public.totalizer_concepts limit 1000) t;
-  exception when query_canceled then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'concepts', 'message', 'statement timeout', 'sqlstate', sqlstate));
-  when others then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'concepts', 'message', sqlerrm, 'sqlstate', sqlstate));
-  end;
-
-  if jsonb_array_length(v_concepts) = 0 then
-    return jsonb_build_object(
-      'accounts', v_accounts,
-      'concepts', v_concepts,
-      'daily', v_daily,
-      'appDaily', v_app_daily,
-      'values', v_values,
-      'reconciliation', v_reconciliation,
-      'remitos', v_remitos,
-      'unmapped', v_unmapped,
-      '_warnings', v_warnings
-    );
-  end if;
-
-  begin
-    v_sql := 'select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from (select * from public.v_totalizer_daily where delivery_date = $1';
-    if v_service is not null then
-      v_sql := v_sql || ' and lower(coalesce(service::text, '''')) = $2';
-    end if;
-    v_sql := v_sql || ' limit 5000) t';
-    execute v_sql into v_daily using p_delivery_date, v_service;
-  exception when query_canceled then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'daily', 'message', 'statement timeout', 'sqlstate', sqlstate));
-  when others then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'daily', 'message', sqlerrm, 'sqlstate', sqlstate));
-  end;
-
-  begin
-    v_sql := 'select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from (select * from public.v_totalizer_app_daily where delivery_date = $1';
-    if v_service is not null then
-      v_sql := v_sql || ' and lower(coalesce(service::text, '''')) = $2';
-    end if;
-    v_sql := v_sql || ' limit 5000) t';
-    execute v_sql into v_app_daily using p_delivery_date, v_service;
-  exception when query_canceled then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'appDaily', 'message', 'statement timeout', 'sqlstate', sqlstate));
-  when others then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'appDaily', 'message', sqlerrm, 'sqlstate', sqlstate));
-  end;
-
-  begin
-    v_sql := 'select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from (select * from public.totalizer_values where delivery_date = $1';
-    if v_service is not null then
-      v_sql := v_sql || ' and lower(coalesce(service::text, '''')) = $2';
-    end if;
-    v_sql := v_sql || ' limit 5000) t';
-    execute v_sql into v_values using p_delivery_date, v_service;
-  exception when query_canceled then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'values', 'message', 'statement timeout', 'sqlstate', sqlstate));
-  when others then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'values', 'message', sqlerrm, 'sqlstate', sqlstate));
-  end;
-
-  begin
-    v_sql := 'select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from (select * from public.v_totalizer_reconciliation where delivery_date = $1';
-    if v_service is not null then
-      v_sql := v_sql || ' and lower(coalesce(service::text, '''')) = $2';
-    end if;
-    v_sql := v_sql || ' limit 5000) t';
-    execute v_sql into v_reconciliation using p_delivery_date, v_service;
-  exception when query_canceled then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'reconciliation', 'message', 'statement timeout', 'sqlstate', sqlstate));
-  when others then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'reconciliation', 'message', sqlerrm, 'sqlstate', sqlstate));
-  end;
-
-  begin
-    v_sql := 'select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from (select * from public.v_totalizer_remito_reconciliation where delivery_date = $1';
-    if v_service is not null then
-      v_sql := v_sql || ' and lower(coalesce(service::text, '''')) = $2';
-    end if;
-    v_sql := v_sql || ' limit 1000) t';
-    execute v_sql into v_remitos using p_delivery_date, v_service;
-  exception when query_canceled then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'remitos', 'message', 'statement timeout', 'sqlstate', sqlstate));
-  when others then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'remitos', 'message', sqlerrm, 'sqlstate', sqlstate));
-  end;
-
-  begin
-    v_sql := 'select coalesce(jsonb_agg(to_jsonb(u) order by u.appearances desc, u.source_kind, u.source_title, u.source_value), ''[]''::jsonb) from (
-      select
-        e.source_kind,
-        e.source_title,
-        e.source_value,
-        e.company_slug,
-        count(*)::integer as appearances
-      from public.v_totalizer_order_events e
-      left join public.totalizer_concept_mappings m
-        on m.source_kind = e.source_kind
-       and coalesce(m.source_title, '''') = coalesce(e.source_title, '''')
-       and coalesce(m.source_value, '''') = coalesce(e.source_value, '''')
-       and (m.company_slug is null or m.company_slug = e.company_slug)
-      where e.delivery_date = $1
-        and m.id is null';
-    if v_service is not null then
-      v_sql := v_sql || ' and lower(coalesce(e.service::text, '''')) = $2';
-    end if;
-    v_sql := v_sql || ' group by e.source_kind, e.source_title, e.source_value, e.company_slug limit 500) u';
-    execute v_sql into v_unmapped using p_delivery_date, v_service;
-  exception when query_canceled then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'unmapped', 'message', 'statement timeout', 'sqlstate', sqlstate));
-  when others then
-    v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('section', 'unmapped', 'message', sqlerrm, 'sqlstate', sqlstate));
-  end;
-
-  return jsonb_build_object(
-    'accounts', v_accounts,
-    'concepts', v_concepts,
-    'daily', v_daily,
-    'appDaily', v_app_daily,
-    'values', v_values,
-    'reconciliation', v_reconciliation,
-    'remitos', v_remitos,
-    'unmapped', v_unmapped,
-    '_warnings', v_warnings
-  );
-end;
-$$;
-
-create or replace function public.totalizer_upsert_value(
-  p_delivery_date date,
-  p_account_id uuid,
-  p_service text,
-  p_concept_id uuid,
-  p_value_type text,
-  p_quantity numeric
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  v_row record;
-  v_service text := lower(trim(coalesce(p_service, '')));
-  v_value_type text := lower(trim(coalesce(p_value_type, '')));
-begin
-  if auth.uid() is null then
-    raise exception 'not_authenticated';
-  end if;
-
-  if not public.is_admin() then
-    raise exception 'not_authorized';
-  end if;
-
-  if v_service not in ('almuerzo', 'cena', 'all') then
+  if v_service not in ('all', 'almuerzo', 'cena') then
     raise exception 'invalid_service';
   end if;
 
-  if v_service = 'all' then
-    v_service := 'todos';
-  end if;
-
-  if v_value_type not in ('totalizer', 'kitchen', 'adjustment') then
-    raise exception 'invalid_value_type';
-  end if;
-
-  if p_quantity is null then
-    delete from public.totalizer_values
-    where delivery_date = p_delivery_date
-      and account_id = p_account_id
-      and service = v_service
-      and concept_id = p_concept_id
-      and value_type = v_value_type
-    returning * into v_row;
-
-    return coalesce(to_jsonb(v_row), '{}'::jsonb);
-  end if;
-
-  update public.totalizer_values
-  set quantity = p_quantity,
-      updated_at = now()
-  where delivery_date = p_delivery_date
-    and account_id = p_account_id
-    and service = v_service
-    and concept_id = p_concept_id
-    and value_type = v_value_type
-  returning * into v_row;
-
-  if found then
-    return to_jsonb(v_row);
-  end if;
-
-  insert into public.totalizer_values (
-    delivery_date,
-    account_id,
-    service,
-    concept_id,
-    value_type,
-    quantity,
-    updated_at
+  with filtered_orders as (
+    select
+      o.id,
+      o.delivery_date::date as delivery_date,
+      coalesce(nullif(lower(trim(o.company_slug)), ''), 'sin_empresa') as company_slug,
+      coalesce(nullif(trim(o.company_name), ''), nullif(trim(o.location), ''), nullif(trim(o.company_slug), ''), 'Sin empresa') as company_name,
+      coalesce(nullif(lower(trim(o.service)), ''), 'lunch') as service,
+      greatest(coalesce(o.total_items, 0), 0)::numeric as total_items,
+      coalesce(o.items, '[]'::jsonb) as items,
+      coalesce(o.custom_responses, '[]'::jsonb) as custom_responses
+    from public.orders o
+    where o.delivery_date::date between p_from_date and p_to_date
+      and o.status in ('pending', 'archived', 'post_report_extra')
+      and (
+        v_service = 'all'
+        or (v_service = 'almuerzo' and coalesce(nullif(lower(trim(o.service)), ''), 'lunch') <> 'dinner')
+        or (v_service = 'cena' and coalesce(nullif(lower(trim(o.service)), ''), 'lunch') = 'dinner')
+      )
+      and (
+        p_company_slugs is null
+        or cardinality(p_company_slugs) = 0
+        or coalesce(nullif(lower(trim(o.company_slug)), ''), 'sin_empresa') = any(p_company_slugs)
+      )
+  ),
+  item_events as (
+    select
+      fo.delivery_date,
+      fo.company_slug,
+      fo.company_name,
+      lower(concat_ws(' ',
+        item->>'name',
+        item->>'title',
+        item->>'menu',
+        item->>'option',
+        item->>'selected_option',
+        item->>'choice'
+      )) as label,
+      greatest(coalesce(
+        case when coalesce(item->>'quantity', '') ~ '^-?[0-9]+(\.[0-9]+)?$' then (item->>'quantity')::numeric end,
+        case when coalesce(item->>'qty', '') ~ '^-?[0-9]+(\.[0-9]+)?$' then (item->>'qty')::numeric end,
+        1
+      ), 0) as quantity
+    from filtered_orders fo
+    cross join lateral jsonb_array_elements(fo.items) item
+  ),
+  response_events as (
+    select
+      fo.delivery_date,
+      fo.company_slug,
+      fo.company_name,
+      lower(concat_ws(' ',
+        response->>'title',
+        response->>'label',
+        response->>'response',
+        response->>'answer',
+        response->>'value'
+      )) as label,
+      greatest(coalesce(
+        case when coalesce(response->>'quantity', '') ~ '^-?[0-9]+(\.[0-9]+)?$' then (response->>'quantity')::numeric end,
+        case when coalesce(response->>'qty', '') ~ '^-?[0-9]+(\.[0-9]+)?$' then (response->>'qty')::numeric end,
+        case when coalesce(response->>'count', '') ~ '^-?[0-9]+(\.[0-9]+)?$' then (response->>'count')::numeric end,
+        fo.total_items,
+        1
+      ), 0) as quantity
+    from filtered_orders fo
+    cross join lateral jsonb_array_elements(fo.custom_responses) response
+  ),
+  classified_events as (
+    select
+      delivery_date,
+      company_slug,
+      company_name,
+      case
+        when label ~ 'opci[oó]n[[:space:]]*1|opcion_1' then 'opcion_1'
+        when label ~ 'opci[oó]n[[:space:]]*2|opcion_2' then 'opcion_2'
+        when label ~ 'opci[oó]n[[:space:]]*3|opcion_3' then 'opcion_3'
+        when label ~ 'cel[ií]ac|sin[[:space:]]*tacc' then 'celiacos'
+        when label ~ 'dieta|diet[eé]tico|hipos[oó]dico|vegetariano|vegano' then 'dieta'
+        when label ~ 'bife.*lomo|lomo' then 'bife_lomo'
+        when label ~ 'bife.*pollo' then 'bife_pollo'
+        when label ~ 'men[uú][[:space:]]*principal|menu[[:space:]]*principal|plato[[:space:]]*principal|principal' then 'menu_principal'
+        when label ~ 'opci[oó]n|menu|men[uú]|cena|almuerzo' then 'otros_menus'
+        else null
+      end as concept_code,
+      quantity
+    from item_events
+    union all
+    select
+      delivery_date,
+      company_slug,
+      company_name,
+      case
+        when label ~ 'guarnici[oó]n|guarnicion|acompa[nñ]amiento' then 'guarniciones'
+        when label ~ 'opci[oó]n[[:space:]]*1|opcion_1' then 'opcion_1'
+        when label ~ 'opci[oó]n[[:space:]]*2|opcion_2' then 'opcion_2'
+        when label ~ 'opci[oó]n[[:space:]]*3|opcion_3' then 'opcion_3'
+        when label ~ 'cel[ií]ac|sin[[:space:]]*tacc' then 'celiacos'
+        when label ~ 'dieta|diet[eé]tico|hipos[oó]dico|vegetariano|vegano' then 'dieta'
+        when label ~ 'bife.*lomo|lomo' then 'bife_lomo'
+        when label ~ 'bife.*pollo' then 'bife_pollo'
+        when label ~ 'men[uú][[:space:]]*principal|menu[[:space:]]*principal|plato[[:space:]]*principal|principal' then 'menu_principal'
+        when label ~ 'opci[oó]n|menu|men[uú]|cena|almuerzo' then 'otros_menus'
+        else null
+      end as concept_code,
+      quantity
+    from response_events
+  ),
+  concept_totals as (
+    select
+      delivery_date,
+      company_slug,
+      max(company_name) as company_name,
+      concept_code,
+      case concept_code
+        when 'menu_principal' then 'Menú principal'
+        when 'opcion_1' then 'Opción 1'
+        when 'opcion_2' then 'Opción 2'
+        when 'opcion_3' then 'Opción 3'
+        when 'otros_menus' then 'Otros menús'
+        when 'dieta' then 'Dieta'
+        when 'celiacos' then 'Celíacos'
+        when 'bife_lomo' then 'Bife de lomo'
+        when 'bife_pollo' then 'Bife de pollo'
+        when 'guarniciones' then 'Guarniciones'
+      end as concept_label,
+      sum(quantity)::numeric as quantity
+    from classified_events
+    where concept_code is not null
+    group by delivery_date, company_slug, concept_code
+  ),
+  companies_seen as (
+    select
+      company_slug,
+      max(company_name) as company_name,
+      min(case company_slug
+        when 'ccp' then 10
+        when 'laja' then 20
+        when 'padrebueno' then 30
+        when 'losberros' then 40
+        when 'genneia' then 50
+        when 'distro_cuyo' then 60
+        when 'epse' then 70
+        when 'greif' then 80
+        when 'placo' then 90
+        when 'molinos' then 100
+        else 1000
+      end) as sort_order
+    from filtered_orders
+    group by company_slug
   )
-  values (
-    p_delivery_date,
-    p_account_id,
-    v_service,
-    p_concept_id,
-    v_value_type,
-    p_quantity,
-    now()
+  select jsonb_build_object(
+    'rows', coalesce((select jsonb_agg(to_jsonb(ct) order by ct.delivery_date, ct.company_name, ct.concept_code) from concept_totals ct), '[]'::jsonb),
+    'companies', coalesce((select jsonb_agg(to_jsonb(cs) order by cs.sort_order, cs.company_name) from companies_seen cs), '[]'::jsonb),
+    'dates', coalesce((
+      select jsonb_agg(day::date order by day)
+      from generate_series(p_from_date, p_to_date, interval '1 day') day
+    ), '[]'::jsonb)
   )
-  returning * into v_row;
+  into v_payload;
 
-  return to_jsonb(v_row);
+  return v_payload;
 end;
 $$;
 
-create or replace function public.totalizer_create_manual_account(
-  p_name text,
-  p_sort_order integer default 999,
-  p_active boolean default true
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  v_name text := nullif(trim(coalesce(p_name, '')), '');
-  v_slug text;
-  v_code text;
-  v_row record;
-begin
-  if auth.uid() is null then
-    raise exception 'not_authenticated';
-  end if;
-
-  if not public.is_admin() then
-    raise exception 'not_authorized';
-  end if;
-
-  if v_name is null then
-    raise exception 'account_name_required';
-  end if;
-
-  v_slug := trim(both '_' from regexp_replace(
-    translate(lower(v_name), 'áéíóúüñ', 'aeiouun'),
-    '[^a-z0-9]+',
-    '_',
-    'g'
-  ));
-  v_code := 'manual_' || v_slug;
-
-  insert into public.totalizer_accounts (
-    name,
-    code,
-    source_mode,
-    sort_order,
-    active,
-    updated_at
-  )
-  values (
-    v_name,
-    v_code,
-    'manual',
-    coalesce(p_sort_order, 999),
-    coalesce(p_active, true),
-    now()
-  )
-  returning * into v_row;
-
-  return to_jsonb(v_row);
-end;
-$$;
-
-create or replace function public.totalizer_create_concept(
-  p_name text,
-  p_code text,
-  p_category text,
-  p_counts_as_menu boolean default false,
-  p_sort_order integer default 999,
-  p_active boolean default true
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  v_name text := nullif(trim(coalesce(p_name, '')), '');
-  v_code text := nullif(trim(coalesce(p_code, '')), '');
-  v_category text := lower(trim(coalesce(p_category, 'other')));
-  v_row record;
-begin
-  if auth.uid() is null then
-    raise exception 'not_authenticated';
-  end if;
-
-  if not public.is_admin() then
-    raise exception 'not_authorized';
-  end if;
-
-  if v_name is null or v_code is null then
-    raise exception 'concept_required';
-  end if;
-
-  if v_category not in ('menu', 'option', 'diet', 'side_dish', 'snack', 'route', 'return', 'other') then
-    raise exception 'invalid_category';
-  end if;
-
-  update public.totalizer_concepts
-  set name = v_name,
-      category = v_category,
-      counts_as_menu = coalesce(p_counts_as_menu, false),
-      sort_order = coalesce(p_sort_order, 999),
-      active = coalesce(p_active, true),
-      updated_at = now()
-  where code = v_code
-  returning * into v_row;
-
-  if found then
-    return to_jsonb(v_row);
-  end if;
-
-  insert into public.totalizer_concepts (
-    name,
-    code,
-    category,
-    counts_as_menu,
-    sort_order,
-    active,
-    updated_at
-  )
-  values (
-    v_name,
-    v_code,
-    v_category,
-    coalesce(p_counts_as_menu, false),
-    coalesce(p_sort_order, 999),
-    coalesce(p_active, true),
-    now()
-  )
-  returning * into v_row;
-
-  return to_jsonb(v_row);
-end;
-$$;
-
-create or replace function public.totalizer_create_mapping(
-  p_concept_id uuid,
-  p_source_kind text,
-  p_source_title text,
-  p_source_value text,
-  p_company_slug text default null,
-  p_match_mode text default 'exact',
-  p_priority integer default 100
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  v_match_mode text := lower(trim(coalesce(p_match_mode, 'exact')));
-  v_row record;
-begin
-  if auth.uid() is null then
-    raise exception 'not_authenticated';
-  end if;
-
-  if not public.is_admin() then
-    raise exception 'not_authorized';
-  end if;
-
-  if v_match_mode not in ('exact', 'contains') then
-    raise exception 'invalid_match_mode';
-  end if;
-
-  update public.totalizer_concept_mappings
-  set concept_id = p_concept_id,
-      match_mode = v_match_mode,
-      priority = coalesce(p_priority, 100),
-      active = true,
-      updated_at = now()
-  where source_kind = nullif(trim(coalesce(p_source_kind, '')), '')
-    and coalesce(source_title, '') = coalesce(nullif(trim(coalesce(p_source_title, '')), ''), '')
-    and coalesce(source_value, '') = coalesce(nullif(trim(coalesce(p_source_value, '')), ''), '')
-    and coalesce(company_slug, '') = coalesce(nullif(trim(coalesce(p_company_slug, '')), ''), '')
-  returning * into v_row;
-
-  if found then
-    return to_jsonb(v_row);
-  end if;
-
-  insert into public.totalizer_concept_mappings (
-    concept_id,
-    source_kind,
-    source_title,
-    source_value,
-    company_slug,
-    match_mode,
-    priority,
-    active,
-    updated_at
-  )
-  values (
-    p_concept_id,
-    nullif(trim(coalesce(p_source_kind, '')), ''),
-    nullif(trim(coalesce(p_source_title, '')), ''),
-    nullif(trim(coalesce(p_source_value, '')), ''),
-    nullif(trim(coalesce(p_company_slug, '')), ''),
-    v_match_mode,
-    coalesce(p_priority, 100),
-    true,
-    now()
-  )
-  returning * into v_row;
-
-  return to_jsonb(v_row);
-end;
-$$;
-
-create or replace function public.totalizer_save_order_note(
-  p_remito_id uuid,
-  p_order_note_number text
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  v_note text := nullif(trim(coalesce(p_order_note_number, '')), '');
-  v_row record;
-begin
-  if auth.uid() is null then
-    raise exception 'not_authenticated';
-  end if;
-
-  if not public.is_admin() then
-    raise exception 'not_authorized';
-  end if;
-
-  update public.totalizer_documents
-  set order_note_number = v_note,
-      updated_at = now()
-  where remito_id = p_remito_id
-  returning * into v_row;
-
-  if found then
-    return to_jsonb(v_row);
-  end if;
-
-  insert into public.totalizer_documents (
-    remito_id,
-    order_note_number,
-    updated_at
-  )
-  values (
-    p_remito_id,
-    v_note,
-    now()
-  )
-  returning * into v_row;
-
-  return to_jsonb(v_row);
-end;
-$$;
-
-revoke execute on function public.totalizer_get_daily_payload(date, text) from public, anon;
-revoke execute on function public.totalizer_upsert_value(date, uuid, text, uuid, text, numeric) from public, anon;
-revoke execute on function public.totalizer_create_manual_account(text, integer, boolean) from public, anon;
-revoke execute on function public.totalizer_create_concept(text, text, text, boolean, integer, boolean) from public, anon;
-revoke execute on function public.totalizer_create_mapping(uuid, text, text, text, text, text, integer) from public, anon;
-revoke execute on function public.totalizer_save_order_note(uuid, text) from public, anon;
-
-grant execute on function public.totalizer_get_daily_payload(date, text) to authenticated;
-grant execute on function public.totalizer_upsert_value(date, uuid, text, uuid, text, numeric) to authenticated;
-grant execute on function public.totalizer_create_manual_account(text, integer, boolean) to authenticated;
-grant execute on function public.totalizer_create_concept(text, text, text, boolean, integer, boolean) to authenticated;
-grant execute on function public.totalizer_create_mapping(uuid, text, text, text, text, text, integer) to authenticated;
-grant execute on function public.totalizer_save_order_note(uuid, text) to authenticated;
+revoke execute on function public.totalizer_get_summary(date, date, text, text[]) from public, anon;
+grant execute on function public.totalizer_get_summary(date, date, text, text[]) to authenticated;
 
 notify pgrst, 'reload schema';
 

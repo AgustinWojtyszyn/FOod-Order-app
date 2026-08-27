@@ -1,96 +1,105 @@
 import ExcelJS from 'exceljs'
 import { supabase } from './supabase'
 
+export const TOTALIZER_CONCEPTS = [
+  { code: 'menu_principal', label: 'Menú principal' },
+  { code: 'opcion_1', label: 'Opción 1' },
+  { code: 'opcion_2', label: 'Opción 2' },
+  { code: 'opcion_3', label: 'Opción 3' },
+  { code: 'otros_menus', label: 'Otros menús' },
+  { code: 'dieta', label: 'Dieta' },
+  { code: 'celiacos', label: 'Celíacos' },
+  { code: 'bife_lomo', label: 'Bife de lomo' },
+  { code: 'bife_pollo', label: 'Bife de pollo' },
+  { code: 'guarniciones', label: 'Guarniciones' }
+]
+
 const normalizeService = (service = 'all') => {
   const value = String(service || 'all').toLowerCase()
   return ['almuerzo', 'cena'].includes(value) ? value : 'all'
 }
 
-const unwrapRpc = async (promise) => {
-  const { data, error } = await promise
-  return { data, error }
-}
+const normalizeRows = (rows = []) =>
+  (Array.isArray(rows) ? rows : []).map((row) => ({
+    delivery_date: row.delivery_date || '',
+    company_slug: row.company_slug || 'sin_empresa',
+    company_name: row.company_name || row.company_slug || 'Sin empresa',
+    concept_code: row.concept_code || 'otros_menus',
+    concept_label: row.concept_label || 'Otros menús',
+    quantity: Number(row.quantity || 0)
+  }))
 
 export const totalizerService = {
-  getDailyPayload: ({ deliveryDate, service = 'all' }) =>
-    unwrapRpc(supabase.rpc('totalizer_get_daily_payload', {
-      p_delivery_date: deliveryDate,
-      p_service: normalizeService(service)
-    })),
-
-  saveKitchenValue: ({ deliveryDate, accountId, service, conceptId, quantity }) =>
-    unwrapRpc(supabase.rpc('totalizer_upsert_value', {
-      p_delivery_date: deliveryDate,
-      p_account_id: accountId,
+  getSummary: async ({ fromDate, toDate, service = 'all', companySlugs = [] }) => {
+    const { data, error } = await supabase.rpc('totalizer_get_summary', {
+      p_from_date: fromDate,
+      p_to_date: toDate,
       p_service: normalizeService(service),
-      p_concept_id: conceptId,
-      p_value_type: 'kitchen',
-      p_quantity: quantity
-    })),
+      p_company_slugs: Array.isArray(companySlugs) && companySlugs.length > 0 ? companySlugs : null
+    })
 
-  saveManualTotalizerValue: ({ deliveryDate, accountId, service, conceptId, quantity }) =>
-    unwrapRpc(supabase.rpc('totalizer_upsert_value', {
-      p_delivery_date: deliveryDate,
-      p_account_id: accountId,
-      p_service: normalizeService(service),
-      p_concept_id: conceptId,
-      p_value_type: 'totalizer',
-      p_quantity: quantity
-    })),
-
-  saveAdjustment: ({ deliveryDate, accountId, service, conceptId, quantity }) =>
-    unwrapRpc(supabase.rpc('totalizer_upsert_value', {
-      p_delivery_date: deliveryDate,
-      p_account_id: accountId,
-      p_service: normalizeService(service),
-      p_concept_id: conceptId,
-      p_value_type: 'adjustment',
-      p_quantity: quantity
-    })),
-
-  saveOrderNote: ({ remitoId, orderNoteNumber }) =>
-    unwrapRpc(supabase.rpc('totalizer_save_order_note', {
-      p_remito_id: remitoId,
-      p_order_note_number: orderNoteNumber
-    })),
-
-  createConcept: ({ name, code, category, countsAsMenu, sortOrder, active }) =>
-    unwrapRpc(supabase.rpc('totalizer_create_concept', {
-      p_name: name,
-      p_code: code,
-      p_category: category,
-      p_counts_as_menu: !!countsAsMenu,
-      p_sort_order: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 999,
-      p_active: active !== false
-    })),
-
-  createMapping: ({ conceptId, sourceKind, sourceTitle, sourceValue, companySlug, matchMode, priority }) =>
-    unwrapRpc(supabase.rpc('totalizer_create_mapping', {
-      p_concept_id: conceptId,
-      p_source_kind: sourceKind,
-      p_source_title: sourceTitle,
-      p_source_value: sourceValue,
-      p_company_slug: companySlug || null,
-      p_match_mode: matchMode || 'exact',
-      p_priority: Number.isFinite(Number(priority)) ? Number(priority) : 100
-    })),
-
-  createManualAccount: ({ name, sortOrder, active }) =>
-    unwrapRpc(supabase.rpc('totalizer_create_manual_account', {
-      p_name: name,
-      p_sort_order: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 999,
-      p_active: active !== false
-    }))
+    return {
+      data: {
+        rows: normalizeRows(data?.rows),
+        companies: Array.isArray(data?.companies) ? data.companies : [],
+        dates: Array.isArray(data?.dates) ? data.dates : []
+      },
+      error
+    }
+  }
 }
 
-const autoFitColumns = (worksheet) => {
-  worksheet.columns.forEach((column) => {
-    let maxLength = 10
-    column.eachCell({ includeEmpty: true }, (cell) => {
-      maxLength = Math.max(maxLength, String(cell.value ?? '').length)
-    })
-    column.width = Math.min(Math.max(maxLength + 2, 12), 42)
+const dateLabel = (value = '') => {
+  if (!value) return ''
+  const [year, month, day] = String(value).slice(0, 10).split('-')
+  return [day, month, year].filter(Boolean).join('/')
+}
+
+const getCompanyKey = (company) => company.company_slug || company.slug || company.company_name || company.name || 'sin_empresa'
+const getCompanyName = (company) => company.company_name || company.name || company.company_slug || company.slug || 'Sin empresa'
+
+const buildMatrix = ({ rows, companies }) => {
+  const matrix = new Map()
+  rows.forEach((row) => {
+    const key = `${row.concept_code}:${row.company_slug}`
+    matrix.set(key, (matrix.get(key) || 0) + Number(row.quantity || 0))
   })
+
+  return TOTALIZER_CONCEPTS.map((concept) => {
+    const quantities = companies.map((company) => matrix.get(`${concept.code}:${getCompanyKey(company)}`) || 0)
+    const total = quantities.reduce((sum, quantity) => sum + quantity, 0)
+    return { concept, quantities, total }
+  })
+}
+
+const styleSheet = (worksheet) => {
+  worksheet.getRow(1).font = { bold: true, size: 14 }
+  worksheet.getRow(2).font = { bold: true }
+  worksheet.getColumn(1).width = 24
+  worksheet.columns.forEach((column, index) => {
+    if (index > 0) column.width = 16
+    column.alignment = index === 0 ? { horizontal: 'left' } : { horizontal: 'right' }
+  })
+  worksheet.views = [{ state: 'frozen', ySplit: 2, xSplit: 1 }]
+}
+
+const addDaySheet = ({ workbook, date, rows, companies }) => {
+  const worksheet = workbook.addWorksheet(date.slice(5).replace('-', '-'))
+  worksheet.addRow([`TOTALIZADORA ${dateLabel(date)}`])
+  worksheet.addRow(['Concepto', ...companies.map(getCompanyName), 'TOTAL'])
+
+  buildMatrix({ rows, companies }).forEach(({ concept, quantities, total }) => {
+    worksheet.addRow([concept.label, ...quantities, total])
+  })
+
+  const companyTotals = companies.map((company) =>
+    rows
+      .filter((row) => row.company_slug === getCompanyKey(company))
+      .reduce((sum, row) => sum + Number(row.quantity || 0), 0)
+  )
+  worksheet.addRow(['TOTAL', ...companyTotals, companyTotals.reduce((sum, quantity) => sum + quantity, 0)])
+  worksheet.lastRow.font = { bold: true }
+  styleSheet(worksheet)
 }
 
 const downloadWorkbook = async (workbook, filename) => {
@@ -108,73 +117,24 @@ const downloadWorkbook = async (workbook, filename) => {
   URL.revokeObjectURL(url)
 }
 
-export const exportTotalizerWorkbook = async ({
-  deliveryDate,
-  service,
-  accounts,
-  concepts,
-  totalizerRows,
-  kitchenRows,
-  reconciliationRows,
-  remitoRows
-}) => {
+export const exportTotalizerWorkbook = async ({ fromDate, toDate, service, rows, companies, dates }) => {
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'ServiFood'
   workbook.created = new Date()
 
-  const totalizerSheet = workbook.addWorksheet('TOTALIZADORA')
-  totalizerSheet.addRow(['Concepto', ...accounts.map((account) => account.name || account.account_name || account.slug), 'Total'])
-  for (const concept of concepts) {
-    const rowValues = accounts.map((account) => {
-      const row = totalizerRows.find((item) => item.account_id === account.id && item.concept_id === concept.id)
-      return Number(row?.total_quantity ?? row?.quantity ?? row?.total ?? 0)
+  const orderedDates = dates.length > 0 ? dates : [...new Set(rows.map((row) => row.delivery_date))].sort()
+  orderedDates.forEach((date) => {
+    addDaySheet({
+      workbook,
+      date,
+      rows: rows.filter((row) => row.delivery_date === date),
+      companies
     })
-    totalizerSheet.addRow([concept.name, ...rowValues, rowValues.reduce((sum, value) => sum + Number(value || 0), 0)])
+  })
+
+  if (orderedDates.length === 0) {
+    addDaySheet({ workbook, date: fromDate, rows: [], companies })
   }
 
-  const kitchenSheet = workbook.addWorksheet('COCINA')
-  kitchenSheet.addRow(['Empresa', 'Concepto', 'Cantidad Totalizadora', 'Cantidad Cocina'])
-  kitchenRows.forEach((row) => {
-    kitchenSheet.addRow([
-      row.account_name || row.company_name || row.company_slug || '',
-      row.concept_name || '',
-      row.totalizer_quantity ?? row.totalizer_total ?? row.total_quantity ?? '',
-      row.kitchen_quantity ?? row.quantity ?? ''
-    ])
-  })
-
-  const reconciliationSheet = workbook.addWorksheet('CONCILIACION')
-  reconciliationSheet.addRow(['Empresa', 'Concepto', 'Totalizadora', 'Cocina', 'Diferencia', 'Estado'])
-  reconciliationRows.forEach((row) => {
-    reconciliationSheet.addRow([
-      row.account_name || row.company_name || row.company_slug || '',
-      row.concept_name || '',
-      row.totalizer_quantity ?? row.totalizer_total ?? '',
-      row.kitchen_quantity ?? '',
-      row.difference ?? '',
-      row.status || ''
-    ])
-  })
-
-  const remitoSheet = workbook.addWorksheet('REMITOS')
-  remitoSheet.addRow(['Empresa', 'Sede', 'Remito', 'Nota de pedido', 'Total remito', 'Total calculado', 'Diferencia'])
-  remitoRows.forEach((row) => {
-    remitoSheet.addRow([
-      row.account_name || row.company_name || row.company_slug || '',
-      row.location_key || row.location_name || '',
-      row.remito_number || '',
-      row.order_note_number || '',
-      row.remito_total ?? '',
-      row.calculated_menu_total ?? row.menu_total ?? '',
-      row.difference ?? ''
-    ])
-  })
-
-  workbook.eachSheet((sheet) => {
-    sheet.getRow(1).font = { bold: true }
-    sheet.views = [{ state: 'frozen', ySplit: 1 }]
-    autoFitColumns(sheet)
-  })
-
-  await downloadWorkbook(workbook, `totalizadora-${deliveryDate}-${normalizeService(service)}.xlsx`)
+  await downloadWorkbook(workbook, `totalizadora-${fromDate}-a-${toDate}-${normalizeService(service)}.xlsx`)
 }
