@@ -39,6 +39,7 @@ begin
     v_service := null;
   end if;
 
+  begin
   select exists (
     select 1 from information_schema.columns
     where table_schema = 'public' and table_name = 'totalizer_accounts' and column_name = 'active'
@@ -99,10 +100,8 @@ begin
   if v_has_delivery_date then
     v_sql := v_sql || ' where delivery_date = $1';
     if v_has_service then
-      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service, '''')) = $2)';
+      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service::text, '''')) = $2)';
     end if;
-  elsif v_has_service then
-    v_sql := v_sql || ' where ($2 is null or lower(coalesce(service, '''')) = $2)';
   end if;
   v_sql := v_sql || ') t';
   execute v_sql into v_daily using p_delivery_date, v_service;
@@ -119,10 +118,8 @@ begin
   if v_has_delivery_date then
     v_sql := v_sql || ' where delivery_date = $1';
     if v_has_service then
-      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service, '''')) = $2)';
+      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service::text, '''')) = $2)';
     end if;
-  elsif v_has_service then
-    v_sql := v_sql || ' where ($2 is null or lower(coalesce(service, '''')) = $2)';
   end if;
   v_sql := v_sql || ') t';
   execute v_sql into v_app_daily using p_delivery_date, v_service;
@@ -139,10 +136,8 @@ begin
   if v_has_delivery_date then
     v_sql := v_sql || ' where delivery_date = $1';
     if v_has_service then
-      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service, '''')) = $2)';
+      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service::text, '''')) = $2)';
     end if;
-  elsif v_has_service then
-    v_sql := v_sql || ' where ($2 is null or lower(coalesce(service, '''')) = $2)';
   end if;
   v_sql := v_sql || ') t';
   execute v_sql into v_values using p_delivery_date, v_service;
@@ -159,10 +154,8 @@ begin
   if v_has_delivery_date then
     v_sql := v_sql || ' where delivery_date = $1';
     if v_has_service then
-      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service, '''')) = $2)';
+      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service::text, '''')) = $2)';
     end if;
-  elsif v_has_service then
-    v_sql := v_sql || ' where ($2 is null or lower(coalesce(service, '''')) = $2)';
   end if;
   v_sql := v_sql || ') t';
   execute v_sql into v_reconciliation using p_delivery_date, v_service;
@@ -179,10 +172,8 @@ begin
   if v_has_delivery_date then
     v_sql := v_sql || ' where delivery_date = $1';
     if v_has_service then
-      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service, '''')) = $2)';
+      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service::text, '''')) = $2)';
     end if;
-  elsif v_has_service then
-    v_sql := v_sql || ' where ($2 is null or lower(coalesce(service, '''')) = $2)';
   end if;
   v_sql := v_sql || ') t';
   execute v_sql into v_remitos using p_delivery_date, v_service;
@@ -217,11 +208,9 @@ begin
   if v_has_delivery_date then
     v_sql := v_sql || ' where e.delivery_date = $1';
     if v_has_service then
-      v_sql := v_sql || ' and ($2 is null or lower(coalesce(e.service, '''')) = $2)';
+      v_sql := v_sql || ' and ($2 is null or lower(coalesce(e.service::text, '''')) = $2)';
     end if;
     v_sql := v_sql || ' and m.id is null';
-  elsif v_has_service then
-    v_sql := v_sql || ' where ($2 is null or lower(coalesce(e.service, '''')) = $2) and m.id is null';
   else
     v_sql := v_sql || ' where m.id is null';
   end if;
@@ -238,6 +227,20 @@ begin
     'remitos', v_remitos,
     'unmapped', v_unmapped
   );
+  exception when others then
+    return jsonb_build_object(
+      'accounts', v_accounts,
+      'concepts', v_concepts,
+      'daily', v_daily,
+      'appDaily', v_app_daily,
+      'values', v_values,
+      'reconciliation', v_reconciliation,
+      'remitos', v_remitos,
+      'unmapped', v_unmapped,
+      '_error', sqlerrm,
+      '_sqlstate', sqlstate
+    );
+  end;
 end;
 $$;
 

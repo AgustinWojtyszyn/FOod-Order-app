@@ -163,6 +163,10 @@ export default function TotalizerPage() {
       remitos: data?.remitos || [],
       unmapped: data?.unmapped || []
     })
+    if (data?._error) {
+      console.warn('[totalizer] partial payload', data)
+      notifyError(`Totalizadora cargó parcial: ${data._error}`)
+    }
   }, [deliveryDate, service])
 
   useEffect(() => {
