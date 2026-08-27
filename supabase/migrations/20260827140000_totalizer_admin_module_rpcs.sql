@@ -11,7 +11,21 @@ set search_path = public, pg_temp
 as $$
 declare
   v_service text := nullif(lower(trim(coalesce(p_service, ''))), '');
-  v_payload jsonb;
+  v_accounts jsonb := '[]'::jsonb;
+  v_concepts jsonb := '[]'::jsonb;
+  v_daily jsonb := '[]'::jsonb;
+  v_app_daily jsonb := '[]'::jsonb;
+  v_values jsonb := '[]'::jsonb;
+  v_reconciliation jsonb := '[]'::jsonb;
+  v_remitos jsonb := '[]'::jsonb;
+  v_unmapped jsonb := '[]'::jsonb;
+  v_has_active boolean;
+  v_has_sort_order boolean;
+  v_has_name boolean;
+  v_has_delivery_date boolean;
+  v_has_service boolean;
+  v_mapping_has_active boolean;
+  v_sql text;
 begin
   if auth.uid() is null then
     raise exception 'not_authenticated';
@@ -25,73 +39,205 @@ begin
     v_service := null;
   end if;
 
-  select jsonb_build_object(
-    'accounts', coalesce((
-      select jsonb_agg(to_jsonb(a) order by coalesce(a.sort_order, 9999), a.name)
-      from public.totalizer_accounts a
-      where coalesce(a.active, true) = true
-    ), '[]'::jsonb),
-    'concepts', coalesce((
-      select jsonb_agg(to_jsonb(c) order by coalesce(c.sort_order, 9999), c.name)
-      from public.totalizer_concepts c
-      where coalesce(c.active, true) = true
-    ), '[]'::jsonb),
-    'daily', coalesce((
-      select jsonb_agg(to_jsonb(d))
-      from public.v_totalizer_daily d
-      where d.delivery_date = p_delivery_date
-        and (v_service is null or lower(coalesce(d.service, '')) = v_service)
-    ), '[]'::jsonb),
-    'appDaily', coalesce((
-      select jsonb_agg(to_jsonb(d))
-      from public.v_totalizer_app_daily d
-      where d.delivery_date = p_delivery_date
-        and (v_service is null or lower(coalesce(d.service, '')) = v_service)
-    ), '[]'::jsonb),
-    'values', coalesce((
-      select jsonb_agg(to_jsonb(v))
-      from public.totalizer_values v
-      where v.delivery_date = p_delivery_date
-        and (v_service is null or lower(coalesce(v.service, '')) = v_service)
-    ), '[]'::jsonb),
-    'reconciliation', coalesce((
-      select jsonb_agg(to_jsonb(r))
-      from public.v_totalizer_reconciliation r
-      where r.delivery_date = p_delivery_date
-        and (v_service is null or lower(coalesce(r.service, '')) = v_service)
-    ), '[]'::jsonb),
-    'remitos', coalesce((
-      select jsonb_agg(to_jsonb(r))
-      from public.v_totalizer_remito_reconciliation r
-      where r.delivery_date = p_delivery_date
-        and (v_service is null or lower(coalesce(r.service, '')) = v_service)
-    ), '[]'::jsonb),
-    'unmapped', coalesce((
-      select jsonb_agg(to_jsonb(u) order by u.appearances desc, u.source_kind, u.source_title, u.source_value)
-      from (
-        select
-          e.source_kind,
-          e.source_title,
-          e.source_value,
-          e.company_slug,
-          count(*)::integer as appearances
-        from public.v_totalizer_order_events e
-        left join public.totalizer_concept_mappings m
-          on coalesce(m.active, true) = true
-         and m.source_kind = e.source_kind
-         and coalesce(m.source_title, '') = coalesce(e.source_title, '')
-         and coalesce(m.source_value, '') = coalesce(e.source_value, '')
-         and (m.company_slug is null or m.company_slug = e.company_slug)
-        where e.delivery_date = p_delivery_date
-          and (v_service is null or lower(coalesce(e.service, '')) = v_service)
-          and m.id is null
-        group by e.source_kind, e.source_title, e.source_value, e.company_slug
-      ) u
-    ), '[]'::jsonb)
-  )
-  into v_payload;
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'totalizer_accounts' and column_name = 'active'
+  ) into v_has_active;
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'totalizer_accounts' and column_name = 'sort_order'
+  ) into v_has_sort_order;
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'totalizer_accounts' and column_name = 'name'
+  ) into v_has_name;
 
-  return v_payload;
+  v_sql := 'select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from (select * from public.totalizer_accounts';
+  if v_has_active then
+    v_sql := v_sql || ' where coalesce(active, true) = true';
+  end if;
+  v_sql := v_sql || ' order by ';
+  v_sql := v_sql || case when v_has_sort_order then 'coalesce(sort_order, 9999)' else '1' end;
+  v_sql := v_sql || ', ';
+  v_sql := v_sql || case when v_has_name then 'name' else '1' end;
+  v_sql := v_sql || ') t';
+  execute v_sql into v_accounts;
+
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'totalizer_concepts' and column_name = 'active'
+  ) into v_has_active;
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'totalizer_concepts' and column_name = 'sort_order'
+  ) into v_has_sort_order;
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'totalizer_concepts' and column_name = 'name'
+  ) into v_has_name;
+
+  v_sql := 'select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from (select * from public.totalizer_concepts';
+  if v_has_active then
+    v_sql := v_sql || ' where coalesce(active, true) = true';
+  end if;
+  v_sql := v_sql || ' order by ';
+  v_sql := v_sql || case when v_has_sort_order then 'coalesce(sort_order, 9999)' else '1' end;
+  v_sql := v_sql || ', ';
+  v_sql := v_sql || case when v_has_name then 'name' else '1' end;
+  v_sql := v_sql || ') t';
+  execute v_sql into v_concepts;
+
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'v_totalizer_daily' and column_name = 'delivery_date'
+  ) into v_has_delivery_date;
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'v_totalizer_daily' and column_name = 'service'
+  ) into v_has_service;
+  v_sql := 'select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from (select * from public.v_totalizer_daily';
+  if v_has_delivery_date then
+    v_sql := v_sql || ' where delivery_date = $1';
+    if v_has_service then
+      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service, '''')) = $2)';
+    end if;
+  elsif v_has_service then
+    v_sql := v_sql || ' where ($2 is null or lower(coalesce(service, '''')) = $2)';
+  end if;
+  v_sql := v_sql || ') t';
+  execute v_sql into v_daily using p_delivery_date, v_service;
+
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'v_totalizer_app_daily' and column_name = 'delivery_date'
+  ) into v_has_delivery_date;
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'v_totalizer_app_daily' and column_name = 'service'
+  ) into v_has_service;
+  v_sql := 'select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from (select * from public.v_totalizer_app_daily';
+  if v_has_delivery_date then
+    v_sql := v_sql || ' where delivery_date = $1';
+    if v_has_service then
+      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service, '''')) = $2)';
+    end if;
+  elsif v_has_service then
+    v_sql := v_sql || ' where ($2 is null or lower(coalesce(service, '''')) = $2)';
+  end if;
+  v_sql := v_sql || ') t';
+  execute v_sql into v_app_daily using p_delivery_date, v_service;
+
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'totalizer_values' and column_name = 'delivery_date'
+  ) into v_has_delivery_date;
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'totalizer_values' and column_name = 'service'
+  ) into v_has_service;
+  v_sql := 'select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from (select * from public.totalizer_values';
+  if v_has_delivery_date then
+    v_sql := v_sql || ' where delivery_date = $1';
+    if v_has_service then
+      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service, '''')) = $2)';
+    end if;
+  elsif v_has_service then
+    v_sql := v_sql || ' where ($2 is null or lower(coalesce(service, '''')) = $2)';
+  end if;
+  v_sql := v_sql || ') t';
+  execute v_sql into v_values using p_delivery_date, v_service;
+
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'v_totalizer_reconciliation' and column_name = 'delivery_date'
+  ) into v_has_delivery_date;
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'v_totalizer_reconciliation' and column_name = 'service'
+  ) into v_has_service;
+  v_sql := 'select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from (select * from public.v_totalizer_reconciliation';
+  if v_has_delivery_date then
+    v_sql := v_sql || ' where delivery_date = $1';
+    if v_has_service then
+      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service, '''')) = $2)';
+    end if;
+  elsif v_has_service then
+    v_sql := v_sql || ' where ($2 is null or lower(coalesce(service, '''')) = $2)';
+  end if;
+  v_sql := v_sql || ') t';
+  execute v_sql into v_reconciliation using p_delivery_date, v_service;
+
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'v_totalizer_remito_reconciliation' and column_name = 'delivery_date'
+  ) into v_has_delivery_date;
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'v_totalizer_remito_reconciliation' and column_name = 'service'
+  ) into v_has_service;
+  v_sql := 'select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from (select * from public.v_totalizer_remito_reconciliation';
+  if v_has_delivery_date then
+    v_sql := v_sql || ' where delivery_date = $1';
+    if v_has_service then
+      v_sql := v_sql || ' and ($2 is null or lower(coalesce(service, '''')) = $2)';
+    end if;
+  elsif v_has_service then
+    v_sql := v_sql || ' where ($2 is null or lower(coalesce(service, '''')) = $2)';
+  end if;
+  v_sql := v_sql || ') t';
+  execute v_sql into v_remitos using p_delivery_date, v_service;
+
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'v_totalizer_order_events' and column_name = 'delivery_date'
+  ) into v_has_delivery_date;
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'v_totalizer_order_events' and column_name = 'service'
+  ) into v_has_service;
+  select exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'totalizer_concept_mappings' and column_name = 'active'
+  ) into v_mapping_has_active;
+
+  v_sql := 'select coalesce(jsonb_agg(to_jsonb(u) order by u.appearances desc, u.source_kind, u.source_title, u.source_value), ''[]''::jsonb) from (
+    select
+      e.source_kind,
+      e.source_title,
+      e.source_value,
+      e.company_slug,
+      count(*)::integer as appearances
+    from public.v_totalizer_order_events e
+    left join public.totalizer_concept_mappings m
+      on ' || case when v_mapping_has_active then 'coalesce(m.active, true) = true and ' else '' end || '
+         m.source_kind = e.source_kind
+     and coalesce(m.source_title, '''') = coalesce(e.source_title, '''')
+     and coalesce(m.source_value, '''') = coalesce(e.source_value, '''')
+     and (m.company_slug is null or m.company_slug = e.company_slug)';
+  if v_has_delivery_date then
+    v_sql := v_sql || ' where e.delivery_date = $1';
+    if v_has_service then
+      v_sql := v_sql || ' and ($2 is null or lower(coalesce(e.service, '''')) = $2)';
+    end if;
+    v_sql := v_sql || ' and m.id is null';
+  elsif v_has_service then
+    v_sql := v_sql || ' where ($2 is null or lower(coalesce(e.service, '''')) = $2) and m.id is null';
+  else
+    v_sql := v_sql || ' where m.id is null';
+  end if;
+  v_sql := v_sql || ' group by e.source_kind, e.source_title, e.source_value, e.company_slug) u';
+  execute v_sql into v_unmapped using p_delivery_date, v_service;
+
+  return jsonb_build_object(
+    'accounts', v_accounts,
+    'concepts', v_concepts,
+    'daily', v_daily,
+    'appDaily', v_app_daily,
+    'values', v_values,
+    'reconciliation', v_reconciliation,
+    'remitos', v_remitos,
+    'unmapped', v_unmapped
+  );
 end;
 $$;
 

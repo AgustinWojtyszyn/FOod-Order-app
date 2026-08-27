@@ -148,7 +148,9 @@ export default function TotalizerPage() {
     const { data, error } = await totalizerService.getDailyPayload({ deliveryDate, service })
     setLoading(false)
     if (error) {
-      notifyError('No se pudo cargar Totalizadora.')
+      console.error('[totalizer] load error', error)
+      const message = error?.message ? ` ${error.message}` : ''
+      notifyError(`No se pudo cargar Totalizadora.${message}`)
       return
     }
     setPayload({
