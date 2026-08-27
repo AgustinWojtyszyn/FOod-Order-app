@@ -52,6 +52,7 @@ dist-ssr
 !supabase/migrations/20260827120000_placo_company_remito_numbering.sql
 !supabase/migrations/20260827123000_placo_genneia_beverage_option.sql
 !supabase/migrations/20260827130000_ensure_all_company_remito_numbering.sql
+!supabase/migrations/20260827140000_totalizer_admin_module_rpcs.sql
 !supabase/diagnostics/*.sql
 # Python
 __pycache__/

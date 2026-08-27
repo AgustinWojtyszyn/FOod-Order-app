@@ -35,6 +35,7 @@ const OrderLabelsPage = lazy(() => import('./components/OrderLabelsPage'))
 const CafeteriaNewOrderPage = lazy(() => import('./components/cafeteria/CafeteriaNewOrderPage'))
 const CafeteriaCurrentOrderPage = lazy(() => import('./components/cafeteria/CafeteriaCurrentOrderPage'))
 const CafeteriaSuccessPage = lazy(() => import('./components/cafeteria/CafeteriaSuccessPage'))
+const TotalizerPage = lazy(() => import('./pages/TotalizerPage'))
 
 const ADMIN_ROUTE_PATHS = [
   '/cafeteria',
@@ -46,7 +47,8 @@ const ADMIN_ROUTE_PATHS = [
   '/daily-orders',
   '/monthly-panel',
   '/auditoria',
-  '/tendencias'
+  '/tendencias',
+  '/totalizadora'
 ]
 
 // Componente de carga interno (para Suspense)
@@ -143,6 +145,7 @@ const RouteSwitch = ({ user, loading }) => {
           <Route path="/monthly-panel" element={<MonthlyPanel user={user} loading={loading} />} />
           <Route path="/auditoria" element={<AuditLogs user={user} loading={loading} />} />
           <Route path="/tendencias" element={<TendenciasPage />} />
+          <Route path="/totalizadora" element={<TotalizerPage />} />
         </Route>
 
         <Route
