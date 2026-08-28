@@ -24,6 +24,7 @@ const OrderForm = ({ user, loading }) => {
   const locationState = useLocation()
 
   const controller = useOrderFlowController({ user, locationState, navigate })
+  const scheduleBlocksSubmit = controller.schedule.loading || !controller.schedule.isOpen
 
   if (controller.success) {
     return (
@@ -46,7 +47,7 @@ const OrderForm = ({ user, loading }) => {
             companyName={controller.company.companyConfig.name}
             showPostreNotice={controller.company.hasGenneiaRules}
           />
-          {!controller.form.hasOrderToday && <OrderHoursBanner />}
+          {!controller.form.hasOrderToday && <OrderHoursBanner schedule={controller.schedule} />}
 
           <form onSubmit={controller.submit.handleSubmit} className="space-y-6 sm:space-y-8">
             {/* Sugerencias inteligentes */}
@@ -156,7 +157,7 @@ const OrderForm = ({ user, loading }) => {
                 onClick={() => {
                   Sound.primeSuccess()
                 }}
-                disabled={loading || controller.submit.submitting || !controller.submit.hasAnySelectedItems || controller.form.hasOrderToday}
+                disabled={loading || controller.submit.submitting || !controller.submit.hasAnySelectedItems || controller.form.hasOrderToday || scheduleBlocksSubmit}
                 style={{ 
                   backgroundColor: '#16a34a',
                   color: '#ffffff',
@@ -173,6 +174,10 @@ const OrderForm = ({ user, loading }) => {
                   </>
                 ) : controller.form.hasOrderToday ? (
                   <span style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff', fontWeight: '900' }}>Ya tienes un pedido pendiente</span>
+                ) : controller.schedule.loading ? (
+                  <span style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff', fontWeight: '900' }}>Validando horario...</span>
+                ) : scheduleBlocksSubmit ? (
+                  <span style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff', fontWeight: '900' }}>Pedidos cerrados</span>
                 ) : (
                   <>
                     <ShoppingCart className="h-6 w-6 mr-3" style={{ color: '#ffffff', stroke: '#ffffff', strokeWidth: 2 }} />

@@ -29,7 +29,7 @@ export const useDashboardDerived = ({ orders } = {}) => {
 
   const deliveryText = (() => {
     if (!headerOrder?.delivery_date) return 'Fecha de entrega sin definir'
-    const timeZone = 'America/Argentina/Buenos_Aires'
+    const timeZone = 'America/Argentina/San_Juan'
     const now = new Date()
     const nowLocal = new Date(now.toLocaleString('en-US', { timeZone }))
     const today = new Date(nowLocal)

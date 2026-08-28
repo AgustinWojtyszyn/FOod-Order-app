@@ -1,5 +1,3 @@
-import { ORDER_START_HOUR, ORDER_CUTOFF_HOUR, ORDER_TIMEZONE } from '../../constants/orderRules'
-
 const isGenneiaPostreOption = (isGenneia, option = {}) => {
   return isGenneia && (option.title || '').toLowerCase().includes('postre')
 }
@@ -56,17 +54,6 @@ const hasDinnerOverrideInResponses = (responses = []) => {
   })
 }
 
-const isOutsideWindow = () => {
-  try {
-    const nowBA = new Date(new Date().toLocaleString('en-US', { timeZone: ORDER_TIMEZONE }))
-    const hour = nowBA.getHours()
-    return hour < ORDER_START_HOUR || hour >= ORDER_CUTOFF_HOUR
-  } catch (err) {
-    console.error('Error checking cutoff time', err)
-    return false
-  }
-}
-
 export {
   isGenneiaPostreOption,
   isBeverageOption,
@@ -74,6 +61,5 @@ export {
   isBeverageOrDessertOption,
   matchesOverrideKeyword,
   isDinnerOverrideValue,
-  hasDinnerOverrideInResponses,
-  isOutsideWindow
+  hasDinnerOverrideInResponses
 }

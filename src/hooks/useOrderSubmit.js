@@ -25,7 +25,7 @@ const useOrderSubmit = ({
   calculateTotal,
   calculateTotalDinner,
   companyConfig,
-  isOutsideWindow,
+  orderSchedule,
   setSelectedTurns,
   setSuccess,
   navigate,
@@ -70,7 +70,7 @@ const useOrderSubmit = ({
       calculateTotal,
       calculateTotalDinner,
       companyConfig,
-      isOutsideWindow,
+      orderSchedule,
       selectedDinnerDate,
       deliveryLocationsByLocation
     })

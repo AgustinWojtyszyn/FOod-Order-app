@@ -45,7 +45,9 @@ const Dashboard = ({ user, loading }) => {
   const [companySwitchLoading, setCompanySwitchLoading] = useState(false)
 
   const { toast, showToast } = useDashboardToast()
-  const { countdownLabel, countdownValue, countdownTone } = useDashboardCountdown()
+  const { countdownLabel, countdownValue, countdownTone, schedule } = useDashboardCountdown({
+    location: companySwitchContext?.current_location || ''
+  })
 
   const {
     orders,
@@ -111,23 +113,30 @@ const Dashboard = ({ user, loading }) => {
   }, [refreshCompanySwitchContext, user?.id])
 
   const canOpenChangeCompany = useMemo(() => {
-    if (!companySwitchContext) return true
-    if (!companySwitchContext.within_order_window) return false
+    if (!companySwitchContext || schedule.loading) return false
+    if (!schedule.isOpen) return false
     return Number(companySwitchContext.remaining_changes || 0) > 0
-  }, [companySwitchContext])
+  }, [companySwitchContext, schedule.isOpen, schedule.loading])
 
   const changeCompanyHint = useMemo(() => {
-    if (!companySwitchContext?.within_order_window) {
+    if (schedule.loading) {
+      return 'Estamos validando el horario de pedidos.'
+    }
+    if (!schedule.isOpen) {
       return 'Solo podés cambiar de empresa dentro del horario de pedidos.'
     }
     if (Number(companySwitchContext?.remaining_changes || 0) <= 0) {
       return 'Ya usaste los 2 cambios permitidos por hoy.'
     }
     return ''
-  }, [companySwitchContext])
+  }, [companySwitchContext?.remaining_changes, schedule.isOpen, schedule.loading])
 
   const openChangeCompanyFlow = () => {
-    if (!companySwitchContext?.within_order_window) {
+    if (schedule.loading) {
+      notifyWarning('Estamos validando el horario de pedidos.')
+      return
+    }
+    if (!schedule.isOpen) {
       notifyWarning('Solo podés cambiar de empresa dentro del horario de pedidos.')
       return
     }
@@ -208,6 +217,7 @@ const Dashboard = ({ user, loading }) => {
         countdownLabel={countdownLabel}
         countdownValue={countdownValue}
         countdownTone={countdownTone}
+        schedule={schedule}
         refreshing={refreshing}
         onRefresh={handleRefresh}
         headerOrder={headerOrder}

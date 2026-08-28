@@ -5,6 +5,7 @@ import { getMenuBeverageTitle, hasFruitDessertChoiceRules, hasGenneiaOptionRules
 import { hasHiddenOrderMenuSelection } from './menuDisplay'
 import { isBeverageOption, isBeverageOrDessertOption } from './orderBusinessRules'
 import { isGreifCompany, isGreifRefrigerioMenuItem } from './greifDefaultSnack'
+import { formatScheduleRange } from './orderSchedule'
 
 const isCustomSideOption = (opt) => (opt?.title || '').toLowerCase().includes('guarn')
 const SINGLE_MENU_MESSAGE = 'Solo podés seleccionar 1 comida principal por persona para almuerzo o cena.'
@@ -156,7 +157,7 @@ const validateOrderSubmission = ({
   calculateTotal,
   _calculateTotalDinner,
   companyConfig,
-  isOutsideWindow,
+  orderSchedule,
   selectedDinnerDate,
   deliveryLocationsByLocation
 }) => {
@@ -164,8 +165,14 @@ const validateOrderSubmission = ({
     return { error: 'No se pudo validar el usuario. Intenta nuevamente.' }
   }
 
-  if (isOutsideWindow?.()) {
-    return { error: 'Pedidos disponibles de 09:00 a 22:00 (hora Buenos Aires). Intenta dentro del horario.' }
+  if (orderSchedule?.loading) {
+    return { error: 'Estamos validando el horario de pedidos. Intentá nuevamente en unos segundos.' }
+  }
+
+  if (orderSchedule && !orderSchedule.isOpen) {
+    return {
+      error: `Pedidos cerrados. Horario de tu sede: ${formatScheduleRange(orderSchedule)} (${orderSchedule.timezone || 'America/Argentina/San_Juan'}).`
+    }
   }
 
   if (pendingLunch && (!dinnerEnabled || !dinnerMenuEnabled || !selectedTurns.dinner)) {

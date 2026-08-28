@@ -34,7 +34,6 @@ const baseArgs = (overrides = {}) => ({
   calculateTotal: () => 1,
   _calculateTotalDinner: () => 0,
   companyConfig: { slug: 'genneia', name: 'Genneia' },
-  isOutsideWindow: () => false,
   selectedDinnerDate: null,
   ...overrides
 })
@@ -89,6 +88,28 @@ describe('order validation', () => {
     }))
 
     expect(result.error).toBe('No pudimos validar tu nombre. Completá tu nombre real en el perfil antes de enviar el pedido.')
+  })
+
+  it('blocks submission while schedule context is loading', () => {
+    const result = validateOrderSubmission(baseArgs({
+      orderSchedule: { loading: true }
+    }))
+
+    expect(result.error).toBe('Estamos validando el horario de pedidos. Intentá nuevamente en unos segundos.')
+  })
+
+  it('blocks submission when schedule context is closed', () => {
+    const result = validateOrderSubmission(baseArgs({
+      orderSchedule: {
+        loading: false,
+        isOpen: false,
+        opensAt: '06:00',
+        closesAt: '14:00',
+        timezone: 'America/Argentina/San_Juan'
+      }
+    }))
+
+    expect(result.error).toBe('Pedidos cerrados. Horario de tu sede: 06:00-14:00 (America/Argentina/San_Juan).')
   })
 
   it('allows option 5 salad as the only lunch item', () => {

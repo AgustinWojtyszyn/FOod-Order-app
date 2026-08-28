@@ -19,12 +19,12 @@ import { useOrderTotals } from './useOrderTotals'
 import { useOrderFormEffects } from './useOrderFormEffects'
 import { useOrderFormState } from './useOrderFormState'
 import { useOrderSelectionsState } from './useOrderSelectionsState'
+import { useOrderSchedule } from './useOrderSchedule'
 import { normalizeGenneiaOptionSections } from '../../utils/order/genneiaOptionSections'
 import { getTomorrowISOInTimeZone } from '../../utils/dateUtils'
 import {
   isBeverageOrDessertOption,
-  isDinnerOverrideValue,
-  isOutsideWindow
+  isDinnerOverrideValue
 } from '../../utils/order/orderBusinessRules'
 import { clearDinnerOverrideResponses as clearDinnerOverrideResponsesPure } from '../../utils/order/orderDinnerOverride'
 
@@ -74,6 +74,8 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
     requiresAuthorizedLocations,
     deliveryLocationsByLocation
   } = useOrderCompany()
+
+  const schedule = useOrderSchedule({ location: formData.location })
 
   const { isGenneiaPostreDay } = useGenneiaPostreDay({
     isGenneia: hasFruitDessertRules,
@@ -320,7 +322,7 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
     calculateTotal,
     calculateTotalDinner,
     companyConfig,
-    isOutsideWindow,
+    orderSchedule: schedule,
     setSelectedTurns,
     setSuccess,
     navigate,
@@ -398,6 +400,7 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
     submit: {
       ...submit,
       hasAnySelectedItems
-    }
+    },
+    schedule
   }
 }

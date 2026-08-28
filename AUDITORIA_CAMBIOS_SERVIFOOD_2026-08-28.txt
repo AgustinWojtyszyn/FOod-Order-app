@@ -1,0 +1,1027 @@
+AUDITORIA COMPLETA DE CAMBIOS - SERVIFOOD
+Fecha de auditoria: 2026-08-28 10:50:17 -03
+Repositorio: /home/aggustin/.vscode/food-order-app
+
+Resumen ejecutivo
+=================
+
+Se implementaron dos bloques de cambios:
+
+1. Soporte para empresa Igarreta:
+   - Nueva empresa: Igarreta Maquinas SA.
+   - Slug: igarreta.
+   - Usa menu base de La Laja.
+   - Solo muestra hasta opcion 4.
+   - La opcion 4 queda normalizada como "Ensalada del dia".
+   - Permite elegir fruta o postre como respuesta personalizada.
+   - En dias sin postre habilitado, fruta permanece disponible.
+   - El remito se numera con rango propio.
+
+2. Nueva regla de horarios de pedidos por sede:
+   - SQL queda como source of truth.
+   - Flujo standard: 06:00 inclusive a 14:00 exclusive.
+   - Flujo extended: 09:00 inclusive a 22:00 exclusive.
+   - Timezone de negocio: America/Argentina/San_Juan.
+   - Igarreta queda en flujo standard por default.
+   - Sedes extendidas por override: La Laja, Los Berros, Padre Bueno, Ccp, Administracion ServiFood.
+   - Frontend consume el contexto de horario desde RPC.
+   - Backend valida pedidos normales en create_order_idempotent.
+   - No se modificaron los flujos de reporte, autoarchivo ni pedidos extra admin.
+
+
+Auditoria previa solicitada
+===========================
+
+1. Calculo actual abierto/cerrado antes del cambio
+--------------------------------------------------
+
+Antes del cambio habia validacion local duplicada:
+
+- src/constants/orderRules.js:
+  - ORDER_START_HOUR = 9
+  - ORDER_CUTOFF_HOUR = 22
+  - ORDER_TIMEZONE = America/Argentina/Buenos_Aires
+
+- src/utils/order/orderBusinessRules.js:
+  - isOutsideWindow() calculaba hora local en frontend y cerraba si hora < 9 o >= 22.
+
+- supabase/migrations/20260818130000_normal_order_company_snapshot.sql:
+  - create_order_idempotent tambien validaba 9 a 22 en backend.
+
+Problema detectado:
+- La regla estaba duplicada y era unica para todas las sedes.
+- Igarreta no podia tener horario standard sin cambiar reglas globales.
+
+
+2. Countdown antes del cambio
+-----------------------------
+
+Antes del cambio:
+
+- src/hooks/dashboard/useDashboardCountdown.js tenia constantes internas:
+  - ORDER_START_HOUR = 9
+  - ORDER_CUTOFF_HOUR = 22
+  - ORDER_TIMEZONE = America/Argentina/Buenos_Aires
+
+Actualizaba cada segundo y no consumia backend.
+
+Problema detectado:
+- Countdown podia divergir del backend.
+- No distinguia sede standard vs extended.
+
+
+3. Boton confirmar antes del cambio
+-----------------------------------
+
+Antes del cambio, el boton en src/components/OrderForm.jsx se deshabilitaba por:
+
+- loading
+- submitting
+- sin items seleccionados
+- pedido pendiente existente
+
+No se deshabilitaba por contexto horario de backend.
+La validacion horaria ocurria luego en validateOrderSubmission con isOutsideWindow().
+
+
+4. Ruta real de creacion de pedido normal
+-----------------------------------------
+
+Ruta auditada:
+
+- src/components/OrderForm.jsx
+- src/hooks/orderForm/useOrderFlowController.js
+- src/hooks/useOrderSubmit.js
+- src/utils/order/orderValidation.js
+- src/utils/order/orderSubmit.js
+- src/services/orders/ordersService.js
+- Supabase RPC: create_order_idempotent
+
+Conclusiones:
+- La ruta normal usa RPC canonical create_order_idempotent.
+- Por eso la validacion backend se puso en ese RPC, no en trigger global.
+
+
+5. Validacion backend antes del cambio
+--------------------------------------
+
+Antes del cambio, create_order_idempotent validaba:
+
+- timezone Buenos Aires
+- hora menor a 9 o mayor/igual a 22 => order_window_closed
+
+Problema detectado:
+- No era configurable por sede.
+- No aceptaba timestamp explicito para test.
+
+
+6. Determinacion de empresa/sede
+--------------------------------
+
+Frontend:
+
+- src/hooks/orderForm/useOrderCompany.js resuelve empresa desde ruta/search/localStorage/catalogo.
+- src/constants/companyConfig.js define slug, nombre, locations y optionsSourceSlug.
+- Para Igarreta:
+  - slug: igarreta
+  - name/location: Igarreta Maquinas SA
+  - optionsSourceSlug: laja
+
+Backend:
+
+- create_order_idempotent recibe p_payload->>'location'.
+- Busca order_locations por display_name, code o slug.
+- Resuelve snapshot de empresa con resolve_order_company_snapshot.
+
+Campo canonico elegido para horario:
+- location enviada en el payload.
+- Si existe order_locations, despues se persiste display_name canonico.
+
+
+7. Campo canonico para schedule
+-------------------------------
+
+Se eligio p_location text en get_order_schedule_context().
+Ese valor se normaliza con normalize_order_schedule_location_key().
+
+Razon:
+- Es el dato que ya llega a create_order_idempotent.
+- Evita obligar a migrar todo el frontend a ids internos para este cambio.
+- Permite usar display_name, slug o variantes normalizadas.
+
+
+8. Normalizacion
+----------------
+
+Nueva funcion SQL:
+
+- public.normalize_order_schedule_location_key(p_value text)
+
+Normaliza:
+- trim
+- lowercase
+- acentos basicos
+- caracteres no alfanumericos a "_"
+- trim de "_" extremos
+
+Ejemplos esperados:
+- "La Laja" => la_laja
+- "Los Berros" => los_berros
+- "Padre Bueno" => padre_bueno
+- "Ccp" => ccp
+- "Administracion ServiFood" / "Administración ServiFood" => administracion_servifood
+- "Igarreta Maquinas SA" => igarreta_maquinas_sa
+
+
+9. Valores exactos auditados
+----------------------------
+
+Sedes extended:
+
+- La Laja
+- Los Berros
+- Padre Bueno
+- Ccp
+- Administración ServiFood
+
+Igarreta:
+
+- Igarreta Maquinas SA
+- No tiene override.
+- Usa flujo standard por default.
+
+
+10. Reporte diario y autoarchivo
+--------------------------------
+
+Se audito que los flujos existentes son independientes:
+
+- supabase/functions/daily-orders-report/index.ts
+- supabase/functions/_shared/daily_report.test.ts
+- supabase/migrations/20260819110000_reconcile_and_archive_daily_report_orders.sql
+
+Decision:
+- No se modificaron.
+- La nueva migracion no redefine create_admin_extra_order.
+- La nueva migracion no redefine archive_orders_after_daily_report.
+- La nueva migracion no redefine daily-orders-report.
+
+
+Cambios SQL
+===========
+
+Archivo nuevo:
+- supabase/migrations/20260828130000_order_schedule_flows.sql
+
+Contenido principal:
+
+1. Tabla public.order_schedule_flows:
+   - flow text primary key
+   - opens_at time
+   - closes_at time
+   - timezone text
+   - is_default boolean
+
+2. Indice:
+   - order_schedule_flows_single_default_idx
+   - Garantiza un unico default.
+
+3. Tabla public.order_schedule_location_overrides:
+   - location_key text primary key
+   - flow text
+   - label text
+
+4. Funcion public.normalize_order_schedule_location_key(p_value text):
+   - Normalizacion para lookup de sede.
+
+5. Seeds:
+   - standard: 06:00:00 - 14:00:00, America/Argentina/San_Juan, default true
+   - extended: 09:00:00 - 22:00:00, America/Argentina/San_Juan, default false
+
+6. Overrides extendidos:
+   - La Laja
+   - Los Berros
+   - Padre Bueno
+   - Ccp
+   - Administración ServiFood
+
+7. Funcion public.get_order_schedule_context(p_location text, p_at timestamptz default now()):
+   - Retorna:
+     - flow
+     - timezone
+     - opens_at
+     - closes_at
+     - is_open
+     - state
+     - next_transition_at
+   - Usa p_at para test.
+   - Apertura inclusiva: local_time >= opens_at.
+   - Cierre exclusivo: local_time < closes_at.
+   - Estados:
+     - before_open
+     - open
+     - after_close
+
+8. Funcion public.resolve_company_location(p_company_slug text):
+   - Se actualizo para contemplar empresas actuales:
+     - laja
+     - ccp
+     - padrebueno
+     - losberros
+     - genneia
+     - distro_cuyo
+     - epse
+     - greif
+     - placo
+     - molinos
+     - igarreta
+     - administracion_servifood
+
+9. Funcion public.get_user_company_switch_context():
+   - Ahora usa America/Argentina/San_Juan.
+   - Devuelve order_schedule con el contexto del RPC nuevo.
+   - within_order_window sale del schedule.
+
+10. Funcion public.change_active_company_for_today():
+    - Ahora valida contra get_order_schedule_context(v_new_location, now()).
+    - Mantiene limite de 2 cambios por dia.
+    - Mantiene bloqueo outside_order_window si la sede destino esta cerrada.
+
+11. Funcion public.create_order_idempotent():
+    - Mantiene la logica de usuario, idempotencia, locacion, autorizacion, company snapshot, duplicados y servicio.
+    - Reemplaza la validacion fija 9-22 por:
+      get_order_schedule_context(v_requested_location, now())
+    - Si no esta abierto:
+      raise exception 'ORDER_WINDOW_CLOSED'
+
+Archivo nuevo de diagnostico:
+- supabase/diagnostics/20260828130000_order_schedule_validation.sql
+
+Consultas incluidas:
+- Igarreta a las 06:00 => abierto.
+- Igarreta a las 14:00 => cerrado.
+- La Laja a las 09:00 => abierto.
+- La Laja a las 22:00 => cerrado.
+- listado de overrides.
+- listado de flows configurados.
+
+
+Cambios frontend - horario
+==========================
+
+Archivo nuevo:
+- src/utils/order/orderSchedule.js
+
+Funciones agregadas:
+- DEFAULT_SCHEDULE_CONTEXT
+- normalizeContext()
+- formatScheduleRange()
+- formatDuration()
+- getScheduleCountdown()
+- getDevScheduleAt()
+
+Notas:
+- DEFAULT usa standard 06:00-14:00 en America/Argentina/San_Juan.
+- getDevScheduleAt() solo lee query param orderScheduleAt si import.meta.env.DEV.
+- No se agrego selector productivo.
+- No se usa localStorage para simular hora.
+
+
+Archivo nuevo:
+- src/hooks/orderForm/useOrderSchedule.js
+
+Responsabilidad:
+- Llamar a db.getOrderScheduleContext({ location, at }).
+- Guardar context/loading/error.
+- Refrescar cada minuto.
+- Programar refresh inmediato despues de next_transition_at.
+- Limpiar interval y timeout al desmontar/cambiar dependencias.
+
+Control de timers:
+- intervalRef para refresco por minuto.
+- timeoutRef para borde horario.
+- clearTimers() centraliza limpieza.
+
+
+Archivo modificado:
+- src/supabaseClient.js
+
+Metodo agregado a db:
+- getOrderScheduleContext({ location, at })
+
+RPC llamada:
+- get_order_schedule_context
+
+Parametros:
+- p_location
+- p_at
+
+
+Archivo modificado:
+- src/hooks/dashboard/useDashboardCountdown.js
+
+Antes:
+- Calculaba 09-22 en frontend con constantes locales.
+- Actualizaba cada segundo.
+
+Ahora:
+- Consume useOrderSchedule({ location }).
+- Retorna countdownLabel, countdownValue, countdownTone y schedule.
+
+
+Archivo modificado:
+- src/components/Dashboard.jsx
+
+Cambios:
+- Pasa companySwitchContext.current_location a useDashboardCountdown().
+- Pasa schedule al DashboardHeader.
+- El boton "Cambiar empresa" usa schedule.loading y schedule.isOpen.
+- Mensajes de bloqueo usan el schedule vivo.
+
+
+Archivo modificado:
+- src/components/dashboard/DashboardHeader.jsx
+
+Cambios:
+- Recibe schedule.
+- Reemplaza texto fijo "Horario pedidos: 09:00 a 22:00".
+- Muestra:
+  - statusLabel
+  - scheduleRange
+  - countdownLabel/countdownValue
+
+
+Archivo modificado:
+- src/hooks/orderForm/useOrderFlowController.js
+
+Cambios:
+- Importa useOrderSchedule.
+- Instancia schedule con formData.location.
+- Pasa orderSchedule al hook useOrderSubmit.
+- Expone schedule en el controller.
+- Elimina uso de isOutsideWindow.
+
+
+Archivo modificado:
+- src/hooks/useOrderSubmit.js
+
+Cambios:
+- Recibe orderSchedule.
+- Lo pasa a validateOrderSubmission().
+- Ya no recibe isOutsideWindow.
+
+
+Archivo modificado:
+- src/utils/order/orderValidation.js
+
+Cambios:
+- Recibe orderSchedule.
+- Si orderSchedule.loading:
+  - bloquea con "Estamos validando el horario de pedidos..."
+- Si orderSchedule existe y !isOpen:
+  - bloquea con "Pedidos cerrados. Horario de tu sede: ..."
+- Elimina dependencia del calculo local isOutsideWindow.
+
+
+Archivo modificado:
+- src/components/OrderForm.jsx
+
+Cambios:
+- Calcula scheduleBlocksSubmit.
+- Deshabilita confirmar si:
+  - loading
+  - submitting
+  - no hay items
+  - ya tiene pedido pendiente
+  - schedule esta cargando
+  - schedule esta cerrado
+- Texto del boton:
+  - "Validando horario..." mientras carga.
+  - "Pedidos cerrados" si esta cerrado.
+
+
+Archivo modificado:
+- src/components/order-form/OrderHoursBanner.jsx
+
+Cambios:
+- Recibe schedule.
+- Muestra rango dinamico.
+- Muestra timezone dinamico.
+- Muestra estado y countdown dinamico.
+- Ya no muestra Buenos Aires ni 09-22 fijo.
+
+
+Archivo modificado:
+- src/utils/order/orderBusinessRules.js
+
+Cambios:
+- Se elimino isOutsideWindow().
+- Se elimino dependencia de ORDER_START_HOUR, ORDER_CUTOFF_HOUR y ORDER_TIMEZONE para pedidos normales.
+
+
+Archivo modificado:
+- src/utils/order/orderSubmit.js
+
+Cambios:
+- Mapea error ORDER_WINDOW_CLOSED/order_window_closed a mensaje de usuario:
+  "Pedidos cerrados para tu sede. Revisa el horario indicado e intenta dentro de la ventana habilitada."
+
+
+Archivo modificado:
+- src/constants/orderRules.js
+
+Cambios:
+- ORDER_TIMEZONE pasa de America/Argentina/Buenos_Aires a America/Argentina/San_Juan.
+
+Nota:
+- ORDER_START_HOUR y ORDER_CUTOFF_HOUR quedan porque los usa AdminExtraOrderModal para el flujo de extras/admin.
+- Ese flujo no se reestructuro por pedido explicito de no modificar reportes/autoarchivo/extras.
+
+
+Archivo modificado:
+- src/hooks/dashboard/useDashboardDerived.js
+
+Cambios:
+- El calculo de "Se entrega hoy/manana" usa America/Argentina/San_Juan.
+
+
+Cambios Igarreta - fruta/postre y remitos
+=========================================
+
+Archivos ya actualizados para Igarreta:
+
+- src/constants/companyConfig.js
+  - Agrega empresa igarreta.
+  - name/location: Igarreta Maquinas SA.
+  - optionsSourceSlug: laja.
+
+- src/utils/order/menuDisplay.js
+  - Normaliza opciones de Igarreta.
+  - Opcion 4 como "Ensalada del dia".
+  - Oculta opciones mayores a 4.
+
+- src/utils/order/companySpecialRules.js
+  - Agrega igarreta a FRUIT_DESSERT_CHOICE_COMPANIES.
+  - Igarreta tiene reglas de fruta/postre.
+  - Igarreta no queda dentro de reglas Genneia-only.
+
+- src/hooks/orderForm/useOrderCompany.js
+  - Expone hasFruitDessertRules.
+
+- src/hooks/orderForm/useOrderFlowController.js
+  - Usa hasFruitDessertRules para postre/fruta.
+  - Mantiene hasGenneiaRules solo para reglas Genneia reales.
+
+- src/hooks/useOrderBootstrap.js
+  - Si empresa con fruta/postre no trae esas opciones desde su source, toma fallback desde Genneia.
+  - Marca la opcion como requerida.
+  - No trae bebidas como fallback para Igarreta.
+
+- src/utils/order/orderValidation.js
+  - Igarreta requiere elegir una opcion fruta/postre.
+  - La eleccion se persiste como custom_response.
+
+- src/components/daily/AdminExtraOrderModal.jsx
+  - Aplica fallback fruta/postre para carga extra admin cuando corresponde.
+
+- supabase/migrations/20260828120000_add_igarreta_company.sql
+  - Registra Igarreta.
+  - Define rango de remito 110000-119999.
+
+- .gitignore
+  - Referencia explicita al SQL de Igarreta.
+  - Referencia explicita al SQL de horarios.
+
+
+Pruebas agregadas o actualizadas
+================================
+
+Archivos de prueba:
+
+- src/utils/order/orderSchedule.test.js
+  - Normalizacion de shape SQL.
+  - Formato de rangos.
+  - Countdown before_open.
+  - Countdown open cerca del cierre.
+  - Countdown after_close.
+
+- src/utils/order/orderValidation.test.js
+  - Bloquea mientras schedule carga.
+  - Bloquea si schedule esta cerrado.
+  - Mantiene tests de Igarreta fruta/postre.
+
+- supabase/migrations/order_schedule_flows.test.js
+  - Verifica flows standard/extended.
+  - Verifica timezone San Juan.
+  - Verifica overrides extendidos.
+  - Verifica que Igarreta no tenga override extended.
+  - Verifica firma p_at.
+  - Verifica apertura inclusiva y cierre exclusivo.
+  - Verifica que create_order_idempotent use el schedule.
+  - Verifica que no redefina reportes/admin extras.
+  - Verifica referencia en .gitignore.
+
+
+Validaciones ejecutadas
+=======================
+
+1. Tests enfocados:
+
+Comando:
+npm test -- src/utils/order/orderSchedule.test.js src/utils/order/orderValidation.test.js supabase/migrations/order_schedule_flows.test.js src/utils/order/companySpecialRules.test.js src/constants/companyConfig.test.js src/utils/order/menuDisplay.test.js src/utils/order/orderPayload.test.js supabase/migrations/admin_extra_orders.test.js
+
+Resultado:
+- 8 archivos OK.
+- 88 tests OK.
+
+
+2. Suite completa:
+
+Comando:
+npm test
+
+Resultado:
+- 51 archivos OK.
+- 401 tests OK.
+
+
+3. Lint:
+
+Comando:
+npm run lint
+
+Resultado:
+- 0 errores.
+- 4 warnings existentes:
+  - src/components/analytics/TrendsCharts.jsx
+  - src/components/daily/DailyRemitosPanel.jsx
+
+Tipo de warning:
+- react-refresh/only-export-components
+
+No fueron introducidos por este cambio.
+
+
+4. Build:
+
+Comando:
+npm run build
+
+Resultado:
+- Build OK.
+
+Warnings existentes:
+- Browserslist/caniuse-lite desactualizado.
+- clearSupabaseStorage importado dinamica y estaticamente.
+- chunks mayores a 1000 kB.
+
+
+5. Supabase local:
+
+Comando:
+supabase status
+
+Resultado:
+- DB local disponible en 127.0.0.1:54322.
+- Algunos servicios estaban detenidos:
+  - supabase_imgproxy_food-order-app
+  - supabase_edge_runtime_food-order-app
+  - supabase_pooler_food-order-app
+
+
+6. Aplicacion de migracion local:
+
+Comando:
+docker cp supabase/migrations/20260828130000_order_schedule_flows.sql supabase_db_food-order-app:/tmp/order_schedule_flows.sql
+docker exec supabase_db_food-order-app psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/order_schedule_flows.sql
+
+Resultado:
+- BEGIN
+- CREATE TABLE
+- CREATE INDEX
+- CREATE FUNCTION
+- INSERT 0 2
+- INSERT 0 5
+- REVOKE/GRANT OK
+- NOTIFY
+- COMMIT
+
+Conclusion:
+- La migracion aplica correctamente en DB local.
+
+
+7. Diagnostico SQL local:
+
+Comando:
+docker cp supabase/diagnostics/20260828130000_order_schedule_validation.sql supabase_db_food-order-app:/tmp/order_schedule_validation.sql
+docker exec supabase_db_food-order-app psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/order_schedule_validation.sql
+
+Resultados principales:
+
+- Igarreta a 2026-08-28 06:00:00-03:
+  - flow: standard
+  - opens_at: 06:00
+  - closes_at: 14:00
+  - is_open: true
+  - state: open
+
+- Igarreta a 2026-08-28 14:00:00-03:
+  - flow: standard
+  - opens_at: 06:00
+  - closes_at: 14:00
+  - is_open: false
+  - state: after_close
+
+- La Laja a 2026-08-28 09:00:00-03:
+  - flow: extended
+  - opens_at: 09:00
+  - closes_at: 22:00
+  - is_open: true
+  - state: open
+
+- La Laja a 2026-08-28 22:00:00-03:
+  - flow: extended
+  - opens_at: 09:00
+  - closes_at: 22:00
+  - is_open: false
+  - state: after_close
+
+- Overrides existentes:
+  - administracion_servifood
+  - ccp
+  - la_laja
+  - los_berros
+  - padre_bueno
+
+- Flows:
+  - standard 06:00:00-14:00:00 default true
+  - extended 09:00:00-22:00:00 default false
+
+
+Busqueda de duplicados y restos
+===============================
+
+Busqueda realizada:
+- 09:00
+- 22:00
+- 06:00
+- 14:00
+- ORDER_START_HOUR
+- ORDER_CUTOFF_HOUR
+- ORDER_TIMEZONE
+- isOutsideWindow
+- order_window_closed
+- ORDER_WINDOW_CLOSED
+- America/Argentina/Buenos_Aires
+
+Resultado para pedidos normales:
+- No queda isOutsideWindow en el flujo normal.
+- No queda mensaje fijo "Pedidos disponibles de 09:00 a 22:00" en el formulario normal.
+- No queda "Horario pedidos: 09:00 a 22:00" en dashboard normal.
+
+Restos esperados no modificados:
+
+- Migraciones historicas:
+  - Conservan definiciones pasadas por trazabilidad.
+
+- Admin extras / late extras:
+  - Mantienen reglas propias.
+  - Se dejaron intactos por pedido explicito.
+
+- Cafeteria:
+  - Mantiene timezone Buenos Aires propio.
+  - Fuera del alcance de pedidos ServiFood normales.
+
+- Historial/export de late admin extras:
+  - Mantiene Buenos Aires.
+  - Fuera del alcance de pedidos normales y ligado a reportes/extras.
+
+
+Riesgos residuales
+==================
+
+1. Migraciones historicas
+-------------------------
+
+Hay migraciones anteriores que contienen validacion vieja 9-22.
+Esto es normal porque no se editan migraciones historicas.
+La migracion nueva redefine create_order_idempotent y debe ser la ultima aplicada para que gane la version nueva.
+
+
+2. Dependencia de location textual
+----------------------------------
+
+get_order_schedule_context usa p_location textual normalizado.
+Esto es compatible con el flujo actual, pero si en el futuro se agregan sedes con nombres parecidos, convendria migrar a location_id o slug canonico.
+
+
+3. Fallback frontend
+--------------------
+
+Si la llamada al RPC falla, useOrderSchedule cae a DEFAULT_SCHEDULE_CONTEXT cerrado/default.
+Esto evita permitir pedidos sin validacion horaria, pero puede bloquear temporalmente si el backend esta caido.
+
+
+4. Cambio de empresa
+--------------------
+
+change_active_company_for_today ahora valida horario de la sede destino.
+Eso preserva la semantica de "dentro del horario de pedidos" por sede, pero puede cambiar el comportamiento de usuarios que antes podian cambiar empresa hasta 22:00 aunque la nueva sede ahora sea standard y cierre 14:00.
+
+
+5. Servicios admin parciales
+----------------------------
+
+supabase status mostro algunos servicios detenidos.
+La DB local estaba disponible y se valido SQL alli.
+No se probaron Edge Functions end-to-end porque edge_runtime estaba detenido.
+
+
+Archivos modificados o agregados
+================================
+
+Modificados:
+
+- .gitignore
+- src/components/Dashboard.jsx
+- src/components/OrderForm.jsx
+- src/components/dashboard/DashboardHeader.jsx
+- src/components/order-form/OrderHoursBanner.jsx
+- src/constants/orderRules.js
+- src/hooks/dashboard/useDashboardCountdown.js
+- src/hooks/dashboard/useDashboardDerived.js
+- src/hooks/orderForm/useOrderFlowController.js
+- src/hooks/useOrderSubmit.js
+- src/supabaseClient.js
+- src/utils/order/orderBusinessRules.js
+- src/utils/order/orderSubmit.js
+- src/utils/order/orderValidation.js
+- src/utils/order/orderValidation.test.js
+
+Agregados:
+
+- src/hooks/orderForm/useOrderSchedule.js
+- src/utils/order/orderSchedule.js
+- src/utils/order/orderSchedule.test.js
+- supabase/diagnostics/20260828130000_order_schedule_validation.sql
+- supabase/migrations/20260828130000_order_schedule_flows.sql
+- supabase/migrations/order_schedule_flows.test.js
+
+Archivos relacionados con Igarreta ya presentes en el workspace:
+
+- src/constants/companyConfig.js
+- src/utils/order/menuDisplay.js
+- src/utils/order/companySpecialRules.js
+- src/hooks/orderForm/useOrderCompany.js
+- src/hooks/useOrderBootstrap.js
+- src/components/daily/AdminExtraOrderModal.jsx
+- supabase/migrations/20260828120000_add_igarreta_company.sql
+- src/constants/companyConfig.test.js
+- src/utils/order/companySpecialRules.test.js
+- src/utils/order/menuDisplay.test.js
+- src/utils/order/orderPayload.test.js
+- supabase/migrations/admin_extra_orders.test.js
+
+
+Conclusion
+==========
+
+El cambio deja el horario de pedidos normales controlado por SQL, con dos flujos configurables y overrides solo para sedes extendidas.
+Igarreta queda correctamente en horario standard 06:00-14:00 y mantiene la regla de fruta/postre requerida.
+El frontend ya no decide la ventana normal por constantes locales, sino por get_order_schedule_context.
+El backend bloquea en create_order_idempotent, que es el punto mas bajo seguro para pedidos normales sin afectar extras admin, importaciones, remitos, reportes ni autoarchivo.
+
+ANEXO - CORRECCION POR BLOCKER DE TRIGGER EN PRODUCCION
+=======================================================
+
+Fecha del anexo: 2026-08-28 11:04:45 -03
+
+Blocker detectado fuera del repo
+--------------------------------
+
+La auditoria directa de produccion detecto un trigger activo que no estaba definido en las migraciones historicas presentes en el repo:
+
+- Trigger: public.enforce_order_time_limit
+- Tabla: public.orders
+- Timing: BEFORE INSERT
+- Funcion: public.check_order_time_limit()
+
+Riesgo:
+- Aunque create_order_idempotent delegara correctamente en get_order_schedule_context(), el INSERT podia ser rechazado por el trigger viejo entre 06:00 y 09:00 para sedes standard.
+
+
+Correccion quirurgica aplicada
+------------------------------
+
+Archivo corregido:
+- supabase/migrations/20260828130000_order_schedule_flows.sql
+
+Cambios:
+
+1. Se redefinio public.check_order_time_limit().
+
+2. Se mantuvo exactamente el bypass existente:
+
+   if lower(coalesce(NEW.order_origin, 'user')) = 'admin_extra' then
+     return NEW;
+   end if;
+
+3. Para pedidos normales, se elimino la regla hardcodeada 09-22.
+
+4. La funcion del trigger ahora delega en:
+
+   public.get_order_schedule_context(v_location, v_at)
+
+5. No se crea un segundo trigger en la migracion.
+   El trigger existente enforce_order_time_limit puede permanecer y queda apuntando a la funcion redefinida.
+
+6. La funcion usa locacion solicitante/origen:
+   - NEW.order_location_id si existe.
+   - NEW.location.
+   - NEW.requesting_location_code.
+
+7. La funcion no usa delivery_location para decidir horario.
+
+8. Se agrego soporte de test por setting de sesion:
+
+   app.order_schedule_test_at
+
+   Esto no agrega selector productivo ni localStorage; solo permite validar la funcion en SQL con timestamps exactos.
+
+
+Correccion de resolucion canonica de sede
+-----------------------------------------
+
+get_order_schedule_context() ya no depende solo de normalizar el string recibido.
+
+Ahora primero intenta resolver contra public.order_locations usando:
+
+- display_name
+- code
+- slug
+
+Si encuentra una locacion activa, usa display_name como clave canonica para el schedule.
+Si no encuentra match, cae al string normalizado como fallback.
+
+Casos cubiertos:
+
+- La Laja por display_name/slug/code => extended.
+- Los Berros por display_name/slug/code => extended.
+- Padre Bueno por display_name/slug/code => extended.
+- Ccp por display_name/slug/code => extended.
+- Administracion ServiFood por display_name/slug/code => extended.
+- Igarreta Maquinas SA por display_name/slug/code => standard.
+
+
+Diagnostico SQL real agregado
+-----------------------------
+
+Archivo:
+- supabase/diagnostics/20260828130000_order_schedule_validation.sql
+
+El diagnostico:
+- Corre dentro de BEGIN/ROLLBACK.
+- Inserta organizaciones/locaciones de prueba si faltan en local.
+- Crea temporalmente enforce_order_time_limit solo si la DB local no lo tiene, y se revierte con ROLLBACK.
+- Inserta pedidos reales para probar el trigger.
+- Crea usuarios/autorizaciones temporales para no chocar con otros guards.
+
+
+Resultados del diagnostico local
+--------------------------------
+
+STANDARD, Igarreta Maquinas SA:
+
+- 05:59 => cerrado, error ORDER_WINDOW_CLOSED.
+- 06:00 => abierto.
+- 08:59 => abierto.
+- 09:00 => abierto.
+- 13:59 => abierto.
+- 14:00 => cerrado, error ORDER_WINDOW_CLOSED.
+
+EXTENDED, La Laja:
+
+- 08:59 => cerrado, error ORDER_WINDOW_CLOSED.
+- 09:00 => abierto.
+- 13:59 => abierto.
+- 14:00 => abierto.
+- 21:59 => abierto.
+- 22:00 => cerrado, error ORDER_WINDOW_CLOSED.
+
+Bypass admin_extra:
+
+- admin_extra a 05:59 en Igarreta => abierto por bypass.
+
+Uso de locacion origen, no delivery_location:
+
+- location Igarreta, delivery_location La Laja, 08:59 => abierto.
+- location Igarreta, delivery_location La Laja, 14:00 => cerrado.
+
+Resolucion display_name/slug/code:
+
+- Administracion ServiFood: extended / extended / extended.
+- Ccp: extended / extended / extended.
+- Igarreta Maquinas SA: standard / standard / standard.
+- La Laja: extended / extended / extended.
+- Los Berros: extended / extended / extended.
+- Padre Bueno: extended / extended / extended.
+
+Conteo de trigger durante diagnostico:
+
+- enforce_order_time_limit_count = 1.
+
+Nota local:
+- trigger_existed_before = false en la DB local luego del reset parcial fallido.
+- El diagnostico lo creo dentro de la transaccion rollback solo para poder probar el comportamiento real del trigger.
+- En produccion, donde el trigger ya existe, no se crea otro trigger: la migracion solo redefine la funcion.
+
+
+Reset local
+-----------
+
+Comando ejecutado:
+
+supabase db reset --local
+
+Resultado:
+- Fallo en una migracion historica previa:
+  20260731193000_company_remito_number_ranges.sql
+- Error:
+  companies_remito_start_positive violado por datos historicos.
+
+Decision:
+- No se editaron migraciones historicas.
+- Se aplico la migracion nueva manualmente sobre la DB local disponible y se ejecuto el diagnostico SQL real.
+
+
+Busqueda final de reglas legacy activas
+---------------------------------------
+
+Busqueda en archivos:
+- check_order_time_limit
+- enforce_order_time_limit
+- 09:00
+- 22:00
+- America/Argentina/Buenos_Aires
+- order_window_closed
+
+Resultado:
+- Persisten apariciones en migraciones historicas, diagnosticos historicos, daily reports, late admin extras, remitos y cafeteria.
+- Esas apariciones son aceptables o fuera de alcance.
+
+Busqueda en funciones activas de la DB local:
+
+Patrones:
+- "Pedidos disponibles de 09:00"
+- "America/Argentina/Buenos_Aires"
+- "hour < 9"
+- "hour >= 22"
+- "order_window_closed"
+
+Resultado:
+- 0 funciones publicas activas encontradas con esas reglas legacy.
+
+Confirmacion:
+- create_order_idempotent delega en get_order_schedule_context.
+- check_order_time_limit delega en get_order_schedule_context.
+- No se modificaron cron, daily-orders-report, archive_orders_after_daily_report, create_admin_extra_order ni create_late_admin_extra_order.

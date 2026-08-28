@@ -140,6 +140,13 @@ const submitOrders = async ({
           forceLunchOnly: false
         }
       }
+      if (msg.toLowerCase().includes('order_window_closed')) {
+        return {
+          ok: false,
+          errorMessage: 'Pedidos cerrados para tu sede. Revisá el horario indicado e intentá dentro de la ventana habilitada.',
+          forceLunchOnly: false
+        }
+      }
       if (msg.includes('dinner') || msg.toLowerCase().includes('service') || msg.includes('feature')) {
         return {
           ok: false,

@@ -215,6 +215,14 @@ export const db = {
   ...usersService,
   ...analyticsService,
 
+  getOrderScheduleContext: async ({ location = '', at = null } = {}) => {
+    const { data, error } = await supabase.rpc('get_order_schedule_context', {
+      p_location: location || null,
+      p_at: at || null
+    })
+    return { data: Array.isArray(data) ? (data[0] || null) : data, error }
+  },
+
   getCompaniesRemitoConfig: async () => {
     const { data, error } = await supabase.rpc('get_companies_remito_config')
     return { data, error }
