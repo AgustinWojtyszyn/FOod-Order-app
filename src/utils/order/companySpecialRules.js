@@ -2,6 +2,7 @@ import { getTomorrowISOInTimeZone } from '../dateUtils'
 
 const GENNEIA_OPTION_RULE_COMPANIES = new Set(['genneia', 'distro_cuyo'])
 const MENU_BEVERAGE_CHOICE_COMPANIES = new Set(['placo'])
+const FRUIT_DESSERT_CHOICE_COMPANIES = new Set(['genneia', 'distro_cuyo', 'igarreta'])
 const POSTRE_DELIVERY_WEEKDAYS = new Set([2, 4])
 
 const normalizeCompanySlug = (value = '') =>
@@ -19,6 +20,13 @@ export const requiresMenuBeverageChoice = (companyOrSlug) => {
     ? companyOrSlug
     : companyOrSlug?.slug
   return MENU_BEVERAGE_CHOICE_COMPANIES.has(normalizeCompanySlug(slug))
+}
+
+export const hasFruitDessertChoiceRules = (companyOrSlug) => {
+  const slug = typeof companyOrSlug === 'string'
+    ? companyOrSlug
+    : companyOrSlug?.slug
+  return FRUIT_DESSERT_CHOICE_COMPANIES.has(normalizeCompanySlug(slug))
 }
 
 export const getMenuBeverageTitle = () => 'Bebidas (solo Genneia)'

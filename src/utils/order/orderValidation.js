@@ -1,7 +1,7 @@
 import { getTomorrowISOInTimeZone } from '../dateUtils'
 import { resolveCustomerName } from './orderCustomerName'
 import { canChooseCustomSide } from './orderCustomSideRules'
-import { getMenuBeverageTitle, hasGenneiaOptionRules, requiresMenuBeverageChoice } from './companySpecialRules'
+import { getMenuBeverageTitle, hasFruitDessertChoiceRules, hasGenneiaOptionRules, requiresMenuBeverageChoice } from './companySpecialRules'
 import { hasHiddenOrderMenuSelection } from './menuDisplay'
 import { isBeverageOption, isBeverageOrDessertOption } from './orderBusinessRules'
 import { isGreifCompany, isGreifRefrigerioMenuItem } from './greifDefaultSnack'
@@ -198,6 +198,7 @@ const validateOrderSubmission = ({
   const selectedItemsList = getSelectedItemsList()
   const selectedItemsListDinner = getSelectedItemsListDinner()
   const isGenneiaCompany = hasGenneiaOptionRules(companyConfig)
+  const hasFruitDessertRules = hasFruitDessertChoiceRules(companyConfig)
   const companySlug = (companyConfig?.slug || '').toString().trim().toLowerCase()
   const isGenneiaSlug = companySlug === 'genneia'
   const needsMenuBeverage = requiresMenuBeverageChoice(companyConfig)
@@ -269,7 +270,7 @@ const validateOrderSubmission = ({
       responses: customResponses,
       isRequiredOption: (opt) => opt.required || isGenneiaPostreOption(opt),
       isSkippedOption: (opt) => isCustomSideOption(opt) && !canChooseCustomSideForSelection,
-      enableDessertChoiceRule: isGenneiaCompany
+      enableDessertChoiceRule: hasFruitDessertRules
     })
 
     if (missingRequiredOptions.length > 0) {
@@ -332,7 +333,7 @@ const validateOrderSubmission = ({
         if (dinnerOverrideChoice && !isBeverageOrDessertOption(opt)) return true
         return isGenneia && isCustomSideOption(opt) && !canChooseCustomSideForDinner
       },
-      enableDessertChoiceRule: isGenneia
+      enableDessertChoiceRule: hasFruitDessertRules
     })
     if (missingRequiredOptionsDinner.length > 0) {
       return { error: `Para cena completa: ${missingRequiredOptionsDinner.join(', ')}` }

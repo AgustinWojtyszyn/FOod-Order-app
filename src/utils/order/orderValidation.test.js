@@ -213,6 +213,49 @@ describe('order validation', () => {
     expect(result.error).toBe('Por favor completa (almuerzo): Bebidas (solo Genneia)')
   })
 
+  it('requires one fruit or dessert choice for Igarreta lunch', () => {
+    const result = validateOrderSubmission(baseArgs({
+      formData: {
+        location: 'Igarreta Maquinas SA',
+        name: '',
+        email: '',
+        phone: '',
+        comments: ''
+      },
+      companyConfig: { slug: 'igarreta', name: 'Igarreta Maquinas SA' },
+      visibleLunchOptions: [
+        { id: 'fruit-dessert', title: 'Fruta o postre', required: true, options: ['Fruta', 'Postre del día'] }
+      ],
+      customResponses: {}
+    }))
+
+    expect(result.error).toBe('Por favor completa (almuerzo): Fruta o postre')
+  })
+
+  it('keeps Igarreta fruit or dessert as a required custom response', () => {
+    const result = validateOrderSubmission(baseArgs({
+      formData: {
+        location: 'Igarreta Maquinas SA',
+        name: '',
+        email: '',
+        phone: '',
+        comments: ''
+      },
+      companyConfig: { slug: 'igarreta', name: 'Igarreta Maquinas SA' },
+      visibleLunchOptions: [
+        { id: 'fruit-dessert', title: 'Fruta o postre', required: true, options: ['Fruta', 'Postre del día'] }
+      ],
+      customResponses: {
+        'fruit-dessert': 'Fruta'
+      }
+    }))
+
+    expect(result.error).toBe('')
+    expect(result.data.customResponsesArray).toEqual([
+      { id: 'fruit-dessert', title: 'Fruta o postre', response: 'Fruta' }
+    ])
+  })
+
   it('keeps Placo beverage as a required custom response', () => {
     const result = validateOrderSubmission(baseArgs({
       formData: {

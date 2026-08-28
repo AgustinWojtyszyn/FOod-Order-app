@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { COMPANY_CATALOG, COMPANY_LIST } from '../../constants/companyConfig'
 import { useAuthContext } from '../../contexts/authContextValue'
 import { db } from '../../supabaseClient'
-import { hasGenneiaOptionRules } from '../../utils/order/companySpecialRules'
+import { hasFruitDessertChoiceRules, hasGenneiaOptionRules } from '../../utils/order/companySpecialRules'
 
 export const useOrderCompany = () => {
   const { companySlug: companySlugParam } = useParams()
@@ -38,6 +38,7 @@ export const useOrderCompany = () => {
 
   const isGenneia = (companyConfig?.slug || rawCompanySlug || '').toLowerCase() === 'genneia'
   const hasGenneiaRules = hasGenneiaOptionRules(companyConfig || rawCompanySlug)
+  const hasFruitDessertRules = hasFruitDessertChoiceRules(companyConfig || rawCompanySlug)
 
   const requiresAuthorizedLocations = Boolean(companyConfig?.requiresAuthorizedLocations)
 
@@ -125,6 +126,7 @@ export const useOrderCompany = () => {
     companyOptionsSlug,
     isGenneia,
     hasGenneiaRules,
+    hasFruitDessertRules,
     locations,
     authorizedLocationRows,
     authorizedLocationsLoading,

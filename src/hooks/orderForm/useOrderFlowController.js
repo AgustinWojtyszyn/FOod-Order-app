@@ -24,7 +24,6 @@ import { getTomorrowISOInTimeZone } from '../../utils/dateUtils'
 import {
   isBeverageOrDessertOption,
   isDinnerOverrideValue,
-  isGenneiaPostreOption,
   isOutsideWindow
 } from '../../utils/order/orderBusinessRules'
 import { clearDinnerOverrideResponses as clearDinnerOverrideResponsesPure } from '../../utils/order/orderDinnerOverride'
@@ -68,6 +67,7 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
     companyOptionsSlug,
     isGenneia,
     hasGenneiaRules,
+    hasFruitDessertRules,
     locations,
     authorizedLocationsLoading,
     authorizedLocationsError,
@@ -76,19 +76,19 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
   } = useOrderCompany()
 
   const { isGenneiaPostreDay } = useGenneiaPostreDay({
-    isGenneia: hasGenneiaRules,
+    isGenneia: hasFruitDessertRules,
     deliveryDate: getTomorrowISOInTimeZone()
   })
 
   const isGenneiaPostreOptionLocal = useCallback((option = {}) => {
-    if (!hasGenneiaRules) return false
+    if (!hasFruitDessertRules) return false
     const title = (option.title || '').toLowerCase()
     const values = Array.isArray(option.options) ? option.options : []
     const hasFrutaChoice = values.some((value) => (value || '').toLowerCase().includes('fruta'))
-    if (title.includes('postre') && hasFrutaChoice) return isGenneiaPostreOption(hasGenneiaRules, option)
+    if (title.includes('postre') && hasFrutaChoice) return title.includes('postre')
     if (isGenneiaPostreDay) return title.includes('postre')
     return title.includes('fruta')
-  }, [hasGenneiaRules, isGenneiaPostreDay])
+  }, [hasFruitDessertRules, isGenneiaPostreDay])
 
   const activeOptions = useMemo(
     () => (customOptionsLunch || []).filter(opt => opt.active),
@@ -96,14 +96,14 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
   )
 
   const visibleLunchOptions = useMemo(
-    () => normalizeGenneiaOptionSections(activeOptions.filter(Boolean), hasGenneiaRules),
-    [activeOptions, hasGenneiaRules]
+    () => normalizeGenneiaOptionSections(activeOptions.filter(Boolean), hasFruitDessertRules),
+    [activeOptions, hasFruitDessertRules]
   )
 
   const visibleDinnerOptions = useMemo(() => {
     if (!dinnerEnabled) return []
-    return normalizeGenneiaOptionSections((customOptionsDinner || []).filter(opt => opt.active), hasGenneiaRules)
-  }, [customOptionsDinner, dinnerEnabled, hasGenneiaRules])
+    return normalizeGenneiaOptionSections((customOptionsDinner || []).filter(opt => opt.active), hasFruitDessertRules)
+  }, [customOptionsDinner, dinnerEnabled, hasFruitDessertRules])
 
   const {
     canChooseCustomSideForSelection,
@@ -124,7 +124,7 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
   const lunchOptionsUI = useLunchOptionsUI({
     visibleLunchOptions,
     customResponses,
-    isGenneia: hasGenneiaRules,
+    isGenneia: hasFruitDessertRules,
     isGenneiaPostreDay,
     canChooseCustomSideForSelection
   })
@@ -142,7 +142,7 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
   }, [customOptionsLunch, customOptionsDinner])
 
   useGenneiaPostreRules({
-    isGenneia: hasGenneiaRules,
+    isGenneia: hasFruitDessertRules,
     isGenneiaPostreDay,
     allCustomOptions,
     visibleDinnerOptions,

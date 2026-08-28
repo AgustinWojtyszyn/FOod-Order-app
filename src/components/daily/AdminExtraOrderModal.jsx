@@ -9,7 +9,7 @@ import { filterOrderableMenuItems, getMenuDisplay, withMenuSlotIndex } from '../
 import { sortMenuItems } from '../../utils/order/orderMenuHelpers'
 import { canChooseCustomSide } from '../../utils/order/orderCustomSideRules'
 import { isGreifRefrigerioMenuItem, withGreifRefrigerioMenuItem } from '../../utils/order/greifDefaultSnack'
-import { getMenuBeverageTitle, requiresMenuBeverageChoice } from '../../utils/order/companySpecialRules'
+import { getMenuBeverageTitle, hasFruitDessertChoiceRules, requiresMenuBeverageChoice } from '../../utils/order/companySpecialRules'
 import { notifyError, notifySuccess } from '../../utils/notice'
 
 const REASONS = [
@@ -203,6 +203,32 @@ const mergeFallbackBeverageOptions = ({
       ...option,
       id: `${idPrefix}-${option.id}`,
       title,
+      required: true
+    }))
+  return [...options, ...additions]
+}
+
+const isFruitDessertOption = (option = {}) => {
+  const text = [
+    option.title,
+    ...(Array.isArray(option.options) ? option.options : [])
+  ].join(' ').toLowerCase()
+  return text.includes('postre') || text.includes('fruta')
+}
+
+const mergeFallbackFruitDessertOptions = ({
+  options = [],
+  fallbackOptions = [],
+  idPrefix = 'fruit-dessert-fallback'
+} = {}) => {
+  if ((options || []).some(isFruitDessertOption)) return options
+  const existingIds = new Set((options || []).map((option) => option?.id).filter(Boolean))
+  const additions = (fallbackOptions || [])
+    .filter(isFruitDessertOption)
+    .filter((option) => !existingIds.has(option?.id))
+    .map((option) => ({
+      ...option,
+      id: `${idPrefix}-${option.id}`,
       required: true
     }))
   return [...options, ...additions]
@@ -407,6 +433,19 @@ const AdminExtraOrderModal = ({
             fallbackOptions: Array.isArray(fallbackOptionsData) ? fallbackOptionsData : [],
             idPrefix: companySlug,
             title: getMenuBeverageTitle(companySlug)
+          })
+        }
+        if (hasFruitDessertChoiceRules(companySlug) && !nextCustomOptions.some(isFruitDessertOption)) {
+          const { data: fallbackOptionsData, error: fallbackOptionsError } = await db.getVisibleCustomOptions({
+            company: 'genneia',
+            meal: service,
+            date: resolvedOperationalDate
+          })
+          if (fallbackOptionsError) throw fallbackOptionsError
+          nextCustomOptions = mergeFallbackFruitDessertOptions({
+            options: nextCustomOptions,
+            fallbackOptions: Array.isArray(fallbackOptionsData) ? fallbackOptionsData : [],
+            idPrefix: companySlug
           })
         }
         if (!cancelled) {

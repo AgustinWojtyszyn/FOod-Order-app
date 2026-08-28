@@ -8,7 +8,7 @@ import { buildSuggestionSummary, buildOptionsSummary } from '../utils/order/orde
 import { hasMainMenuSelected } from '../utils/order/orderSelectionHelpers'
 import { getTomorrowISOInTimeZone } from '../utils/dateUtils'
 import { withGreifRefrigerioMenuItem } from '../utils/order/greifDefaultSnack'
-import { getMenuBeverageTitle, requiresMenuBeverageChoice } from '../utils/order/companySpecialRules'
+import { getMenuBeverageTitle, hasFruitDessertChoiceRules, requiresMenuBeverageChoice } from '../utils/order/companySpecialRules'
 
 const DEFAULT_MENU_ITEMS = [
   { id: 1, name: 'Plato Principal 1', description: 'Delicioso plato principal' },
@@ -40,6 +40,18 @@ const isBeverageDessertOrFruitOption = (option = {}) => {
 
 const hasBeverageDessertOrFruitOption = (options = []) =>
   (options || []).some(isBeverageDessertOrFruitOption)
+
+const isFruitDessertOption = (option = {}) => {
+  const text = [
+    option.title,
+    ...(Array.isArray(option.options) ? option.options : [])
+  ].join(' ').toLowerCase()
+
+  return text.includes('postre') || text.includes('fruta')
+}
+
+const hasFruitDessertOption = (options = []) =>
+  (options || []).some(isFruitDessertOption)
 
 const normalizeOptionTitle = (value = '') =>
   String(value || '')
@@ -103,6 +115,24 @@ const mergeFallbackSpecialOptions = (options = [], fallbackOptions = []) => {
     .filter(isBeverageDessertOrFruitOption)
     .filter((option) => !existingIds.has(option?.id))
     .map((option) => ({ ...option, id: `distro-cuyo-${option.id}` }))
+  return [...options, ...additions]
+}
+
+const mergeFallbackFruitDessertOptions = ({
+  options = [],
+  fallbackOptions = [],
+  idPrefix = 'fruit-dessert-fallback'
+} = {}) => {
+  if (hasFruitDessertOption(options)) return options
+  const existingIds = new Set((options || []).map((option) => option?.id).filter(Boolean))
+  const additions = (fallbackOptions || [])
+    .filter(isFruitDessertOption)
+    .filter((option) => !existingIds.has(option?.id))
+    .map((option) => ({
+      ...option,
+      id: `${idPrefix}-${option.id}`,
+      required: true
+    }))
   return [...options, ...additions]
 }
 
@@ -220,6 +250,19 @@ const useOrderBootstrap = ({
         if (fallbackError) console.error('Error fetching DistroCuyo lunch fallback options:', fallbackError)
         lunchOptions = mergeFallbackSpecialOptions(lunchOptions, filterByMealScope(fallbackData, 'lunch'))
       }
+      if (hasFruitDessertChoiceRules(rawCompanySlug || companyOptionsSlug) && !hasFruitDessertOption(lunchOptions)) {
+        const { data: fallbackData, error: fallbackError } = await db.getVisibleCustomOptions({
+          company: 'genneia',
+          meal: 'lunch',
+          date: deliveryDate
+        })
+        if (fallbackError) console.error('Error fetching fruit/dessert fallback options:', fallbackError)
+        lunchOptions = mergeFallbackFruitDessertOptions({
+          options: lunchOptions,
+          fallbackOptions: filterByMealScope(fallbackData, 'lunch'),
+          idPrefix: rawCompanySlug || companyOptionsSlug
+        })
+      }
       setCustomOptionsLunch(lunchOptions)
     } catch (err) {
       console.error('Error fetching lunch custom options:', err)
@@ -274,6 +317,19 @@ const useOrderBootstrap = ({
         })
         if (fallbackError) console.error('Error fetching DistroCuyo dinner fallback options:', fallbackError)
         dinnerOptions = mergeFallbackSpecialOptions(dinnerOptions, filterByMealScope(fallbackData, 'dinner'))
+      }
+      if (hasFruitDessertChoiceRules(rawCompanySlug || companyOptionsSlug) && !hasFruitDessertOption(dinnerOptions)) {
+        const { data: fallbackData, error: fallbackError } = await db.getVisibleCustomOptions({
+          company: 'genneia',
+          meal: 'dinner',
+          date: dinnerDate
+        })
+        if (fallbackError) console.error('Error fetching dinner fruit/dessert fallback options:', fallbackError)
+        dinnerOptions = mergeFallbackFruitDessertOptions({
+          options: dinnerOptions,
+          fallbackOptions: filterByMealScope(fallbackData, 'dinner'),
+          idPrefix: `dinner-${rawCompanySlug || companyOptionsSlug}`
+        })
       }
       setCustomOptionsDinner(dinnerOptions)
     } catch (err) {

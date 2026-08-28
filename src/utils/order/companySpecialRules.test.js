@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   getMenuBeverageTitle,
+  hasFruitDessertChoiceRules,
   hasGenneiaOptionRules,
   isPostreDeliveryDate,
   requiresMenuBeverageChoice
@@ -11,8 +12,17 @@ describe('company special rules', () => {
     expect(hasGenneiaOptionRules('genneia')).toBe(true)
     expect(hasGenneiaOptionRules({ slug: 'distro_cuyo' })).toBe(true)
     expect(hasGenneiaOptionRules('placo')).toBe(false)
+    expect(hasGenneiaOptionRules('igarreta')).toBe(false)
     expect(hasGenneiaOptionRules({ slug: 'padrebueno' })).toBe(false)
     expect(hasGenneiaOptionRules('laja')).toBe(false)
+  })
+
+  it('applies fruit or dessert choice rules to Igarreta without Genneia-only rules', () => {
+    expect(hasFruitDessertChoiceRules('igarreta')).toBe(true)
+    expect(hasFruitDessertChoiceRules({ slug: 'genneia' })).toBe(true)
+    expect(hasFruitDessertChoiceRules({ slug: 'distro_cuyo' })).toBe(true)
+    expect(hasFruitDessertChoiceRules('laja')).toBe(false)
+    expect(hasFruitDessertChoiceRules('placo')).toBe(false)
   })
 
   it('requires a beverage choice for Placo without enabling Genneia dessert rules', () => {
