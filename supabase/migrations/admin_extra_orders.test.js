@@ -12,7 +12,8 @@ const EXPECTED_REMITO_RANGES = [
   ['padrebueno', 70000, 79999],
   ['greif', 80000, 89999],
   ['molinos', 90000, 99999],
-  ['placo', 100000, 109999]
+  ['placo', 100000, 109999],
+  ['igarreta', 110000, 119999]
 ]
 const REMITO_EXCLUDED_COMPANY_SLUGS = new Set(['administracion_servifood'])
 
@@ -128,6 +129,11 @@ const ensureAllCompanyRemitoNumberingMigration = readFileSync(
   new URL('./20260827130000_ensure_all_company_remito_numbering.sql', import.meta.url),
   'utf8'
 )
+const igarretaCompanyMigration = readFileSync(
+  new URL('./20260828120000_add_igarreta_company.sql', import.meta.url),
+  'utf8'
+)
+const remitoNumberingMigrations = `${ensureAllCompanyRemitoNumberingMigration}\n${igarretaCompanyMigration}`
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
 describe('admin extra orders migration', () => {
@@ -493,10 +499,10 @@ describe('admin extra orders migration', () => {
 
     expect(EXPECTED_REMITO_RANGES.map(([slug]) => slug).sort()).toEqual(orderCompanySlugs)
     for (const [slug, startNumber, endNumber] of EXPECTED_REMITO_RANGES) {
-      expect(ensureAllCompanyRemitoNumberingMigration).toContain(
+      expect(remitoNumberingMigrations).toContain(
         `('${slug}', `
       )
-      expect(ensureAllCompanyRemitoNumberingMigration).toContain(
+      expect(remitoNumberingMigrations).toContain(
         `${startNumber}, ${endNumber}`
       )
     }
@@ -505,6 +511,9 @@ describe('admin extra orders migration', () => {
     expect(ensureAllCompanyRemitoNumberingMigration).toContain("where slug = 'global'")
     expect(ensureAllCompanyRemitoNumberingMigration).not.toContain('delete from public.company_remitos')
     expect(gitignore).toContain('!supabase/migrations/20260827130000_ensure_all_company_remito_numbering.sql')
+    expect(gitignore).toContain('!supabase/migrations/20260828120000_add_igarreta_company.sql')
+    expect(igarretaCompanyMigration).toContain("when slug = 'igarreta' or slug like 'igarreta_%' then 'igarreta'")
+    expect(igarretaCompanyMigration).toContain("('igarreta', 'Igarreta Maquinas SA', 110000, 119999, 110000)")
   })
 
   it('persists label print state on orders without duplicating orders', () => {
@@ -634,5 +643,6 @@ describe('admin extra orders migration', () => {
     expect(greifMolinosRemitoNumberingMigration).toContain("('molinos', 'Molinos', 90000, 99999, 90000)")
     expect(placoRemitoNumberingMigration).toContain("('placo', 'Placo', 100000, 109999, 100000)")
     expect(ensureAllCompanyRemitoNumberingMigration).toContain("('placo', 'Placo', 100000, 109999, 100000)")
+    expect(igarretaCompanyMigration).toContain("('igarreta', 'Igarreta Maquinas SA', 110000, 119999, 110000)")
   })
 })

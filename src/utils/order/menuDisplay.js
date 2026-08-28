@@ -2,6 +2,9 @@ const normalizeText = (value = '') => (value || '').toString().trim()
 const normalizeSlotTitle = (value = '') => normalizeText(value).toLowerCase()
 const HIDDEN_ORDER_MENU_SLOT_INDEX = 4
 const HIDDEN_ORDER_MENU_COMPANY_SLUG = 'epse'
+const IGARRETA_COMPANY_SLUG = 'igarreta'
+const IGARRETA_LAST_MENU_SLOT_INDEX = 4
+const IGARRETA_SALAD_DISH = 'Ensalada del día'
 const DIETA_COMPANY_SLUGS = new Set(['greif', 'placo', 'molinos'])
 
 const getMenuLabelByIndex = (index = 0) => (index === 0 ? 'Menú principal' : `Opción ${index}`)
@@ -63,6 +66,7 @@ const getMenuSlotIndex = (item = {}, fallbackIndex = null) => {
 }
 
 const normalizeCompanySlug = (value = '') => (value || '').toString().trim().toLowerCase()
+const isIgarretaCompany = (companySlug = '') => normalizeCompanySlug(companySlug) === IGARRETA_COMPANY_SLUG
 
 const replaceDietaLabel = (value, companySlug) => {
   const text = normalizeText(value)
@@ -71,6 +75,13 @@ const replaceDietaLabel = (value, companySlug) => {
 }
 
 const getCompanyMenuDisplay = (display, companySlug) => {
+  if (isIgarretaCompany(companySlug) && display?.slotIndex === IGARRETA_LAST_MENU_SLOT_INDEX) {
+    return {
+      ...display,
+      label: getMenuLabelByIndex(IGARRETA_LAST_MENU_SLOT_INDEX),
+      dish: IGARRETA_SALAD_DISH
+    }
+  }
   if (!DIETA_COMPANY_SLUGS.has(normalizeCompanySlug(companySlug))) return display
   return {
     ...display,
@@ -83,9 +94,25 @@ const isHiddenOrderMenuSlot = (item = {}, companySlug = '') =>
   normalizeCompanySlug(companySlug) === HIDDEN_ORDER_MENU_COMPANY_SLUG &&
   getMenuSlotIndex(item) === HIDDEN_ORDER_MENU_SLOT_INDEX
 
-const withCompanyMenuDisplay = (item = {}, companySlug = '') => {
+const isHiddenIgarretaMenuSlot = (item = {}, fallbackIndex = null) =>
+  getMenuSlotIndex(item, fallbackIndex) > IGARRETA_LAST_MENU_SLOT_INDEX
+
+const withIgarretaMenuItem = (item = {}, fallbackIndex = null) => {
+  const slotIndex = getMenuSlotIndex(item, fallbackIndex)
+  if (slotIndex !== IGARRETA_LAST_MENU_SLOT_INDEX) return item
+  return {
+    ...item,
+    name: getMenuLabelByIndex(IGARRETA_LAST_MENU_SLOT_INDEX),
+    displayName: getMenuLabelByIndex(IGARRETA_LAST_MENU_SLOT_INDEX),
+    description: IGARRETA_SALAD_DISH,
+    slotIndex
+  }
+}
+
+const withCompanyMenuDisplay = (item = {}, companySlug = '', fallbackIndex = null) => {
+  if (isIgarretaCompany(companySlug)) return withIgarretaMenuItem(item, fallbackIndex)
   if (normalizeCompanySlug(companySlug) !== HIDDEN_ORDER_MENU_COMPANY_SLUG) return item
-  const slotIndex = getMenuSlotIndex(item)
+  const slotIndex = getMenuSlotIndex(item, fallbackIndex)
   if (!Number.isFinite(slotIndex) || slotIndex <= HIDDEN_ORDER_MENU_SLOT_INDEX) return item
 
   const displaySlotIndex = slotIndex - 1
@@ -103,8 +130,11 @@ const withCompanyMenuDisplay = (item = {}, companySlug = '') => {
 
 const filterOrderableMenuItems = (items = [], companySlug = '') =>
   (items || [])
-    .filter((item) => !isHiddenOrderMenuSlot(item, companySlug))
-    .map((item) => withCompanyMenuDisplay(item, companySlug))
+    .filter((item, index) => {
+      if (isIgarretaCompany(companySlug)) return !isHiddenIgarretaMenuSlot(item, index)
+      return !isHiddenOrderMenuSlot(item, companySlug)
+    })
+    .map((item, index) => withCompanyMenuDisplay(item, companySlug, index))
 
 const hasHiddenOrderMenuSelection = (items = [], companySlug = '') =>
   (items || []).some((item) => isHiddenOrderMenuSlot(item, companySlug))

@@ -112,6 +112,16 @@ export const COMPANY_CATALOG = {
     customHint: 'Seleccioná Molinos para cargar tu pedido.',
     optionsSourceSlug: 'laja'
   },
+  igarreta: {
+    slug: 'igarreta',
+    name: 'Igarreta Maquinas SA',
+    description: 'Pedidos para equipos operativos de Igarreta Maquinas SA.',
+    accent: 'from-sky-500 to-blue-700',
+    badgeClass: 'bg-sky-100 text-sky-700',
+    locations: ['Igarreta Maquinas SA'],
+    customHint: 'Seleccioná Igarreta Maquinas SA para cargar tu pedido.',
+    optionsSourceSlug: 'laja'
+  },
   administracion_servifood: {
     slug: 'administracion_servifood',
     name: 'Administración ServiFood',

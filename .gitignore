@@ -53,6 +53,7 @@ dist-ssr
 !supabase/migrations/20260827123000_placo_genneia_beverage_option.sql
 !supabase/migrations/20260827130000_ensure_all_company_remito_numbering.sql
 !supabase/migrations/20260827140000_totalizer_admin_module_rpcs.sql
+!supabase/migrations/20260828120000_add_igarreta_company.sql
 !supabase/diagnostics/*.sql
 # Python
 __pycache__/

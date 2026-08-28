@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildOrderPayload } from './orderPayload'
 import { computePayloadSignature, buildIdempotencyStorageKey } from './orderIdempotency'
+import { filterOrderableMenuItems } from './menuDisplay'
 
 describe('order payload', () => {
   const user = {
@@ -178,6 +179,32 @@ describe('order payload', () => {
     })
 
     expect(orderData.customer_name).toBe('Test User')
+  })
+
+  it('persists Igarreta Opción 4 as Ensalada del día after company menu normalization', () => {
+    const [selectedItem] = filterOrderableMenuItems([
+      { id: 'option-4', name: 'Opción 4', description: 'Bife del día', slotIndex: 4 }
+    ], 'igarreta')
+
+    const { orderData } = buildOrderPayload({
+      service: 'lunch',
+      user,
+      formData: {
+        location: 'Igarreta Maquinas SA',
+        comments: ''
+      },
+      deliveryDate: '2026-08-29',
+      itemsForService: [selectedItem],
+      responsesForService: [],
+      dinnerOverrideChoice: null,
+      totalItems: 1,
+      idempotencyKey: 'idem-igarreta'
+    })
+
+    expect(orderData.items).toEqual([
+      { id: 'option-4', name: 'Opción 4 - Ensalada del día', quantity: 1, slotIndex: 4 }
+    ])
+    expect(JSON.stringify(orderData)).not.toMatch(/Bife del d[ií]a|Dieta/i)
   })
 })
 

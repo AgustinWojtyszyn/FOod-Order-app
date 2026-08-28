@@ -12,4 +12,16 @@ describe('company catalog', () => {
     expect(COMPANY_LIST.some((company) => company.slug === 'placo')).toBe(true)
     expect(getCompanyByLocationOrSlug('Placo')?.slug).toBe('placo')
   })
+
+  it('includes Igarreta as a visible company using the La Laja options source', () => {
+    expect(COMPANY_CATALOG.igarreta).toMatchObject({
+      slug: 'igarreta',
+      name: 'Igarreta Maquinas SA',
+      locations: ['Igarreta Maquinas SA'],
+      optionsSourceSlug: 'laja'
+    })
+    expect(COMPANY_LIST.some((company) => company.slug === 'igarreta')).toBe(true)
+    expect(getCompanyByLocationOrSlug('igarreta')?.slug).toBe('igarreta')
+    expect(getCompanyByLocationOrSlug('Igarreta Maquinas SA')?.slug).toBe('igarreta')
+  })
 })
