@@ -60,6 +60,6 @@ describe('order schedule flows migration', () => {
   })
 
   it('keeps the SQL migration referenced despite ignored sql files', () => {
-    expect(gitignore).toContain('!supabase/migrations/20260828130000_order_schedule_flows.sql')
+    expect(gitignore).toContain('!supabase/migrations/*.sql')
   })
 })

@@ -458,14 +458,14 @@ describe('admin extra orders migration', () => {
   })
 
   it('keeps the Greif and Molinos remito numbering migration versionable', () => {
-    expect(gitignore).toContain('!supabase/migrations/20260824120000_greif_molinos_company_remito_numbering.sql')
+    expect(gitignore).toContain('!supabase/migrations/*.sql')
   })
 
   it('adds Placo as a normal order company without changing historical migrations', () => {
     expect(placoCompanyMigration).toContain("insert into public.companies (slug, name)")
     expect(placoCompanyMigration).toContain("values ('placo', 'Placo')")
     expect(placoCompanyMigration).toContain('on conflict (slug) do update')
-    expect(gitignore).toContain('!supabase/migrations/20260824133000_add_placo_company.sql')
+    expect(gitignore).toContain('!supabase/migrations/*.sql')
   })
 
   it('configures Placo remito numbering without moving valid counters backwards', () => {
@@ -475,7 +475,7 @@ describe('admin extra orders migration', () => {
     expect(placoRemitoNumberingMigration).toContain('then public.companies.next_remito_number')
     expect(placoRemitoNumberingMigration).not.toContain('update public.company_remitos')
     expect(placoRemitoNumberingMigration).not.toContain('delete from public.company_remitos')
-    expect(gitignore).toContain('!supabase/migrations/20260827120000_placo_company_remito_numbering.sql')
+    expect(gitignore).toContain('!supabase/migrations/*.sql')
   })
 
   it('adds the Genneia beverage option to Placo orders', () => {
@@ -488,7 +488,7 @@ describe('admin extra orders migration', () => {
     expect(placoGenneiaBeverageOptionMigration).toContain('"Coca Zero"')
     expect(placoGenneiaBeverageOptionMigration).toContain('required')
     expect(placoGenneiaBeverageOptionMigration).toContain('true')
-    expect(gitignore).toContain('!supabase/migrations/20260827123000_placo_genneia_beverage_option.sql')
+    expect(gitignore).toContain('!supabase/migrations/*.sql')
   })
 
   it('ensures every order company has remito numbering configured', () => {
@@ -510,8 +510,8 @@ describe('admin extra orders migration', () => {
     expect(ensureAllCompanyRemitoNumberingMigration).toContain("values ('administracion_servifood', 'Administración ServiFood', null, null, null)")
     expect(ensureAllCompanyRemitoNumberingMigration).toContain("where slug = 'global'")
     expect(ensureAllCompanyRemitoNumberingMigration).not.toContain('delete from public.company_remitos')
-    expect(gitignore).toContain('!supabase/migrations/20260827130000_ensure_all_company_remito_numbering.sql')
-    expect(gitignore).toContain('!supabase/migrations/20260828120000_add_igarreta_company.sql')
+    expect(gitignore).toContain('!supabase/migrations/*.sql')
+    expect(gitignore).toContain('!supabase/migrations/*.sql')
     expect(igarretaCompanyMigration).toContain("when slug = 'igarreta' or slug like 'igarreta_%' then 'igarreta'")
     expect(igarretaCompanyMigration).toContain("('igarreta', 'Igarreta Maquinas SA', 110000, 119999, 110000)")
   })
@@ -524,7 +524,7 @@ describe('admin extra orders migration', () => {
     expect(orderLabelPrintTrackingMigration).toContain('label_print_count = coalesce(o.label_print_count, 0) + 1')
     expect(orderLabelPrintTrackingMigration).toContain("'order_labels_printed'")
     expect(orderLabelPrintTrackingMigration).not.toContain('insert into public.orders')
-    expect(gitignore).toContain('!supabase/migrations/20260824143000_order_label_print_tracking.sql')
+    expect(gitignore).toContain('!supabase/migrations/*.sql')
   })
 
   it('backfills Greif default refrigerio on existing orders without duplicating it or changing remitos', () => {
@@ -536,7 +536,7 @@ describe('admin extra orders migration', () => {
     expect(greifDefaultRefrigerioBackfillMigration).toContain('coalesce(nullif(o.total_items, 0), 0)')
     expect(greifDefaultRefrigerioBackfillMigration).not.toContain('insert into public.orders')
     expect(greifDefaultRefrigerioBackfillMigration).not.toContain('company_remitos')
-    expect(gitignore).toContain('!supabase/migrations/20260824150000_backfill_greif_default_refrigerio.sql')
+    expect(gitignore).toContain('!supabase/migrations/*.sql')
   })
 
   it('removes old automatic Greif refrigerio responses without touching orders or remitos', () => {
@@ -546,7 +546,7 @@ describe('admin extra orders migration', () => {
     expect(removeGreifAutoRefrigerioMigration).toContain("response->>'source' = 'greif-default-refrigerio'")
     expect(removeGreifAutoRefrigerioMigration).not.toContain('insert into public.orders')
     expect(removeGreifAutoRefrigerioMigration).not.toContain('company_remitos')
-    expect(gitignore).toContain('!supabase/migrations/20260824153000_remove_greif_auto_refrigerio_response.sql')
+    expect(gitignore).toContain('!supabase/migrations/*.sql')
   })
 
   it('allows admin extra orders for all configured companies including Greif', () => {
@@ -557,7 +557,7 @@ describe('admin extra orders migration', () => {
     expect(adminExtraAllCompaniesMigration).toContain('from public.companies c')
     expect(adminExtraAllCompaniesMigration).toContain('from public.order_locations loc')
     expect(adminExtraAllCompaniesMigration).not.toContain('else false')
-    expect(gitignore).toContain('!supabase/migrations/20260825100000_enable_admin_extra_all_companies.sql')
+    expect(gitignore).toContain('!supabase/migrations/*.sql')
   })
 
   it('removes Refrigerio as a Greif menu option without touching orders or remitos', () => {
@@ -567,7 +567,7 @@ describe('admin extra orders migration', () => {
     expect(removeGreifRefrigerioMenuOptionMigration).not.toContain('delete from public.orders')
     expect(removeGreifRefrigerioMenuOptionMigration).not.toContain('update public.orders')
     expect(removeGreifRefrigerioMenuOptionMigration).not.toContain('company_remitos')
-    expect(gitignore).toContain('!supabase/migrations/20260825110000_remove_greif_refrigerio_menu_option.sql')
+    expect(gitignore).toContain('!supabase/migrations/*.sql')
   })
 
   it('shows admin extra history retroactively by delivery date', () => {
@@ -590,7 +590,7 @@ describe('admin extra orders migration', () => {
     expect(adminExtraHistoryByDeliveryDateMigration).toContain("'registered'::text as historical_status")
     expect(adminExtraHistoryByDeliveryDateMigration).toContain('grant execute on function public.close_late_admin_extra_operational_day(date) to authenticated')
     expect(adminExtraHistoryByDeliveryDateMigration).not.toContain('returns setof public.late_admin_extra_order_history')
-    expect(gitignore).toContain('!supabase/migrations/20260825103000_admin_extra_history_by_delivery_date.sql')
+    expect(gitignore).toContain('!supabase/migrations/*.sql')
   })
 
   it('issues company remitos from canonical companies numbering config without duplicated range CASEs', () => {

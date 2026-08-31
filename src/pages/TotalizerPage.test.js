@@ -61,6 +61,6 @@ describe('Totalizer export module', () => {
     expect(migrationSource).not.toContain('alter table public.companies')
     expect(migrationSource).not.toContain('disable row level security')
     expect(migrationSource).not.toContain('create policy')
-    expect(gitignore).toContain('!supabase/migrations/20260827140000_totalizer_admin_module_rpcs.sql')
+    expect(gitignore).toContain('!supabase/migrations/*.sql')
   })
 })
