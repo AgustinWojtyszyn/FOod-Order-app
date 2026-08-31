@@ -2,20 +2,20 @@ import DonutChartPro from './DonutChartPro'
 import { shouldUseDonut } from './donutChartRules'
 const formatPercent = (value) => `${value.toFixed(1)}%`
 
-export const getPreferenceIndicator = (value) => {
+const getPreferenceIndicator = (value) => {
   const number = Number(value || 0)
   if (number > 0) return '▲'
   if (number < 0) return '▼'
   return '='
 }
 
-export const formatSignedUnits = (value) => {
+const formatSignedUnits = (value) => {
   const number = Number(value || 0)
   const sign = number > 0 ? '+' : ''
   return `${sign}${number.toFixed(0)}`
 }
 
-export const formatSignedPp = (value) => {
+const formatSignedPp = (value) => {
   const number = Number(value || 0)
   const sign = number > 0 ? '+' : ''
   return `${sign}${number.toFixed(1)} pp`
