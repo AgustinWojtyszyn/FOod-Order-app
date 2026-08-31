@@ -308,7 +308,7 @@ node_modules
 supabase/.temp
 supabase/.branches
 testing/load/__pycache__
-test-locust/venv
+testing/load/locust/.venv
 
 Verificacion de estado final del grafo:
 
