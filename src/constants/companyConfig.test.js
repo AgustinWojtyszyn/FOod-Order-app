@@ -24,4 +24,9 @@ describe('company catalog', () => {
     expect(getCompanyByLocationOrSlug('igarreta')?.slug).toBe('igarreta')
     expect(getCompanyByLocationOrSlug('Igarreta Maquinas SA')?.slug).toBe('igarreta')
   })
+
+  it('includes EPSE Oficina inside the EPSE order group', () => {
+    expect(COMPANY_CATALOG.epse.locations).toContain('EPSE – Oficina')
+    expect(getCompanyByLocationOrSlug('EPSE – Oficina')?.slug).toBe('epse')
+  })
 })
