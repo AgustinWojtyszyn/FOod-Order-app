@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { db } from '../../supabaseClient'
-import { DEFAULT_SCHEDULE_CONTEXT, getDevScheduleAt, getScheduleCountdown, normalizeContext } from '../../utils/order/orderSchedule'
+import { UNKNOWN_SCHEDULE_CONTEXT, getDevScheduleAt, getScheduleCountdown } from '../../utils/order/orderSchedule'
+import { createOrderScheduleRequestController, normalizeScheduleLocation } from './orderScheduleRequest'
 
 const MINUTE_MS = 60 * 1000
 const TRANSITION_REFRESH_DELAY_MS = 300
 
 export const useOrderSchedule = ({ location = '', at = null } = {}) => {
-  const [context, setContext] = useState(DEFAULT_SCHEDULE_CONTEXT)
+  const [context, setContext] = useState(UNKNOWN_SCHEDULE_CONTEXT)
+  const [contextLocation, setContextLocation] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const timeoutRef = useRef(null)
   const intervalRef = useRef(null)
+  const requestControllerRef = useRef(null)
 
   const effectiveAt = at || getDevScheduleAt()
+  const locationKey = normalizeScheduleLocation(location)
 
   const clearTimers = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
@@ -21,22 +25,44 @@ export const useOrderSchedule = ({ location = '', at = null } = {}) => {
     intervalRef.current = null
   }, [])
 
+  if (!requestControllerRef.current) {
+    requestControllerRef.current = createOrderScheduleRequestController({
+      fetchScheduleContext: ({ location: requestLocation, at: requestAt }) => db.getOrderScheduleContext({
+        location: requestLocation,
+        at: requestAt
+      }),
+      onStart: ({ locationKey: requestLocation }) => {
+        setLoading(true)
+        setError(null)
+        setContextLocation(requestLocation)
+      },
+      onSuccess: ({ locationKey: requestLocation, context: nextContext }) => {
+        setError(null)
+        setContext(nextContext)
+        setContextLocation(requestLocation)
+        setLoading(false)
+      },
+      onError: ({ locationKey: requestLocation, error: scheduleError, context: nextContext }) => {
+        setError(scheduleError)
+        setContext(nextContext)
+        setContextLocation(requestLocation)
+        setLoading(false)
+      },
+      onUnknown: () => {
+        setError(null)
+        setContext(UNKNOWN_SCHEDULE_CONTEXT)
+        setContextLocation('')
+        setLoading(true)
+      }
+    })
+  }
+
   const refresh = useCallback(async () => {
-    setLoading(true)
-    const { data, error: scheduleError } = await db.getOrderScheduleContext({
-      location,
+    await requestControllerRef.current.load({
+      location: locationKey,
       at: effectiveAt
     })
-    if (scheduleError) {
-      setError(scheduleError)
-      setContext(DEFAULT_SCHEDULE_CONTEXT)
-      setLoading(false)
-      return
-    }
-    setError(null)
-    setContext(normalizeContext(data || DEFAULT_SCHEDULE_CONTEXT))
-    setLoading(false)
-  }, [effectiveAt, location])
+  }, [effectiveAt, locationKey])
 
   useEffect(() => {
     let cancelled = false
@@ -46,13 +72,28 @@ export const useOrderSchedule = ({ location = '', at = null } = {}) => {
     }
 
     clearTimers()
+    requestControllerRef.current.invalidate()
+    setContext(UNKNOWN_SCHEDULE_CONTEXT)
+    setContextLocation('')
+    setError(null)
+    setLoading(true)
+
+    if (!locationKey) {
+      return () => {
+        cancelled = true
+        requestControllerRef.current.invalidate()
+        clearTimers()
+      }
+    }
+
     run()
     intervalRef.current = setInterval(run, MINUTE_MS)
     return () => {
       cancelled = true
+      requestControllerRef.current.invalidate()
       clearTimers()
     }
-  }, [clearTimers, refresh])
+  }, [clearTimers, locationKey, refresh])
 
   useEffect(() => {
     if (!context.nextTransitionAt || effectiveAt) return
@@ -66,14 +107,17 @@ export const useOrderSchedule = ({ location = '', at = null } = {}) => {
     }
   }, [context.nextTransitionAt, effectiveAt, refresh])
 
-  const countdown = useMemo(() => getScheduleCountdown(context), [context])
+  const visibleContext = contextLocation === locationKey ? context : UNKNOWN_SCHEDULE_CONTEXT
+  const visibleLoading = !locationKey || loading || contextLocation !== locationKey
+  const visibleError = contextLocation === locationKey ? error : null
+  const countdown = useMemo(() => getScheduleCountdown(visibleContext), [visibleContext])
 
   return {
-    ...context,
+    ...visibleContext,
     ...countdown,
-    loading,
-    error,
+    loading: visibleLoading,
+    error: visibleError,
     refresh,
-    context
+    context: visibleContext
   }
 }

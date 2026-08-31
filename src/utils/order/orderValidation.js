@@ -169,9 +169,17 @@ const validateOrderSubmission = ({
     return { error: 'Estamos validando el horario de pedidos. Intentá nuevamente en unos segundos.' }
   }
 
+  if (orderSchedule?.error || orderSchedule?.state === 'error') {
+    return { error: 'No pudimos validar el horario de tu sede. Intentá nuevamente en unos segundos.' }
+  }
+
   if (orderSchedule && !orderSchedule.isOpen) {
+    const scheduleRange = formatScheduleRange(orderSchedule)
+    if (!scheduleRange) {
+      return { error: 'Estamos validando el horario de pedidos. Intentá nuevamente en unos segundos.' }
+    }
     return {
-      error: `Pedidos cerrados. Horario de tu sede: ${formatScheduleRange(orderSchedule)} (${orderSchedule.timezone || 'America/Argentina/San_Juan'}).`
+      error: `Pedidos cerrados. Horario de tu sede: ${scheduleRange} (${orderSchedule.timezone || 'America/Argentina/San_Juan'}).`
     }
   }
 

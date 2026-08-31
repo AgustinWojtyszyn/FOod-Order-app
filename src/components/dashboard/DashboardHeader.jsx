@@ -26,8 +26,9 @@ const DashboardHeader = ({
   emptyDescription = 'Creá tu pedido para hoy en segundos'
 }) => {
   const allowEdit = headerOrder && canEditOrder ? canEditOrder(headerOrder) : false
-  const scheduleRange = schedule?.scheduleRange || '06:00-14:00'
+  const scheduleRange = schedule?.scheduleRange || ''
   const scheduleStatus = schedule?.statusLabel || 'Validando horario'
+  const countdownText = countdownLabel && countdownValue ? `${countdownLabel} ${countdownValue}` : ''
 
   return (
     <div className="space-y-4">
@@ -49,8 +50,8 @@ const DashboardHeader = ({
               }`}
             >
               <Clock className="h-5 w-5 shrink-0" />
-              <span>{scheduleStatus}: {scheduleRange}</span>
-              <span>• {countdownLabel} {countdownValue}</span>
+              <span>{scheduleStatus}{scheduleRange ? `: ${scheduleRange}` : ''}</span>
+              {countdownText && <span>• {countdownText}</span>}
             </div>
             <div className="dashboardHeroActions">
               <button

@@ -8,18 +8,47 @@ const DEFAULT_SCHEDULE_CONTEXT = {
   nextTransitionAt: null
 }
 
-const normalizeContext = (context = {}) => ({
-  flow: context.flow || DEFAULT_SCHEDULE_CONTEXT.flow,
-  timezone: context.timezone || DEFAULT_SCHEDULE_CONTEXT.timezone,
-  opensAt: context.opensAt || context.opens_at || DEFAULT_SCHEDULE_CONTEXT.opensAt,
-  closesAt: context.closesAt || context.closes_at || DEFAULT_SCHEDULE_CONTEXT.closesAt,
-  isOpen: Boolean(context.isOpen ?? context.is_open),
-  state: context.state || DEFAULT_SCHEDULE_CONTEXT.state,
-  nextTransitionAt: context.nextTransitionAt || context.next_transition_at || null
-})
+const UNKNOWN_SCHEDULE_CONTEXT = {
+  flow: null,
+  timezone: DEFAULT_SCHEDULE_CONTEXT.timezone,
+  opensAt: null,
+  closesAt: null,
+  isOpen: false,
+  state: 'unknown',
+  nextTransitionAt: null
+}
+
+const ERROR_SCHEDULE_CONTEXT = {
+  ...UNKNOWN_SCHEDULE_CONTEXT,
+  state: 'error'
+}
+
+const isUnresolvedContext = (context = {}) => context?.state === 'unknown' || context?.state === 'error'
+
+const normalizeContext = (context = {}) => {
+  if (isUnresolvedContext(context)) {
+    return {
+      ...UNKNOWN_SCHEDULE_CONTEXT,
+      ...context,
+      isOpen: false,
+      nextTransitionAt: null
+    }
+  }
+
+  return {
+    flow: context.flow || DEFAULT_SCHEDULE_CONTEXT.flow,
+    timezone: context.timezone || DEFAULT_SCHEDULE_CONTEXT.timezone,
+    opensAt: context.opensAt || context.opens_at || DEFAULT_SCHEDULE_CONTEXT.opensAt,
+    closesAt: context.closesAt || context.closes_at || DEFAULT_SCHEDULE_CONTEXT.closesAt,
+    isOpen: Boolean(context.isOpen ?? context.is_open),
+    state: context.state || DEFAULT_SCHEDULE_CONTEXT.state,
+    nextTransitionAt: context.nextTransitionAt || context.next_transition_at || null
+  }
+}
 
 const formatScheduleRange = (context = {}) => {
   const schedule = normalizeContext(context)
+  if (!schedule.opensAt || !schedule.closesAt) return ''
   return `${schedule.opensAt}-${schedule.closesAt}`
 }
 
@@ -34,6 +63,25 @@ const formatDuration = (ms = 0) => {
 
 const getScheduleCountdown = (context = {}, now = new Date()) => {
   const schedule = normalizeContext(context)
+  if (schedule.state === 'unknown') {
+    return {
+      countdownLabel: '',
+      countdownValue: '',
+      countdownTone: 'normal',
+      statusLabel: 'Validando horario',
+      scheduleRange: ''
+    }
+  }
+  if (schedule.state === 'error') {
+    return {
+      countdownLabel: '',
+      countdownValue: '',
+      countdownTone: 'normal',
+      statusLabel: 'No se pudo validar el horario',
+      scheduleRange: ''
+    }
+  }
+
   const transition = schedule.nextTransitionAt ? new Date(schedule.nextTransitionAt) : null
   const remainingMs = transition && Number.isFinite(transition.getTime())
     ? transition.getTime() - now.getTime()
@@ -64,6 +112,8 @@ const getDevScheduleAt = () => {
 
 export {
   DEFAULT_SCHEDULE_CONTEXT,
+  ERROR_SCHEDULE_CONTEXT,
+  UNKNOWN_SCHEDULE_CONTEXT,
   formatDuration,
   formatScheduleRange,
   getDevScheduleAt,
