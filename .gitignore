@@ -60,3 +60,6 @@ codebase-memory-mcp-*
 # Unlighthouse reports/generated files
 reports/
 testing/load/reports/
+
+# Archivos temporales locales
+.tmp/
