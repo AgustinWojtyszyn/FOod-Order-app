@@ -70,7 +70,7 @@ export const COMPANY_CATALOG = {
     accent: 'from-blue-500 to-cyan-700',
     badgeClass: 'bg-blue-100 text-blue-700',
     locations: [
-      'EPSE – Oficina',
+      'EPSE – Fábrica de Paneles Solares',
       'EPSE – Quebrada de Ullum',
       'EPSE – Anchipurac',
       'EPSE – Planta Fotovoltaica',
