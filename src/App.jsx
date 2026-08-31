@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { useAuthContext } from './contexts/authContextValue'
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
 import SplashScreen from './components/SplashScreen'
-import './App.css'
+import './styles/app.css'
 
 // Importaciones inmediatas (críticas para la carga inicial)
 import Layout from './components/Layout'
