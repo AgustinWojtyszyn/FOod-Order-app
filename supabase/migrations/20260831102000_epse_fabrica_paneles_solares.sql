@@ -180,4 +180,5 @@ where requesting_location_code = 'EPSE_OFICINA'
    or delivery_location_code = 'EPSE_OFICINA'
    or location ilike '%EPSE%Oficina%'
    or delivery_location ilike '%EPSE%Oficina%';
+
    
