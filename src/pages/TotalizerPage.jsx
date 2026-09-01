@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Download, RefreshCw } from 'lucide-react'
+import { ChevronDown, Download, RefreshCw } from 'lucide-react'
 import { TOTALIZER_CONCEPTS, exportTotalizerWorkbook, totalizerService } from '../services/totalizerService'
 import { notifyError } from '../utils/notice'
 
@@ -35,10 +35,33 @@ export default function TotalizerPage() {
   const [selectedCompanies, setSelectedCompanies] = useState([])
   const [rows, setRows] = useState([])
   const [companies, setCompanies] = useState([])
+  const [companyOptions, setCompanyOptions] = useState([])
   const [dates, setDates] = useState([])
+  const [sideRows, setSideRows] = useState([])
   const [loading, setLoading] = useState(false)
 
   const previewRows = useMemo(() => buildPreviewRows({ rows, companies }), [rows, companies])
+  const selectableCompanies = useMemo(
+    () => (companyOptions.length > 0 ? companyOptions : companies),
+    [companies, companyOptions]
+  )
+  const selectedCompanyNames = useMemo(() => {
+    if (selectedCompanies.length === 0) return 'Todas'
+    const companyByKey = new Map(selectableCompanies.map((company) => [companyKey(company), companyName(company)]))
+    return selectedCompanies.map((slug) => companyByKey.get(slug) || slug)
+  }, [selectableCompanies, selectedCompanies])
+  const companySelectorLabel = Array.isArray(selectedCompanyNames)
+    ? selectedCompanyNames.length === 1
+      ? selectedCompanyNames[0]
+      : `${selectedCompanyNames.length} empresas`
+    : selectedCompanyNames
+
+  const toggleCompany = (slug) => {
+    setSelectedCompanies((current) => {
+      if (current.includes(slug)) return current.filter((item) => item !== slug)
+      return [...current, slug]
+    })
+  }
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -58,7 +81,13 @@ export default function TotalizerPage() {
 
     setRows(data.rows)
     setCompanies(data.companies)
+    setCompanyOptions((current) => {
+      const merged = new Map(current.map((company) => [companyKey(company), company]))
+      data.companies.forEach((company) => merged.set(companyKey(company), company))
+      return Array.from(merged.values())
+    })
     setDates(data.dates)
+    setSideRows(data.sideRows)
   }, [fromDate, selectedCompanies, service, toDate])
 
   useEffect(() => {
@@ -66,7 +95,7 @@ export default function TotalizerPage() {
   }, [loadData])
 
   const exportExcel = async () => {
-    await exportTotalizerWorkbook({ fromDate, toDate, service, rows, companies, dates })
+    await exportTotalizerWorkbook({ fromDate, toDate, service, rows, companies, dates, sideRows })
   }
 
   return (
@@ -94,19 +123,40 @@ export default function TotalizerPage() {
                   {SERVICES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </select>
               </label>
-              <label className="block lg:col-span-2">
+              <div className="block lg:col-span-2">
                 <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Empresa</span>
-                <select
-                  multiple
-                  value={selectedCompanies}
-                  onChange={(event) => setSelectedCompanies(Array.from(event.target.selectedOptions).map((option) => option.value))}
-                  className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm font-bold"
-                >
-                  {companies.map((company) => (
-                    <option key={companyKey(company)} value={companyKey(company)}>{companyName(company)}</option>
-                  ))}
-                </select>
-              </label>
+                <details className="group relative">
+                  <summary className="flex h-10 w-full cursor-pointer list-none items-center justify-between gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-bold text-slate-800 marker:hidden">
+                    <span className="min-w-0 truncate">{companySelectorLabel}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180" />
+                  </summary>
+                  <div className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-md border border-slate-200 bg-white p-2 text-sm shadow-lg">
+                    <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-2 font-bold text-slate-800 hover:bg-slate-50">
+                      <input
+                        type="checkbox"
+                        checked={selectedCompanies.length === 0}
+                        onChange={() => setSelectedCompanies([])}
+                        className="h-4 w-4 rounded border-slate-300"
+                      />
+                      <span className="min-w-0 truncate">Todas</span>
+                    </label>
+                    {selectableCompanies.map((company) => {
+                      const slug = companyKey(company)
+                      return (
+                        <label key={slug} className="flex cursor-pointer items-center gap-2 rounded px-2 py-2 font-semibold text-slate-700 hover:bg-slate-50">
+                          <input
+                            type="checkbox"
+                            checked={selectedCompanies.includes(slug)}
+                            onChange={() => toggleCompany(slug)}
+                            className="h-4 w-4 rounded border-slate-300"
+                          />
+                          <span className="min-w-0 truncate">{companyName(company)}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </details>
+              </div>
               <div className="flex items-end gap-2">
                 <button type="button" onClick={loadData} disabled={loading} className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
                   <RefreshCw className="h-4 w-4" /> Actualizar
