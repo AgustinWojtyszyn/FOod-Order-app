@@ -45,6 +45,7 @@ const isLongLabelContent = (label = {}) => {
 }
 
 const OrderLabelCard = ({ label }) => {
+  const isEpseLabel = String(label?.company_slug || '').trim().toLowerCase() === 'epse'
   const densityClass = isLongLabelContent(label)
     ? ' sf-label-card--dense'
     : ''
@@ -66,7 +67,8 @@ const OrderLabelCard = ({ label }) => {
           {label.companyLabel}
         </strong>
 
-        {label.deliveryLocation &&
+        {!isEpseLabel &&
+          label.deliveryLocation &&
           label.deliveryLocation !== label.companyLabel && (
             <span>
               {label.deliveryLocation}
