@@ -81,6 +81,34 @@ set organization_id = excluded.organization_id,
     active = true,
     updated_at = now();
 
+create or replace function public.resolve_company_location(p_company_slug text)
+returns text
+language sql
+stable
+set search_path = public, pg_temp
+as $$
+  select case lower(trim(coalesce(p_company_slug, '')))
+    when 'laja' then 'La Laja'
+    when 'ccp' then 'Ccp'
+    when 'padrebueno' then 'Padre Bueno'
+    when 'losberros' then 'Los Berros'
+    when 'genneia' then 'Genneia'
+    when 'distro_cuyo' then 'DistroCuyo'
+    when 'epse' then 'EPSE – Quebrada de Ullum'
+    when 'greif' then 'Greif'
+    when 'placo' then 'Placo'
+    when 'molinos' then 'Molinos'
+    when 'igarreta' then 'Igarreta Maquinas SA'
+    when 'isemar' then 'ISEMAR – PREDIO 1'
+    when 'administracion_servifood' then 'Administración ServiFood'
+    else null
+  end
+$$;
+
+revoke all on function public.resolve_company_location(text) from public;
+revoke all on function public.resolve_company_location(text) from anon;
+grant execute on function public.resolve_company_location(text) to authenticated;
+
 notify pgrst, 'reload schema';
 
 commit;

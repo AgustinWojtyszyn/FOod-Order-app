@@ -5,6 +5,10 @@ const migration = readFileSync(
   new URL('./20260828130000_order_schedule_flows.sql', import.meta.url),
   'utf8'
 )
+const isemarMigration = readFileSync(
+  new URL('./20260901110000_add_isemar_company_locations.sql', import.meta.url),
+  'utf8'
+)
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
 describe('order schedule flows migration', () => {
@@ -27,6 +31,13 @@ describe('order schedule flows migration', () => {
     }
 
     expect(migration).not.toContain("public.normalize_order_schedule_location_key('Igarreta Maquinas SA'), 'extended'")
+    expect(isemarMigration).not.toContain("public.normalize_order_schedule_location_key('ISEMAR – PREDIO 1'), 'extended'")
+    expect(isemarMigration).not.toContain("public.normalize_order_schedule_location_key('ISEMAR – PREDIO 2'), 'extended'")
+  })
+
+  it('resolves ISEMAR to a standard-flow location like Igarreta', () => {
+    expect(isemarMigration).toContain("when 'isemar' then 'ISEMAR – PREDIO 1'")
+    expect(isemarMigration).not.toContain('order_schedule_location_overrides')
   })
 
   it('exposes a testable schedule context function with inclusive open and exclusive close', () => {
