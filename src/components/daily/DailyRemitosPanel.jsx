@@ -32,7 +32,7 @@ const normalizeText = (value = '') =>
 const REMITO_PANEL_DEBUG_PREFIX = '[ServiFood remitos panel]'
 const REFRESH_VISIBLE_REMITOS_KEY = '__refresh_visible_remitos__'
 const REFRESH_ALL_REMITOS_KEY = '__refresh_all_remitos__'
-const MULTILOCATION_REMITO_COMPANY_SLUGS = new Set(['epse'])
+const MULTILOCATION_REMITO_COMPANY_SLUGS = new Set(['epse', 'isemar'])
 
 const getSafeRemito = (remito) =>
   remito && typeof remito === 'object' ? remito : {}

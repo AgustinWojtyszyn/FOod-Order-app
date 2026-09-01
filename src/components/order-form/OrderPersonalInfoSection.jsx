@@ -62,7 +62,7 @@ const OrderPersonalInfoSection = ({
         )}
         {hasLocationsError && (
           <p className="mt-2 text-sm font-semibold text-red-700">
-            No pudimos cargar las locaciones de EPSE. Intentá nuevamente o comunicate con administración.
+            No pudimos cargar las locaciones de esta empresa. Intentá nuevamente o comunicate con administración.
           </p>
         )}
         {showDeliveryLocation && (

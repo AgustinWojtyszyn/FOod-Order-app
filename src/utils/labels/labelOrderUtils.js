@@ -99,11 +99,45 @@ const getEpseLocationLabel = (location = '') => {
   return String(location).trim().replace(/^EPSE\s*[–-]\s*/i, '')
 }
 
+const getMultilocationCompanyLabel = ({ companyLabel = '', location = '' } = {}) => {
+  const safeCompanyLabel = firstNonBlank(companyLabel, 'Empresa')
+  const safeLocation = firstNonBlank(location)
+  if (!safeLocation) return safeCompanyLabel
+  const escapedCompanyLabel = safeCompanyLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  if (new RegExp(`^${escapedCompanyLabel}\\s*[–-]\\s*`, 'i').test(safeLocation)) return safeLocation
+  const normalizedLocation = safeLocation
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  const normalizedCompany = safeCompanyLabel
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  if (normalizedCompany && normalizedLocation.startsWith(`${normalizedCompany}_`)) {
+    return `${safeCompanyLabel} – ${safeLocation
+      .replace(new RegExp(`^${escapedCompanyLabel}[_\\s-]*`, 'i'), '')
+      .toUpperCase()
+      .split(/[_\s-]+/)
+      .filter(Boolean)
+      .join(' ')}`
+  }
+  return `${safeCompanyLabel} – ${safeLocation}`
+}
+
 export const getOrderCompanyLabel = (order = {}) => {
   const originLocation = getOrderOriginLocation(order)
   const configured = getCompanyByLocationOrSlug(order.company_slug || order.company || originLocation)
   const companyLabel = order.company_name || configured?.name || order.company || originLocation || 'Sin empresa'
-  if (configured?.slug !== 'epse' && String(order.company_slug || '').trim().toLowerCase() !== 'epse') return companyLabel
+  if (configured?.slug !== 'epse' && String(order.company_slug || '').trim().toLowerCase() !== 'epse') {
+    if (configured?.requiresAuthorizedLocations) {
+      return getMultilocationCompanyLabel({ companyLabel, location: originLocation })
+    }
+    return companyLabel
+  }
   const epseLocation = getEpseLocationLabel(originLocation)
   return epseLocation ? `EPSE – ${epseLocation}` : 'EPSE'
 }

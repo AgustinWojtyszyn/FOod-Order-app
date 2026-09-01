@@ -59,23 +59,26 @@ const safeArray = (value) => {
 }
 
 const normalizeCompanySlug = (value = '') => String(value || '').trim().toLowerCase() || 'sin_empresa'
-const isEpseSlug = (value = '') => normalizeCompanySlug(value) === 'epse'
+const MULTILOCATION_TOTALIZER_COMPANY_SLUGS = new Set(['epse', 'isemar'])
+const isMultilocationSlug = (value = '') =>
+  MULTILOCATION_TOTALIZER_COMPANY_SLUGS.has(normalizeCompanySlug(String(value || '').split(':')[0]))
 
 const getTotalizerCompanyForOrder = (order = {}) => {
   const companySlug = normalizeCompanySlug(order.company_slug)
   const resolvedCompany = resolveCompanyForOrder(order)
-  if (!isEpseSlug(companySlug) && !isEpseSlug(resolvedCompany.slug)) {
+  if (!isMultilocationSlug(companySlug) && !isMultilocationSlug(resolvedCompany.slug)) {
     return {
       slug: companySlug,
       name: order.company_name || order.location || companySlug || 'Sin empresa'
     }
   }
 
+  const baseSlug = isMultilocationSlug(companySlug) ? companySlug : normalizeCompanySlug(resolvedCompany.slug)
   const locationKey = getOrderRemitoLocationKey(order)
   const locationLabel = getOrderRemitoLocationLabel(order)
   return {
-    slug: ['epse', locationKey || 'general'].join(':'),
-    name: locationKey === 'epse' ? 'EPSE' : (locationLabel || 'EPSE')
+    slug: [baseSlug, locationKey || 'general'].join(':'),
+    name: locationLabel || resolvedCompany.name || order.company_name || baseSlug.toUpperCase()
   }
 }
 
@@ -181,7 +184,7 @@ const classifyResponseLabel = (label = '') => {
 const conceptLabelForCode = (code = '') =>
   TOTALIZER_CONCEPTS.find((concept) => concept.code === code)?.label || 'Otros menús'
 
-const buildEpseRowsFromOrders = (orders = []) => {
+const buildMultilocationRowsFromOrders = (orders = []) => {
   const totals = new Map()
 
   const addQuantity = ({ order, conceptCode, quantity }) => {
@@ -202,7 +205,7 @@ const buildEpseRowsFromOrders = (orders = []) => {
   }
 
   orders
-    .filter((order) => isEpseSlug(order.company_slug) || isEpseSlug(resolveCompanyForOrder(order).slug))
+    .filter((order) => isMultilocationSlug(order.company_slug) || isMultilocationSlug(resolveCompanyForOrder(order).slug))
     .forEach((order) => {
       const items = safeArray(order.items)
       items.forEach((item) => {
@@ -228,10 +231,10 @@ const buildEpseRowsFromOrders = (orders = []) => {
   return Array.from(totals.values()).filter((row) => row.quantity > 0)
 }
 
-const buildEpseCompaniesFromRows = (rows = []) => {
+const buildMultilocationCompaniesFromRows = (rows = []) => {
   const companies = new Map()
   rows.forEach((row) => {
-    if (!isEpseSlug(String(row.company_slug).split(':')[0])) return
+    if (!isMultilocationSlug(String(row.company_slug).split(':')[0])) return
     if (!companies.has(row.company_slug)) {
       companies.set(row.company_slug, {
         company_slug: row.company_slug,
@@ -243,24 +246,24 @@ const buildEpseCompaniesFromRows = (rows = []) => {
   return Array.from(companies.values()).sort((a, b) => getCompanyName(a).localeCompare(getCompanyName(b)))
 }
 
-const applyEpseLocationBreakdown = ({ rows, companies, orders }) => {
-  const epseRows = buildEpseRowsFromOrders(orders)
-  if (epseRows.length === 0) return { rows, companies }
+const applyMultilocationBreakdown = ({ rows, companies, orders }) => {
+  const multilocationRows = buildMultilocationRowsFromOrders(orders)
+  if (multilocationRows.length === 0) return { rows, companies }
 
-  const nonEpseRows = rows.filter((row) => !isEpseSlug(row.company_slug))
-  const nonEpseCompanies = companies.filter((company) => !isEpseSlug(getCompanyKey(company)))
-  const epseCompanies = buildEpseCompaniesFromRows(epseRows)
-  const epseInsertIndex = companies.findIndex((company) => isEpseSlug(getCompanyKey(company)))
-  const nextCompanies = [...nonEpseCompanies]
+  const nonMultilocationRows = rows.filter((row) => !isMultilocationSlug(row.company_slug))
+  const nonMultilocationCompanies = companies.filter((company) => !isMultilocationSlug(getCompanyKey(company)))
+  const multilocationCompanies = buildMultilocationCompaniesFromRows(multilocationRows)
+  const firstMultilocationIndex = companies.findIndex((company) => isMultilocationSlug(getCompanyKey(company)))
+  const nextCompanies = [...nonMultilocationCompanies]
 
-  if (epseInsertIndex >= 0) {
-    nextCompanies.splice(Math.min(epseInsertIndex, nextCompanies.length), 0, ...epseCompanies)
+  if (firstMultilocationIndex >= 0) {
+    nextCompanies.splice(Math.min(firstMultilocationIndex, nextCompanies.length), 0, ...multilocationCompanies)
   } else {
-    nextCompanies.push(...epseCompanies)
+    nextCompanies.push(...multilocationCompanies)
   }
 
   return {
-    rows: [...nonEpseRows, ...epseRows],
+    rows: [...nonMultilocationRows, ...multilocationRows],
     companies: nextCompanies
   }
 }
@@ -286,7 +289,7 @@ export const totalizerService = {
     const summaryCompanies = Array.isArray(data?.companies) ? data.companies : []
     const groupedSummary = sideResult.error
       ? { rows: summaryRows, companies: summaryCompanies }
-      : applyEpseLocationBreakdown({
+      : applyMultilocationBreakdown({
         rows: summaryRows,
         companies: summaryCompanies,
         orders: sideResult.orders

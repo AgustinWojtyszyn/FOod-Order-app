@@ -104,4 +104,32 @@ describe('company-specific menu display', () => {
 
     expect(filterOrderableMenuItems(menu, 'laja')).toEqual(menu)
   })
+
+  it('keeps ISEMAR with the full Laja-style menu instead of Igarreta or Greif display rules', () => {
+    const menu = [
+      { id: 'main', name: 'Menú principal', description: 'Milanesa', slotIndex: 0 },
+      { id: 'option-1', name: 'Opción 1', description: 'Pastas', slotIndex: 1 },
+      { id: 'option-2', name: 'Opción 2', description: 'Pollo', slotIndex: 2 },
+      { id: 'option-3', name: 'Opción 3', description: 'Tarta', slotIndex: 3 },
+      { id: 'option-4', name: 'Opción 4', description: 'Bife del día', slotIndex: 4 },
+      { id: 'option-5', name: 'Opción 5', description: 'Empanadas', slotIndex: 5 },
+      { id: 'option-6', name: 'Opción 6', description: 'Sándwich', slotIndex: 6 }
+    ]
+
+    const result = filterOrderableMenuItems(menu, 'isemar')
+
+    expect(result.map((item) => item.id)).toEqual([
+      'main',
+      'option-1',
+      'option-2',
+      'option-3',
+      'option-4',
+      'option-5',
+      'option-6'
+    ])
+    expect(getMenuDisplay(menu[4], 4, 'isemar')).toMatchObject({
+      label: 'Opción 4',
+      dish: 'Bife del día'
+    })
+  })
 })

@@ -1204,6 +1204,45 @@ describe('daily order notes Excel model', () => {
     ])
   })
 
+  it('separates ISEMAR orders by selected predio while keeping the same company slug', () => {
+    const orders = [
+      makeOrder({
+        id: '10000000-0000-4000-8000-000000000601',
+        company_slug: 'isemar',
+        company_name: 'ISEMAR',
+        requesting_location_code: 'ISEMAR_PREDIO_1',
+        location: 'ISEMAR – PREDIO 1',
+        delivery_location: 'ISEMAR – PREDIO 1',
+        total_items: 4,
+        items: [{ id: 'op-1', name: 'Opción 1', quantity: 4 }]
+      }),
+      makeOrder({
+        id: '10000000-0000-4000-8000-000000000602',
+        company_slug: 'isemar',
+        company_name: 'ISEMAR',
+        requesting_location_code: 'ISEMAR_PREDIO_2',
+        location: 'ISEMAR – PREDIO 2',
+        delivery_location: 'ISEMAR – PREDIO 2',
+        total_items: 6,
+        items: [{ id: 'op-2', name: 'Opción 2', quantity: 6 }]
+      })
+    ]
+
+    const groups = buildCompanyGroups(orders)
+
+    expect(groups).toHaveLength(2)
+    expect(groups.map((group) => group.slug)).toEqual(['isemar', 'isemar'])
+    expect(groups.map((group) => group.locationKey).sort()).toEqual([
+      'isemar_predio_1',
+      'isemar_predio_2'
+    ])
+    expect(groups.map((group) => group.displayName).sort()).toEqual([
+      'ISEMAR – PREDIO 1',
+      'ISEMAR – PREDIO 2'
+    ])
+    expect(groups.map((group) => buildRemitoSnapshot({ group }).totalMenus).sort((a, b) => a - b)).toEqual([4, 6])
+  })
+
   it('keeps non-EPSE grouping by company unchanged', () => {
     const orders = [
       makeOrder({

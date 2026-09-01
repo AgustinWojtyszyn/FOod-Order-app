@@ -37,6 +37,11 @@ describe('Totalizer export module', () => {
   it('uses one read-only summary RPC and exports a day-per-sheet workbook', () => {
     expect(serviceSource).toContain("supabase.rpc('totalizer_get_summary'")
     expect(serviceSource).toContain('exportTotalizerWorkbook')
+    expect(serviceSource).toContain("new Set(['epse', 'isemar'])")
+    expect(serviceSource).toContain('applyMultilocationBreakdown')
+    expect(serviceSource).not.toContain('requesting_location_name')
+    expect(serviceSource).not.toContain('order_location,')
+    expect(serviceSource).not.toContain('location_snapshot')
     expect(serviceSource).toContain('orderedDates.forEach')
     expect(serviceSource).toContain('workbook.addWorksheet')
     expect(serviceSource).not.toContain("supabase.rpc('totalizer_upsert_value'")

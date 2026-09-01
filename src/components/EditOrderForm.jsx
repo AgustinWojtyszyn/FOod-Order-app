@@ -29,15 +29,15 @@ export default function EditOrderForm({ user, loading }) {
   const order = routerLocation.state?.order
   const { isAdmin } = useAuthContext()
 
-  const [authorizedEpseLocationRows, setAuthorizedEpseLocationRows] = useState([])
+  const [authorizedCompanyLocationRows, setAuthorizedCompanyLocationRows] = useState([])
   const [canUseAdminServifoodInEdit, setCanUseAdminServifoodInEdit] = useState(false)
   const originalCompany = useMemo(() => resolveEditOrderCompany(order), [order])
   const originalLocation = useMemo(() => resolveEditOrderLocation(order), [order])
-  const isEpseOrder = originalCompany?.slug === 'epse'
+  const requiresCompanyLocations = Boolean(originalCompany?.requiresAuthorizedLocations)
   const isTotalAdminUser = String(user?.email || '').trim().toLowerCase() === TOTAL_ADMIN_EMAIL
-  const authorizedEpseLocations = useMemo(
-    () => authorizedEpseLocationRows.map((row) => row.name).filter(Boolean),
-    [authorizedEpseLocationRows]
+  const authorizedCompanyLocations = useMemo(
+    () => authorizedCompanyLocationRows.map((row) => row.name).filter(Boolean),
+    [authorizedCompanyLocationRows]
   )
   const visibleCompanyLocations = useMemo(() => {
     const companies = getVisibleCompanyList({ includeAdminOnly: false })
@@ -52,9 +52,9 @@ export default function EditOrderForm({ user, loading }) {
     return companies.flatMap((company) => company.locations || [])
   }, [canUseAdminServifoodInEdit, originalCompany?.slug])
   const locations = useMemo(() => {
-    const baseLocations = isEpseOrder ? authorizedEpseLocations : visibleCompanyLocations
+    const baseLocations = requiresCompanyLocations ? authorizedCompanyLocations : visibleCompanyLocations
     return appendOriginalLocation(baseLocations, originalLocation)
-  }, [authorizedEpseLocations, isEpseOrder, originalLocation, visibleCompanyLocations])
+  }, [authorizedCompanyLocations, originalLocation, requiresCompanyLocations, visibleCompanyLocations])
 
   const {
     menuItems,
@@ -77,24 +77,27 @@ export default function EditOrderForm({ user, loading }) {
 
   const selectedItemsList = getSelectedItemsList()
   const deliveryLocationForEdit = useMemo(() => {
-    if (!isEpseOrder) return order?.delivery_location || formData?.location || originalLocation || ''
-    const row = authorizedEpseLocationRows.find((item) => item.name === formData?.location)
+    if (!requiresCompanyLocations) return order?.delivery_location || formData?.location || originalLocation || ''
+    const row = authorizedCompanyLocationRows.find((item) => item.name === formData?.location)
     return row?.delivery_name || order?.delivery_location || formData?.location || originalLocation || ''
-  }, [authorizedEpseLocationRows, formData?.location, isEpseOrder, order?.delivery_location, originalLocation])
+  }, [authorizedCompanyLocationRows, formData?.location, order?.delivery_location, originalLocation, requiresCompanyLocations])
 
   useEffect(() => {
-    if (!isEpseOrder) return
+    if (!requiresCompanyLocations || !originalCompany?.slug) {
+      setAuthorizedCompanyLocationRows([])
+      return
+    }
     let mounted = true
     const load = async () => {
-      const { data, error } = await db.getCompanyOrderLocations({ companySlug: 'epse' })
+      const { data, error } = await db.getCompanyOrderLocations({ companySlug: originalCompany.slug })
       if (!mounted) return
-      setAuthorizedEpseLocationRows(error ? [] : (Array.isArray(data) ? data : []))
+      setAuthorizedCompanyLocationRows(error ? [] : (Array.isArray(data) ? data : []))
     }
     load()
     return () => {
       mounted = false
     }
-  }, [isEpseOrder])
+  }, [originalCompany?.slug, requiresCompanyLocations])
 
   useEffect(() => {
     let mounted = true

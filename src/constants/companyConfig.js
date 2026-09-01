@@ -123,6 +123,17 @@ export const COMPANY_CATALOG = {
     customHint: 'Seleccioná Igarreta Maquinas SA para cargar tu pedido.',
     optionsSourceSlug: 'laja'
   },
+  isemar: {
+    slug: 'isemar',
+    name: 'ISEMAR',
+    description: 'Pedidos para sedes operativas de ISEMAR.',
+    accent: 'from-lime-500 to-emerald-700',
+    badgeClass: 'bg-lime-100 text-lime-700',
+    locations: ['ISEMAR – PREDIO 1', 'ISEMAR – PREDIO 2'],
+    customHint: 'Seleccioná PREDIO 1 o PREDIO 2 para cargar tu pedido.',
+    optionsSourceSlug: 'laja',
+    requiresAuthorizedLocations: true
+  },
   administracion_servifood: {
     slug: 'administracion_servifood',
     name: 'Administración ServiFood',

@@ -13,7 +13,8 @@ const EXPECTED_REMITO_RANGES = [
   ['greif', 80000, 89999],
   ['molinos', 90000, 99999],
   ['placo', 100000, 109999],
-  ['igarreta', 110000, 119999]
+  ['igarreta', 110000, 119999],
+  ['isemar', 120000, 129999]
 ]
 const REMITO_EXCLUDED_COMPANY_SLUGS = new Set(['administracion_servifood'])
 
@@ -133,7 +134,11 @@ const igarretaCompanyMigration = readFileSync(
   new URL('./20260828120000_add_igarreta_company.sql', import.meta.url),
   'utf8'
 )
-const remitoNumberingMigrations = `${ensureAllCompanyRemitoNumberingMigration}\n${igarretaCompanyMigration}`
+const isemarCompanyLocationsMigration = readFileSync(
+  new URL('./20260901110000_add_isemar_company_locations.sql', import.meta.url),
+  'utf8'
+)
+const remitoNumberingMigrations = `${ensureAllCompanyRemitoNumberingMigration}\n${igarretaCompanyMigration}\n${isemarCompanyLocationsMigration}`
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
 describe('admin extra orders migration', () => {
@@ -514,6 +519,8 @@ describe('admin extra orders migration', () => {
     expect(gitignore).toContain('!supabase/migrations/*.sql')
     expect(igarretaCompanyMigration).toContain("when slug = 'igarreta' or slug like 'igarreta_%' then 'igarreta'")
     expect(igarretaCompanyMigration).toContain("('igarreta', 'Igarreta Maquinas SA', 110000, 119999, 110000)")
+    expect(isemarCompanyLocationsMigration).toContain("when slug = 'isemar' or slug like 'isemar_%' then 'isemar'")
+    expect(isemarCompanyLocationsMigration).toContain("('isemar', 'ISEMAR', 120000, 129999, 120000)")
   })
 
   it('persists label print state on orders without duplicating orders', () => {
@@ -644,5 +651,15 @@ describe('admin extra orders migration', () => {
     expect(placoRemitoNumberingMigration).toContain("('placo', 'Placo', 100000, 109999, 100000)")
     expect(ensureAllCompanyRemitoNumberingMigration).toContain("('placo', 'Placo', 100000, 109999, 100000)")
     expect(igarretaCompanyMigration).toContain("('igarreta', 'Igarreta Maquinas SA', 110000, 119999, 110000)")
+    expect(isemarCompanyLocationsMigration).toContain("('isemar', 'ISEMAR', 120000, 129999, 120000)")
+  })
+
+  it('adds ISEMAR as a two-location company without changing historical migrations', () => {
+    expect(isemarCompanyLocationsMigration).toContain("insert into public.order_organizations (code, name, active)")
+    expect(isemarCompanyLocationsMigration).toContain("values ('ISEMAR', 'ISEMAR', true)")
+    expect(isemarCompanyLocationsMigration).toContain("('ISEMAR_PREDIO_1', 'isemar_predio_1', 'ISEMAR – PREDIO 1')")
+    expect(isemarCompanyLocationsMigration).toContain("('ISEMAR_PREDIO_2', 'isemar_predio_2', 'ISEMAR – PREDIO 2')")
+    expect(isemarCompanyLocationsMigration).not.toContain('create or replace function public.create_order_idempotent')
+    expect(isemarCompanyLocationsMigration).not.toContain('alter table public.orders')
   })
 })

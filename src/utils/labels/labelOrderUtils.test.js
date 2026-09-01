@@ -80,6 +80,28 @@ describe('labelOrderUtils', () => {
     expect(buildLabelOrder({ company_slug: 'epse', company_name: 'EPSE' }).companyLabel).toBe('EPSE')
   })
 
+  it('incluye el predio de ISEMAR en etiquetas sin cambiar el slug de empresa', () => {
+    expect(buildLabelOrder({
+      company_slug: 'isemar',
+      company_name: 'ISEMAR',
+      requesting_location_code: 'ISEMAR_PREDIO_1',
+      location: 'ISEMAR – PREDIO 1',
+      delivery_location: 'ISEMAR – PREDIO 1'
+    }).companyLabel).toBe('ISEMAR – PREDIO 1')
+
+    expect(buildLabelOrder({
+      company_slug: 'isemar',
+      company_name: 'ISEMAR',
+      location: 'PREDIO 2'
+    }).companyLabel).toBe('ISEMAR – PREDIO 2')
+
+    expect(buildLabelOrder({
+      company_slug: 'isemar',
+      company_name: 'ISEMAR',
+      requesting_location_code: 'ISEMAR_PREDIO_1'
+    }).companyLabel).toBe('ISEMAR – PREDIO 1')
+  })
+
   it('mantiene sin cambios las etiquetas de otras empresas', () => {
     expect(buildLabelOrder({
       company_slug: 'laja',

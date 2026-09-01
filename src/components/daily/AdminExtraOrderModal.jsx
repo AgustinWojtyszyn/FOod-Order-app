@@ -312,21 +312,21 @@ const AdminExtraOrderModal = ({
   const [otherReason, setOtherReason] = useState('')
   const [comment, setComment] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [epseLocationRows, setEpseLocationRows] = useState([])
-  const [epseLocationsLoading, setEpseLocationsLoading] = useState(false)
-  const [epseLocationsError, setEpseLocationsError] = useState(null)
+  const [companyLocationRows, setCompanyLocationRows] = useState([])
+  const [companyLocationsLoading, setCompanyLocationsLoading] = useState(false)
+  const [companyLocationsError, setCompanyLocationsError] = useState(null)
 
   const selectedCompany = useMemo(
     () => companyOptions.find((company) => company.slug === companySlug) || null,
     [companyOptions, companySlug]
   )
-  const isEpseCompany = companySlug === 'epse'
-  const epseLocations = useMemo(
-    () => epseLocationRows.map((row) => row.name).filter(Boolean),
-    [epseLocationRows]
+  const requiresCompanyLocations = Boolean(selectedCompany?.requiresAuthorizedLocations)
+  const companyLocations = useMemo(
+    () => companyLocationRows.map((row) => row.name).filter(Boolean),
+    [companyLocationRows]
   )
-  const locations = isEpseCompany
-    ? epseLocations
+  const locations = requiresCompanyLocations
+    ? companyLocations
     : (selectedCompany?.locations?.length ? selectedCompany.locations : [selectedCompany?.name].filter(Boolean))
   const outsideWindow = isOutsideOrderWindow()
   const resolvedReason = reason === 'otro' ? normalizeText(otherReason) : reason
@@ -341,26 +341,31 @@ const AdminExtraOrderModal = ({
   }, [companyOptions, lateWindowInfo.operationalDate, lateWindowMode, open, operationalDate, today])
 
   useEffect(() => {
-    if (!open || !isEpseCompany) return
+    if (!open || !requiresCompanyLocations || !companySlug) {
+      setCompanyLocationRows([])
+      setCompanyLocationsLoading(false)
+      setCompanyLocationsError(null)
+      return
+    }
     let mounted = true
-    const loadEpseLocations = async () => {
-      setEpseLocationsLoading(true)
-      setEpseLocationsError(null)
-      const { data, error } = await db.getCompanyOrderLocations({ companySlug: 'epse' })
+    const loadCompanyLocations = async () => {
+      setCompanyLocationsLoading(true)
+      setCompanyLocationsError(null)
+      const { data, error } = await db.getCompanyOrderLocations({ companySlug })
       if (!mounted) return
       if (error) {
-        setEpseLocationRows([])
-        setEpseLocationsError(error)
+        setCompanyLocationRows([])
+        setCompanyLocationsError(error)
       } else {
-        setEpseLocationRows(Array.isArray(data) ? data : [])
+        setCompanyLocationRows(Array.isArray(data) ? data : [])
       }
-      setEpseLocationsLoading(false)
+      setCompanyLocationsLoading(false)
     }
-    loadEpseLocations()
+    loadCompanyLocations()
     return () => {
       mounted = false
     }
-  }, [isEpseCompany, open])
+  }, [companySlug, open, requiresCompanyLocations])
 
   useEffect(() => {
     if (!selectedCompany) {
@@ -369,9 +374,9 @@ const AdminExtraOrderModal = ({
     }
     setLocation((current) => {
       if (locations.includes(current)) return current
-      return isEpseCompany ? '' : locations[0] || ''
+      return requiresCompanyLocations ? '' : locations[0] || ''
     })
-  }, [isEpseCompany, locations, selectedCompany])
+  }, [locations, requiresCompanyLocations, selectedCompany])
 
   useEffect(() => {
     if (!open || !companySlug || !resolvedOperationalDate) return
@@ -684,18 +689,18 @@ const AdminExtraOrderModal = ({
                 onChange={(event) => setLocation(event.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold"
                 required
-                disabled={isEpseCompany && (epseLocationsLoading || epseLocationsError || locations.length === 0)}
+                disabled={requiresCompanyLocations && (companyLocationsLoading || companyLocationsError || locations.length === 0)}
               >
-                {isEpseCompany && (
-                  <option value="">{epseLocationsLoading ? 'Cargando sedes...' : 'Seleccionar sede'}</option>
+                {requiresCompanyLocations && (
+                  <option value="">{companyLocationsLoading ? 'Cargando sedes...' : 'Seleccionar sede'}</option>
                 )}
                 {locations.map((item) => (
                   <option key={item} value={item}>{item}</option>
                 ))}
               </select>
-              {isEpseCompany && epseLocationsError && (
+              {requiresCompanyLocations && companyLocationsError && (
                 <span className="mt-1 block text-xs font-semibold text-red-700">
-                  No pudimos cargar las sedes de EPSE.
+                  No pudimos cargar las sedes de {selectedCompany?.name || 'la empresa'}.
                 </span>
               )}
             </label>

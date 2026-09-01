@@ -59,6 +59,7 @@ const INVALID_SHEET_CHARS = new Set(['[', ']', '*', '?', ':', '/', '\\', "'"])
 const INVALID_FILE_CHARS = new Set(['<', '>', ':', '"', '/', '\\', '|', '?', '*'])
 const EXCLUDED_REMITO_COMPANY_SLUGS = new Set(['global', 'administracion_servifood'])
 const REMITO_BEVERAGE_COMPANY_SLUGS = new Set(['genneia', 'placo'])
+const MULTILOCATION_REMITO_COMPANY_SLUGS = new Set(['epse', 'isemar'])
 const UNSPECIFIED_BEVERAGE_LABEL = 'Bebida sin especificar'
 const REMITO_DEBUG_PREFIX = '[ServiFood remitos]'
 const normalizeText = (value) => String(value ?? '').trim()
@@ -127,6 +128,9 @@ const normalizeCompanyMatchText = (value = '') =>
 const isEpseCompanySlug = (slug = '') =>
   normalizeCompanyMatchText(slug) === 'epse'
 
+const isMultilocationRemitoCompanySlug = (slug = '') =>
+  MULTILOCATION_REMITO_COMPANY_SLUGS.has(normalizeCompanyMatchText(slug))
+
 const firstNonBlank = (...values) =>
   values.map((value) => normalizeText(value)).find(Boolean) || ''
 
@@ -147,7 +151,28 @@ const formatEpseLocationLabel = (value = '') => {
   return `EPSE – ${raw}`
 }
 
-export const getEpseRequestingLocationValue = (order = {}) =>
+const formatCompanyLocationLabel = (company = {}, value = '') => {
+  if (isEpseCompanySlug(company.slug)) return formatEpseLocationLabel(value)
+  const raw = normalizeText(value)
+  const companyName = normalizeText(company.name || company.displayName || company.slug)
+  if (!raw) return companyName || 'Empresa'
+  if (!companyName) return raw
+  const escapedCompanyName = companyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  if (new RegExp(`^${escapedCompanyName}\\s*[–-]\\s*`, 'i').test(raw)) return raw
+  const normalized = normalizeCompanyMatchText(raw)
+  const normalizedCompany = normalizeCompanyMatchText(companyName)
+  if (normalized.startsWith(`${normalizedCompany}_`)) {
+    return `${companyName} – ${raw
+      .replace(new RegExp(`^${escapedCompanyName}[_\\s-]*`, 'i'), '')
+      .toUpperCase()
+      .split(/[_\s-]+/)
+      .filter(Boolean)
+      .join(' ')}`
+  }
+  return `${companyName} – ${raw}`
+}
+
+const getOrderRequestingLocationValue = (order = {}) =>
   firstNonBlank(
     order.requesting_location_code,
     order.order_location?.code,
@@ -163,16 +188,19 @@ export const getEpseRequestingLocationValue = (order = {}) =>
     order.company_name
   )
 
+export const getEpseRequestingLocationValue = (order = {}) =>
+  getOrderRequestingLocationValue(order)
+
 export const getOrderRemitoLocationKey = (order = {}) => {
   const company = resolveCompanyForOrder(order)
-  if (!isEpseCompanySlug(company.slug)) return ''
-  return normalizeCompanyMatchText(getEpseRequestingLocationValue(order))
+  if (!isMultilocationRemitoCompanySlug(company.slug)) return ''
+  return normalizeCompanyMatchText(getOrderRequestingLocationValue(order))
 }
 
 export const getOrderRemitoLocationLabel = (order = {}) => {
   const company = resolveCompanyForOrder(order)
-  if (!isEpseCompanySlug(company.slug)) return firstNonBlank(order.location, order.delivery_location)
-  return formatEpseLocationLabel(firstNonBlank(
+  if (!isMultilocationRemitoCompanySlug(company.slug)) return firstNonBlank(order.location, order.delivery_location)
+  return formatCompanyLocationLabel(company, firstNonBlank(
     order.requesting_location,
     order.requesting_location_name,
     order.order_location?.display_name,
@@ -180,7 +208,7 @@ export const getOrderRemitoLocationLabel = (order = {}) => {
     order.location_snapshot?.display_name,
     order.location_snapshot?.name,
     order.location,
-    getEpseRequestingLocationValue(order)
+    getOrderRequestingLocationValue(order)
   ))
 }
 
@@ -236,7 +264,7 @@ export const buildCompanyGroups = (orders = []) => {
       const locationLabel = getOrderRemitoLocationLabel(order)
       groups.set(groupKey, {
         ...company,
-        displayName: isEpseCompanySlug(company.slug) && locationLabel ? locationLabel : company.displayName,
+        displayName: isMultilocationRemitoCompanySlug(company.slug) && locationLabel ? locationLabel : company.displayName,
         locationKey,
         locationLabel,
         orders: []
