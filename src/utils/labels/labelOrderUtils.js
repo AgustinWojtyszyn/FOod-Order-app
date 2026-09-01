@@ -275,17 +275,6 @@ const orderMatchesOriginLocationFilter = (order = {}, locationFilter = '') => {
 
 export const orderMatchesLabelFilters = (order = {}, filters = {}) => {
   const labelOrder = buildLabelOrder(order)
-  const haystack = normalizeText([
-    labelOrder.customerName,
-    labelOrder.customerEmail,
-    labelOrder.companyLabel,
-    labelOrder.itemsText,
-    labelOrder.optionsText,
-    labelOrder.notes,
-    labelOrder.statusLabel,
-    labelOrder.serviceLabel,
-    ...labelOrder.responses.map(response => `${response.title} ${response.value}`)
-  ].join(' '))
 
   if (filters.company && filters.company !== 'all') {
     const configuredCompany = getCompanyByLocationOrSlug(
