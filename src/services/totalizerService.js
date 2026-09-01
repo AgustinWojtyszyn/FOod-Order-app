@@ -97,7 +97,7 @@ const fetchTotalizerSideRows = async ({ fromDate, toDate, service, companySlugs 
   while (true) {
     const query = supabase
       .from('orders')
-      .select('id,status,delivery_date,created_at,items,custom_responses,location,delivery_location,requesting_location_code,requesting_location,requesting_location_name,order_location,location_snapshot,organization,company_slug,company_name,company,service,total_items,order_origin,created_by_admin_id,admin_extra_created_at')
+      .select('id,status,delivery_date,created_at,items,custom_responses,location,delivery_location,requesting_location_code,organization,company_slug,company_name,service,total_items,order_origin,created_by_admin_id,admin_extra_created_at')
       .gte('delivery_date', fromDate)
       .lte('delivery_date', toDate)
       .in('status', ['pending', 'archived', 'post_report_extra'])
