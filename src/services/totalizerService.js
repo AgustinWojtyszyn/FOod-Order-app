@@ -1,5 +1,10 @@
 import ExcelJS from 'exceljs'
 import { supabase } from './supabase'
+import {
+  getOrderRemitoLocationKey,
+  getOrderRemitoLocationLabel,
+  resolveCompanyForOrder
+} from '../utils/daily/exportDailyOrderNotesExcel'
 import { buildSideBucketsFromOrders } from '../utils/analytics/trendsHelpers'
 import { normalizeLabel } from '../utils/monthly/monthlyOrderFormatters'
 
@@ -42,7 +47,37 @@ const normalizeSideRows = (rows = []) =>
     quantity: Number(row.quantity || 0)
   })).filter((row) => row.side_label && row.quantity > 0)
 
+const safeArray = (value) => {
+  if (Array.isArray(value)) return value
+  if (typeof value !== 'string') return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
 const normalizeCompanySlug = (value = '') => String(value || '').trim().toLowerCase() || 'sin_empresa'
+const isEpseSlug = (value = '') => normalizeCompanySlug(value) === 'epse'
+
+const getTotalizerCompanyForOrder = (order = {}) => {
+  const companySlug = normalizeCompanySlug(order.company_slug)
+  const resolvedCompany = resolveCompanyForOrder(order)
+  if (!isEpseSlug(companySlug) && !isEpseSlug(resolvedCompany.slug)) {
+    return {
+      slug: companySlug,
+      name: order.company_name || order.location || companySlug || 'Sin empresa'
+    }
+  }
+
+  const locationKey = getOrderRemitoLocationKey(order)
+  const locationLabel = getOrderRemitoLocationLabel(order)
+  return {
+    slug: ['epse', locationKey || 'general'].join(':'),
+    name: locationKey === 'epse' ? 'EPSE' : (locationLabel || 'EPSE')
+  }
+}
 
 const matchesService = (order, service) => {
   const normalizedService = normalizeService(service)
@@ -62,7 +97,7 @@ const fetchTotalizerSideRows = async ({ fromDate, toDate, service, companySlugs 
   while (true) {
     const query = supabase
       .from('orders')
-      .select('id,status,delivery_date,created_at,items,custom_responses,location,company_slug,company_name,service,total_items,order_origin,created_by_admin_id,admin_extra_created_at')
+      .select('id,status,delivery_date,created_at,items,custom_responses,location,delivery_location,requesting_location_code,requesting_location,requesting_location_name,order_location,location_snapshot,organization,company_slug,company_name,company,service,total_items,order_origin,created_by_admin_id,admin_extra_created_at')
       .gte('delivery_date', fromDate)
       .lte('delivery_date', toDate)
       .in('status', ['pending', 'archived', 'post_report_extra'])
@@ -71,7 +106,7 @@ const fetchTotalizerSideRows = async ({ fromDate, toDate, service, companySlugs 
       .range(from, from + PAGE_SIZE - 1)
 
     const { data, error } = await query
-    if (error) return { rows: [], error }
+    if (error) return { orders: [], rows: [], error }
     const batch = data || []
     orders = orders.concat(batch)
     if (batch.length < PAGE_SIZE) break
@@ -79,17 +114,20 @@ const fetchTotalizerSideRows = async ({ fromDate, toDate, service, companySlugs 
   }
 
   const groupedOrders = new Map()
-  orders.filter((order) => (
+  const filteredOrders = orders.filter((order) => (
     matchesService(order, service) &&
     (selectedCompanySlugs.size === 0 || selectedCompanySlugs.has(normalizeCompanySlug(order.company_slug)))
-  )).forEach((order) => {
+  ))
+
+  filteredOrders.forEach((order) => {
     const deliveryDate = String(order.delivery_date || '').slice(0, 10)
-    const companySlug = normalizeCompanySlug(order.company_slug)
+    const company = getTotalizerCompanyForOrder(order)
+    const companySlug = company.slug
     const key = `${deliveryDate}:${companySlug}`
     const group = groupedOrders.get(key) || {
       delivery_date: deliveryDate,
       company_slug: companySlug,
-      company_name: order.company_name || order.location || companySlug || 'Sin empresa',
+      company_name: company.name,
       orders: []
     }
     group.orders.push(order)
@@ -111,7 +149,120 @@ const fetchTotalizerSideRows = async ({ fromDate, toDate, service, companySlugs 
     })
   })
 
-  return { rows: normalizeSideRows(rows), error: null }
+  return { orders: filteredOrders, rows: normalizeSideRows(rows), error: null }
+}
+
+const getNumericQuantity = (...values) => {
+  const match = values.find((value) => String(value ?? '').match(/^-?[0-9]+(\.[0-9]+)?$/))
+  return Math.max(Number(match ?? 1), 0)
+}
+
+const buildClassifiableLabel = (source = {}, fields = []) =>
+  fields.map((field) => source?.[field]).filter(Boolean).join(' ').toLowerCase()
+
+const classifyItemLabel = (label = '') => {
+  if (/opci[oó]n[ \t\r\n]*1|opcion_1/.test(label)) return 'opcion_1'
+  if (/opci[oó]n[ \t\r\n]*2|opcion_2/.test(label)) return 'opcion_2'
+  if (/opci[oó]n[ \t\r\n]*3|opcion_3/.test(label)) return 'opcion_3'
+  if (/cel[ií]ac|sin[ \t\r\n]*tacc/.test(label)) return 'celiacos'
+  if (/dieta|diet[eé]tico|hipos[oó]dico|vegetariano|vegano/.test(label)) return 'dieta'
+  if (/bife.*lomo|lomo/.test(label)) return 'bife_lomo'
+  if (/bife.*pollo/.test(label)) return 'bife_pollo'
+  if (/men[uú][ \t\r\n]*principal|menu[ \t\r\n]*principal|plato[ \t\r\n]*principal|principal/.test(label)) return 'menu_principal'
+  if (/opci[oó]n|menu|men[uú]|cena|almuerzo/.test(label)) return 'otros_menus'
+  return null
+}
+
+const classifyResponseLabel = (label = '') => {
+  if (/guarnici[oó]n|guarnicion|acompa[nñ]amiento/.test(label)) return SIDE_CONCEPT_CODE
+  return classifyItemLabel(label)
+}
+
+const conceptLabelForCode = (code = '') =>
+  TOTALIZER_CONCEPTS.find((concept) => concept.code === code)?.label || 'Otros menús'
+
+const buildEpseRowsFromOrders = (orders = []) => {
+  const totals = new Map()
+
+  const addQuantity = ({ order, conceptCode, quantity }) => {
+    if (!conceptCode) return
+    const deliveryDate = String(order.delivery_date || '').slice(0, 10)
+    const company = getTotalizerCompanyForOrder(order)
+    const key = `${deliveryDate}:${company.slug}:${conceptCode}`
+    const current = totals.get(key) || {
+      delivery_date: deliveryDate,
+      company_slug: company.slug,
+      company_name: company.name,
+      concept_code: conceptCode,
+      concept_label: conceptLabelForCode(conceptCode),
+      quantity: 0
+    }
+    current.quantity += Number(quantity || 0)
+    totals.set(key, current)
+  }
+
+  orders
+    .filter((order) => isEpseSlug(order.company_slug) || isEpseSlug(resolveCompanyForOrder(order).slug))
+    .forEach((order) => {
+      const items = safeArray(order.items)
+      items.forEach((item) => {
+        const label = buildClassifiableLabel(item, ['name', 'title', 'menu', 'option', 'selected_option', 'choice'])
+        addQuantity({
+          order,
+          conceptCode: classifyItemLabel(label),
+          quantity: getNumericQuantity(item?.quantity, item?.qty)
+        })
+      })
+
+      const responses = safeArray(order.custom_responses)
+      responses.forEach((response) => {
+        const label = buildClassifiableLabel(response, ['title', 'label', 'response', 'answer', 'value'])
+        addQuantity({
+          order,
+          conceptCode: classifyResponseLabel(label),
+          quantity: getNumericQuantity(response?.quantity, response?.qty, response?.count, order.total_items)
+        })
+      })
+    })
+
+  return Array.from(totals.values()).filter((row) => row.quantity > 0)
+}
+
+const buildEpseCompaniesFromRows = (rows = []) => {
+  const companies = new Map()
+  rows.forEach((row) => {
+    if (!isEpseSlug(String(row.company_slug).split(':')[0])) return
+    if (!companies.has(row.company_slug)) {
+      companies.set(row.company_slug, {
+        company_slug: row.company_slug,
+        company_name: row.company_name,
+        sort_order: 70
+      })
+    }
+  })
+  return Array.from(companies.values()).sort((a, b) => getCompanyName(a).localeCompare(getCompanyName(b)))
+}
+
+const applyEpseLocationBreakdown = ({ rows, companies, orders }) => {
+  const epseRows = buildEpseRowsFromOrders(orders)
+  if (epseRows.length === 0) return { rows, companies }
+
+  const nonEpseRows = rows.filter((row) => !isEpseSlug(row.company_slug))
+  const nonEpseCompanies = companies.filter((company) => !isEpseSlug(getCompanyKey(company)))
+  const epseCompanies = buildEpseCompaniesFromRows(epseRows)
+  const epseInsertIndex = companies.findIndex((company) => isEpseSlug(getCompanyKey(company)))
+  const nextCompanies = [...nonEpseCompanies]
+
+  if (epseInsertIndex >= 0) {
+    nextCompanies.splice(Math.min(epseInsertIndex, nextCompanies.length), 0, ...epseCompanies)
+  } else {
+    nextCompanies.push(...epseCompanies)
+  }
+
+  return {
+    rows: [...nonEpseRows, ...epseRows],
+    companies: nextCompanies
+  }
 }
 
 export const totalizerService = {
@@ -131,10 +282,20 @@ export const totalizerService = {
       console.error('[totalizer] side detail error', sideResult.error)
     }
 
+    const summaryRows = normalizeRows(data?.rows)
+    const summaryCompanies = Array.isArray(data?.companies) ? data.companies : []
+    const groupedSummary = sideResult.error
+      ? { rows: summaryRows, companies: summaryCompanies }
+      : applyEpseLocationBreakdown({
+        rows: summaryRows,
+        companies: summaryCompanies,
+        orders: sideResult.orders
+      })
+
     return {
       data: {
-        rows: normalizeRows(data?.rows),
-        companies: Array.isArray(data?.companies) ? data.companies : [],
+        rows: groupedSummary.rows,
+        companies: groupedSummary.companies,
         dates: Array.isArray(data?.dates) ? data.dates : [],
         sideRows: sideResult.error ? normalizeSideRows(data?.sideRows || data?.side_rows) : sideResult.rows
       },

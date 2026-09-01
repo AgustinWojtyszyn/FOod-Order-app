@@ -102,28 +102,28 @@ export default function TotalizerPage() {
     <div className="min-h-dvh bg-slate-100 px-4 py-5 text-slate-900 sm:px-6 lg:px-8">
       <main className="mx-auto max-w-7xl space-y-5">
         <header className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div>
+          <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="shrink-0">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Administración</p>
               <h1 className="mt-1 text-3xl font-extrabold text-slate-950">Totalizadora</h1>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6 xl:min-w-[900px]">
-              <label className="block">
+            <div className="grid w-full min-w-0 gap-3 sm:grid-cols-2 lg:flex-1 lg:grid-cols-5 xl:grid-cols-6">
+              <label className="block min-w-0">
                 <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Fecha desde</span>
                 <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm font-bold" />
               </label>
-              <label className="block">
+              <label className="block min-w-0">
                 <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Fecha hasta</span>
                 <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm font-bold" />
               </label>
-              <label className="block">
+              <label className="block min-w-0">
                 <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Servicio</span>
                 <select value={service} onChange={(event) => setService(event.target.value)} className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm font-bold">
                   {SERVICES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </select>
               </label>
-              <div className="block lg:col-span-2">
+              <div className="block min-w-0 lg:col-span-1 xl:col-span-2">
                 <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Empresa</span>
                 <details className="group relative">
                   <summary className="flex h-10 w-full cursor-pointer list-none items-center justify-between gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-bold text-slate-800 marker:hidden">
@@ -157,8 +157,8 @@ export default function TotalizerPage() {
                   </div>
                 </details>
               </div>
-              <div className="flex items-end gap-2">
-                <button type="button" onClick={loadData} disabled={loading} className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+              <div className="flex min-w-0 items-end gap-2 sm:col-span-2 lg:col-span-1">
+                <button type="button" onClick={loadData} disabled={loading} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
                   <RefreshCw className="h-4 w-4" /> Actualizar
                 </button>
               </div>
