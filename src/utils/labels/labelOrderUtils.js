@@ -262,13 +262,23 @@ export const buildLabelOrder = (order = {}) => {
   }
 }
 
+const orderMatchesOriginLocationFilter = (order = {}, locationFilter = '') => {
+  const filterText = normalizeText(locationFilter)
+  if (!filterText) return true
+  const originLocation = getOrderOriginLocation(order)
+  const originMatches = [
+    originLocation,
+    getEpseLocationLabel(originLocation)
+  ].map(normalizeText).filter(Boolean)
+  return originMatches.some(location => location.includes(filterText))
+}
+
 export const orderMatchesLabelFilters = (order = {}, filters = {}) => {
   const labelOrder = buildLabelOrder(order)
   const haystack = normalizeText([
     labelOrder.customerName,
     labelOrder.customerEmail,
     labelOrder.companyLabel,
-    labelOrder.deliveryLocation,
     labelOrder.itemsText,
     labelOrder.optionsText,
     labelOrder.notes,
@@ -294,7 +304,7 @@ export const orderMatchesLabelFilters = (order = {}, filters = {}) => {
 
   if (filters.search && !normalizeText(labelOrder.customerName).includes(normalizeText(filters.search))) return false
   if (filters.email && !normalizeText(labelOrder.customerEmail).includes(normalizeText(filters.email))) return false
-  if (filters.location && !haystack.includes(normalizeText(filters.location))) return false
+  if (filters.location && !orderMatchesOriginLocationFilter(order, filters.location)) return false
   if (filters.itemText && !normalizeText(`${labelOrder.itemsText} ${labelOrder.optionsText}`).includes(normalizeText(filters.itemText))) return false
   if (filters.beverage === 'with' && labelOrder.beverages.length === 0) return false
   if (filters.beverage === 'without' && labelOrder.beverages.length > 0) return false
