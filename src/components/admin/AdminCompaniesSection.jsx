@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, Copy, Eye, EyeOff, ExternalLink, Plus, Save, Send, Trash2, UserPlus } from 'lucide-react'
 
 const STEPS = [
@@ -204,7 +205,7 @@ const CompanyWizard = ({
   }))
 
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-3 sm:p-6">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-3 sm:p-6">
       <div className="flex max-h-[calc(100vh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl sm:max-h-[calc(100vh-3rem)]">
         <div className="shrink-0 border-b border-gray-200 bg-white p-4 sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -512,7 +513,7 @@ const AdminCompaniesSection = ({
       </div>
     </div>
 
-    {wizardOpen && (
+    {wizardOpen && createPortal(
       <CompanyWizard
         draft={companyDraft}
         step={wizardStep}
@@ -523,7 +524,8 @@ const AdminCompaniesSection = ({
         onClose={onCloseCompanyWizard}
         onSave={() => onSaveCompanyDraft({ publish: false })}
         onPublish={() => onSaveCompanyDraft({ publish: true })}
-      />
+      />,
+      document.body
     )}
   </div>
 )
