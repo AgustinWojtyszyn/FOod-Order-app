@@ -663,8 +663,11 @@ as $$
   left join public.custom_option_overrides ovr
     on ovr.option_id = co.id
    and ovr.date = p_date
-  where co.enabled = true
-    and (co.meal is null or co.meal = p_meal)
+  where coalesce((to_jsonb(co)->>'enabled')::boolean, (to_jsonb(co)->>'active')::boolean, true) = true
+    and (
+      coalesce(to_jsonb(co)->>'meal_scope', to_jsonb(co)->>'meal', 'both') = 'both'
+      or coalesce(to_jsonb(co)->>'meal_scope', to_jsonb(co)->>'meal') = p_meal
+    )
     and (co.company is null or co.company = p_company)
     and (
       co.company is null
