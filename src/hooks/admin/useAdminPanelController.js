@@ -190,6 +190,7 @@ const useAdminPanelController = ({
     wizardOpen,
     wizardStep,
     publishChecklist,
+    companyActivity,
     draftStartNumbers,
     adminEmailDrafts,
     companiesLoading,
@@ -206,6 +207,7 @@ const useAdminPanelController = ({
     onAdminEmailChange,
     onAssignCompanyAdmin,
     onRemoveCompanyAdmin,
+    onCompanyLifecycle,
     onRefreshCompanies
   } = useAdminCompaniesData({ enabled: optionsEnabled })
 
@@ -498,7 +500,9 @@ const useAdminPanelController = ({
       onSaveCompanyStartNumber,
       onAdminEmailChange,
       onAssignCompanyAdmin,
-      onRemoveCompanyAdmin
+      onRemoveCompanyAdmin,
+      onCompanyLifecycle,
+      companyActivity
     },
     cleanupSection: {
       archivingPending,

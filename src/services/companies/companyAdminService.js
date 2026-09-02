@@ -155,12 +155,30 @@ export const createCompanyAdminService = ({
     return { data, error }
   }
 
+  const getCompanyDeletionStatus = async ({ companySlug }) => {
+    const { data, error } = await supabase.rpc('get_company_admin_deletion_status', {
+      p_company_slug: companySlug
+    })
+    return { data, error }
+  }
+
+  const manageCompanyLifecycle = async ({ companySlug, action }) => {
+    invalidateCache()
+    const { data, error } = await supabase.rpc('manage_company_admin_lifecycle', {
+      p_company_slug: companySlug,
+      p_action: action
+    })
+    return { data, error }
+  }
+
   return {
     getCompanyAdminCatalog,
     getPublicCompanyCatalog,
     validateCompanyAdminConfig,
     saveCompanyAdminConfig,
-    duplicateCompanyAdminConfig
+    duplicateCompanyAdminConfig,
+    getCompanyDeletionStatus,
+    manageCompanyLifecycle
   }
 }
 

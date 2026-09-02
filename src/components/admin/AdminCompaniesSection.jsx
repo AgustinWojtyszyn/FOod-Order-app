@@ -393,6 +393,7 @@ const AdminCompaniesSection = ({
   wizardOpen,
   wizardStep,
   publishChecklist,
+  companyActivity,
   adminEmailDrafts,
   companiesLoading,
   savingCompanySlug,
@@ -405,7 +406,8 @@ const AdminCompaniesSection = ({
   onDuplicateCompany,
   onAdminEmailChange,
   onAssignCompanyAdmin,
-  onRemoveCompanyAdmin
+  onRemoveCompanyAdmin,
+  onCompanyLifecycle
 }) => (
   <div className="space-y-4">
     <div className="rounded-lg border border-white/20 bg-white/95 p-4 shadow-xl sm:p-6">
@@ -505,6 +507,24 @@ const AdminCompaniesSection = ({
                   </button>
                 </div>
               </div>
+            </div>
+
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+              <h4 className="font-bold text-red-900">Zona de riesgo</h4>
+              <p className="mt-1 text-sm leading-6 text-red-800">
+                {companyActivity[selectedCompany.slug]
+                  ? 'Esta empresa tiene actividad registrada y no puede eliminarse. Podés desactivarla para que deje de utilizarse.'
+                  : 'Eliminar una empresa es definitivo y solo está permitido si nunca tuvo actividad.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => onCompanyLifecycle(selectedCompany)}
+                disabled={savingCompanySlug === selectedCompany.slug}
+                className="mt-3 inline-flex items-center justify-center rounded-md border border-red-300 bg-red-600 px-3 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {companyActivity[selectedCompany.slug] ? 'Desactivar empresa' : 'Eliminar empresa'}
+              </button>
             </div>
           </div>
         ) : (

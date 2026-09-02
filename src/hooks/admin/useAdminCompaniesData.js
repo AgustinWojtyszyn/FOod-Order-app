@@ -40,6 +40,7 @@ const useAdminCompaniesData = ({ enabled = true } = {}) => {
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardStep, setWizardStep] = useState(0)
   const [publishChecklist, setPublishChecklist] = useState([])
+  const [companyActivity, setCompanyActivity] = useState({})
 
   const refreshCompanies = useCallback(async () => {
     setCompaniesLoading(true)
@@ -94,6 +95,17 @@ const useAdminCompaniesData = ({ enabled = true } = {}) => {
     () => companies.find((company) => company.slug === selectedCompanySlug) || null,
     [companies, selectedCompanySlug]
   )
+
+  useEffect(() => {
+    if (!selectedCompanySlug) return
+    let cancelled = false
+    db.getCompanyDeletionStatus({ companySlug: selectedCompanySlug }).then(({ data, error }) => {
+      if (!cancelled && !error) {
+        setCompanyActivity((prev) => ({ ...prev, [selectedCompanySlug]: Boolean(data?.has_activity) }))
+      }
+    })
+    return () => { cancelled = true }
+  }, [selectedCompanySlug])
 
   const usedStartNumbers = useMemo(() => {
     const map = new Map()
@@ -266,6 +278,33 @@ const useAdminCompaniesData = ({ enabled = true } = {}) => {
     notifySuccess('Administrador quitado de la empresa.')
   }
 
+  const handleCompanyLifecycle = async (company) => {
+    const hasActivity = companyActivity[company.slug]
+    const action = hasActivity ? 'deactivate' : 'delete'
+    const confirmed = await confirmAction({
+      title: hasActivity ? 'Desactivar empresa' : 'Eliminar empresa',
+      message: hasActivity
+        ? `Se desactivará ${company.name}. La empresa y todos sus históricos se conservarán.`
+        : `Se eliminará definitivamente ${company.name}. Esta acción no se puede deshacer.`,
+      confirmText: hasActivity ? 'Desactivar' : 'Eliminar'
+    })
+    if (!confirmed) return
+
+    setSavingCompanySlug(company.slug)
+    try {
+      const { data, error } = await db.manageCompanyLifecycle({ companySlug: company.slug, action })
+      if (error) {
+        notifyError(getUserFriendlyErrorMessage(error, 'No pudimos actualizar la empresa.'))
+        return
+      }
+      await refreshCompanies()
+      setSelectedCompanySlug('')
+      notifySuccess(data?.action === 'deleted' ? 'Empresa eliminada definitivamente.' : 'Empresa desactivada. La información histórica se conservó.')
+    } finally {
+      setSavingCompanySlug(null)
+    }
+  }
+
   return {
     companies,
     selectedCompany,
@@ -274,6 +313,7 @@ const useAdminCompaniesData = ({ enabled = true } = {}) => {
     wizardOpen,
     wizardStep,
     publishChecklist,
+    companyActivity,
     draftStartNumbers,
     adminEmailDrafts,
     companiesLoading,
@@ -290,6 +330,7 @@ const useAdminCompaniesData = ({ enabled = true } = {}) => {
     onAdminEmailChange: handleAdminEmailChange,
     onAssignCompanyAdmin: handleAssignCompanyAdmin,
     onRemoveCompanyAdmin: handleRemoveCompanyAdmin,
+    onCompanyLifecycle: handleCompanyLifecycle,
     onRefreshCompanies: refreshCompanies
   }
 }
