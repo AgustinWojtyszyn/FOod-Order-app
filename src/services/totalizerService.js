@@ -376,44 +376,48 @@ const addDaySheet = ({ workbook, date, rows, companies, sideRows = [] }) => {
   const visibleConcepts = sideColumns.length > 0
     ? TOTALIZER_CONCEPTS.filter((concept) => concept.code !== SIDE_CONCEPT_CODE)
     : TOTALIZER_CONCEPTS
+  const productRows = [
+    ...visibleConcepts.map((concept) => ({
+      key: concept.code,
+      label: concept.label.toUpperCase(),
+      getQuantity: ({ conceptTotals }) => Number(conceptTotals[concept.code] || 0)
+    })),
+    ...sideColumns.map((column) => ({
+      key: column.key,
+      label: column.label.toUpperCase(),
+      getQuantity: ({ sideTotals }) => Number(sideTotals.get(column.key) || 0)
+    }))
+  ]
   const conceptTotalsByCompany = getConceptTotalsByCompany({ rows, companies })
   const sideTotalsByCompany = getSideTotalsByCompany({ sideRows, companies })
 
   worksheet.addRow([`TOTALIZADORA ${dateLabel(date)}`])
-  worksheet.addRow(['EMPRESA', ...visibleConcepts.map((concept) => concept.label.toUpperCase()), ...sideColumns.map((column) => column.label.toUpperCase()), 'TOTAL'])
+  worksheet.addRow(['PRODUCTO', ...companies.map(getCompanyName), 'TOTAL'])
 
-  companies.forEach((company) => {
+  productRows.forEach((product) => {
+    const quantities = companies.map((company) => {
+      const companyKey = getCompanyKey(company)
+      return product.getQuantity({
+        conceptTotals: conceptTotalsByCompany.get(companyKey) || {},
+        sideTotals: sideTotalsByCompany.get(companyKey) || new Map()
+      })
+    })
+    worksheet.addRow([product.label, ...quantities, quantities.reduce((sum, quantity) => sum + quantity, 0)])
+  })
+
+  const companyTotals = companies.map((company) => {
     const companyKey = getCompanyKey(company)
     const conceptTotals = conceptTotalsByCompany.get(companyKey) || {}
     const sideTotals = sideTotalsByCompany.get(companyKey) || new Map()
-    const total = TOTALIZER_CONCEPTS.reduce((sum, concept) => sum + Number(conceptTotals[concept.code] || 0), 0)
-
-    worksheet.addRow([
-      getCompanyName(company),
-      ...visibleConcepts.map((concept) => Number(conceptTotals[concept.code] || 0)),
-      ...sideColumns.map((column) => Number(sideTotals.get(column.key) || 0)),
-      total
-    ])
+    return productRows.reduce((sum, product) => (
+      sum + product.getQuantity({ conceptTotals, sideTotals })
+    ), 0)
   })
-
-  const summaryValues = TOTALIZER_CONCEPTS.reduce((values, concept) => {
-    values[concept.code] = rows
-      .filter((row) => row.concept_code === concept.code)
-      .reduce((sum, row) => sum + Number(row.quantity || 0), 0)
-    return values
-  }, {})
-  const sideSummaryValues = sideColumns.map((column) =>
-    sideRows
-      .filter((row) => (normalizeLabel(row.side_label) || String(row.side_label || '').trim().toLowerCase()) === column.key)
-      .reduce((sum, row) => sum + Number(row.quantity || 0), 0)
-  )
-  const grandTotal = TOTALIZER_CONCEPTS.reduce((sum, concept) => sum + Number(summaryValues[concept.code] || 0), 0)
 
   worksheet.addRow([
     'TOTAL',
-    ...visibleConcepts.map((concept) => Number(summaryValues[concept.code] || 0)),
-    ...sideSummaryValues,
-    grandTotal
+    ...companyTotals,
+    companyTotals.reduce((sum, total) => sum + total, 0)
   ])
   worksheet.lastRow.font = { bold: true }
   styleSheet(worksheet)
