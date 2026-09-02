@@ -5,11 +5,13 @@ import RequireUser from './RequireUser'
 import { getVisibleCompanyList } from '../constants/companyConfig'
 import { useAuthContext } from '../contexts/authContextValue'
 import { db } from '../supabaseClient'
+import { normalizeCompanyAdminConfig } from '../services/companies/companyAdminService'
 
 const OrderCompanySelector = ({ user, loading }) => {
   const navigate = useNavigate()
   const { isAdmin } = useAuthContext()
   const [activeCompanySlug, setActiveCompanySlug] = useState('')
+  const [managedCompanies, setManagedCompanies] = useState([])
 
   const lastCompanySelected = useMemo(() => {
     if (typeof window === 'undefined') return ''
@@ -36,13 +38,39 @@ const OrderCompanySelector = ({ user, loading }) => {
     }
   }, [])
 
+  useEffect(() => {
+    let mounted = true
+    const loadCatalog = async () => {
+      const loader = isAdmin ? db.getCompanyAdminCatalog : db.getPublicCompanyCatalog
+      if (!loader) return
+      const { data, error } = await loader()
+      if (!mounted || error || !Array.isArray(data) || data.length === 0) return
+      setManagedCompanies(data.map(normalizeCompanyAdminConfig))
+    }
+    loadCatalog()
+    return () => {
+      mounted = false
+    }
+  }, [isAdmin])
+
   const orderedCompanies = useMemo(() => {
-    return getVisibleCompanyList({ includeAdminOnly: isAdmin }).sort((a, b) => {
+    const source = managedCompanies.length > 0
+      ? managedCompanies.map((company) => ({
+        ...company,
+        adminOnly: company.visibility === 'admins',
+        accent: company.active ? 'from-orange-500 to-orange-700' : 'from-gray-400 to-gray-600',
+        badgeClass: company.visibility === 'public' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700',
+        customHint: company.description || 'Flujo configurado desde Administración.',
+        locations: company.locations.length > 0 ? company.locations.map((location) => location.name) : [company.name],
+        requiresAuthorizedLocations: Boolean(company.settings?.requiresAuthorizedLocations)
+      }))
+      : getVisibleCompanyList({ includeAdminOnly: isAdmin })
+    return source.filter((company) => company.active !== false && (isAdmin || !company.adminOnly)).sort((a, b) => {
       if (a.slug === recommendedCompany) return -1
       if (b.slug === recommendedCompany) return 1
       return 0
     })
-  }, [isAdmin, recommendedCompany])
+  }, [isAdmin, managedCompanies, recommendedCompany])
 
   const handleSelect = (slug) => {
     try {

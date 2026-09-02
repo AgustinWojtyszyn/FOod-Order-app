@@ -76,7 +76,7 @@ const OrderForm = ({ user, loading }) => {
               items={controller.lunch.menuItems}
               selectedItems={controller.lunch.selectedItems}
               onToggleItem={controller.lunch.handleItemSelect}
-              companySlug={controller.company.rawCompanySlug}
+              companySlug={controller.company.companyConfig}
             />
 
             {/* Resumen del Pedido */}
@@ -84,7 +84,7 @@ const OrderForm = ({ user, loading }) => {
               items={controller.lunch.getSelectedItemsList()}
               total={controller.lunch.calculateTotal()}
               onRemove={controller.lunch.removeLunchItem}
-              companySlug={controller.company.rawCompanySlug}
+              companySlug={controller.company.companyConfig}
             />
 
             {/* Opciones Personalizadas - Solo mostrar opciones activas */}
@@ -110,14 +110,14 @@ const OrderForm = ({ user, loading }) => {
                   items={controller.dinner.dinnerMenuItemsUI}
                   selectedItems={controller.dinner.selectedItemsDinner}
                   onToggleItem={controller.dinner.handleItemSelectDinner}
-                  companySlug={controller.company.rawCompanySlug}
+                  companySlug={controller.company.companyConfig}
                 />
 
                 <OrderLunchSummary
                   items={controller.dinner.getSelectedItemsListDinner()}
                   total={controller.dinner.calculateTotalDinner()}
                   onRemove={(itemId) => controller.dinner.handleItemSelectDinner(itemId, false)}
-                  companySlug={controller.company.rawCompanySlug}
+                  companySlug={controller.company.companyConfig}
                 />
 
                 <OrderDinnerOptionsSection

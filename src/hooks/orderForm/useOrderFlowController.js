@@ -1,5 +1,4 @@
 import { useMemo, useCallback } from 'react'
-import { COMPANY_CATALOG } from '../../constants/companyConfig'
 import { Sound } from '../../utils/Sound'
 import { notifyInfo } from '../../utils/notice'
 import { useOrderSubmit } from '../useOrderSubmit'
@@ -65,6 +64,7 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
     rawCompanySlug,
     companyConfig,
     companyOptionsSlug,
+    companyCatalog,
     isGenneia,
     hasGenneiaRules,
     hasFruitDessertRules,
@@ -157,6 +157,7 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
     user,
     rawCompanySlug,
     companyOptionsSlug,
+    companyConfig,
     setDinnerEnabled,
     setSelectedTurns,
     setMode,
@@ -181,7 +182,7 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
   useOrderFormEffects({
     companySlugParam,
     rawCompanySlug,
-    companyCatalog: COMPANY_CATALOG,
+    companyCatalog,
     navigate,
     dinnerMenuSpecial,
     setDinnerSpecialChoice,

@@ -150,6 +150,7 @@ const useOrderBootstrap = ({
   user,
   rawCompanySlug,
   companyOptionsSlug,
+  companyConfig,
   setDinnerEnabled,
   setSelectedTurns,
   setMode,
@@ -192,7 +193,7 @@ const useOrderBootstrap = ({
         if (companyResult?.error) console.error('Error fetching company menu:', companyResult.error)
         setMenuItems(withGreifRefrigerioMenuItem({
           companySlug: normalizedCompanySlug,
-          items: filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS)), normalizedCompanySlug)
+          items: filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS)), companyConfig || normalizedCompanySlug)
         }))
         return
       }
@@ -206,12 +207,12 @@ const useOrderBootstrap = ({
       )
       setMenuItems(withGreifRefrigerioMenuItem({
         companySlug: normalizedCompanySlug,
-        items: filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(mergedItems)), normalizedCompanySlug)
+        items: filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(mergedItems)), companyConfig || normalizedCompanySlug)
       }))
     } catch (err) {
       console.error('Error:', err)
     }
-  }, [companyOptionsSlug, rawCompanySlug, setMenuItems])
+  }, [companyConfig, companyOptionsSlug, rawCompanySlug, setMenuItems])
 
   const fetchLunchCustomOptions = useCallback(async () => {
     try {
@@ -371,7 +372,7 @@ const useOrderBootstrap = ({
       )
       const normalizedLunchMenu = filterOrderableMenuItems(
         withMenuSlotIndex(sortMenuItems(mergedLunchMenu)),
-        normalizedCompanySlug
+        companyConfig || normalizedCompanySlug
       )
       setDinnerMenuItems(
         normalizedLunchMenu.map((item, index) => ({
@@ -409,7 +410,7 @@ const useOrderBootstrap = ({
       setDinnerMenuItems([])
       setDinnerMenuSpecial(null)
     }
-  }, [companyOptionsSlug, rawCompanySlug, selectedDinnerDate, setDinnerMenuItems, setDinnerMenuSpecial])
+  }, [companyConfig, companyOptionsSlug, rawCompanySlug, selectedDinnerDate, setDinnerMenuItems, setDinnerMenuSpecial])
 
   const fetchUserFeatures = useCallback(async () => {
     if (!user?.id) return

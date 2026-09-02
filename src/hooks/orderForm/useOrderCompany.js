@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { COMPANY_CATALOG, COMPANY_LIST } from '../../constants/companyConfig'
 import { useAuthContext } from '../../contexts/authContextValue'
 import { db } from '../../supabaseClient'
+import { normalizeCompanyAdminConfig } from '../../services/companies/companyAdminService'
 import { hasFruitDessertChoiceRules, hasGenneiaOptionRules } from '../../utils/order/companySpecialRules'
 
 export const useOrderCompany = () => {
@@ -13,25 +14,46 @@ export const useOrderCompany = () => {
   const [authorizedLocationRows, setAuthorizedLocationRows] = useState([])
   const [authorizedLocationsLoading, setAuthorizedLocationsLoading] = useState(false)
   const [authorizedLocationsError, setAuthorizedLocationsError] = useState(null)
+  const [managedCompanies, setManagedCompanies] = useState([])
 
   const recommendedCompany = typeof window !== 'undefined'
     ? window.localStorage.getItem('lastCompany')
     : null
 
-  const fallbackCompanySlug = COMPANY_LIST[0]?.slug || 'laja'
+  const managedCatalog = useMemo(() => {
+    const rows = Array.isArray(managedCompanies) ? managedCompanies : []
+    if (rows.length === 0) return null
+    return Object.fromEntries(rows.map((company) => [company.slug, {
+      ...company,
+      customHint: company.description,
+      locations: company.locations.length > 0
+        ? company.locations.filter((location) => location.active).map((location) => location.name)
+        : [company.name].filter(Boolean),
+      requiresAuthorizedLocations: Boolean(company.settings?.requiresAuthorizedLocations),
+      adminOnly: company.visibility === 'admins'
+    }]))
+  }, [managedCompanies])
+
+  const companyCatalog = managedCatalog || COMPANY_CATALOG
+  const companyList = useMemo(
+    () => Object.values(companyCatalog).filter((company) => isAdmin || !company.adminOnly),
+    [companyCatalog, isAdmin]
+  )
+
+  const fallbackCompanySlug = companyList[0]?.slug || COMPANY_LIST[0]?.slug || 'laja'
   const defaultCompanyCandidate = activeCompanySlug || recommendedCompany || fallbackCompanySlug
-  const defaultCompanySlug = (!COMPANY_CATALOG[defaultCompanyCandidate]?.adminOnly || isAdmin)
+  const defaultCompanySlug = (!companyCatalog[defaultCompanyCandidate]?.adminOnly || isAdmin)
     ? defaultCompanyCandidate
     : fallbackCompanySlug
   const rawCompanySlug = (companySlugParam || searchParams.get('company') || defaultCompanySlug || '')
     .trim()
     .toLowerCase()
 
-  const requestedCompany = COMPANY_CATALOG[rawCompanySlug]
+  const requestedCompany = companyCatalog[rawCompanySlug]
   const requestedCompanyAllowed = requestedCompany && (!requestedCompany.adminOnly || isAdmin)
   const companyConfig = requestedCompanyAllowed
     ? requestedCompany
-    : COMPANY_CATALOG[defaultCompanySlug]
+    : companyCatalog[defaultCompanySlug]
   const companyOptionsSlug = (companyConfig?.optionsSourceSlug || companyConfig?.slug || rawCompanySlug || '')
     .trim()
     .toLowerCase()
@@ -46,8 +68,23 @@ export const useOrderCompany = () => {
     if (requiresAuthorizedLocations) {
       return authorizedLocationRows.map((row) => row.name).filter(Boolean)
     }
-    return companyConfig?.locations || COMPANY_LIST[0]?.locations || []
-  }, [authorizedLocationRows, companyConfig, requiresAuthorizedLocations])
+    return companyConfig?.locations || companyList[0]?.locations || COMPANY_LIST[0]?.locations || []
+  }, [authorizedLocationRows, companyConfig, companyList, requiresAuthorizedLocations])
+
+  useEffect(() => {
+    let mounted = true
+    const loadCatalog = async () => {
+      const loader = isAdmin ? db.getCompanyAdminCatalog : db.getPublicCompanyCatalog
+      if (!loader) return
+      const { data, error } = await loader()
+      if (!mounted || error || !Array.isArray(data) || data.length === 0) return
+      setManagedCompanies(data.map(normalizeCompanyAdminConfig))
+    }
+    loadCatalog()
+    return () => {
+      mounted = false
+    }
+  }, [isAdmin])
 
   const deliveryLocationsByLocation = useMemo(() => {
     const map = new Map()
@@ -124,6 +161,8 @@ export const useOrderCompany = () => {
     rawCompanySlug,
     companyConfig,
     companyOptionsSlug,
+    companyCatalog,
+    companyList,
     isGenneia,
     hasGenneiaRules,
     hasFruitDessertRules,

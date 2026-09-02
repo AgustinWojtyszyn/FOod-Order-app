@@ -65,8 +65,37 @@ const getMenuSlotIndex = (item = {}, fallbackIndex = null) => {
   return Number.isFinite(fallbackIndex) ? fallbackIndex : null
 }
 
-const normalizeCompanySlug = (value = '') => (value || '').toString().trim().toLowerCase()
+const normalizeCompanySlug = (value = '') => {
+  const raw = typeof value === 'object' && value !== null ? value.slug : value
+  return (raw || '').toString().trim().toLowerCase()
+}
 const isIgarretaCompany = (companySlug = '') => normalizeCompanySlug(companySlug) === IGARRETA_COMPANY_SLUG
+
+const getConfiguredMenuItems = (companyOrSlug) =>
+  (typeof companyOrSlug === 'object' && companyOrSlug !== null && Array.isArray(companyOrSlug.menuItems))
+    ? companyOrSlug.menuItems
+    : []
+
+const getMenuItemKey = (item = {}, fallbackIndex = null) => {
+  const slotIndex = getMenuSlotIndex(item, fallbackIndex)
+  if (slotIndex === 0) return 'menu_principal'
+  if (slotIndex >= 1 && slotIndex <= 3) return `opcion_${slotIndex}`
+  const text = normalizeSlotTitle(`${item?.name || ''} ${item?.description || ''}`)
+  if (text.includes('dieta')) return 'dieta'
+  if (text.includes('celiac')) return 'celiacos'
+  if (text.includes('lomo')) return 'bife_lomo'
+  if (text.includes('pollo')) return 'bife_pollo'
+  if (text.includes('guarnicion') || text.includes('guarnición')) return 'guarniciones'
+  return 'otros_menus'
+}
+
+const isMenuItemEnabledForCompany = (item = {}, companyOrSlug = '', fallbackIndex = null) => {
+  const configuredItems = getConfiguredMenuItems(companyOrSlug)
+  if (configuredItems.length === 0) return true
+  const key = getMenuItemKey(item, fallbackIndex)
+  const configured = configuredItems.find((entry) => entry?.key === key || entry?.menuItemKey === key)
+  return configured?.enabled !== false
+}
 
 const replaceDietaLabel = (value, companySlug) => {
   const text = normalizeText(value)
@@ -131,8 +160,8 @@ const withCompanyMenuDisplay = (item = {}, companySlug = '', fallbackIndex = nul
 const filterOrderableMenuItems = (items = [], companySlug = '') =>
   (items || [])
     .filter((item, index) => {
-      if (isIgarretaCompany(companySlug)) return !isHiddenIgarretaMenuSlot(item, index)
-      return !isHiddenOrderMenuSlot(item, companySlug)
+      if (isIgarretaCompany(companySlug)) return !isHiddenIgarretaMenuSlot(item, index) && isMenuItemEnabledForCompany(item, companySlug, index)
+      return !isHiddenOrderMenuSlot(item, companySlug) && isMenuItemEnabledForCompany(item, companySlug, index)
     })
     .map((item, index) => withCompanyMenuDisplay(item, companySlug, index))
 

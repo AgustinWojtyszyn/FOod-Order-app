@@ -4,6 +4,7 @@ import { supabase } from './services/supabase'
 import { createOrdersService } from './services/orders/ordersService'
 import { createMenuService } from './services/menu/menuService'
 import { createCustomOptionsService } from './services/customOptions/customOptionsService'
+import { createCompanyAdminService } from './services/companies/companyAdminService'
 import { createUsersService } from './services/users/usersService'
 import { createAnalyticsService } from './services/analytics/analyticsService'
 import { clearSupabaseStorage } from './utils/clearSupabaseStorage'
@@ -186,6 +187,11 @@ const customOptionsService = createCustomOptionsService({
   invalidateCache: () => cache.clear()
 })
 
+const companyAdminService = createCompanyAdminService({
+  supabase,
+  invalidateCache: () => cache.clear()
+})
+
 const usersService = createUsersService({
   supabase,
   cache,
@@ -212,6 +218,7 @@ export const db = {
   ...ordersService,
   ...menuService,
   ...customOptionsService,
+  ...companyAdminService,
   ...usersService,
   ...analyticsService,
 
