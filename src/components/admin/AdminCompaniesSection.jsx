@@ -1,14 +1,13 @@
-import { Copy, Eye, EyeOff, ExternalLink, Plus, Save, Send, Trash2, UserPlus } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, Copy, Eye, EyeOff, ExternalLink, Plus, Save, Send, Trash2, UserPlus } from 'lucide-react'
 
 const STEPS = [
-  'Datos',
+  'Datos básicos',
   'Sedes',
   'Horarios',
   'Servicios',
-  'Reglas',
-  'Etiquetas',
+  'Opciones y etiquetas',
   'Remitos',
-  'Integraciones',
   'Resumen'
 ]
 
@@ -52,10 +51,19 @@ const MENU_ITEMS = [
   ['guarniciones', 'Guarniciones']
 ]
 
-const inputClass = 'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500'
-const smallButtonClass = 'inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-800 hover:bg-gray-50 disabled:opacity-50'
+const inputClass = 'w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:bg-gray-100 disabled:text-gray-500'
+const smallButtonClass = 'inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50'
+const primaryButtonClass = 'inline-flex items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-sm font-bold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50'
 
 const updateNested = (object, key, value) => ({ ...object, [key]: value })
+
+const slugifyName = (value) => value
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .trim()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '')
 
 const StatusPill = ({ active, visibility }) => (
   <div className="flex flex-wrap gap-2">
@@ -68,9 +76,12 @@ const StatusPill = ({ active, visibility }) => (
   </div>
 )
 
-const Toggle = ({ checked, onChange, label }) => (
-  <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
-    <span className="text-sm font-semibold text-gray-800">{label}</span>
+const Toggle = ({ checked, onChange, label, help }) => (
+  <label className="flex items-start justify-between gap-4 rounded-md border border-gray-200 bg-white px-3 py-2.5">
+    <span>
+      <span className="block text-sm font-semibold text-gray-800">{label}</span>
+      {help && <span className="mt-0.5 block text-xs text-gray-500">{help}</span>}
+    </span>
     <input
       type="checkbox"
       checked={checked}
@@ -80,10 +91,13 @@ const Toggle = ({ checked, onChange, label }) => (
   </label>
 )
 
-const Field = ({ label, children, error }) => (
-  <label className="block space-y-1">
-    <span className="text-xs font-bold uppercase text-gray-500">{label}</span>
+const Field = ({ label, children, error, help, required = false }) => (
+  <label className="block space-y-1.5">
+    <span className="text-sm font-bold text-gray-800">
+      {label}{required && <span className="text-red-600"> *</span>}
+    </span>
     {children}
+    {help && <span className="block text-xs leading-5 text-gray-500">{help}</span>}
     {error && <span className="block text-xs font-semibold text-red-600">{error}</span>}
   </label>
 )
@@ -91,7 +105,7 @@ const Field = ({ label, children, error }) => (
 const buildInlineErrors = (draft) => {
   const errors = {}
   if (!draft.name?.trim()) errors.name = 'Ingresá un nombre.'
-  if (!draft.slug?.trim()) errors.slug = 'Definí un slug.'
+  if (!draft.slug?.trim()) errors.slug = 'Definí un nombre interno.'
   if (!draft.services?.some((service) => service.enabled)) errors.services = 'Habilitá al menos un servicio.'
   if (draft.schedule?.mode === 'custom' && (!draft.schedule.opensAt || !draft.schedule.closesAt)) {
     errors.schedule = 'Completá apertura y cierre.'
@@ -101,6 +115,42 @@ const buildInlineErrors = (draft) => {
   }
   return errors
 }
+
+const StepIntro = ({ title, children }) => (
+  <div className="mb-5">
+    <h3 className="text-base font-bold text-gray-900">{title}</h3>
+    {children && <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-600">{children}</p>}
+  </div>
+)
+
+const AdvancedPanel = ({ title = 'Configuración avanzada', children }) => {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="rounded-md border border-gray-200 bg-gray-50">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-bold text-gray-800"
+      >
+        {title}
+        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && <div className="border-t border-gray-200 p-4">{children}</div>}
+    </div>
+  )
+}
+
+const StepActions = ({ step, saving, onStepChange, onClose, onSave, onPublish }) => (
+  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <button type="button" onClick={onClose} className={smallButtonClass}>Cancelar</button>
+    <div className="flex flex-col-reverse gap-2 sm:flex-row">
+      <button type="button" className={smallButtonClass} disabled={step === 0 || saving} onClick={() => onStepChange(Math.max(0, step - 1))}>Anterior</button>
+      <button type="button" className={smallButtonClass} disabled={step === STEPS.length - 1 || saving} onClick={() => onStepChange(Math.min(STEPS.length - 1, step + 1))}>Siguiente</button>
+      <button type="button" onClick={onSave} disabled={saving} className={smallButtonClass}>Guardar solo para administradores</button>
+      <button type="button" onClick={onPublish} disabled={saving} className={primaryButtonClass}><Send className="mr-2 h-4 w-4" />Publicar para todos</button>
+    </div>
+  </div>
+)
 
 const CompanyWizard = ({
   draft,
@@ -115,6 +165,7 @@ const CompanyWizard = ({
 }) => {
   const errors = buildInlineErrors(draft)
   const setDraft = (patch) => onDraftChange((prev) => ({ ...prev, ...patch }))
+  const setName = (name) => onDraftChange((prev) => ({ ...prev, name, slug: prev.slug || slugifyName(name) }))
   const setSchedule = (patch) => onDraftChange((prev) => ({ ...prev, schedule: { ...prev.schedule, ...patch } }))
   const setRemitos = (patch) => onDraftChange((prev) => ({ ...prev, remitos: { ...prev.remitos, ...patch } }))
   const setSettings = (patch) => onDraftChange((prev) => ({ ...prev, settings: { ...prev.settings, ...patch } }))
@@ -153,9 +204,9 @@ const CompanyWizard = ({
   }))
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-3 sm:p-6">
-      <div className="mx-auto max-w-6xl rounded-lg bg-white shadow-2xl">
-        <div className="border-b border-gray-200 p-4 sm:p-6">
+    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-3 sm:p-6">
+      <div className="flex max-h-[calc(100vh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl sm:max-h-[calc(100vh-3rem)]">
+        <div className="shrink-0 border-b border-gray-200 bg-white p-4 sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-xl font-bold text-gray-900">Administración de empresa</h2>
@@ -177,20 +228,14 @@ const CompanyWizard = ({
           </div>
         </div>
 
-        <div className="p-4 sm:p-6">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
           {step === 0 && (
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Nombre" error={errors.name}>
-                <input className={inputClass} value={draft.name} onChange={(event) => setDraft({ name: event.target.value })} />
-              </Field>
-              <Field label="Slug" error={errors.slug}>
-                <input className={inputClass} value={draft.slug} onChange={(event) => setDraft({ slug: event.target.value })} />
+              <Field label="Nombre" error={errors.name} required>
+                <input className={inputClass} value={draft.name} onChange={(event) => setName(event.target.value)} />
               </Field>
               <Field label="Subtítulo">
                 <input className={inputClass} value={draft.subtitle} onChange={(event) => setDraft({ subtitle: event.target.value })} />
-              </Field>
-              <Field label="Fuente de opciones">
-                <input className={inputClass} value={draft.optionsSourceSlug} onChange={(event) => setDraft({ optionsSourceSlug: event.target.value })} />
               </Field>
               <div className="md:col-span-2">
                 <Field label="Descripción">
@@ -198,12 +243,24 @@ const CompanyWizard = ({
                 </Field>
               </div>
               <Toggle checked={draft.active} onChange={(active) => setDraft({ active })} label="Empresa activa" />
-              <Field label="Visibilidad">
+              <Field label="Quién puede verla">
                 <select className={inputClass} value={draft.visibility} onChange={(event) => setDraft({ visibility: event.target.value })}>
                   <option value="admins">Solo administradores</option>
                   <option value="public">Visible para todos</option>
                 </select>
               </Field>
+              <div className="md:col-span-2">
+                <AdvancedPanel>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Nombre interno" error={errors.slug} help="Se usa para identificar la empresa internamente.">
+                      <input className={inputClass} value={draft.slug} onChange={(event) => setDraft({ slug: event.target.value })} />
+                    </Field>
+                    <Field label="Tomar opciones de" help="Dejá vacío para usar las opciones de esta empresa.">
+                      <input className={inputClass} value={draft.optionsSourceSlug} onChange={(event) => setDraft({ optionsSourceSlug: event.target.value })} />
+                    </Field>
+                  </div>
+                </AdvancedPanel>
+              </div>
             </div>
           )}
 
@@ -215,7 +272,7 @@ const CompanyWizard = ({
                 <div key={index} className="grid gap-3 rounded-lg border border-gray-200 p-3 md:grid-cols-6">
                   <Field label="Nombre"><input className={inputClass} value={location.name} onChange={(event) => setLocation(index, { name: event.target.value })} /></Field>
                   <Field label="Código"><input className={inputClass} value={location.code} onChange={(event) => setLocation(index, { code: event.target.value })} /></Field>
-                  <Field label="Slug"><input className={inputClass} value={location.slug} onChange={(event) => setLocation(index, { slug: event.target.value })} /></Field>
+                  <Field label="Nombre interno"><input className={inputClass} value={location.slug} onChange={(event) => setLocation(index, { slug: event.target.value })} /></Field>
                   <Field label="Entrega"><input className={inputClass} value={location.deliveryName} onChange={(event) => setLocation(index, { deliveryName: event.target.value })} /></Field>
                   <Toggle checked={location.active} onChange={(active) => setLocation(index, { active })} label="Activa" />
                   <button type="button" onClick={() => removeLocation(index)} className={smallButtonClass}><Trash2 className="h-4 w-4" /></button>
@@ -259,23 +316,31 @@ const CompanyWizard = ({
           )}
 
           {step === 4 && (
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-5">
+              <StepIntro title="Qué se puede pedir" />
+              <div className="grid gap-3 md:grid-cols-2">
               {Object.entries(RULE_LABELS).map(([key, label]) => (
                 <Toggle key={key} checked={draft.rules?.[key]?.enabled !== false} onChange={(enabled) => toggleRule(key, enabled)} label={label} />
               ))}
               <Toggle checked={draft.settings.requiresAuthorizedLocations} onChange={(requiresAuthorizedLocations) => setSettings({ requiresAuthorizedLocations })} label="Requiere sedes autorizadas por usuario" />
+              </div>
+              <StepIntro title="Qué información mostrar" />
+              <div className="grid gap-3 md:grid-cols-2">
+              {Object.entries(LABEL_FIELD_LABELS).map(([key, label]) => (
+                <Toggle key={key} checked={draft.labelSettings?.[key] !== false} onChange={(value) => toggleLabel(key, value)} label={label} />
+              ))}
+              </div>
+              <AdvancedPanel>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {Object.entries(INTEGRATION_LABELS).map(([key, label]) => (
+                    <Toggle key={key} checked={draft.integrationSettings?.[key] !== false} onChange={(value) => toggleIntegration(key, value)} label={label} />
+                  ))}
+                </div>
+              </AdvancedPanel>
             </div>
           )}
 
           {step === 5 && (
-            <div className="grid gap-3 md:grid-cols-2">
-              {Object.entries(LABEL_FIELD_LABELS).map(([key, label]) => (
-                <Toggle key={key} checked={draft.labelSettings?.[key] !== false} onChange={(value) => toggleLabel(key, value)} label={label} />
-              ))}
-            </div>
-          )}
-
-          {step === 6 && (
             <div className="grid gap-4 md:grid-cols-3">
               <Toggle checked={draft.remitos.enabled} onChange={(enabled) => setRemitos({ enabled })} label="Usa remitos" />
               <Field label="Inicial" error={errors.remitos}><input type="number" className={inputClass} value={draft.remitos.startNumber} onChange={(event) => setRemitos({ startNumber: event.target.value })} disabled={!draft.remitos.enabled} /></Field>
@@ -284,19 +349,11 @@ const CompanyWizard = ({
             </div>
           )}
 
-          {step === 7 && (
-            <div className="grid gap-3 md:grid-cols-2">
-              {Object.entries(INTEGRATION_LABELS).map(([key, label]) => (
-                <Toggle key={key} checked={draft.integrationSettings?.[key] !== false} onChange={(value) => toggleIntegration(key, value)} label={label} />
-              ))}
-            </div>
-          )}
-
-          {step === 8 && (
+          {step === 6 && (
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-lg border border-gray-200 p-4">
                 <h3 className="font-bold text-gray-900">{draft.name || 'Nueva empresa'}</h3>
-                <p className="mt-1 text-sm text-gray-600">{draft.slug || 'sin-slug'}</p>
+                <p className="mt-1 text-sm text-gray-600">Nombre interno: {draft.slug || 'Pendiente'}</p>
                 <div className="mt-3"><StatusPill active={draft.active} visibility={draft.visibility} /></div>
                 <dl className="mt-4 grid gap-2 text-sm text-gray-700">
                   <div><dt className="font-bold">Sedes</dt><dd>{draft.locations.length || 'Sin sedes'}</dd></div>
@@ -319,15 +376,8 @@ const CompanyWizard = ({
           )}
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-          <div className="flex gap-2">
-            <button type="button" className={smallButtonClass} disabled={step === 0} onClick={() => onStepChange(Math.max(0, step - 1))}>Anterior</button>
-            <button type="button" className={smallButtonClass} disabled={step === STEPS.length - 1} onClick={() => onStepChange(Math.min(STEPS.length - 1, step + 1))}>Siguiente</button>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button type="button" onClick={onSave} disabled={saving} className={smallButtonClass}><Save className="mr-2 h-4 w-4" />Guardar solo admins</button>
-            <button type="button" onClick={onPublish} disabled={saving} className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-4 py-2 text-sm font-bold text-white hover:bg-gray-800 disabled:opacity-50"><Send className="mr-2 h-4 w-4" />Publicar para todos</button>
-          </div>
+        <div className="shrink-0 border-t border-gray-200 bg-white p-4 sm:p-6">
+          <StepActions step={step} saving={saving} onStepChange={onStepChange} onClose={onClose} onSave={onSave} onPublish={onPublish} />
         </div>
       </div>
     </div>
@@ -385,7 +435,6 @@ const AdminCompaniesSection = ({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate font-bold text-gray-900">{company.name}</p>
-                    <p className="truncate text-xs font-semibold text-gray-500">{company.slug}</p>
                   </div>
                   <StatusPill active={company.active} visibility={company.visibility} />
                 </div>
