@@ -1,5 +1,8 @@
 begin;
 
+drop function if exists public.get_company_admin_deletion_status(text);
+drop function if exists public.manage_company_admin_lifecycle(text, text);
+
 create or replace function public.get_company_admin_deletion_status(p_company_slug text)
 returns jsonb
 language plpgsql
