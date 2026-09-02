@@ -359,6 +359,10 @@ const getSideTotalsByCompany = ({ sideRows = [], companies }) => {
   return totals
 }
 
+const getSideTotal = (sideTotals = new Map()) => (
+  Array.from(sideTotals.values()).reduce((sum, quantity) => sum + Number(quantity || 0), 0)
+)
+
 const styleSheet = (worksheet) => {
   worksheet.getRow(1).font = { bold: true, size: 14 }
   worksheet.getRow(2).font = { bold: true }
@@ -409,9 +413,12 @@ const addDaySheet = ({ workbook, date, rows, companies, sideRows = [] }) => {
     const companyKey = getCompanyKey(company)
     const conceptTotals = conceptTotalsByCompany.get(companyKey) || {}
     const sideTotals = sideTotalsByCompany.get(companyKey) || new Map()
-    return productRows.reduce((sum, product) => (
+    const visibleProductsTotal = productRows.reduce((sum, product) => (
       sum + product.getQuantity({ conceptTotals, sideTotals })
     ), 0)
+    const hiddenSideConceptTotal = sideColumns.length > 0 ? Number(conceptTotals[SIDE_CONCEPT_CODE] || 0) : 0
+    const detailedSideTotal = sideColumns.length > 0 ? getSideTotal(sideTotals) : 0
+    return visibleProductsTotal + Math.max(hiddenSideConceptTotal - detailedSideTotal, 0)
   })
 
   worksheet.addRow([
