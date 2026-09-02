@@ -103,11 +103,11 @@ end;
 $$;
 
 revoke all on function public.get_company_admin_deletion_status(text) from public;
-revoke all on function public.get_company_admin_deletion_status(text) from anon;
 grant execute on function public.get_company_admin_deletion_status(text) to authenticated;
+grant execute on function public.get_company_admin_deletion_status(text) to anon;
 
 revoke all on function public.manage_company_admin_lifecycle(text, text) from public;
-revoke all on function public.manage_company_admin_lifecycle(text, text) from anon;
 grant execute on function public.manage_company_admin_lifecycle(text, text) to authenticated;
+grant execute on function public.manage_company_admin_lifecycle(text, text) to anon;
 
 commit;
