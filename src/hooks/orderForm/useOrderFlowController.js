@@ -69,6 +69,7 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
     hasGenneiaRules,
     hasFruitDessertRules,
     locations,
+    authorizedLocationRows,
     authorizedLocationsLoading,
     authorizedLocationsError,
     requiresAuthorizedLocations,
