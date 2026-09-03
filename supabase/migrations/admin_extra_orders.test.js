@@ -160,6 +160,8 @@ describe('admin extra orders migration', () => {
     expect(isemarConsumptionReportViewersMigration).toContain("select u.id, 'consumption_report_viewer', 'isemar'")
     expect(isemarConsumptionReportViewersMigration).toContain("and not public.has_consumption_report_access('isemar')")
     expect(isemarConsumptionReportViewersMigration).toContain("where c.slug = 'isemar'")
+    expect(isemarConsumptionReportViewersMigration).toContain('public.normalize_order_schedule_location_key(coalesce(o.requesting_location_code')
+    expect(isemarConsumptionReportViewersMigration).toContain('public.normalize_order_schedule_location_key(coalesce(o.delivery_location')
     expect(isemarConsumptionReportViewersMigration).not.toContain("c.slug in ('igarreta', 'isemar')\n          and")
   })
 

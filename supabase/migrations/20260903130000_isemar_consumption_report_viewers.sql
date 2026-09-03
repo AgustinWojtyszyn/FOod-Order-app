@@ -181,7 +181,30 @@ begin
         from public.order_locations loc
         join public.companies c on c.id = loc.company_id
         where c.slug = 'isemar'
-          and (loc.id = o.order_location_id or loc.id = o.delivery_order_location_id)
+          and (
+            loc.id = o.order_location_id
+            or loc.id = o.delivery_order_location_id
+            or public.normalize_order_schedule_location_key(coalesce(o.requesting_location_code, '')) in (
+              public.normalize_order_schedule_location_key(loc.code),
+              public.normalize_order_schedule_location_key(loc.slug),
+              public.normalize_order_schedule_location_key(loc.display_name)
+            )
+            or public.normalize_order_schedule_location_key(coalesce(o.location, '')) in (
+              public.normalize_order_schedule_location_key(loc.code),
+              public.normalize_order_schedule_location_key(loc.slug),
+              public.normalize_order_schedule_location_key(loc.display_name)
+            )
+            or public.normalize_order_schedule_location_key(coalesce(o.delivery_location_code, '')) in (
+              public.normalize_order_schedule_location_key(loc.code),
+              public.normalize_order_schedule_location_key(loc.slug),
+              public.normalize_order_schedule_location_key(loc.display_name)
+            )
+            or public.normalize_order_schedule_location_key(coalesce(o.delivery_location, '')) in (
+              public.normalize_order_schedule_location_key(loc.code),
+              public.normalize_order_schedule_location_key(loc.slug),
+              public.normalize_order_schedule_location_key(loc.display_name)
+            )
+          )
       )
       or public.normalize_company_remito_slug(o.company_slug) = 'isemar'
       or public.normalize_company_remito_slug(o.organization) = 'isemar'
