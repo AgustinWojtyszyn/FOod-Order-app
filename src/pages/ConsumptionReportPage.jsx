@@ -10,21 +10,6 @@ const pad = (value) => String(value).padStart(2, '0')
 const currentDate = new Date()
 const INITIAL_YEAR = currentDate.getFullYear()
 const INITIAL_MONTH = currentDate.getMonth() + 1
-const MONTH_LABELS = [
-  'Enero',
-  'Febrero',
-  'Marzo',
-  'Abril',
-  'Mayo',
-  'Junio',
-  'Julio',
-  'Agosto',
-  'Septiembre',
-  'Octubre',
-  'Noviembre',
-  'Diciembre'
-]
-
 const formatDate = (date) => `${pad(Number(date.slice(8, 10)))}/${date.slice(5, 7)}`
 
 const ConsumptionReportPage = () => {
@@ -59,18 +44,13 @@ const ConsumptionReportPage = () => {
     workbook.created = new Date()
     const worksheet = workbook.addWorksheet('Consumo mensual')
     const headers = ['Usuario', ...model.dates.map(formatDate), 'Total mensual']
-    worksheet.getCell('A1').value = 'Reporte de consumo · ISEMAR'
-    worksheet.getCell('A2').value = 'Empresa: ISEMAR'
-    worksheet.getCell('A3').value = `Mes: ${MONTH_LABELS[month - 1]} ${year}`
-    worksheet.getCell('A4').value = `Generado: ${new Date().toLocaleString('es-AR')}`
-    worksheet.addRow([])
     worksheet.addRow(headers)
     model.rows.forEach((row) => worksheet.addRow([row.name, ...model.dates.map((date) => row.quantities[date]), row.monthlyTotal]))
     worksheet.addRow(['Total diario', ...model.dates.map((date) => model.dailyTotals[date]), model.grandTotal])
     worksheet.getColumn(1).width = 32
     model.dates.forEach((_, index) => { worksheet.getColumn(index + 2).width = 9 })
     worksheet.getColumn(headers.length).width = 16
-    worksheet.views = [{ state: 'frozen', xSplit: 1, ySplit: 6 }]
+    worksheet.views = [{ state: 'frozen', xSplit: 1, ySplit: 1 }]
     worksheet.pageSetup = {
       orientation: 'landscape',
       fitToPage: true,
@@ -80,7 +60,7 @@ const ConsumptionReportPage = () => {
     }
     worksheet.properties.defaultRowHeight = 22
 
-    const headerRowNumber = 6
+    const headerRowNumber = 1
     const totalRowNumber = worksheet.rowCount
     const totalColumnNumber = headers.length
 
@@ -98,8 +78,8 @@ const ConsumptionReportPage = () => {
         }
         cell.font = {
           color: { argb: isHeader ? 'FFFFFFFF' : 'FF0F172A' },
-          bold: rowNumber === 1 || isHeader || isTotalRow || isTotalColumn,
-          size: rowNumber === 1 ? 14 : 11
+          bold: isHeader || isTotalRow || isTotalColumn,
+          size: 11
         }
         cell.border = {
           top: { style: isTotalRow ? 'medium' : 'thin', color: { argb: isTotalRow ? 'FF94A3B8' : 'FFE2E8F0' } },
