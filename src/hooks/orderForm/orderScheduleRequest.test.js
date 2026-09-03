@@ -27,14 +27,15 @@ const createDeferred = () => {
   return { promise, resolve }
 }
 
-const createController = (fetchScheduleContext) => {
+const createController = (fetchScheduleContext, options = {}) => {
   const events = []
   const controller = createOrderScheduleRequestController({
     fetchScheduleContext,
     onUnknown: (event) => events.push({ type: 'unknown', ...event }),
     onStart: (event) => events.push({ type: 'start', ...event }),
     onSuccess: (event) => events.push({ type: 'success', ...event }),
-    onError: (event) => events.push({ type: 'error', ...event })
+    onError: (event) => events.push({ type: 'error', ...event }),
+    ...options
   })
   return { controller, events }
 }
@@ -121,6 +122,20 @@ describe('order schedule request controller', () => {
     })
   })
 
+  it('keeps ISEMAR location codes on standard hours', async () => {
+    const fetchScheduleContext = vi.fn().mockResolvedValue({ data: standardContext, error: null })
+    const { controller } = createController(fetchScheduleContext)
+
+    await expect(controller.load({ location: 'ISEMAR_PREDIO_1' })).resolves.toMatchObject({
+      status: 'success',
+      context: { flow: 'standard', opensAt: '06:00', closesAt: '14:00' }
+    })
+    expect(fetchScheduleContext).toHaveBeenCalledWith({
+      location: 'ISEMAR_PREDIO_1',
+      at: null
+    })
+  })
+
   it('keeps valid extended locations on extended hours', async () => {
     const fetchScheduleContext = vi.fn().mockResolvedValue({ data: extendedContext, error: null })
     const { controller } = createController(fetchScheduleContext)
@@ -128,6 +143,21 @@ describe('order schedule request controller', () => {
     await expect(controller.load({ location: 'administracion_servifood' })).resolves.toMatchObject({
       status: 'success',
       context: { flow: 'extended', opensAt: '09:00', closesAt: '22:00' }
+    })
+  })
+
+  it('fails closed instead of staying loading when schedule validation hangs', async () => {
+    const fetchScheduleContext = vi.fn().mockReturnValue(new Promise(() => {}))
+    const { controller, events } = createController(fetchScheduleContext, { timeoutMs: 1 })
+
+    await expect(controller.load({ location: 'ISEMAR_PREDIO_1' })).resolves.toMatchObject({
+      status: 'error',
+      context: { state: 'error', isOpen: false }
+    })
+    expect(events.at(-1)).toMatchObject({
+      type: 'error',
+      locationKey: 'ISEMAR_PREDIO_1',
+      context: { state: 'error', isOpen: false }
     })
   })
 })

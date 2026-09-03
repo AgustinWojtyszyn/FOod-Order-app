@@ -75,7 +75,12 @@ export const useOrderFlowController = ({ user, locationState, navigate } = {}) =
     deliveryLocationsByLocation
   } = useOrderCompany()
 
-  const schedule = useOrderSchedule({ location: formData.location })
+  const selectedLocationRow = useMemo(
+    () => (authorizedLocationRows || []).find((row) => row?.name === formData.location),
+    [authorizedLocationRows, formData.location]
+  )
+  const scheduleLocation = selectedLocationRow?.code || selectedLocationRow?.slug || formData.location
+  const schedule = useOrderSchedule({ location: scheduleLocation })
 
   const { isGenneiaPostreDay } = useGenneiaPostreDay({
     isGenneia: hasFruitDessertRules,

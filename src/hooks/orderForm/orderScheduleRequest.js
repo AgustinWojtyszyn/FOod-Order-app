@@ -5,13 +5,25 @@ const normalizeScheduleLocation = (location) => (location == null ? '' : String(
 const hasValidScheduleLocation = (location) => normalizeScheduleLocation(location).length > 0
 
 const createScheduleValidationError = () => new Error('No se pudo validar el horario de pedidos.')
+const DEFAULT_SCHEDULE_REQUEST_TIMEOUT_MS = 8000
+
+const withTimeout = (promise, timeoutMs = DEFAULT_SCHEDULE_REQUEST_TIMEOUT_MS) => {
+  let timeoutId
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(createScheduleValidationError()), timeoutMs)
+  })
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId)
+  })
+}
 
 const createOrderScheduleRequestController = ({
   fetchScheduleContext,
   onStart,
   onSuccess,
   onError,
-  onUnknown
+  onUnknown,
+  timeoutMs = DEFAULT_SCHEDULE_REQUEST_TIMEOUT_MS
 } = {}) => {
   let requestId = 0
   let activeLocation = ''
@@ -35,7 +47,7 @@ const createOrderScheduleRequestController = ({
 
     let result
     try {
-      result = await fetchScheduleContext({ location: locationKey, at })
+      result = await withTimeout(fetchScheduleContext({ location: locationKey, at }), timeoutMs)
     } catch (fetchError) {
       result = { data: null, error: fetchError }
     }
@@ -59,6 +71,7 @@ const createOrderScheduleRequestController = ({
 }
 
 export {
+  DEFAULT_SCHEDULE_REQUEST_TIMEOUT_MS,
   createOrderScheduleRequestController,
   hasValidScheduleLocation,
   normalizeScheduleLocation
