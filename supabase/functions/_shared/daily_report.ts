@@ -25,7 +25,7 @@ const PERMANENT_REPORT_RECIPIENTS = [
 
 const pad = (value: number) => String(value).padStart(2, '0')
 
-export type DailyReportMode = 'send' | 'dryRun' | 'testEmail' | 'testEmailReal' | 'archiveAfterSuccessfulReport'
+export type DailyReportMode = 'send' | 'dryRun' | 'testEmail' | 'testEmailReal' | 'archiveAfterSuccessfulReport' | 'sendIgarretaIsemar'
 
 export type DailyReportPayload = {
   mode?: DailyReportMode
@@ -38,6 +38,8 @@ export type DailyReportPayload = {
 
 export type NormalizedOrder = {
   id?: string
+  user_id?: string | null
+  person_key?: string | null
   customer_name?: string | null
   user_name?: string | null
   customer_email?: string | null

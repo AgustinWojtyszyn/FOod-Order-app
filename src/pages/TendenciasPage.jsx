@@ -393,7 +393,7 @@ const TendenciasPage = () => {
 
   return (
     <div className="monthly-page min-h-screen bg-[#f6f7f9] py-6">
-      <div className="monthly-container w-full max-w-[1180px] mx-auto space-y-4 px-3 sm:px-4 md:px-6 pb-20 bg-white rounded-2xl shadow-sm border border-slate-200">
+      <div className="monthly-container w-full max-w-295 mx-auto space-y-4 px-3 sm:px-4 md:px-6 pb-20 bg-white rounded-2xl shadow-sm border border-slate-200">
         <div className="bg-linear-to-r from-blue-600 to-blue-800 rounded-2xl p-4 md:p-5 text-white shadow-xl mt-3">
           <div className="flex items-center gap-3">
             <BarChart3 className="h-8 w-8 md:h-10 md:w-10" />

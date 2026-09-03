@@ -21,6 +21,7 @@ import {
   getArchiveOrdersRpcCall,
   getCustomSide,
   getDefaultReportDate,
+  getOrderTotalItems,
   getEmailSubject,
   getMenuOptionText,
   getRecipientsForMode,
@@ -50,6 +51,13 @@ const resendApiKey = Deno.env.get('EMAIL_PROVIDER_API_KEY') || Deno.env.get('RES
 const configuredRecipients = parseRecipients(Deno.env.get('DAILY_REPORT_RECIPIENTS') || '')
 const configuredTestRecipients = parseRecipients(Deno.env.get('TEST_REPORT_RECIPIENT') || '')
 const serviFoodLogoUrl = (Deno.env.get('SERVIFOOD_LOGO_URL') || '').trim()
+const IGARRETA_ISEMAR_REPORT_TYPE = 'daily_igarreta_isemar_consumption'
+const IGARRETA_ISEMAR_RECIPIENTS = [
+  'lcorrea@imasa.com.ar',
+  'ggalvarini@imasa.com.ar',
+  'vcastilla@imasa.com.ar',
+  'mborras@imasa.com.ar'
+]
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false }
@@ -148,7 +156,7 @@ const buildWorkbook = async ({
     summarySheet.addRow({ Concepto: serviceLabel, Valor: `${serviceOrders.length} pedidos` })
   })
   addHeaderStyle(summarySheet)
-  summarySheet.eachRow((row) => {
+  summarySheet.eachRow((row: ExcelJS.Row) => {
     row.alignment = { vertical: 'top', wrapText: true }
   })
 
@@ -193,7 +201,7 @@ const buildWorkbook = async ({
     })
   })
   addHeaderStyle(details)
-  details.eachRow((row) => {
+  details.eachRow((row: ExcelJS.Row) => {
     row.alignment = { vertical: 'top', wrapText: true }
   })
 
@@ -215,7 +223,7 @@ const buildWorkbook = async ({
       comentario: order.comments || ''
     })))
   addHeaderStyle(comments)
-  comments.eachRow((row) => {
+  comments.eachRow((row: ExcelJS.Row) => {
     row.alignment = { vertical: 'top', wrapText: true }
   })
 
@@ -247,7 +255,7 @@ const buildWorkbook = async ({
     })
   }
   addHeaderStyle(inconsistencies)
-  inconsistencies.eachRow((row) => {
+  inconsistencies.eachRow((row: ExcelJS.Row) => {
     row.alignment = { vertical: 'top', wrapText: true }
   })
 
@@ -298,6 +306,87 @@ const sendEmail = async ({
   }
 
   return response.json()
+}
+
+const escapeHtml = (value: unknown) => String(value ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;')
+
+const fetchIgarretaIsemarOrders = async (reportDate: string) => {
+  const { data, error } = await supabase.rpc('get_igarreta_isemar_consumption_report', {
+    p_month_start: reportDate,
+    p_month_end: reportDate
+  })
+  if (error) throw error
+
+  return (Array.isArray(data) ? data : [])
+    .filter((row) => row?.status === 'pending')
+    .map((row) => normalizeOrder({
+      ...row,
+      customer_name: row.person_name,
+      user_name: row.person_name,
+      user_email: row.user_email || row.customer_email
+    }))
+}
+
+const buildIgarretaIsemarRows = (orders: ReturnType<typeof normalizeOrder>[]) => {
+  const rows = new Map<string, { user: string; quantity: number }>()
+  orders.forEach((order) => {
+    const key = String(order.person_key || order.user_id || order.customer_email || order.customer_name || 'unknown')
+    const current = rows.get(key) || { user: order.customer_name || order.user_name || 'Sin nombre', quantity: 0 }
+    current.quantity += getOrderTotalItems(order)
+    rows.set(key, current)
+  })
+  return [...rows.values()].sort((a, b) => a.user.localeCompare(b.user, 'es'))
+}
+
+const buildIgarretaIsemarWorkbook = async (rows: { user: string; quantity: number }[], reportDate: string) => {
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'ServiFood'
+  workbook.created = new Date()
+  const worksheet = workbook.addWorksheet('Consumo diario')
+  worksheet.columns = [
+    { header: 'Usuario', key: 'user', width: 32 },
+    { header: 'Consumo del día', key: 'quantity', width: 18 }
+  ]
+  rows.forEach((row) => worksheet.addRow(row))
+  worksheet.addRow({
+    user: 'TOTAL DIARIO',
+    quantity: rows.reduce((sum, row) => sum + row.quantity, 0)
+  })
+  worksheet.getCell('A1').note = `Igarreta Máquinas / Isemar - ${formatDateEs(reportDate)}`
+  addHeaderStyle(worksheet)
+  worksheet.lastRow!.font = { bold: true }
+  return workbook.xlsx.writeBuffer()
+}
+
+const sendIgarretaIsemarReport = async ({ reportDate, orders }: { reportDate: string; orders: ReturnType<typeof normalizeOrder>[] }) => {
+  const rows = buildIgarretaIsemarRows(orders)
+  const total = rows.reduce((sum, row) => sum + row.quantity, 0)
+  const peopleRows = rows.map((row) => `${row.user}: ${row.quantity}`)
+  const displayDate = formatDateEs(reportDate)
+  const text = [
+    'Reporte diario de consumo - Igarreta Máquinas / Isemar',
+    `Fecha: ${displayDate}`,
+    '',
+    ...(peopleRows.length ? peopleRows : ['Sin consumo registrado.']),
+    '',
+    `TOTAL DIARIO: ${total}`,
+    'Se adjunta el Excel con el mismo detalle.'
+  ].join('\n')
+  const htmlRows = rows.map((row) => `<tr><td>${escapeHtml(row.user)}</td><td>${row.quantity}</td></tr>`).join('')
+  const html = `<h1>Reporte diario de consumo - Igarreta Máquinas / Isemar</h1><p>Fecha: <strong>${escapeHtml(displayDate)}</strong></p><table><thead><tr><th>Usuario</th><th>Consumo del día</th></tr></thead><tbody>${htmlRows || '<tr><td colspan="2">Sin consumo registrado.</td></tr>'}<tr><th>TOTAL DIARIO</th><th>${total}</th></tr></tbody></table><p>Se adjunta el Excel con el mismo detalle.</p>`
+  return sendEmail({
+    to: IGARRETA_ISEMAR_RECIPIENTS,
+    subject: `Reporte diario de consumo Igarreta / Isemar - ${displayDate}`,
+    html,
+    text,
+    filename: `consumo_igarreta_isemar_${reportDate}.xlsx`,
+    attachment: await buildIgarretaIsemarWorkbook(rows, reportDate)
+  })
 }
 
 const fetchOrders = async (reportDate: string) => {
@@ -534,13 +623,54 @@ Deno.serve(async (req: Request) => {
     const payload = await req.json().catch(() => ({})) as DailyReportPayload
     currentPayload = payload
     const mode = payload.mode || 'send'
-    if (!['send', 'dryRun', 'testEmail', 'testEmailReal', 'archiveAfterSuccessfulReport'].includes(mode)) {
+    if (!['send', 'dryRun', 'testEmail', 'testEmailReal', 'archiveAfterSuccessfulReport', 'sendIgarretaIsemar'].includes(mode)) {
       return toResponse({ error: 'mode inválido' }, 400)
     }
 
     const reportDate = isValidISODate(payload.reportDate)
       ? payload.reportDate
       : getDefaultReportDate()
+
+    if (mode === 'sendIgarretaIsemar') {
+      const reportType = IGARRETA_ISEMAR_REPORT_TYPE
+      const orders = await fetchIgarretaIsemarOrders(reportDate)
+      failureContext.reportDate = reportDate
+      failureContext.reportType = reportType
+      failureContext.ordersCount = orders.length
+      failureContext.recipients = IGARRETA_ISEMAR_RECIPIENTS
+      const { acquired, existingRun } = await acquireRunLock({
+        reportDate,
+        reportType,
+        ordersCount: orders.length,
+        recipients: IGARRETA_ISEMAR_RECIPIENTS,
+        force: payload.force
+      })
+      if (!acquired && shouldSkipExistingRun({
+        existingStatus: existingRun?.status,
+        existingCreatedAt: existingRun?.created_at,
+        existingUpdatedAt: existingRun?.updated_at,
+        force: payload.force
+      })) {
+        return toResponse({ ok: true, skipped: true, reason: `Reporte ya procesado con status ${existingRun?.status}`, reportDate, reportType })
+      }
+
+      const emailResult = await sendIgarretaIsemarReport({ reportDate, orders })
+      const sentAt = new Date().toISOString()
+      failureContext.emailAccepted = true
+      failureContext.sentStatus = DAILY_REPORT_SEND_STATUSES.SENT
+      failureContext.sentAt = sentAt
+      await upsertRun({
+        reportDate,
+        reportType,
+        status: DAILY_REPORT_SEND_STATUSES.SENT,
+        ordersCount: orders.length,
+        recipients: IGARRETA_ISEMAR_RECIPIENTS,
+        sentAt
+      })
+      console.log('[daily-orders-report] enviado consumo Igarreta/Isemar', { reportDate, ordersCount: orders.length })
+      return toResponse({ ok: true, mode, reportDate, reportType, ordersCount: orders.length, recipients: IGARRETA_ISEMAR_RECIPIENTS, emailResult })
+    }
+
     const allowEmpty = payload.allowEmpty !== false
     const isTest = isTestEmailMode(mode)
     const recipients = getRecipientsForMode({
@@ -743,7 +873,7 @@ Deno.serve(async (req: Request) => {
     console.error('[daily-orders-report] error', message)
     try {
       const reportDate = isValidISODate(currentPayload.reportDate) ? currentPayload.reportDate : getDefaultReportDate()
-      if (shouldWriteDailyReportRun(currentPayload.mode || 'send')) {
+      if (shouldWriteDailyReportRun(currentPayload.mode || 'send') || currentPayload.mode === 'sendIgarretaIsemar') {
         await upsertFailureRun({
           reportDate,
           reportType: failureContext.reportType || DAILY_REPORT_TYPE,

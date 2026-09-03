@@ -19,6 +19,7 @@ import RequireAdmin from './components/RequireAdmin'
 import InstallAppButton from './components/InstallAppButton'
 import CafeteriaDashboardPage from './components/cafeteria/CafeteriaDashboardPage'
 import TendenciasPage from './pages/TendenciasPage'
+import ConsumptionReportPage from './pages/ConsumptionReportPage'
 
 // Lazy loading de componentes (carga diferida)
 const Register = lazy(() => import('./components/Register'))
@@ -48,7 +49,8 @@ const ADMIN_ROUTE_PATHS = [
   '/monthly-panel',
   '/auditoria',
   '/tendencias',
-  '/totalizadora'
+  '/totalizadora',
+  '/consumption-report'
 ]
 
 // Componente de carga interno (para Suspense)
@@ -146,6 +148,7 @@ const RouteSwitch = ({ user, loading }) => {
           <Route path="/auditoria" element={<AuditLogs user={user} loading={loading} />} />
           <Route path="/tendencias" element={<TendenciasPage />} />
           <Route path="/totalizadora" element={<TotalizerPage />} />
+          <Route path="/consumption-report" element={<ConsumptionReportPage />} />
         </Route>
 
         <Route
