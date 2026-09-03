@@ -64,7 +64,7 @@ const AccessDeniedScreen = ({ variant = 'denied' }) => {
 }
 
 export default function RequireAdmin({ children }) {
-  const { user, loading, permissionLoading, isAdmin, isCompanyAdmin, canAccessAdminPanel, permissionError } = useAuthContext()
+  const { user, loading, permissionLoading, isAdmin, isCompanyAdmin, canAccessAdminPanel, canViewConsumptionReport, permissionError } = useAuthContext()
   const location = useLocation()
   const [validationTimedOut, setValidationTimedOut] = useState(false)
   const isValidating = loading || permissionLoading
@@ -99,11 +99,21 @@ export default function RequireAdmin({ children }) {
     return <AccessDeniedScreen variant="validation-error" />
   }
 
-  if (!canAccessAdminPanel) {
+  const isConsumptionReportPath = location.pathname === '/consumption-report'
+
+  if (!canAccessAdminPanel && !(canViewConsumptionReport && isConsumptionReportPath)) {
     return <AccessDeniedScreen />
   }
 
-  const companyAdminAllowedPaths = ['/admin', '/labels', '/daily-orders', '/consumption-report']
+  if (!isAdmin && !isCompanyAdmin && canViewConsumptionReport && !isConsumptionReportPath) {
+    return <AccessDeniedScreen />
+  }
+
+  if (!isAdmin && isConsumptionReportPath && canViewConsumptionReport) {
+    return <>{children}</>
+  }
+
+  const companyAdminAllowedPaths = ['/admin', '/labels', '/daily-orders']
 
   if (!isAdmin && isCompanyAdmin && !companyAdminAllowedPaths.includes(location.pathname)) {
     return <AccessDeniedScreen />

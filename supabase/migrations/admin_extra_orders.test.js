@@ -138,6 +138,10 @@ const isemarCompanyLocationsMigration = readFileSync(
   new URL('./20260901110000_add_isemar_company_locations.sql', import.meta.url),
   'utf8'
 )
+const isemarConsumptionReportViewersMigration = readFileSync(
+  new URL('./20260903130000_isemar_consumption_report_viewers.sql', import.meta.url),
+  'utf8'
+)
 const remitoNumberingMigrations = `${ensureAllCompanyRemitoNumberingMigration}\n${igarretaCompanyMigration}\n${isemarCompanyLocationsMigration}`
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
@@ -148,6 +152,15 @@ describe('admin extra orders migration', () => {
     expect(migration).toContain('create or replace function public.delete_admin_extra_order')
     expect(migration).toContain('public.is_company_admin')
     expect(migration).toContain('public.has_company_admin_access()')
+  })
+
+  it('keeps ISEMAR consumption viewers out of company admin permissions', () => {
+    expect(isemarConsumptionReportViewersMigration).toContain("permission = 'consumption_report_viewer'")
+    expect(isemarConsumptionReportViewersMigration).toContain('delete from public.company_admins ca')
+    expect(isemarConsumptionReportViewersMigration).toContain("select u.id, 'consumption_report_viewer', 'isemar'")
+    expect(isemarConsumptionReportViewersMigration).toContain("and not public.has_consumption_report_access('isemar')")
+    expect(isemarConsumptionReportViewersMigration).toContain("where c.slug = 'isemar'")
+    expect(isemarConsumptionReportViewersMigration).not.toContain("c.slug in ('igarreta', 'isemar')\n          and")
   })
 
   it('restricts deletion to admin extra orders and audits a full snapshot before delete', () => {

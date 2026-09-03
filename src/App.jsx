@@ -92,7 +92,19 @@ const ScreenMetricsListener = () => {
 
 const RouteSwitch = ({ user, loading }) => {
   const location = useLocation()
+  const { permissionLoading, isAdmin, isCompanyAdmin, canViewConsumptionReport } = useAuthContext()
   const isAdminPath = ADMIN_ROUTE_PATHS.includes(location.pathname)
+  const isLimitedConsumptionViewer = Boolean(
+    user?.id && canViewConsumptionReport && !isAdmin && !isCompanyAdmin
+  )
+
+  if (!loading && user?.id && permissionLoading) {
+    return <InternalLoader />
+  }
+
+  if (!loading && isLimitedConsumptionViewer && location.pathname !== '/consumption-report') {
+    return <Navigate to="/consumption-report" replace />
+  }
 
   if (loading && !isAdminPath) {
     return <InternalLoader />

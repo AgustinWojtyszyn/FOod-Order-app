@@ -14,7 +14,7 @@ const INITIAL_MONTH = currentDate.getMonth() + 1
 const formatDate = (date) => `${pad(Number(date.slice(8, 10)))}/${date.slice(5, 7)}`
 
 const ConsumptionReportPage = () => {
-  const { isAdmin, isCompanyAdmin } = useAuthContext()
+  const { isAdmin, canViewConsumptionReport } = useAuthContext()
   const [year, setYear] = useState(INITIAL_YEAR)
   const [month, setMonth] = useState(INITIAL_MONTH)
   const [model, setModel] = useState(() => buildConsumptionReportModel([], getMonthDates(INITIAL_YEAR, INITIAL_MONTH)))
@@ -36,8 +36,8 @@ const ConsumptionReportPage = () => {
   }, [month, year])
 
   useEffect(() => {
-    if (isAdmin || isCompanyAdmin) loadReport()
-  }, [loadReport, isAdmin, isCompanyAdmin])
+    if (isAdmin || canViewConsumptionReport) loadReport()
+  }, [loadReport, isAdmin, canViewConsumptionReport])
 
   const exportExcel = async () => {
     const workbook = new ExcelJS.Workbook()
@@ -46,9 +46,9 @@ const ConsumptionReportPage = () => {
     const worksheet = workbook.addWorksheet('Consumo mensual')
     const headers = ['Usuario', ...model.dates.map(formatDate), 'Total mensual']
     worksheet.mergeCells(1, 1, 1, headers.length)
-    worksheet.getCell('A1').value = 'Reporte de consumo · Igarreta Máquinas / Isemar'
+    worksheet.getCell('A1').value = 'Reporte de consumo · ISEMAR'
     worksheet.mergeCells(2, 1, 2, headers.length)
-    worksheet.getCell('A2').value = `Empresa: Igarreta Máquinas / Isemar | Mes: ${pad(month)}/${year} | Generado: ${new Date().toLocaleString('es-AR')}`
+    worksheet.getCell('A2').value = `Empresa: ISEMAR | Mes: ${pad(month)}/${year} | Generado: ${new Date().toLocaleString('es-AR')}`
     worksheet.addRow([])
     worksheet.addRow(headers)
     model.rows.forEach((row) => worksheet.addRow([row.name, ...model.dates.map((date) => row.quantities[date]), row.monthlyTotal]))
@@ -66,7 +66,7 @@ const ConsumptionReportPage = () => {
     const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = `consumo_igarreta_isemar_${year}-${pad(month)}.xlsx`
+    anchor.download = `consumo_isemar_${year}-${pad(month)}.xlsx`
     anchor.click()
     URL.revokeObjectURL(url)
   }
@@ -76,7 +76,7 @@ const ConsumptionReportPage = () => {
       <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Consumo mensual</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">Reporte de consumo · Igarreta Máquinas / Isemar</h1>
+          <h1 className="mt-1 text-2xl font-bold text-slate-900">Reporte de consumo · ISEMAR</h1>
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-sm font-semibold text-slate-700">Mes<select value={month} onChange={(event) => setMonth(Number(event.target.value))} className="mt-1 block rounded-lg border border-slate-300 px-3 py-2"><option value={1}>Enero</option><option value={2}>Febrero</option><option value={3}>Marzo</option><option value={4}>Abril</option><option value={5}>Mayo</option><option value={6}>Junio</option><option value={7}>Julio</option><option value={8}>Agosto</option><option value={9}>Septiembre</option><option value={10}>Octubre</option><option value={11}>Noviembre</option><option value={12}>Diciembre</option></select></label>

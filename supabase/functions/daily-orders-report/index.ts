@@ -357,7 +357,7 @@ const buildIgarretaIsemarWorkbook = async (rows: { user: string; quantity: numbe
     user: 'TOTAL DIARIO',
     quantity: rows.reduce((sum, row) => sum + row.quantity, 0)
   })
-  worksheet.getCell('A1').note = `Igarreta Máquinas / Isemar - ${formatDateEs(reportDate)}`
+  worksheet.getCell('A1').note = `ISEMAR - ${formatDateEs(reportDate)}`
   addHeaderStyle(worksheet)
   worksheet.lastRow!.font = { bold: true }
   return workbook.xlsx.writeBuffer()
@@ -369,7 +369,7 @@ const sendIgarretaIsemarReport = async ({ reportDate, orders }: { reportDate: st
   const peopleRows = rows.map((row) => `${row.user}: ${row.quantity}`)
   const displayDate = formatDateEs(reportDate)
   const text = [
-    'Reporte diario de consumo - Igarreta Máquinas / Isemar',
+    'Reporte diario de consumo - ISEMAR',
     `Fecha: ${displayDate}`,
     '',
     ...(peopleRows.length ? peopleRows : ['Sin consumo registrado.']),
@@ -378,13 +378,13 @@ const sendIgarretaIsemarReport = async ({ reportDate, orders }: { reportDate: st
     'Se adjunta el Excel con el mismo detalle.'
   ].join('\n')
   const htmlRows = rows.map((row) => `<tr><td>${escapeHtml(row.user)}</td><td>${row.quantity}</td></tr>`).join('')
-  const html = `<h1>Reporte diario de consumo - Igarreta Máquinas / Isemar</h1><p>Fecha: <strong>${escapeHtml(displayDate)}</strong></p><table><thead><tr><th>Usuario</th><th>Consumo del día</th></tr></thead><tbody>${htmlRows || '<tr><td colspan="2">Sin consumo registrado.</td></tr>'}<tr><th>TOTAL DIARIO</th><th>${total}</th></tr></tbody></table><p>Se adjunta el Excel con el mismo detalle.</p>`
+  const html = `<h1>Reporte diario de consumo - ISEMAR</h1><p>Fecha: <strong>${escapeHtml(displayDate)}</strong></p><table><thead><tr><th>Usuario</th><th>Consumo del día</th></tr></thead><tbody>${htmlRows || '<tr><td colspan="2">Sin consumo registrado.</td></tr>'}<tr><th>TOTAL DIARIO</th><th>${total}</th></tr></tbody></table><p>Se adjunta el Excel con el mismo detalle.</p>`
   return sendEmail({
     to: IGARRETA_ISEMAR_RECIPIENTS,
-    subject: `Reporte diario de consumo Igarreta / Isemar - ${displayDate}`,
+    subject: `Reporte diario de consumo ISEMAR - ${displayDate}`,
     html,
     text,
-    filename: `consumo_igarreta_isemar_${reportDate}.xlsx`,
+    filename: `consumo_isemar_${reportDate}.xlsx`,
     attachment: await buildIgarretaIsemarWorkbook(rows, reportDate)
   })
 }

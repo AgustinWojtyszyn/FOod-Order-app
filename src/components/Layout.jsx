@@ -16,7 +16,7 @@ const Layout = ({ children, user, loading }) => {
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [adminTutorialOpen, setAdminTutorialOpen] = useState(false)
   const [externalLocks, setExternalLocks] = useState(0)
-  const { isAdmin, canAccessAdminPanel } = useAuthContext()
+  const { isAdmin, canAccessAdminPanel, canViewConsumptionReport } = useAuthContext()
   const navigate = useNavigate()
   const location = useLocation()
   // Helpers de diagnóstico disponibles solo en dev o con flag explícito.
@@ -135,6 +135,10 @@ const Layout = ({ children, user, loading }) => {
   } else if (canAccessAdminPanel) {
     menuItems.push({ name: 'Etiquetas', path: '/labels', icon: Tags })
     menuItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
+    if (canViewConsumptionReport) {
+      menuItems.push({ name: 'Reporte de consumo', path: '/consumption-report', icon: FileSpreadsheet })
+    }
+  } else if (canViewConsumptionReport) {
     menuItems.push({ name: 'Reporte de consumo', path: '/consumption-report', icon: FileSpreadsheet })
   }
 
