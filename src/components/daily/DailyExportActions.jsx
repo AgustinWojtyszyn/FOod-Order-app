@@ -1,4 +1,4 @@
-import { Archive as ArchiveIcon, FileText, Plus, Printer, RefreshCw } from 'lucide-react'
+import { Archive as ArchiveIcon, FileText, Minus, Plus, Printer, RefreshCw } from 'lucide-react'
 import excelLogo from '../../assets/logoexcel.png'
 import whatsappLogo from '../../assets/whatsapp.png'
 
@@ -16,6 +16,7 @@ const DailyExportActions = ({
   onArchiveAll,
   onAddExtraOrder,
   onAddLateExtraOrder,
+  onDiscountOrders,
   sortedOrdersLength,
   pendingOrdersCount = 0,
   isAdmin
@@ -96,6 +97,17 @@ const DailyExportActions = ({
         >
           <Plus className="mr-2 h-4 w-4" />
           Agregar pedido fuera de término
+        </button>
+      )}
+
+      {onDiscountOrders && (
+        <button
+          type="button"
+          onClick={onDiscountOrders}
+          className="inline-flex w-full items-center justify-center rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-800 shadow-sm hover:bg-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 sm:w-auto"
+        >
+          <Minus className="mr-2 h-4 w-4" />
+          - Descontar pedidos
         </button>
       )}
 

@@ -12,6 +12,7 @@ import DailySummary from './daily/DailySummary'
 import DailyPrintStyles from './daily/DailyPrintStyles'
 import AdminExtraOrderModal from './daily/AdminExtraOrderModal'
 import AdminExtraCancelPanel from './daily/AdminExtraCancelPanel'
+import OrderDiscountModal from './daily/OrderDiscountModal'
 import DailyRemitosPanel from './daily/DailyRemitosPanel'
 import DailySearchPanel from './daily/DailySearchPanel'
 import LateAdminExtraHistoryPanel from './daily/LateAdminExtraHistoryPanel'
@@ -40,6 +41,7 @@ const DailyOrders = ({ user, loading }) => {
   const [selectedSide, setSelectedSide] = useState('all')
   const [sortBy, setSortBy] = useState('recent')
   const [extraOrderOpen, setExtraOrderOpen] = useState(false)
+  const [discountModalOpen, setDiscountModalOpen] = useState(false)
   const [extraOrderMode, setExtraOrderMode] = useState('standard')
   const [activeSubtab, setActiveSubtab] = useState('orders')
 
@@ -53,6 +55,7 @@ const DailyOrders = ({ user, loading }) => {
     isGlobalAdmin,
     canCreateLateAdminExtraOrder,
     canManageLateExtraHistory,
+    canManageOrderDiscounts,
     adminCompanies,
     availableDishes,
     refreshing,
@@ -68,7 +71,9 @@ const DailyOrders = ({ user, loading }) => {
     handleArchiveAllPending,
     handleDeleteExtraOrder,
     cancellingExtraOrders,
-    handleCancelExtraOrders
+    handleCancelExtraOrders,
+    discountingOrders,
+    handleCreateOrderDiscount
   } = useDailyOrdersData(user)
 
   const {
@@ -226,6 +231,7 @@ const DailyOrders = ({ user, loading }) => {
             setExtraOrderMode('late')
             setExtraOrderOpen(true)
           } : null}
+          onDiscountOrders={canManageOrderDiscounts ? () => setDiscountModalOpen(true) : null}
           sortedOrdersLength={sortedOrdersUnits}
           pendingOrdersCount={dailyCloseStatus.pendingCount}
           isAdmin={isGlobalAdmin}
@@ -246,6 +252,15 @@ const DailyOrders = ({ user, loading }) => {
           lateWindowMode={extraOrderMode === 'late'}
           isGlobalAdmin={isGlobalAdmin}
           adminCompanies={adminCompanies}
+        />
+
+        <OrderDiscountModal
+          open={discountModalOpen}
+          orders={allOrders}
+          operationalDate={operationalDate}
+          submitting={discountingOrders}
+          onClose={() => setDiscountModalOpen(false)}
+          onSubmit={handleCreateOrderDiscount}
         />
 
         {ordersError && (

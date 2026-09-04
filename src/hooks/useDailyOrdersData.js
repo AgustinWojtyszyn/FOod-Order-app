@@ -15,6 +15,7 @@ export const useDailyOrdersData = (user) => {
     isCompanyAdmin,
     canCreateLateAdminExtraOrder,
     canManageLateExtraHistory,
+    canManageOrderDiscounts,
     adminCompanies
   } = useAuthContext()
   const [orders, setOrders] = useState([])
@@ -27,6 +28,7 @@ export const useDailyOrdersData = (user) => {
   const [lastUpdatedAt, setLastUpdatedAt] = useState('')
   const [operationalDate, setOperationalDate] = useState(() => getTomorrowISOInTimeZone())
   const [cancellingExtraOrders, setCancellingExtraOrders] = useState(false)
+  const [discountingOrders, setDiscountingOrders] = useState(false)
   const [stats, setStats] = useState({
     total: 0,
     byLocation: {},
@@ -373,6 +375,31 @@ export const useDailyOrdersData = (user) => {
     }
   }, [cancellingExtraOrders, handleRefresh, operationalDate])
 
+  const handleCreateOrderDiscount = useCallback(async (payload = {}) => {
+    if (discountingOrders) return { error: new Error('discount_in_progress') }
+
+    const normalizedPayload = {
+      ...payload,
+      delivery_date: operationalDate
+    }
+
+    setDiscountingOrders(true)
+    try {
+      const { data, error } = await db.createOrderDiscount(normalizedPayload)
+      if (error) {
+        notifyError(getUserFriendlyErrorMessage(error, 'No pudimos descontar pedidos. Revisá cantidad disponible y permisos.'))
+        return { data, error }
+      }
+
+      notifySuccess('Descuento registrado correctamente.')
+      Sound.playSuccess()
+      await handleRefresh()
+      return { data, error: null }
+    } finally {
+      setDiscountingOrders(false)
+    }
+  }, [discountingOrders, handleRefresh, operationalDate])
+
   return {
     orders,
     ordersLoading,
@@ -381,6 +408,7 @@ export const useDailyOrdersData = (user) => {
     isCompanyAdmin,
     canCreateLateAdminExtraOrder,
     canManageLateExtraHistory,
+    canManageOrderDiscounts,
     adminCompanies,
     availableDishes,
     refreshing,
@@ -391,11 +419,13 @@ export const useDailyOrdersData = (user) => {
     operationalDate,
     stats,
     cancellingExtraOrders,
+    discountingOrders,
     handleRefresh,
     handleDeliveryDateChange,
     handleArchiveOrder,
     handleArchiveAllPending,
     handleDeleteExtraOrder,
-    handleCancelExtraOrders
+    handleCancelExtraOrders,
+    handleCreateOrderDiscount
   }
 }

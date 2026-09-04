@@ -283,6 +283,28 @@ describe('ordersService admin extra RPCs', () => {
     expect(calls[0][2].p_request_id).toMatch(/^admin-extra-order-delete-/)
   })
 
+  it('creates order discounts through the dedicated secure RPC with request id', async () => {
+    const { supabase, calls } = createRpcSupabaseMock({ data: [{ id: 'discount-1' }], error: null })
+    const service = createOrdersService({ supabase })
+
+    await expect(service.createOrderDiscount({
+      order_id: 'order-1',
+      item_index: 0,
+      quantity: 2,
+      reason: 'Ajuste operativo'
+    })).resolves.toEqual({ data: { id: 'discount-1' }, error: null })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0][1]).toBe('create_order_item_discount')
+    expect(calls[0][2].p_payload).toMatchObject({
+      order_id: 'order-1',
+      item_index: 0,
+      quantity: 2,
+      reason: 'Ajuste operativo'
+    })
+    expect(calls[0][2].p_payload.request_id).toMatch(/^order-discount-/)
+  })
+
   it('rejects deleteAdminExtraOrder locally without a mandatory reason', async () => {
     const { supabase, calls } = createRpcSupabaseMock({ data: { deleted: true }, error: null })
     const service = createOrdersService({ supabase })

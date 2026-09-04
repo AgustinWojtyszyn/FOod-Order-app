@@ -142,6 +142,10 @@ const isemarConsumptionReportViewersMigration = readFileSync(
   new URL('./20260903130000_isemar_consumption_report_viewers.sql', import.meta.url),
   'utf8'
 )
+const igarretaIsemarReportAndDiscountsMigration = readFileSync(
+  new URL('./20260904140000_igarreta_isemar_report_and_order_discounts.sql', import.meta.url),
+  'utf8'
+)
 const remitoNumberingMigrations = `${ensureAllCompanyRemitoNumberingMigration}\n${igarretaCompanyMigration}\n${isemarCompanyLocationsMigration}`
 const gitignore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8')
 
@@ -163,6 +167,33 @@ describe('admin extra orders migration', () => {
     expect(isemarConsumptionReportViewersMigration).toContain('public.normalize_order_schedule_location_key(coalesce(o.requesting_location_code')
     expect(isemarConsumptionReportViewersMigration).toContain('public.normalize_order_schedule_location_key(coalesce(o.delivery_location')
     expect(isemarConsumptionReportViewersMigration).not.toContain("c.slug in ('igarreta', 'isemar')\n          and")
+  })
+
+  it('extends consumption report viewers to Igarreta and ISEMAR without new menu or beverage RPCs', () => {
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain("c.slug in ('igarreta', 'isemar')")
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain("select u.id, 'consumption_report_viewer', c.slug")
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain("public.has_consumption_report_access('igarreta')")
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain("public.has_consumption_report_access('isemar')")
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('consumption_report_companies')
+    expect(igarretaIsemarReportAndDiscountsMigration).not.toContain('get_admin_extra_visible_custom_options')
+    expect(igarretaIsemarReportAndDiscountsMigration).not.toContain('get_orderable_menu_items_for_company')
+  })
+
+  it('adds a traceable order discount RPC with backend authorization and stock validation', () => {
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('create table if not exists public.order_item_discounts')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('create table if not exists public.order_discount_authorized_accounts')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('sarmientoclaudia985@gmail.com')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('agustinwojtyszyn99@gmail.com')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain("lower(coalesce(u.email, '')) like '%jessica%'")
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain("lower(coalesce(u.email, '')) like '%jesica%'")
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('create or replace function public.can_manage_order_discounts')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('create or replace function public.create_order_item_discount')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('for update')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain("raise exception 'quantity_exceeds_available'")
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain("'order_item_discount_created'")
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('order_snapshot_before')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('order_snapshot_after')
+    expect(igarretaIsemarReportAndDiscountsMigration).not.toContain('delete from public.orders')
   })
 
   it('restricts deletion to admin extra orders and audits a full snapshot before delete', () => {

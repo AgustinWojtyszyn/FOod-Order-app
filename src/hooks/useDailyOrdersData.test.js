@@ -63,4 +63,16 @@ describe('useDailyOrdersData daily orders loading', () => {
     expect(dailyOrdersSource).toContain('AdminExtraCancelPanel')
     expect(dailyOrdersSource).toContain('onCancelExtras={handleCancelExtraOrders}')
   })
+
+  it('registers order discounts through an authorized modal and refreshes loaded totals', () => {
+    expect(source).toContain('canManageOrderDiscounts')
+    expect(source).toContain('handleCreateOrderDiscount')
+    expect(source).toContain('db.createOrderDiscount')
+    expect(source).toContain('delivery_date: operationalDate')
+    expect(source).toContain('setDiscountingOrders(true)')
+    expect(source).toContain('await handleRefresh()')
+    expect(dailyOrdersSource).toContain('OrderDiscountModal')
+    expect(dailyOrdersSource).toContain('onDiscountOrders={canManageOrderDiscounts ? () => setDiscountModalOpen(true) : null}')
+    expect(dailyExportActionsSource).toContain('- Descontar pedidos')
+  })
 })

@@ -21,6 +21,7 @@ const DailyHeader = ({
   onArchiveAll,
   onAddExtraOrder,
   onAddLateExtraOrder,
+  onDiscountOrders,
   sortedOrdersLength,
   pendingOrdersCount,
   isAdmin
@@ -116,6 +117,7 @@ const DailyHeader = ({
             onArchiveAll={onArchiveAll}
             onAddExtraOrder={onAddExtraOrder}
             onAddLateExtraOrder={onAddLateExtraOrder}
+            onDiscountOrders={onDiscountOrders}
             sortedOrdersLength={sortedOrdersLength}
             pendingOrdersCount={pendingOrdersCount}
             isAdmin={isAdmin}

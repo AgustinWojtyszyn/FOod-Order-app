@@ -202,6 +202,18 @@ export const createOrdersService = ({ supabase, invalidateCache = () => {} } = {
       return { data, error }
     },
 
+    createOrderDiscount: async (payload) => {
+      invalidateCache()
+      const requestId = payload?.request_id || createRequestId('order-discount')
+      const { data, error } = await supabase.rpc('create_order_item_discount', {
+        p_payload: {
+          ...payload,
+          request_id: requestId
+        }
+      })
+      return { data: Array.isArray(data) ? (data[0] || null) : data, error }
+    },
+
     getDailyOrdersForAdmin: async ({ deliveryDate, statuses = ['pending', 'archived', 'post_report_extra'] } = {}) => {
       if (!deliveryDate) {
         return { data: null, error: new Error('deliveryDate es requerido para consultar pedidos diarios') }

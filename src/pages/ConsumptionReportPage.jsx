@@ -101,7 +101,7 @@ const ConsumptionReportPage = () => {
     const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = `consumo_isemar_${year}-${pad(month)}.xlsx`
+    anchor.download = `consumo_igarreta_isemar_${year}-${pad(month)}.xlsx`
     anchor.click()
     URL.revokeObjectURL(url)
   }
@@ -111,7 +111,7 @@ const ConsumptionReportPage = () => {
       <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Consumo mensual</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">Reporte de consumo · ISEMAR</h1>
+          <h1 className="mt-1 text-2xl font-bold text-slate-900">Reporte de consumo · IGARRETA + ISEMAR</h1>
         </div>
         <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-slate-50 p-2 sm:p-3">
           <label className="text-sm font-semibold text-slate-700">Mes<select value={month} onChange={(event) => setMonth(Number(event.target.value))} className="mt-1 block min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 shadow-xs"><option value={1}>Enero</option><option value={2}>Febrero</option><option value={3}>Marzo</option><option value={4}>Abril</option><option value={5}>Mayo</option><option value={6}>Junio</option><option value={7}>Julio</option><option value={8}>Agosto</option><option value={9}>Septiembre</option><option value={10}>Octubre</option><option value={11}>Noviembre</option><option value={12}>Diciembre</option></select></label>

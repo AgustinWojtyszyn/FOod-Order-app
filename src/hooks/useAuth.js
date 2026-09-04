@@ -31,6 +31,7 @@ export const useAuth = () => {
   const [canViewConsumptionReport, setCanViewConsumptionReport] = useState(false)
   const [canCreateLateAdminExtraOrder, setCanCreateLateAdminExtraOrder] = useState(false)
   const [canManageLateExtraHistory, setCanManageLateExtraHistory] = useState(false)
+  const [canManageOrderDiscounts, setCanManageOrderDiscounts] = useState(false)
   const [adminCompanies, setAdminCompanies] = useState([])
   const [permissionError, setPermissionError] = useState(null)
   const roleRequestIdRef = useRef(0)
@@ -54,6 +55,7 @@ export const useAuth = () => {
     setCanViewConsumptionReport(false)
     setCanCreateLateAdminExtraOrder(false)
     setCanManageLateExtraHistory(false)
+    setCanManageOrderDiscounts(false)
     setAdminCompanies([])
 
     try {
@@ -102,6 +104,7 @@ export const useAuth = () => {
       const canViewConsumption = isAdminRole || accessContext?.can_view_consumption_report === true
       const canCreateLateExtra = accessContext?.can_create_late_admin_extra_order === true
       const canManageLateHistory = accessContext?.can_manage_late_extra_history === true
+      const canManageDiscounts = accessContext?.can_manage_order_discounts === true
 
       logRoleDebug('raw user metadata', {
         id: authUser?.id,
@@ -119,6 +122,7 @@ export const useAuth = () => {
       setCanViewConsumptionReport(canViewConsumption)
       setCanCreateLateAdminExtraOrder(canCreateLateExtra)
       setCanManageLateExtraHistory(canManageLateHistory)
+      setCanManageOrderDiscounts(canManageDiscounts)
       setAdminCompanies(contextCompanies)
       setPermissionError(roleError)
 
@@ -128,6 +132,7 @@ export const useAuth = () => {
         canViewConsumptionReport: canViewConsumption,
         canCreateLateAdminExtraOrder: canCreateLateExtra,
         canManageLateExtraHistory: canManageLateHistory,
+        canManageOrderDiscounts: canManageDiscounts,
         adminCompanies: contextCompanies,
         permissionError: roleError
       })
@@ -140,6 +145,7 @@ export const useAuth = () => {
       setCanViewConsumptionReport(false)
       setCanCreateLateAdminExtraOrder(false)
       setCanManageLateExtraHistory(false)
+      setCanManageOrderDiscounts(false)
       setAdminCompanies([])
       setPermissionError(error)
     } finally {
@@ -187,6 +193,7 @@ export const useAuth = () => {
             setCanViewConsumptionReport(false)
             setCanCreateLateAdminExtraOrder(false)
             setCanManageLateExtraHistory(false)
+            setCanManageOrderDiscounts(false)
             setAdminCompanies([])
             setPermissionError(userError || null)
             setPermissionLoading(false)
@@ -209,6 +216,7 @@ export const useAuth = () => {
           setCanViewConsumptionReport(false)
           setCanCreateLateAdminExtraOrder(false)
           setCanManageLateExtraHistory(false)
+          setCanManageOrderDiscounts(false)
           setAdminCompanies([])
           setPermissionError(null)
           setPermissionLoading(false)
@@ -225,6 +233,7 @@ export const useAuth = () => {
         setCanViewConsumptionReport(false)
         setCanCreateLateAdminExtraOrder(false)
         setCanManageLateExtraHistory(false)
+        setCanManageOrderDiscounts(false)
         setAdminCompanies([])
         setPermissionError(error)
         setPermissionLoading(false)
@@ -406,9 +415,9 @@ export const useAuth = () => {
 
   useEffect(() => {
     if (import.meta.env.DEV) {
-        console.log('[Auth] state', { user, loading, permissionLoading, isAdmin, isCompanyAdmin, canViewConsumptionReport, canCreateLateAdminExtraOrder, canManageLateExtraHistory, adminCompanies, permissionError })
+        console.log('[Auth] state', { user, loading, permissionLoading, isAdmin, isCompanyAdmin, canViewConsumptionReport, canCreateLateAdminExtraOrder, canManageLateExtraHistory, canManageOrderDiscounts, adminCompanies, permissionError })
     }
-  }, [user, loading, permissionLoading, isAdmin, isCompanyAdmin, canViewConsumptionReport, canCreateLateAdminExtraOrder, canManageLateExtraHistory, adminCompanies, permissionError])
+  }, [user, loading, permissionLoading, isAdmin, isCompanyAdmin, canViewConsumptionReport, canCreateLateAdminExtraOrder, canManageLateExtraHistory, canManageOrderDiscounts, adminCompanies, permissionError])
 
   return {
     // Estado
@@ -421,6 +430,7 @@ export const useAuth = () => {
     canViewConsumptionReport,
     canCreateLateAdminExtraOrder,
     canManageLateExtraHistory,
+    canManageOrderDiscounts,
     canAccessAdminPanel: isAdmin || isCompanyAdmin,
     adminCompanies,
     permissionError,
