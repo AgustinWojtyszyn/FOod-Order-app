@@ -1,0 +1,526 @@
+AUDITORÍA TÉCNICA - 2026-09-04
+================================
+
+Fecha local considerada: 2026-09-04
+Zona horaria solicitada: America/Argentina/San_Juan
+Auditoría generada: 2026-09-04 11:32:45 -0300
+Repositorio: /home/aggustin/.vscode/food-order-app
+Base acumulada auditada: 6d59297d755d08265951834329d72806834a5919
+HEAD auditado: 143e521b4f003ea9a64be3f8d6f04f7231757f56
+
+1. RESUMEN EJECUTIVO
+
+Se auditaron los 3 commits realizados el 2026-09-04 y el estado acumulado actual del proyecto contra el commit previo al primer cambio del día.
+
+Estado actual antes de crear este archivo:
+- Rama: main...origin/main
+- Staged: ninguno
+- Unstaged: ninguno
+- Untracked relevantes: ninguno
+- Merges de hoy: ninguno
+
+Cambios funcionales confirmados:
+- Admin extra: Agua saborizada se agrega localmente dentro de AdminExtraOrderModal para el flujo admin_extra, sin crear RPC ni SQL paralelo.
+- Cancelación de pedidos extra: se agregó panel para cancelar extras por pedido, por empresa o todos los extras del día visualizado; usa deleteAdminExtraOrder por ID.
+- Igarreta/ISEMAR menú: filterOrderableMenuItems limita la selección real a menú principal + opciones 1 a 5 y remapea opción 4/5.
+- Igarreta/ISEMAR reporte: migración pendiente da acceso a ambas empresas a 4 usuarios y actualiza la RPC existente del reporte.
+- Routing/auth: el redirect global a consumption-report fue removido; los viewers no quedan bloqueados para hacer pedidos normales.
+- Descuentos: se agregó UI, service, hook y migración pendiente con tabla/RPC de descuento trazable.
+
+Resultado general:
+- No encontré problemas críticos ni altos confirmados.
+- Hay 1 riesgo medio relevante en descuentos: el RPC reduce items/total_items pero no recalcula custom_responses.
+- Hay riesgos bajos alrededor de resolución automática de Jesica, quantity=0 legado y labels de post_report_extra.
+
+Veredicto: SEGURO CON OBSERVACIONES.
+
+2. ESTADO ACTUAL DE GIT
+
+Comandos usados:
+- git status --short --branch
+- git diff --stat
+- git diff --cached --stat
+- git diff --name-status
+- git diff --cached --name-status
+- git ls-files --others --exclude-standard
+
+Resultado antes de crear este archivo:
+- git status --short --branch: ## main...origin/main
+- git diff --stat: sin salida
+- git diff --cached --stat: sin salida
+- git diff --name-status: sin salida
+- git diff --cached --name-status: sin salida
+- git ls-files --others --exclude-standard: sin salida
+
+Nota: después de esta auditoría, AUDITORIA_2026-09-04.txt queda como archivo nuevo de trabajo porque el pedido exigía crearlo.
+
+3. COMMITS DE HOY
+
+Commits desde 2026-09-04 00:00:00 -0300:
+
+Commit: 7df2a33df8eb2f33f106aacce2b7a5157f02fd5b
+Autor: Agustin Wojtyszyn <agustinwojtyszyn99@gmail.com>
+Fecha: 2026-09-04T09:26:24-03:00
+Mensaje: mejoras
+Archivos:
+- src/components/DailyOrders.jsx: 11 agregadas, 1 eliminada
+- src/components/daily/AdminExtraCancelPanel.jsx: 166 agregadas, 0 eliminadas
+- src/components/daily/AdminExtraOrderModal.jsx: 31 agregadas, 0 eliminadas
+- src/components/daily/AdminExtraOrderModal.test.jsx: 16 agregadas, 0 eliminadas
+- src/components/daily/DailyOrderRow.jsx: 2 agregadas, 2 eliminadas
+- src/hooks/useDailyOrdersData.js: 82 agregadas, 7 eliminadas
+- src/hooks/useDailyOrdersData.test.js: 10 agregadas, 0 eliminadas
+- src/utils/order/menuDisplay.js: 34 agregadas, 12 eliminadas
+- src/utils/order/menuDisplay.test.js: 21 agregadas, 12 eliminadas
+
+Commit: 5f4acb30d00b160944583e5808362c143c7e6c5e
+Autor: Agustin Wojtyszyn <agustinwojtyszyn99@gmail.com>
+Fecha: 2026-09-04T11:06:31-03:00
+Mensaje: mejoras
+Archivos:
+- src/App.jsx: 18 agregadas, 1 eliminada
+- src/App.routing.test.jsx: 17 agregadas, 0 eliminadas
+- src/components/DailyOrders.jsx: 16 agregadas, 1 eliminada
+- src/components/daily/DailyExportActions.jsx: 13 agregadas, 1 eliminada
+- src/components/daily/DailyHeader.jsx: 2 agregadas, 0 eliminadas
+- src/components/daily/OrderDiscountModal.jsx: 286 agregadas, 0 eliminadas
+- src/hooks/useAuth.js: 12 agregadas, 2 eliminadas
+- src/hooks/useDailyOrdersData.js: 31 agregadas, 1 eliminada
+- src/hooks/useDailyOrdersData.test.js: 12 agregadas, 0 eliminadas
+- src/pages/ConsumptionReportPage.jsx: 2 agregadas, 2 eliminadas
+- src/services/orders/ordersService.js: 12 agregadas, 0 eliminadas
+- src/services/orders/ordersService.test.js: 22 agregadas, 0 eliminadas
+- supabase/migrations/20260904140000_igarreta_isemar_report_and_order_discounts.sql: 608 agregadas, 0 eliminadas
+- supabase/migrations/admin_extra_orders.test.js: 31 agregadas, 0 eliminadas
+
+Commit: 143e521b4f003ea9a64be3f8d6f04f7231757f56
+Autor: Agustin Wojtyszyn <agustinwojtyszyn99@gmail.com>
+Fecha: 2026-09-04T11:17:36-03:00
+Mensaje: mejoras
+Archivos:
+- src/App.jsx: 0 agregadas, 29 eliminadas
+- src/App.routing.test.jsx: 9 agregadas, 6 eliminadas
+
+Merges de hoy:
+- Ninguno.
+
+4. ARCHIVOS MODIFICADOS
+
+Diff acumulado 6d59297d755d08265951834329d72806834a5919..HEAD:
+- 20 archivos cambiados
+- 1438 líneas agregadas
+- 51 líneas eliminadas
+
+Archivos acumulados:
+- M src/App.jsx
+- A src/App.routing.test.jsx
+- M src/components/DailyOrders.jsx
+- A src/components/daily/AdminExtraCancelPanel.jsx
+- M src/components/daily/AdminExtraOrderModal.jsx
+- A src/components/daily/AdminExtraOrderModal.test.jsx
+- M src/components/daily/DailyExportActions.jsx
+- M src/components/daily/DailyHeader.jsx
+- M src/components/daily/DailyOrderRow.jsx
+- A src/components/daily/OrderDiscountModal.jsx
+- M src/hooks/useAuth.js
+- M src/hooks/useDailyOrdersData.js
+- M src/hooks/useDailyOrdersData.test.js
+- M src/pages/ConsumptionReportPage.jsx
+- M src/services/orders/ordersService.js
+- M src/services/orders/ordersService.test.js
+- M src/utils/order/menuDisplay.js
+- M src/utils/order/menuDisplay.test.js
+- A supabase/migrations/20260904140000_igarreta_isemar_report_and_order_discounts.sql
+- M supabase/migrations/admin_extra_orders.test.js
+
+5. CAMBIOS FUNCIONALES IMPLEMENTADOS
+
+Admin extra / Agua saborizada:
+- src/components/daily/AdminExtraOrderModal.jsx:23-31 define ADMIN_EXTRA_BEVERAGE_OPTION con Agua saborizada.
+- src/components/daily/AdminExtraOrderModal.jsx:247-264 agrega la opción a la primera opción de bebida o crea una opción de bebida si no existe.
+- src/components/daily/AdminExtraOrderModal.jsx:485 aplica el agregado al cargar custom options.
+- Alcance real: solo AdminExtraOrderModal; no altera pedidos normales ni custom_options en DB.
+
+Cancelación admin_extra:
+- src/components/daily/AdminExtraCancelPanel.jsx nuevo panel.
+- Filtra solamente isAdminExtraOrder, delivery_date == operationalDate y status activo.
+- src/hooks/useDailyOrdersData.js:306-376 confirma y ejecuta deleteAdminExtraOrder por cada ID.
+- Backend existente delete_admin_extra_order restringe order_origin='admin_extra' en supabase/migrations/20260806153000_admin_extra_orders.sql:640-705.
+
+Igarreta / ISEMAR menú:
+- src/utils/order/menuDisplay.js:139-188 limita selección real para Igarreta/ISEMAR a slots <= 5.
+- src/utils/order/menuDisplay.js:142-160 remapea slot 4 a Ensalada del día y slot 5 a Celíaco.
+- src/components/daily/AdminExtraOrderModal.jsx:429 consume filterOrderableMenuItems para extras.
+- El grafo confirmó consumo de filterOrderableMenuItems también por OrderLunchMenuSection/useOrderBootstrap, por lo que controla opciones seleccionables, no solo labels.
+
+Routing/auth:
+- El commit 5f4acb30 había agregado lógica de redirect para viewers limitados.
+- El commit 143e521 eliminó ese redirect.
+- Estado actual: src/App.jsx:93-126 permite /dashboard, /order y /order/:companySlug como rutas autenticadas normales.
+- src/components/RequireAdmin.jsx:104-113 conserva /consumption-report como ruta protegida para canViewConsumptionReport aunque no sea admin.
+
+Reporte Igarreta/ISEMAR:
+- src/pages/ConsumptionReportPage.jsx cambió título/export a IGARRETA + ISEMAR.
+- src/services/consumptionReportService.js sigue llamando la RPC existente get_igarreta_isemar_consumption_report.
+- supabase/migrations/20260904140000_igarreta_isemar_report_and_order_discounts.sql actualiza permisos y RPC existente.
+
+Descuentos:
+- src/components/daily/DailyExportActions.jsx:103-111 agrega botón "- Descontar pedidos".
+- src/components/DailyOrders.jsx:234 y 257-264 conecta visibilidad por canManageOrderDiscounts y modal.
+- src/components/daily/OrderDiscountModal.jsx agrega flujo con empresa, contexto, pedido, ítem, cantidad, motivo.
+- src/services/orders/ordersService.js:205-215 llama create_order_item_discount.
+- src/hooks/useDailyOrdersData.js:378-401 ejecuta, bloquea doble submit y refresca datos.
+- supabase/migrations/20260904140000_igarreta_isemar_report_and_order_discounts.sql:16-37 crea tabla de descuentos; 358-586 crea RPC.
+
+6. HALLAZGOS CRÍTICOS
+
+No se encontraron problemas críticos confirmados.
+
+7. HALLAZGOS ALTOS
+
+No se encontraron problemas altos confirmados.
+
+8. HALLAZGOS MEDIOS
+
+PROBLEMA CONFIRMADO
+Severidad: MEDIO
+Archivo: supabase/migrations/20260904140000_igarreta_isemar_report_and_order_discounts.sql:486-489
+Commit que lo introdujo: 5f4acb30d00b160944583e5808362c143c7e6c5e
+Descripción: create_order_item_discount reduce orders.items y total_items, pero no actualiza custom_responses del pedido. Si el ítem descontado tiene bebida/guarnición asociada en custom_responses, el total operativo de menú baja, pero detalles secundarios pueden quedar mostrando selecciones previas.
+Impacto real: los totales principales, Excel/PDF/reportes que dependen de items/total_items quedan actualizados; sin embargo, detalles de bebida/guarnición podrían quedar inconsistentes visualmente o en exportaciones detalladas si se interpretan como cantidades exactas.
+Escenario para reproducir: pedido con 2 menús y custom_responses con bebida x2; descontar 1 unidad del ítem de menú; luego revisar detalle/export que muestre breakdown de bebidas.
+Recomendación: definir si el descuento debe afectar solo unidades de menú o también respuestas asociadas. Si debe afectar todo, extender el RPC para ajustar custom_responses cuantificadas o registrar claramente que custom_responses son snapshot histórico no recalculado.
+
+9. HALLAZGOS BAJOS
+
+PROBLEMA CONFIRMADO
+Severidad: BAJO
+Archivo: src/components/daily/OrderDiscountModal.jsx:14-17
+Commit que lo introdujo: 5f4acb30d00b160944583e5808362c143c7e6c5e
+Descripción: buildOrderLabel etiqueta todo lo que no sea order_origin='admin_extra' como "normal"; un pedido con status='post_report_extra' se muestra como normal en el label, aunque el filtro de contexto sí lo distingue.
+Impacto real: no rompe autorización ni cálculo, pero puede confundir al operador al seleccionar el pedido.
+Escenario para reproducir: abrir modal de descuento con un pedido post_report_extra; el filtro "Extra post reporte" funciona, pero el option label termina en "normal".
+Recomendación: reutilizar la misma clasificación de contexto en el label.
+
+RIESGO POTENCIAL
+Severidad: BAJO
+Archivo: src/components/daily/OrderDiscountModal.jsx:5 y supabase/migrations/20260904140000_igarreta_isemar_report_and_order_discounts.sql:457-460
+Commit que lo introdujo: 5f4acb30d00b160944583e5808362c143c7e6c5e
+Descripción: tanto frontend como backend tratan quantity ausente o 0 como disponible 1.
+Impacto real: los pedidos normales deberían tener cantidades positivas y el RPC elimina el ítem cuando llega a 0, por lo que no se espera en datos sanos. Si existieran datos históricos con quantity=0, podrían mostrarse/descontarse como 1.
+Escenario para reproducir: insertar o encontrar un pedido con item { quantity: 0 } y abrir el modal.
+Recomendación: si existen datos históricos con quantity=0, normalizar o cambiar la regla a quantity > 0 estricta.
+
+10. RIESGOS POTENCIALES
+
+RIESGO POTENCIAL
+Severidad: BAJO
+Archivo: supabase/migrations/20260904140000_igarreta_isemar_report_and_order_discounts.sql:98-134
+Commit que lo introdujo: 5f4acb30d00b160944583e5808362c143c7e6c5e
+Descripción: Jesica se resuelve automáticamente solo si existe una coincidencia única por email/full_name que contenga jesica/jessica. Si no hay coincidencia o hay más de una, no queda autorizada.
+Impacto real: no hay escalada de permisos; el riesgo es operativo: la usuaria esperada puede no ver el botón.
+Escenario para reproducir: en producción, public.users tiene cero o más de una coincidencia jesica/jessica.
+Recomendación: confirmar la fila resultante en order_discount_authorized_accounts después de aplicar SQL, o reemplazar por email exacto cuando se conozca.
+
+RIESGO POTENCIAL
+Severidad: BAJO
+Archivo: supabase/migrations/20260904140000_igarreta_isemar_report_and_order_discounts.sql:398-401
+Commit que lo introdujo: 5f4acb30d00b160944583e5808362c143c7e6c5e
+Descripción: casts directos a uuid/date/integer pueden devolver errores PostgreSQL genéricos ante payload malformado antes de llegar a los mensajes custom.
+Impacto real: el frontend envía tipos válidos; no es bypass de seguridad.
+Escenario para reproducir: llamar RPC manualmente con order_id='abc' o quantity='x'.
+Recomendación: validar con regex antes del cast si se busca UX/API de error uniforme.
+
+11. BASE DE DATOS / SUPABASE
+
+Migración nueva:
+- supabase/migrations/20260904140000_igarreta_isemar_report_and_order_discounts.sql
+- Estado: pendiente de aplicar.
+
+Permisos Igarreta/ISEMAR:
+- Líneas 3-14 insertan consumption_report_viewer para los 4 emails en companies c.slug in ('igarreta','isemar').
+- No hay DELETE sobre company_admins en esta migración.
+- No concede acceso a empresas fuera de Igarreta/ISEMAR.
+
+Tablas:
+- order_item_discounts: líneas 16-37, con FK a public.orders y auth.users, quantity > 0, request_id único, snapshots before/after.
+- order_discount_authorized_accounts: líneas 53-64, tabla de allowlist.
+
+RLS/GRANT/REVOKE:
+- RLS habilitado en order_item_discounts y order_discount_authorized_accounts.
+- order_item_discounts revoca public/anon/authenticated y concede select a authenticated; policy restringe select a admin o can_manage_order_discounts.
+- order_discount_authorized_accounts no concede tabla directa; policy select existe, pero sin GRANT select no expone lectura por PostgREST. La función SECURITY DEFINER sí puede leerla.
+
+Funciones/RPC:
+- has_consumption_report_access(text): SECURITY DEFINER, stable, search_path fijado.
+- can_manage_order_discounts(uuid): SECURITY DEFINER, stable, search_path fijado, usa allowlist.
+- get_admin_access_context(): SECURITY DEFINER, search_path fijado, devuelve can_manage_order_discounts además de flags existentes.
+- get_igarreta_isemar_consumption_report(date,date): SECURITY DEFINER, stable, search_path fijado, autoriza por Igarreta o ISEMAR y filtra por allowed_companies.
+- create_order_item_discount(jsonb): SECURITY DEFINER, search_path fijado, valida auth, permiso, date, status, cantidad disponible, request_id idempotente, actualiza orders y audita.
+
+Operaciones destructivas:
+- No hay DELETE de orders.
+- Sí hay UPDATE puntual de public.orders por id dentro de create_order_item_discount.
+- No hay UPDATE/DELETE masivo de orders.
+
+Compatibilidad con frontend:
+- create_order_item_discount es consumida por src/services/orders/ordersService.js:205-215.
+- get_igarreta_isemar_consumption_report ya era consumida por src/services/consumptionReportService.js y Edge Function daily-orders-report.
+- No se agregaron RPCs redundantes para bebida o menú.
+
+Sintaxis:
+- No se ejecutó contra una base real, por instrucción de no aplicar SQL.
+- La revisión estática no encontró fragmentos SQL corruptos, funciones duplicadas ni firmas frontend/backend divergentes.
+
+12. AUTH / ROLES / ROUTING
+
+Estado actual:
+- src/App.jsx ya no contiene isLimitedConsumptionViewer ni Navigate directo a /consumption-report.
+- /order y /order/:companySlug son rutas autenticadas normales en src/App.jsx:122-126.
+- /consumption-report está bajo AdminLayoutRoute, pero RequireAdmin permite acceso si canViewConsumptionReport en src/components/RequireAdmin.jsx:104-113.
+- useAuth consume get_admin_access_context y expone canManageOrderDiscounts en src/hooks/useAuth.js:31-34, 104-107, 122-125, 430-433.
+
+Regresiones revisadas:
+- Login/logout: no se tocaron flujos de signIn/signOut salvo resets de nuevo flag en useAuth.
+- Usuarios normales: no reciben canManageOrderDiscounts si backend no lo concede.
+- Company-admin: conserva canAccessAdminPanel = isAdmin || isCompanyAdmin.
+- Admin global: conserva acceso global; get_admin_access_context sigue usando is_admin.
+- Redirect loops: no se detectó loop; el redirect global agregado en commit intermedio fue removido.
+
+13. PEDIDOS
+
+Creación normal:
+- No se modificó create_order_idempotent ni el flujo createOrder.
+- src/services/orders/ordersService.js conserva createOrder y agrega createOrderDiscount aparte.
+- /order y /order/:companySlug están accesibles para usuarios autenticados.
+
+Edición:
+- No se detectaron cambios directos en EditOrderForm ni RPC de edición.
+
+Cancelación normal:
+- cancelOwnPendingOrder no fue modificado en los cambios de hoy.
+- Referencias actuales: OrderDetails y useDashboardOrderActions siguen llamando cancelOwnPendingOrder.
+
+Estados:
+- Carga diaria consulta pending, archived, post_report_extra.
+- Cancelación de extras opera sobre admin_extra filtrado en UI y validado en backend existente.
+- Descuento acepta pending, archived, post_report_extra en SQL y queda limitado por delivery_date.
+
+Cantidades:
+- Descuento valida quantity > 0 y <= disponible.
+- Total principal baja mediante total_items y items.
+
+14. IGARRETA / ISEMAR
+
+Acceso reporte:
+- La migración pendiente inserta permisos para lcorrea@imasa.com.ar, ggalvarini@imasa.com.ar, vcastilla@imasa.com.ar, mborras@imasa.com.ar en Igarreta e ISEMAR.
+- get_admin_access_context lista consumption_report_companies para ambas si tienen permiso.
+- get_igarreta_isemar_consumption_report usa allowed_companies, por lo que un usuario solo ve empresas autorizadas.
+
+Pedidos normales:
+- El redirect que bloqueaba rutas fue removido.
+- Los usuarios pueden navegar a /order sin convertirse en company-admin ni admin global.
+
+Menú:
+- Igarreta/ISEMAR usan filterOrderableMenuItems.
+- Opción 6 queda filtrada porque getMenuSlotIndex > 5 se excluye.
+- Opción 4 se muestra/selecciona como Ensalada del día.
+- Opción 5 se muestra/selecciona como Celíaco.
+
+Aislamiento:
+- La migración nueva no concede company_admins.
+- Los permisos de reporte están limitados a c.slug in ('igarreta','isemar').
+
+15. REPORTES Y EXCEL
+
+Reporte diario:
+- El descuento muta orders.items/total_items, por lo que las pantallas/exportaciones que ya consumen orders verán totales actualizados.
+- AdminExtraCancelPanel remueve extras cancelados y refresca.
+
+Reporte Igarreta/ISEMAR:
+- src/pages/ConsumptionReportPage.jsx cambió título y nombre de archivo a IGARRETA + ISEMAR.
+- buildConsumptionReportModel sigue agrupando por persona y fecha.
+- La RPC filtra por delivery_date entre p_month_start/p_month_end y estados pending/archived/post_report_extra.
+
+Excel:
+- Consumo mensual exporta model.rows/model.dailyTotals; esos datos vienen de la RPC actualizada.
+- Excel/PDF diarios usan sortedOrders/manualExportOrders y deberían reflejar items/total_items actualizados tras refresh.
+
+Observación:
+- Las selecciones de custom_responses no se recalculan al descontar. Ver hallazgo MEDIO.
+
+16. ADMIN EXTRAS / DESCUENTOS
+
+Pedido extra:
+- + Pedido extra sigue conectado a AdminExtraOrderModal.
+- Agua saborizada se agrega localmente al flujo extra.
+
+Cancelación extra:
+- Panel nuevo permite single/company/all solo sobre extraOrders del operationalDate.
+- useDailyOrdersData filtra nuevamente por isAdminExtraOrder y operationalDate antes de llamar backend.
+- No usa RPC masiva nueva; usa deleteAdminExtraOrder por ID.
+- Backend existente verifica order_origin='admin_extra'.
+
+Descuentos:
+- Botón visible solo con canManageOrderDiscounts desde backend.
+- UI previene doble submit con submitting/discountingOrders.
+- RPC valida autorización backend; ocultar botón no es la única protección.
+- RPC usa for update sobre orders para evitar carreras al descontar.
+- request_id único aporta idempotencia.
+- Registra order_snapshot_before y order_snapshot_after.
+- Audita action 'order_item_discount_created'.
+
+17. CÓDIGO MUERTO O DUPLICADO
+
+No se encontró código muerto crítico.
+
+Confirmado no agregado:
+- No existe get_admin_extra_visible_custom_options nuevo.
+- No existe get_orderable_menu_items_for_company nuevo.
+- No existe cancel_admin_extra_orders nuevo.
+
+Código consumido:
+- create_order_item_discount es consumida por createOrderDiscount.
+- createOrderDiscount es consumido por useDailyOrdersData.
+- OrderDiscountModal es consumido por DailyOrders.
+- AdminExtraCancelPanel es consumido por DailyOrders.
+- filterOrderableMenuItems se usa en flujos de pedido normal y extra.
+
+Soluciones paralelas:
+- Bebida admin_extra se resuelve en frontend dentro del modal, no en RPC paralela.
+- Menú Igarreta/ISEMAR sigue centralizado en menuDisplay/filterOrderableMenuItems.
+- Cancelación extra sigue centralizada en deleteAdminExtraOrder.
+
+18. TESTS EJECUTADOS
+
+Tests focalizados:
+Comando:
+npm test -- --run src/App.routing.test.jsx src/components/daily/AdminExtraOrderModal.test.jsx src/hooks/useDailyOrdersData.test.js src/services/orders/ordersService.test.js src/utils/order/menuDisplay.test.js supabase/migrations/admin_extra_orders.test.js
+Resultado:
+- PASS
+- Test Files: 6 passed
+- Tests: 79 passed
+- Failed: 0
+
+Tests completos:
+Comando:
+npm test
+Resultado:
+- PASS
+- Test Files: 55 passed
+- Tests: 426 passed
+- Failed: 0
+
+Diff check:
+Comando:
+git diff --check 6d59297d755d08265951834329d72806834a5919..HEAD
+Resultado:
+- PASS, sin salida.
+
+19. BUILD / LINT
+
+ESLint focalizado:
+Comando:
+npx eslint src/App.jsx src/App.routing.test.jsx src/components/DailyOrders.jsx src/components/daily/AdminExtraCancelPanel.jsx src/components/daily/AdminExtraOrderModal.jsx src/components/daily/AdminExtraOrderModal.test.jsx src/components/daily/DailyExportActions.jsx src/components/daily/DailyHeader.jsx src/components/daily/DailyOrderRow.jsx src/components/daily/OrderDiscountModal.jsx src/hooks/useAuth.js src/hooks/useDailyOrdersData.js src/hooks/useDailyOrdersData.test.js src/pages/ConsumptionReportPage.jsx src/services/orders/ordersService.js src/services/orders/ordersService.test.js src/utils/order/menuDisplay.js src/utils/order/menuDisplay.test.js
+Resultado:
+- PASS, sin errores ni warnings.
+
+ESLint completo:
+Comando:
+npm run lint
+Resultado:
+- PASS con warning.
+- Warning: src/components/daily/DailyRemitosPanel.jsx:197:14 react-refresh/only-export-components.
+- Ese archivo no forma parte del diff de hoy; warning preexistente/no relacionado.
+
+Build:
+Comando:
+npm run build
+Resultado:
+- PASS.
+- Warning: Browserslist/caniuse-lite desactualizado.
+- Warning: clearSupabaseStorage.js está importado dinámica y estáticamente.
+- Warning: chunks mayores a 1000 kB.
+- Ninguno de esos warnings bloqueó build.
+
+20. REGRESIONES ENCONTRADAS
+
+Regresiones confirmadas:
+- Ninguna crítica/alta.
+- Riesgo medio confirmado de consistencia parcial en custom_responses tras descuentos.
+- Problema bajo de label para post_report_extra en modal de descuento.
+
+No se encontraron regresiones en:
+- creación normal de pedidos;
+- cancelación normal por usuario;
+- protección backend de delete_admin_extra_order contra pedidos normales;
+- acceso /order para viewers de reporte;
+- filtrado real de opción 6 para ISEMAR;
+- ausencia de RPCs paralelas para menú/bebida/cancelación masiva;
+- tests/build.
+
+21. COSAS QUE ESTÁN CORRECTAS
+
+- El working tree estaba limpio antes de crear este informe.
+- No hay migraciones aplicadas por esta auditoría.
+- No hay commits/push hechos por esta auditoría.
+- Las acciones sensibles no dependen solo de ocultar botones.
+- SECURITY DEFINER incluye search_path en funciones nuevas/modificadas.
+- La RPC de descuento valida auth.uid(), permiso, fecha, status, ítem y cantidad.
+- No hay DELETE físico de pedidos para descuento.
+- Cancelación de extras sigue limitada a order_origin='admin_extra' en backend.
+- AdminExtraCancelPanel y useDailyOrdersData limitan cancelación a operationalDate.
+- get_igarreta_isemar_consumption_report no crea una segunda fuente; reemplaza la RPC existente.
+- menuDisplay controla selección real vía filterOrderableMenuItems.
+
+22. ACCIONES RECOMENDADAS
+
+Antes de producción:
+1. Aplicar la migración pendiente en un entorno de staging o producción controlada y validar que compila en Supabase.
+2. Confirmar después de aplicar SQL:
+   select * from public.order_discount_authorized_accounts;
+   para verificar que Jesica haya quedado autorizada si corresponde.
+3. Hacer una prueba manual de descuento sobre pedido con bebida/guarnición y decidir si custom_responses debe quedar como snapshot o ajustarse.
+4. Probar manualmente con uno de los 4 usuarios IMASA:
+   - entrar a /order;
+   - crear pedido normal;
+   - entrar a /consumption-report;
+   - ver Igarreta + ISEMAR y no otras empresas.
+5. Probar manualmente con Claudia/usuario interno/Jesica:
+   - botón visible;
+   - descuento válido;
+   - descuento > disponible rechazado;
+   - doble submit no duplica por request_id.
+
+No recomendado:
+- No aplicar migraciones anteriores fuera de orden.
+- No reemplazar el flujo de cancelación extra por una RPC masiva salvo necesidad real.
+- No agregar RPCs paralelas para menú o bebida.
+
+23. VEREDICTO FINAL
+
+ESTADO GENERAL:
+- SEGURO CON OBSERVACIONES
+
+Motivo:
+El código actual compila, pasa tests, lint focalizado y suite completa. Los cambios principales están conectados de UI a backend y no se detectaron escaladas de permisos ni rutas rotas. La migración pendiente es necesaria para permisos Igarreta/ISEMAR y descuentos trazables, pero debe aplicarse y validarse en DB real. La observación principal es funcional: descuentos actualizan items/total_items pero no custom_responses, lo que puede dejar detalles secundarios desalineados.
+
+Problemas críticos: 0
+Problemas altos: 0
+Problemas medios: 1
+Problemas bajos: 2
+
+Tests:
+426 passed
+0 failed
+
+Build:
+PASS
+
+Lint:
+PASS
+
+Migraciones pendientes de aplicar:
+SÍ
+- supabase/migrations/20260904140000_igarreta_isemar_report_and_order_discounts.sql
+
