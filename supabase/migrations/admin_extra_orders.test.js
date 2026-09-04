@@ -182,13 +182,11 @@ describe('admin extra orders migration', () => {
   it('exposes requesting location fields in the Igarreta and ISEMAR consumption report', () => {
     expect(igarretaIsemarReportAndDiscountsMigration).toContain('drop function if exists public.get_igarreta_isemar_consumption_report(date, date)')
     expect(igarretaIsemarReportAndDiscountsMigration).toContain('requesting_location_code text')
-    expect(igarretaIsemarReportAndDiscountsMigration).toContain('requesting_location text')
-    expect(igarretaIsemarReportAndDiscountsMigration).toContain('requesting_location_name text')
     expect(igarretaIsemarReportAndDiscountsMigration).toContain('delivery_location text')
     expect(igarretaIsemarReportAndDiscountsMigration).toContain('o.requesting_location_code')
-    expect(igarretaIsemarReportAndDiscountsMigration).toContain('o.requesting_location')
-    expect(igarretaIsemarReportAndDiscountsMigration).toContain('o.requesting_location_name')
     expect(igarretaIsemarReportAndDiscountsMigration).toContain('o.delivery_location')
+    expect(igarretaIsemarReportAndDiscountsMigration).not.toContain('o.requesting_location,')
+    expect(igarretaIsemarReportAndDiscountsMigration).not.toContain('o.requesting_location_name')
   })
 
   it('adds a traceable order discount RPC with backend authorization and stock validation', () => {

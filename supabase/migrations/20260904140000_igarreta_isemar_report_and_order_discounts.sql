@@ -534,8 +534,6 @@ returns table (
   location text,
   delivery_location text,
   requesting_location_code text,
-  requesting_location text,
-  requesting_location_name text,
   status text,
   items jsonb,
   total_items integer
@@ -590,8 +588,6 @@ begin
     o.location,
     o.delivery_location,
     o.requesting_location_code,
-    o.requesting_location,
-    o.requesting_location_name,
     o.status,
     o.items,
     o.total_items
