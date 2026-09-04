@@ -24,4 +24,38 @@ describe('consumption report calculations', () => {
 
     expect(model.rows[0].quantities['2026-01-01']).toBe(3)
   })
+
+  it('keeps separate rows when the same person ordered from different locations', () => {
+    const model = buildConsumptionReportModel([
+      {
+        person_key: 'a',
+        customer_name: 'Ana',
+        delivery_date: '2026-01-01',
+        total_items: 1,
+        items: [],
+        company_slug: 'isemar',
+        company_name: 'ISEMAR',
+        requesting_location_code: 'ISEMAR_PREDIO_1',
+        location: 'ISEMAR - PREDIO 1',
+        delivery_location: 'Entrega común'
+      },
+      {
+        person_key: 'a',
+        customer_name: 'Ana',
+        delivery_date: '2026-01-02',
+        total_items: 2,
+        items: [],
+        company_slug: 'isemar',
+        company_name: 'ISEMAR',
+        requesting_location_code: 'ISEMAR_PREDIO_2',
+        location: 'ISEMAR - PREDIO 2',
+        delivery_location: 'Entrega común'
+      }
+    ], ['2026-01-01', '2026-01-02'])
+
+    expect(model.rows).toHaveLength(2)
+    expect(model.rows.map((row) => row.locationLabel)).toEqual(['ISEMAR - PREDIO 1', 'ISEMAR - PREDIO 2'])
+    expect(model.dailyTotals).toEqual({ '2026-01-01': 1, '2026-01-02': 2 })
+    expect(model.grandTotal).toBe(3)
+  })
 })

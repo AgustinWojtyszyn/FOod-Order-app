@@ -1,4 +1,8 @@
 import { getOrderMenuTotal } from './order/orderOperationalTotals'
+import {
+  getOrderRemitoLocationKey,
+  getOrderRemitoLocationLabel
+} from './daily/exportDailyOrderNotesExcel'
 
 const FALLBACK_NAME = 'Sin nombre'
 
@@ -23,6 +27,9 @@ export const resolveConsumptionPersonName = (order = {}) =>
 
 export const getConsumptionQuantity = (order = {}) => getOrderMenuTotal(order)
 
+export const resolveConsumptionLocationLabel = (order = {}) =>
+  getOrderRemitoLocationLabel(order) || 'Sin sede'
+
 export const buildConsumptionReportModel = (orders = [], dates = []) => {
   const people = new Map()
   const dailyTotals = Object.fromEntries(dates.map((date) => [date, 0]))
@@ -33,19 +40,26 @@ export const buildConsumptionReportModel = (orders = [], dates = []) => {
     const quantity = getConsumptionQuantity(order)
     if (quantity <= 0) return
     const personKey = String(order.person_key || order.user_id || order.customer_email || resolveConsumptionPersonName(order))
-    const current = people.get(personKey) || {
-      personKey,
+    const locationLabel = resolveConsumptionLocationLabel(order)
+    const locationKey = getOrderRemitoLocationKey(order) || locationLabel
+    const rowKey = `${personKey}::${locationKey}`
+    const current = people.get(rowKey) || {
+      personKey: rowKey,
       name: resolveConsumptionPersonName(order),
+      locationLabel,
       quantities: Object.fromEntries(dates.map((day) => [day, 0])),
       monthlyTotal: 0
     }
     current.quantities[date] += quantity
     current.monthlyTotal += quantity
     dailyTotals[date] += quantity
-    people.set(personKey, current)
+    people.set(rowKey, current)
   })
 
-  const rows = [...people.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'))
+  const rows = [...people.values()].sort((a, b) =>
+    a.name.localeCompare(b.name, 'es') ||
+    a.locationLabel.localeCompare(b.locationLabel, 'es')
+  )
   return {
     dates,
     rows,

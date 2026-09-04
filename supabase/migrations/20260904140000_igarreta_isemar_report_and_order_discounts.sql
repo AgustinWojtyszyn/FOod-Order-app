@@ -513,6 +513,8 @@ for select
 to authenticated
 using (public.is_admin() or public.can_manage_order_discounts(auth.uid()));
 
+drop function if exists public.get_igarreta_isemar_consumption_report(date, date);
+
 create or replace function public.get_igarreta_isemar_consumption_report(
   p_month_start date,
   p_month_end date
@@ -526,6 +528,14 @@ returns table (
   customer_email text,
   user_full_name text,
   user_email text,
+  company_slug text,
+  company_name text,
+  organization text,
+  location text,
+  delivery_location text,
+  requesting_location_code text,
+  requesting_location text,
+  requesting_location_name text,
   status text,
   items jsonb,
   total_items integer
@@ -574,6 +584,14 @@ begin
     o.customer_email,
     u.full_name,
     u.email,
+    o.company_slug,
+    o.company_name,
+    o.organization,
+    o.location,
+    o.delivery_location,
+    o.requesting_location_code,
+    o.requesting_location,
+    o.requesting_location_name,
     o.status,
     o.items,
     o.total_items

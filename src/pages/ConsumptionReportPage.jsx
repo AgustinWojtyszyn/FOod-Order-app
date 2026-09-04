@@ -43,14 +43,19 @@ const ConsumptionReportPage = () => {
     workbook.creator = 'ServiFood'
     workbook.created = new Date()
     const worksheet = workbook.addWorksheet('Consumo mensual')
-    const headers = ['Usuario', ...model.dates.map(formatDate), 'Total mensual']
+    const headers = ['Usuario', 'Lugar / Sede', ...model.dates.map(formatDate), 'Total mensual']
     worksheet.addRow(headers)
-    model.rows.forEach((row) => worksheet.addRow([row.name, ...model.dates.map((date) => row.quantities[date]), row.monthlyTotal]))
-    worksheet.addRow(['Total diario', ...model.dates.map((date) => model.dailyTotals[date]), model.grandTotal])
+    model.rows.forEach((row) => worksheet.addRow([row.name, row.locationLabel, ...model.dates.map((date) => row.quantities[date]), row.monthlyTotal]))
+    worksheet.addRow(['Total diario', '', ...model.dates.map((date) => model.dailyTotals[date]), model.grandTotal])
     worksheet.getColumn(1).width = 32
-    model.dates.forEach((_, index) => { worksheet.getColumn(index + 2).width = 9 })
+    worksheet.getColumn(2).width = 28
+    model.dates.forEach((_, index) => { worksheet.getColumn(index + 3).width = 9 })
     worksheet.getColumn(headers.length).width = 16
-    worksheet.views = [{ state: 'frozen', xSplit: 1, ySplit: 1 }]
+    worksheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: worksheet.rowCount, column: headers.length }
+    }
+    worksheet.views = [{ state: 'frozen', xSplit: 2, ySplit: 1 }]
     worksheet.pageSetup = {
       orientation: 'landscape',
       fitToPage: true,
@@ -70,7 +75,7 @@ const ConsumptionReportPage = () => {
         const isHeader = rowNumber === headerRowNumber
         const isTotalRow = rowNumber === totalRowNumber
         const isTotalColumn = columnNumber === totalColumnNumber
-        const isNameColumn = columnNumber === 1
+        const isNameColumn = columnNumber === 1 || columnNumber === 2
 
         cell.alignment = {
           vertical: 'middle',
@@ -124,8 +129,8 @@ const ConsumptionReportPage = () => {
       {loading ? <LoadingState message="Cargando consumo..." /> : (
         <div className="max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="min-w-max border-separate border-spacing-0 text-sm text-slate-950">
-            <thead className="sticky top-0 z-30 bg-slate-800 text-white"><tr><th className="sticky left-0 z-50 min-w-72 border-b border-r border-slate-600 bg-slate-800 px-5 py-4 text-left font-bold whitespace-nowrap">Usuario</th>{model.dates.map((date) => <th key={date} className="min-w-20 border-b border-r border-slate-700 bg-slate-800 px-3 py-4 text-center font-semibold whitespace-nowrap">{formatDate(date)}</th>)}<th className="sticky right-0 z-50 min-w-36 border-b border-l border-slate-500 bg-slate-800 px-5 py-4 text-center font-bold whitespace-nowrap shadow-[-8px_0_14px_-14px_rgba(15,23,42,0.65)]">Total mensual</th></tr></thead>
-            <tbody>{model.rows.map((row) => <tr key={row.personKey} className="bg-white"><th className="sticky left-0 z-20 min-w-72 border-b border-r border-slate-200 bg-white px-5 py-3.5 text-left font-semibold text-slate-950 whitespace-nowrap shadow-[8px_0_14px_-16px_rgba(15,23,42,0.55)]">{row.name}</th>{model.dates.map((date) => <td key={date} className="min-w-20 border-b border-r border-slate-100 px-3 py-3.5 text-center text-slate-950 tabular-nums">{row.quantities[date] || ''}</td>)}<td className="sticky right-0 z-20 min-w-36 border-b border-l border-slate-300 bg-slate-50 px-5 py-3.5 text-center font-bold text-slate-950 tabular-nums shadow-[-8px_0_14px_-16px_rgba(15,23,42,0.55)]">{row.monthlyTotal}</td></tr>)}<tr className="bg-blue-50 font-bold text-slate-950"><th className="sticky left-0 z-20 min-w-72 border-t-2 border-r border-slate-300 bg-blue-50 px-5 py-4 text-left whitespace-nowrap shadow-[8px_0_14px_-16px_rgba(15,23,42,0.55)]">Total diario</th>{model.dates.map((date) => <td key={date} className="min-w-20 border-t-2 border-r border-slate-200 px-3 py-4 text-center text-slate-950 tabular-nums">{model.dailyTotals[date]}</td>)}<td className="sticky right-0 z-20 min-w-36 border-l border-t-2 border-slate-400 bg-blue-100 px-5 py-4 text-center font-extrabold text-slate-950 tabular-nums shadow-[-8px_0_14px_-16px_rgba(15,23,42,0.55)]">{model.grandTotal}</td></tr></tbody>
+            <thead className="sticky top-0 z-30 bg-slate-800 text-white"><tr><th className="sticky left-0 z-50 min-w-72 border-b border-r border-slate-600 bg-slate-800 px-5 py-4 text-left font-bold whitespace-nowrap">Usuario</th><th className="sticky left-72 z-40 min-w-64 border-b border-r border-slate-600 bg-slate-800 px-5 py-4 text-left font-bold whitespace-nowrap">Lugar / Sede</th>{model.dates.map((date) => <th key={date} className="min-w-20 border-b border-r border-slate-700 bg-slate-800 px-3 py-4 text-center font-semibold whitespace-nowrap">{formatDate(date)}</th>)}<th className="sticky right-0 z-50 min-w-36 border-b border-l border-slate-500 bg-slate-800 px-5 py-4 text-center font-bold whitespace-nowrap shadow-[-8px_0_14px_-14px_rgba(15,23,42,0.65)]">Total mensual</th></tr></thead>
+            <tbody>{model.rows.map((row) => <tr key={row.personKey} className="bg-white"><th className="sticky left-0 z-20 min-w-72 border-b border-r border-slate-200 bg-white px-5 py-3.5 text-left font-semibold text-slate-950 whitespace-nowrap shadow-[8px_0_14px_-16px_rgba(15,23,42,0.55)]">{row.name}</th><td className="sticky left-72 z-10 min-w-64 border-b border-r border-slate-200 bg-white px-5 py-3.5 text-left font-semibold text-slate-800 whitespace-nowrap">{row.locationLabel}</td>{model.dates.map((date) => <td key={date} className="min-w-20 border-b border-r border-slate-100 px-3 py-3.5 text-center text-slate-950 tabular-nums">{row.quantities[date] || ''}</td>)}<td className="sticky right-0 z-20 min-w-36 border-b border-l border-slate-300 bg-slate-50 px-5 py-3.5 text-center font-bold text-slate-950 tabular-nums shadow-[-8px_0_14px_-16px_rgba(15,23,42,0.55)]">{row.monthlyTotal}</td></tr>)}<tr className="bg-blue-50 font-bold text-slate-950"><th className="sticky left-0 z-20 min-w-72 border-t-2 border-r border-slate-300 bg-blue-50 px-5 py-4 text-left whitespace-nowrap shadow-[8px_0_14px_-16px_rgba(15,23,42,0.55)]">Total diario</th><td className="sticky left-72 z-10 min-w-64 border-t-2 border-r border-slate-300 bg-blue-50 px-5 py-4 text-left whitespace-nowrap"></td>{model.dates.map((date) => <td key={date} className="min-w-20 border-t-2 border-r border-slate-200 px-3 py-4 text-center text-slate-950 tabular-nums">{model.dailyTotals[date]}</td>)}<td className="sticky right-0 z-20 min-w-36 border-l border-t-2 border-slate-400 bg-blue-100 px-5 py-4 text-center font-extrabold text-slate-950 tabular-nums shadow-[-8px_0_14px_-16px_rgba(15,23,42,0.55)]">{model.grandTotal}</td></tr></tbody>
           </table>
         </div>
       )}
