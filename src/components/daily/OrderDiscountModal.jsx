@@ -2,7 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Minus, X } from 'lucide-react'
 import { getCompanyByLocationOrSlug } from '../../constants/companyConfig'
 
-const getItemQuantity = (item = {}) => Math.max(0, Number(item?.quantity) || 1)
+const getItemQuantity = (item = {}) => {
+  if (Object.prototype.hasOwnProperty.call(item, 'quantity')) {
+    const quantity = Number(item.quantity)
+    return Number.isFinite(quantity) && quantity > 0 ? quantity : 0
+  }
+  const fallback = Number(item?.qty ?? item?.count)
+  return Number.isFinite(fallback) && fallback > 0 ? fallback : 1
+}
 
 const getOrderCompanyLabel = (order = {}) => {
   const company = getCompanyByLocationOrSlug(
@@ -13,8 +20,21 @@ const getOrderCompanyLabel = (order = {}) => {
 
 const buildOrderLabel = (order = {}) => {
   const client = order.user_name || order.customer_name || order.customer_email || 'Pedido sin cliente'
-  const origin = order.order_origin === 'admin_extra' ? 'extra' : 'normal'
+  const origin = getOrderContextLabel(order)
   return `${client} · ${getOrderCompanyLabel(order)} · ${origin}`
+}
+
+const getOrderContext = (order = {}) => {
+  if (order.order_origin === 'admin_extra') return 'admin_extra'
+  if (order.status === 'post_report_extra') return 'post_report_extra'
+  return 'normal'
+}
+
+const getOrderContextLabel = (order = {}) => {
+  const context = getOrderContext(order)
+  if (context === 'admin_extra') return 'Pedido extra'
+  if (context === 'post_report_extra') return 'Extra post reporte'
+  return 'Normal'
 }
 
 const OrderDiscountModal = ({
@@ -51,11 +71,7 @@ const OrderDiscountModal = ({
 
   const selectableOrders = useMemo(() => (
     baseOrders.filter((order) => {
-      const orderContext = order.order_origin === 'admin_extra'
-        ? 'admin_extra'
-        : order.status === 'post_report_extra'
-          ? 'post_report_extra'
-          : 'normal'
+      const orderContext = getOrderContext(order)
       return (companyFilter === 'all' || getOrderCompanyLabel(order) === companyFilter) &&
         (contextFilter === 'all' || orderContext === contextFilter)
     })

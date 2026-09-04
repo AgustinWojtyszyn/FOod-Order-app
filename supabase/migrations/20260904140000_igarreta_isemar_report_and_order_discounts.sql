@@ -175,6 +175,269 @@ as $$
   );
 $$;
 
+create or replace function public.order_discount_jsonb_positive_int(p_value jsonb)
+returns integer
+language sql
+immutable
+set search_path = public, pg_temp
+as $$
+  select case
+    when p_value is null then null
+    when jsonb_typeof(p_value) = 'number' and (p_value #>> '{}') ~ '^[0-9]+$' then (p_value #>> '{}')::integer
+    when jsonb_typeof(p_value) = 'string' and trim(p_value #>> '{}') ~ '^[0-9]+$' then trim(p_value #>> '{}')::integer
+    else null
+  end;
+$$;
+
+create or replace function public.order_discount_sum_quantities(p_quantities jsonb)
+returns integer
+language sql
+immutable
+set search_path = public, pg_temp
+as $$
+  select coalesce(sum(public.order_discount_jsonb_positive_int(value)), 0)::integer
+  from jsonb_each(coalesce(p_quantities, '{}'::jsonb));
+$$;
+
+create or replace function public.order_discount_reduce_quantities(
+  p_quantities jsonb,
+  p_reduce integer
+)
+returns jsonb
+language plpgsql
+immutable
+set search_path = public, pg_temp
+as $$
+declare
+  v_result jsonb := '{}'::jsonb;
+  v_remaining integer := greatest(coalesce(p_reduce, 0), 0);
+  v_key text;
+  v_value jsonb;
+  v_quantity integer;
+  v_next_quantity integer;
+begin
+  if coalesce(jsonb_typeof(p_quantities), '') <> 'object' or v_remaining <= 0 then
+    return coalesce(p_quantities, '{}'::jsonb);
+  end if;
+
+  for v_key, v_value in
+    select key, value
+    from jsonb_each(p_quantities)
+    order by key
+  loop
+    v_quantity := public.order_discount_jsonb_positive_int(v_value);
+    if v_quantity is null then
+      v_result := v_result || jsonb_build_object(v_key, v_value);
+    else
+      v_next_quantity := greatest(v_quantity - v_remaining, 0);
+      v_remaining := greatest(v_remaining - v_quantity, 0);
+      if v_next_quantity > 0 then
+        v_result := v_result || jsonb_build_object(v_key, v_next_quantity);
+      end if;
+    end if;
+  end loop;
+
+  return v_result;
+end;
+$$;
+
+create or replace function public.order_discount_response_matches_item(
+  p_response jsonb,
+  p_item jsonb,
+  p_item_index integer
+)
+returns boolean
+language sql
+immutable
+set search_path = public, pg_temp
+as $$
+  with response_values(value) as (
+    values
+      (p_response->>'item_id'),
+      (p_response->>'itemId'),
+      (p_response->>'menu_item_id'),
+      (p_response->>'menuItemId'),
+      (p_response->>'selectedItemId'),
+      (p_response->>'slotIndex'),
+      (p_response->>'item_slot_index')
+  ),
+  item_values(value) as (
+    values
+      (p_item->>'id'),
+      (p_item->>'item_id'),
+      (p_item->>'itemId'),
+      (p_item->>'menu_item_id'),
+      (p_item->>'menuItemId'),
+      (p_item->>'selectedItemId'),
+      (p_item->>'slotIndex'),
+      (p_item->>'item_slot_index'),
+      (p_item_index::text)
+  )
+  select exists (
+    select 1
+    from response_values rv
+    join item_values iv on lower(trim(rv.value)) = lower(trim(iv.value))
+    where nullif(trim(coalesce(rv.value, '')), '') is not null
+      and nullif(trim(coalesce(iv.value, '')), '') is not null
+  );
+$$;
+
+create or replace function public.order_discount_is_operational_response(p_response jsonb)
+returns boolean
+language sql
+immutable
+set search_path = public, pg_temp
+as $$
+  select lower(trim(coalesce(
+    p_response->>'title',
+    p_response->>'label',
+    p_response->>'question',
+    p_response->>'name',
+    ''
+  ))) ~ '(bebida|bebidas|postre|postres|fruta|guarnici[oó]n|guarnicion|acompa[nñ]amiento)';
+$$;
+
+create or replace function public.order_discount_trim_response_array(
+  p_response jsonb,
+  p_field text,
+  p_limit integer
+)
+returns jsonb
+language sql
+immutable
+set search_path = public, pg_temp
+as $$
+  select case
+    when p_limit < 0 then p_response
+    when jsonb_typeof(p_response->p_field) <> 'array' then p_response
+    when jsonb_array_length(p_response->p_field) <= p_limit then p_response
+    else jsonb_set(
+      p_response,
+      array[p_field],
+      coalesce((
+        select jsonb_agg(value order by ord)
+        from jsonb_array_elements(p_response->p_field) with ordinality as item(value, ord)
+        where ord <= p_limit
+      ), '[]'::jsonb),
+      true
+    )
+  end;
+$$;
+
+create or replace function public.order_discount_adjust_custom_responses(
+  p_custom_responses jsonb,
+  p_target_item jsonb,
+  p_item_index integer,
+  p_discount_quantity integer,
+  p_target_item_quantity_after integer,
+  p_menu_total_after integer
+)
+returns jsonb
+language plpgsql
+immutable
+set search_path = public, pg_temp
+as $$
+declare
+  v_result jsonb := '[]'::jsonb;
+  v_response jsonb;
+  v_next_response jsonb;
+  v_quantities jsonb;
+  v_quantity_total integer;
+  v_explicit_quantity integer;
+  v_reduce integer;
+  v_linked boolean;
+  v_operational boolean;
+  v_keep_response boolean;
+begin
+  if coalesce(jsonb_typeof(p_custom_responses), '') <> 'array' then
+    return '[]'::jsonb;
+  end if;
+
+  for v_response in
+    select value
+    from jsonb_array_elements(p_custom_responses) as item(value)
+  loop
+    if jsonb_typeof(v_response) <> 'object' then
+      v_result := v_result || jsonb_build_array(v_response);
+      continue;
+    end if;
+
+    v_next_response := v_response;
+    v_linked := public.order_discount_response_matches_item(v_response, p_target_item, p_item_index);
+    v_operational := public.order_discount_is_operational_response(v_response);
+    v_quantities := v_response->'quantities';
+    v_keep_response := true;
+
+    if v_linked and coalesce(p_target_item_quantity_after, 0) <= 0 then
+      v_keep_response := false;
+    elsif jsonb_typeof(v_quantities) = 'object' then
+      v_quantity_total := public.order_discount_sum_quantities(v_quantities);
+      if v_linked then
+        v_reduce := least(greatest(coalesce(p_discount_quantity, 0), 0), v_quantity_total);
+      elsif v_operational and v_quantity_total > greatest(coalesce(p_menu_total_after, 0), 0) then
+        v_reduce := v_quantity_total - greatest(coalesce(p_menu_total_after, 0), 0);
+      else
+        v_reduce := 0;
+      end if;
+
+      if v_reduce > 0 then
+        v_next_response := jsonb_set(
+          v_next_response,
+          '{quantities}',
+          public.order_discount_reduce_quantities(v_quantities, v_reduce),
+          true
+        );
+      end if;
+
+      if jsonb_typeof(v_next_response->'response') = 'array' then
+        v_next_response := public.order_discount_trim_response_array(
+          v_next_response,
+          'response',
+          public.order_discount_sum_quantities(v_next_response->'quantities')
+        );
+      end if;
+    elsif v_linked and jsonb_typeof(v_next_response->'response') = 'array' then
+      v_next_response := public.order_discount_trim_response_array(
+        v_next_response,
+        'response',
+        greatest(coalesce(p_target_item_quantity_after, 0), 0)
+      );
+    elsif v_operational and jsonb_typeof(v_next_response->'response') = 'array'
+      and jsonb_array_length(v_next_response->'response') > greatest(coalesce(p_menu_total_after, 0), 0)
+    then
+      v_next_response := public.order_discount_trim_response_array(
+        v_next_response,
+        'response',
+        greatest(coalesce(p_menu_total_after, 0), 0)
+      );
+    elsif v_operational then
+      v_explicit_quantity := coalesce(
+        public.order_discount_jsonb_positive_int(v_next_response->'quantity'),
+        public.order_discount_jsonb_positive_int(v_next_response->'qty'),
+        public.order_discount_jsonb_positive_int(v_next_response->'count')
+      );
+      if v_explicit_quantity is not null and v_explicit_quantity > greatest(coalesce(p_menu_total_after, 0), 0) then
+        if v_next_response ? 'quantity' then
+          v_next_response := jsonb_set(v_next_response, '{quantity}', to_jsonb(greatest(coalesce(p_menu_total_after, 0), 0)), true);
+        end if;
+        if v_next_response ? 'qty' then
+          v_next_response := jsonb_set(v_next_response, '{qty}', to_jsonb(greatest(coalesce(p_menu_total_after, 0), 0)), true);
+        end if;
+        if v_next_response ? 'count' then
+          v_next_response := jsonb_set(v_next_response, '{count}', to_jsonb(greatest(coalesce(p_menu_total_after, 0), 0)), true);
+        end if;
+      end if;
+    end if;
+
+    if v_keep_response then
+      v_result := v_result || jsonb_build_array(v_next_response);
+    end if;
+  end loop;
+
+  return v_result;
+end;
+$$;
+
 drop policy if exists order_discount_authorized_read on public.order_discount_authorized_accounts;
 create policy order_discount_authorized_read
 on public.order_discount_authorized_accounts
@@ -374,6 +637,8 @@ declare
   v_available integer;
   v_new_quantity integer;
   v_new_items jsonb;
+  v_new_total_items integer;
+  v_new_custom_responses jsonb;
   v_before jsonb;
   v_after jsonb;
   v_discount public.order_item_discounts%rowtype;
@@ -455,8 +720,8 @@ begin
   end if;
 
   v_available := case
-    when trim(coalesce(v_target_item->>'quantity', '')) ~ '^[0-9]+$'
-      then greatest((v_target_item->>'quantity')::integer, 1)
+    when v_target_item ? 'quantity'
+      then coalesce(public.order_discount_jsonb_positive_int(v_target_item->'quantity'), 0)
     else 1
   end;
 
@@ -465,6 +730,7 @@ begin
   end if;
 
   v_new_quantity := v_available - v_quantity;
+  v_new_total_items := greatest(coalesce(v_order.total_items, 0) - v_quantity, 0);
   v_before := to_jsonb(v_order);
 
   select coalesce(jsonb_agg(next_item order by ord), '[]'::jsonb)
@@ -483,9 +749,19 @@ begin
   ) rebuilt
   where next_item is not null;
 
+  v_new_custom_responses := public.order_discount_adjust_custom_responses(
+    coalesce(v_order.custom_responses, '[]'::jsonb),
+    v_target_item,
+    v_item_index,
+    v_quantity,
+    v_new_quantity,
+    v_new_total_items
+  );
+
   update public.orders
   set items = v_new_items,
-      total_items = greatest(coalesce(total_items, 0) - v_quantity, 0),
+      custom_responses = v_new_custom_responses,
+      total_items = v_new_total_items,
       updated_at = now()
   where id = v_order.id
   returning *
@@ -592,6 +868,34 @@ grant execute on function public.has_consumption_report_access(text) to authenti
 revoke all on function public.can_manage_order_discounts(uuid) from public;
 revoke all on function public.can_manage_order_discounts(uuid) from anon;
 grant execute on function public.can_manage_order_discounts(uuid) to authenticated;
+
+revoke all on function public.order_discount_jsonb_positive_int(jsonb) from public;
+revoke all on function public.order_discount_jsonb_positive_int(jsonb) from anon;
+revoke all on function public.order_discount_jsonb_positive_int(jsonb) from authenticated;
+
+revoke all on function public.order_discount_sum_quantities(jsonb) from public;
+revoke all on function public.order_discount_sum_quantities(jsonb) from anon;
+revoke all on function public.order_discount_sum_quantities(jsonb) from authenticated;
+
+revoke all on function public.order_discount_reduce_quantities(jsonb, integer) from public;
+revoke all on function public.order_discount_reduce_quantities(jsonb, integer) from anon;
+revoke all on function public.order_discount_reduce_quantities(jsonb, integer) from authenticated;
+
+revoke all on function public.order_discount_response_matches_item(jsonb, jsonb, integer) from public;
+revoke all on function public.order_discount_response_matches_item(jsonb, jsonb, integer) from anon;
+revoke all on function public.order_discount_response_matches_item(jsonb, jsonb, integer) from authenticated;
+
+revoke all on function public.order_discount_is_operational_response(jsonb) from public;
+revoke all on function public.order_discount_is_operational_response(jsonb) from anon;
+revoke all on function public.order_discount_is_operational_response(jsonb) from authenticated;
+
+revoke all on function public.order_discount_trim_response_array(jsonb, text, integer) from public;
+revoke all on function public.order_discount_trim_response_array(jsonb, text, integer) from anon;
+revoke all on function public.order_discount_trim_response_array(jsonb, text, integer) from authenticated;
+
+revoke all on function public.order_discount_adjust_custom_responses(jsonb, jsonb, integer, integer, integer, integer) from public;
+revoke all on function public.order_discount_adjust_custom_responses(jsonb, jsonb, integer, integer, integer, integer) from anon;
+revoke all on function public.order_discount_adjust_custom_responses(jsonb, jsonb, integer, integer, integer, integer) from authenticated;
 
 revoke all on function public.get_admin_access_context() from public;
 revoke all on function public.get_admin_access_context() from anon;

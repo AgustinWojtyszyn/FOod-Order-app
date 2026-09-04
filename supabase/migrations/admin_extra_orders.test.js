@@ -189,11 +189,32 @@ describe('admin extra orders migration', () => {
     expect(igarretaIsemarReportAndDiscountsMigration).toContain('create or replace function public.can_manage_order_discounts')
     expect(igarretaIsemarReportAndDiscountsMigration).toContain('create or replace function public.create_order_item_discount')
     expect(igarretaIsemarReportAndDiscountsMigration).toContain('for update')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain("raise exception 'quantity_invalid'")
     expect(igarretaIsemarReportAndDiscountsMigration).toContain("raise exception 'quantity_exceeds_available'")
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('if found then')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('return next v_discount')
     expect(igarretaIsemarReportAndDiscountsMigration).toContain("'order_item_discount_created'")
     expect(igarretaIsemarReportAndDiscountsMigration).toContain('order_snapshot_before')
     expect(igarretaIsemarReportAndDiscountsMigration).toContain('order_snapshot_after')
     expect(igarretaIsemarReportAndDiscountsMigration).not.toContain('delete from public.orders')
+  })
+
+  it('keeps custom responses consistent when order discounts change operational quantities', () => {
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('create or replace function public.order_discount_adjust_custom_responses')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('public.order_discount_response_matches_item')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('public.order_discount_reduce_quantities')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('public.order_discount_trim_response_array')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain("v_next_response := jsonb_set(\n          v_next_response,\n          '{quantities}'")
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('custom_responses = v_new_custom_responses')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('p_target_item_quantity_after')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('p_menu_total_after')
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('revoke all on function public.order_discount_adjust_custom_responses')
+  })
+
+  it('does not treat an explicit item quantity of zero as discountable stock', () => {
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain("when v_target_item ? 'quantity'")
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain("then coalesce(public.order_discount_jsonb_positive_int(v_target_item->'quantity'), 0)")
+    expect(igarretaIsemarReportAndDiscountsMigration).toContain('else 1')
   })
 
   it('restricts deletion to admin extra orders and audits a full snapshot before delete', () => {
