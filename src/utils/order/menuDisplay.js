@@ -5,8 +5,6 @@ const HIDDEN_ORDER_MENU_COMPANY_SLUG = 'epse'
 const IGARRETA_COMPANY_SLUG = 'igarreta'
 const ISEMAR_COMPANY_SLUG = 'isemar'
 const IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX = 5
-const IGARRETA_ISEMAR_SALAD_SLOT_INDEX = 4
-const IGARRETA_SALAD_DISH = 'Ensalada del día'
 const IGARRETA_ISEMAR_CELIAC_DISH = 'Celíaco'
 const DIETA_COMPANY_SLUGS = new Set(['greif', 'placo', 'molinos'])
 
@@ -110,13 +108,6 @@ const replaceDietaLabel = (value, companySlug) => {
 }
 
 const getCompanyMenuDisplay = (display, companySlug) => {
-  if (isIgarretaIsemarCompany(companySlug) && display?.slotIndex === IGARRETA_ISEMAR_SALAD_SLOT_INDEX) {
-    return {
-      ...display,
-      label: getMenuLabelByIndex(IGARRETA_ISEMAR_SALAD_SLOT_INDEX),
-      dish: IGARRETA_SALAD_DISH
-    }
-  }
   if (isIgarretaIsemarCompany(companySlug) && display?.slotIndex === IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX) {
     return {
       ...display,
@@ -141,15 +132,6 @@ const isHiddenIgarretaMenuSlot = (item = {}, fallbackIndex = null) =>
 
 const withIgarretaIsemarMenuItem = (item = {}, fallbackIndex = null) => {
   const slotIndex = getMenuSlotIndex(item, fallbackIndex)
-  if (slotIndex === IGARRETA_ISEMAR_SALAD_SLOT_INDEX) {
-    return {
-      ...item,
-      name: getMenuLabelByIndex(IGARRETA_ISEMAR_SALAD_SLOT_INDEX),
-      displayName: getMenuLabelByIndex(IGARRETA_ISEMAR_SALAD_SLOT_INDEX),
-      description: IGARRETA_SALAD_DISH,
-      slotIndex
-    }
-  }
   if (slotIndex !== IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX) return item
   return {
     ...item,

@@ -181,7 +181,7 @@ describe('order payload', () => {
     expect(orderData.customer_name).toBe('Test User')
   })
 
-  it('persists Igarreta Opción 4 as Ensalada del día after company menu normalization', () => {
+  it('persists Igarreta Opción 4 with the shared menu dish', () => {
     const [selectedItem] = filterOrderableMenuItems([
       { id: 'option-4', name: 'Opción 4', description: 'Bife del día', slotIndex: 4 }
     ], 'igarreta')
@@ -202,9 +202,10 @@ describe('order payload', () => {
     })
 
     expect(orderData.items).toEqual([
-      { id: 'option-4', name: 'Opción 4 - Ensalada del día', quantity: 1, slotIndex: 4 }
+      { id: 'option-4', name: 'Opción 4 - Bife del día', quantity: 1, slotIndex: 4 }
     ])
-    expect(JSON.stringify(orderData)).not.toMatch(/Bife del d[ií]a|Dieta/i)
+    expect(JSON.stringify(orderData)).toMatch(/Bife del d[ií]a/i)
+    expect(JSON.stringify(orderData)).not.toMatch(/Dieta/i)
   })
 })
 
