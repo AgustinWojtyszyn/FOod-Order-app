@@ -7,11 +7,14 @@ const currentDir = dirname(fileURLToPath(import.meta.url))
 const source = readFileSync(join(currentDir, 'App.jsx'), 'utf8')
 
 describe('App route guards', () => {
-  it('allows limited consumption viewers to keep using normal order routes', () => {
-    expect(source).toContain('USER_ROUTE_PATHS_FOR_CONSUMPTION_VIEWERS')
-    expect(source).toContain("'/order'")
-    expect(source).toContain("pathname.startsWith('/order/')")
-    expect(source).toContain("pathname.startsWith('/orders/')")
-    expect(source).toContain('!canLimitedConsumptionViewerUseRoute(location.pathname)')
+  it('does not turn consumption report access into a global redirect', () => {
+    expect(source).not.toContain('isLimitedConsumptionViewer')
+    expect(source).not.toContain('canLimitedConsumptionViewerUseRoute')
+    expect(source).not.toContain('Navigate to="/consumption-report"')
+  })
+
+  it('keeps the consumption report as an explicit protected route', () => {
+    expect(source).toContain("path=\"/consumption-report\"")
+    expect(source).toContain('<Route element={<AdminLayoutRoute')
   })
 })

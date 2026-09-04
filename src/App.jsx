@@ -53,18 +53,6 @@ const ADMIN_ROUTE_PATHS = [
   '/consumption-report'
 ]
 
-const USER_ROUTE_PATHS_FOR_CONSUMPTION_VIEWERS = [
-  '/dashboard',
-  '/order',
-  '/edit-order',
-  '/profile'
-]
-
-const canLimitedConsumptionViewerUseRoute = (pathname = '') =>
-  USER_ROUTE_PATHS_FOR_CONSUMPTION_VIEWERS.includes(pathname) ||
-  pathname.startsWith('/order/') ||
-  pathname.startsWith('/orders/')
-
 // Componente de carga interno (para Suspense)
 const InternalLoader = () => (
   <div className="min-h-dvh flex items-center justify-center bg-linear-to-br from-primary-700 via-primary-800 to-primary-900">
@@ -104,24 +92,7 @@ const ScreenMetricsListener = () => {
 
 const RouteSwitch = ({ user, loading }) => {
   const location = useLocation()
-  const { permissionLoading, isAdmin, isCompanyAdmin, canViewConsumptionReport } = useAuthContext()
   const isAdminPath = ADMIN_ROUTE_PATHS.includes(location.pathname)
-  const isLimitedConsumptionViewer = Boolean(
-    user?.id && canViewConsumptionReport && !isAdmin && !isCompanyAdmin
-  )
-
-  if (!loading && user?.id && permissionLoading) {
-    return <InternalLoader />
-  }
-
-  if (
-    !loading &&
-    isLimitedConsumptionViewer &&
-    location.pathname !== '/consumption-report' &&
-    !canLimitedConsumptionViewerUseRoute(location.pathname)
-  ) {
-    return <Navigate to="/consumption-report" replace />
-  }
 
   if (loading && !isAdminPath) {
     return <InternalLoader />
