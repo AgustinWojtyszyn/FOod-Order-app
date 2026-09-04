@@ -174,7 +174,7 @@ const DailyOrderRow = ({
               className="text-xs font-bold text-red-700 hover:text-red-900"
               onClick={() => onDeleteExtraOrder(order)}
             >
-              Eliminar pedido extra
+              Cancelar extra
             </button>
           )}
         </div>
@@ -315,7 +315,7 @@ const DailyOrderRow = ({
               onClick={() => onDeleteExtraOrder(order)}
               className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 py-1 text-xs font-bold text-red-700 hover:bg-red-100"
             >
-              Eliminar pedido extra
+              Cancelar extra
             </button>
           )}
         </div>

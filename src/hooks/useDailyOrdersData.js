@@ -26,6 +26,7 @@ export const useDailyOrdersData = (user) => {
   const [reportRunError, setReportRunError] = useState('')
   const [lastUpdatedAt, setLastUpdatedAt] = useState('')
   const [operationalDate, setOperationalDate] = useState(() => getTomorrowISOInTimeZone())
+  const [cancellingExtraOrders, setCancellingExtraOrders] = useState(false)
   const [stats, setStats] = useState({
     total: 0,
     byLocation: {},
@@ -265,18 +266,18 @@ export const useDailyOrdersData = (user) => {
   const handleDeleteExtraOrder = useCallback(async (order) => {
     if (!order?.id || !isAdminExtraOrder(order)) return
     const confirmed = await confirmAction({
-      title: 'Eliminar pedido extra',
-      message: 'Se eliminará este pedido extra solicitado por admin. Esta acción queda auditada con snapshot completo.',
+      title: 'Cancelar pedido extra',
+      message: 'Se cancelará este pedido extra solicitado por admin. Esta acción queda auditada con snapshot completo.',
       confirmText: 'Continuar'
     })
     if (!confirmed) return
 
     const reason = typeof window !== 'undefined'
-      ? window.prompt('Motivo obligatorio para eliminar el pedido extra:')
+      ? window.prompt('Motivo obligatorio para cancelar el pedido extra:')
       : ''
     const normalizedReason = String(reason || '').trim()
     if (!normalizedReason) {
-      notifyError('Indicá el motivo para eliminar el pedido extra.')
+      notifyError('Indicá el motivo para cancelar el pedido extra.')
       return
     }
 
@@ -285,11 +286,11 @@ export const useDailyOrdersData = (user) => {
       reason: normalizedReason
     })
     if (error) {
-      notifyError(getUserFriendlyErrorMessage(error, 'No pudimos eliminar el pedido extra. Intentá nuevamente.'))
+      notifyError(getUserFriendlyErrorMessage(error, 'No pudimos cancelar el pedido extra. Intentá nuevamente.'))
       return
     }
 
-    notifySuccess('Pedido extra eliminado correctamente.')
+    notifySuccess('Pedido extra cancelado correctamente.')
     Sound.playSuccess()
     setOrders((prev) => {
       if (!Array.isArray(prev)) return prev
@@ -299,6 +300,78 @@ export const useDailyOrdersData = (user) => {
     })
     handleRefresh()
   }, [handleRefresh])
+
+  const handleCancelExtraOrders = useCallback(async ({
+    orders: selectedOrders = [],
+    scope = 'single',
+    companyLabel = ''
+  } = {}) => {
+    if (cancellingExtraOrders) return
+
+    const extraOrders = (Array.isArray(selectedOrders) ? selectedOrders : [])
+      .filter((order) =>
+        order?.id &&
+        isAdminExtraOrder(order) &&
+        String(order.delivery_date || '') === String(operationalDate || '')
+      )
+
+    if (extraOrders.length === 0) {
+      notifyInfo('No hay pedidos extra seleccionados para cancelar.')
+      return
+    }
+
+    const uniqueOrders = Array.from(
+      new Map(extraOrders.map((order) => [String(order.id), order])).values()
+    )
+    const count = uniqueOrders.length
+    const title = scope === 'single' ? 'Cancelar pedido extra' : 'Cancelar pedidos extra'
+    const message = scope === 'company'
+      ? `Cancelar ${count} pedido${count === 1 ? '' : 's'} extra de ${companyLabel || 'esta empresa'} para ${operationalDate}.`
+      : scope === 'all'
+        ? `Cancelar los ${count} pedido${count === 1 ? '' : 's'} extra de este día (${operationalDate}).`
+        : `Cancelar este pedido extra para ${operationalDate}.`
+
+    const confirmed = await confirmAction({
+      title,
+      message,
+      confirmText: 'Cancelar extras'
+    })
+    if (!confirmed) return
+
+    setCancellingExtraOrders(true)
+    try {
+      const failures = []
+      for (const order of uniqueOrders) {
+        const { error } = await db.deleteAdminExtraOrder({
+          orderId: order.id,
+          reason: 'Cancelación administrativa de pedido extra'
+        })
+        if (error) failures.push({ order, error })
+      }
+
+      if (failures.length > 0) {
+        notifyError(`No pudimos cancelar ${failures.length} pedido${failures.length === 1 ? '' : 's'} extra. Actualizá y revisá el listado.`)
+      }
+
+      const successCount = count - failures.length
+      if (successCount > 0) {
+        notifySuccess(`Pedidos extra cancelados correctamente: ${successCount}`)
+        Sound.playSuccess()
+        setOrders((prev) => {
+          if (!Array.isArray(prev)) return prev
+          const cancelledIds = new Set(uniqueOrders.filter((order) =>
+            !failures.some((failure) => String(failure.order.id) === String(order.id))
+          ).map((order) => String(order.id)))
+          const next = prev.filter((item) => !cancelledIds.has(String(item?.id)))
+          setStats(calculateStats(next))
+          return next
+        })
+      }
+      handleRefresh()
+    } finally {
+      setCancellingExtraOrders(false)
+    }
+  }, [cancellingExtraOrders, handleRefresh, operationalDate])
 
   return {
     orders,
@@ -317,10 +390,12 @@ export const useDailyOrdersData = (user) => {
     lastUpdatedAt,
     operationalDate,
     stats,
+    cancellingExtraOrders,
     handleRefresh,
     handleDeliveryDateChange,
     handleArchiveOrder,
     handleArchiveAllPending,
-    handleDeleteExtraOrder
+    handleDeleteExtraOrder,
+    handleCancelExtraOrders
   }
 }

@@ -53,4 +53,14 @@ describe('useDailyOrdersData daily orders loading', () => {
     expect(dailyOrdersSource).toContain('deliveryDate: operationalDate')
     expect(dailyOrdersSource).toContain('buildPrintStats(allOrders)')
   })
+
+  it('cancels admin extra orders through their isolated flow scoped to the selected delivery date', () => {
+    expect(source).toContain('handleCancelExtraOrders')
+    expect(source).toContain('isAdminExtraOrder(order)')
+    expect(source).toContain("String(order.delivery_date || '') === String(operationalDate || '')")
+    expect(source).toContain('db.deleteAdminExtraOrder')
+    expect(source).not.toContain('cancelOwnPendingOrder')
+    expect(dailyOrdersSource).toContain('AdminExtraCancelPanel')
+    expect(dailyOrdersSource).toContain('onCancelExtras={handleCancelExtraOrders}')
+  })
 })

@@ -11,6 +11,7 @@ import DailyOrdersTable from './daily/DailyOrdersTable'
 import DailySummary from './daily/DailySummary'
 import DailyPrintStyles from './daily/DailyPrintStyles'
 import AdminExtraOrderModal from './daily/AdminExtraOrderModal'
+import AdminExtraCancelPanel from './daily/AdminExtraCancelPanel'
 import DailyRemitosPanel from './daily/DailyRemitosPanel'
 import DailySearchPanel from './daily/DailySearchPanel'
 import LateAdminExtraHistoryPanel from './daily/LateAdminExtraHistoryPanel'
@@ -65,7 +66,9 @@ const DailyOrders = ({ user, loading }) => {
     handleDeliveryDateChange,
     handleArchiveOrder,
     handleArchiveAllPending,
-    handleDeleteExtraOrder
+    handleDeleteExtraOrder,
+    cancellingExtraOrders,
+    handleCancelExtraOrders
   } = useDailyOrdersData(user)
 
   const {
@@ -299,6 +302,13 @@ const DailyOrders = ({ user, loading }) => {
               sortedOrdersLength={sortedOrdersUnits}
               selectedLocation={selectedLocation}
               locationCards={locationCards}
+            />
+
+            <AdminExtraCancelPanel
+              orders={allOrders}
+              operationalDate={operationalDate}
+              cancelling={cancellingExtraOrders}
+              onCancelExtras={handleCancelExtraOrders}
             />
 
             <DailyOrdersTable

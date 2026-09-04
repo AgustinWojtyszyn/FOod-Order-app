@@ -23,7 +23,7 @@ describe('company-specific menu display', () => {
     expect(getMenuDisplay(item, 4, 'laja').dish).toBe('BIFE DEL DÍA CARNE')
   })
 
-  it('normalizes Igarreta lunch menu to five slots with Opción 4 as Ensalada del día', () => {
+  it('normalizes Igarreta lunch menu to six slots with Opción 4 as Ensalada and Opción 5 as Celíaco', () => {
     const globalMenu = [
       { id: 'main', name: 'Menú principal', description: 'Milanesa', slotIndex: 0 },
       { id: 'option-1', name: 'Opción 1', description: 'Pastas', slotIndex: 1 },
@@ -36,18 +36,18 @@ describe('company-specific menu display', () => {
 
     const result = filterOrderableMenuItems(globalMenu, 'igarreta')
 
-    expect(result).toHaveLength(5)
+    expect(result).toHaveLength(6)
     expect(result.map((item, index) => getMenuDisplay(item, index, 'igarreta'))).toEqual([
       { label: 'Menú principal', dish: 'Milanesa', slotIndex: 0, isMainMenu: true },
       { label: 'Opción 1', dish: 'Pastas', slotIndex: 1, isMainMenu: false },
       { label: 'Opción 2', dish: 'Pollo', slotIndex: 2, isMainMenu: false },
       { label: 'Opción 3', dish: 'Tarta', slotIndex: 3, isMainMenu: false },
-      { label: 'Opción 4', dish: 'Ensalada del día', slotIndex: 4, isMainMenu: false }
+      { label: 'Opción 4', dish: 'Ensalada del día', slotIndex: 4, isMainMenu: false },
+      { label: 'Opción 5', dish: 'Celíaco', slotIndex: 5, isMainMenu: false }
     ])
     const serialized = JSON.stringify(result)
     expect(serialized).not.toMatch(/Bife del d[ií]a/i)
     expect(serialized).not.toMatch(/Dieta/i)
-    expect(serialized).not.toMatch(/Opción 5/i)
     expect(serialized).not.toMatch(/Opción 6/i)
   })
 
@@ -61,12 +61,18 @@ describe('company-specific menu display', () => {
 
     const result = filterOrderableMenuItems(mixedMenu, 'igarreta')
 
-    expect(result.map((item) => item.id)).toEqual(['option-4', 'main'])
+    expect(result.map((item) => item.id)).toEqual(['option-4', 'main', 'option-5'])
     expect(result[0]).toMatchObject({
       name: 'Opción 4',
       displayName: 'Opción 4',
       description: 'Ensalada del día',
       slotIndex: 4
+    })
+    expect(result[2]).toMatchObject({
+      name: 'Opción 5',
+      displayName: 'Opción 5',
+      description: 'Celíaco',
+      slotIndex: 5
     })
   })
 
@@ -105,7 +111,7 @@ describe('company-specific menu display', () => {
     expect(filterOrderableMenuItems(menu, 'laja')).toEqual(menu)
   })
 
-  it('keeps ISEMAR with the full Laja-style menu instead of Igarreta or Greif display rules', () => {
+  it('normalizes ISEMAR with the same six-slot menu as Igarreta', () => {
     const menu = [
       { id: 'main', name: 'Menú principal', description: 'Milanesa', slotIndex: 0 },
       { id: 'option-1', name: 'Opción 1', description: 'Pastas', slotIndex: 1 },
@@ -124,12 +130,15 @@ describe('company-specific menu display', () => {
       'option-2',
       'option-3',
       'option-4',
-      'option-5',
-      'option-6'
+      'option-5'
     ])
-    expect(getMenuDisplay(menu[4], 4, 'isemar')).toMatchObject({
-      label: 'Opción 4',
-      dish: 'Bife del día'
-    })
+    expect(result.map((item, index) => getMenuDisplay(item, index, 'isemar'))).toEqual([
+      { label: 'Menú principal', dish: 'Milanesa', slotIndex: 0, isMainMenu: true },
+      { label: 'Opción 1', dish: 'Pastas', slotIndex: 1, isMainMenu: false },
+      { label: 'Opción 2', dish: 'Pollo', slotIndex: 2, isMainMenu: false },
+      { label: 'Opción 3', dish: 'Tarta', slotIndex: 3, isMainMenu: false },
+      { label: 'Opción 4', dish: 'Ensalada del día', slotIndex: 4, isMainMenu: false },
+      { label: 'Opción 5', dish: 'Celíaco', slotIndex: 5, isMainMenu: false }
+    ])
   })
 })

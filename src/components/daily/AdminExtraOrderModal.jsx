@@ -20,6 +20,16 @@ const REASONS = [
   { value: 'otro', label: 'Otro' }
 ]
 
+const ADMIN_EXTRA_BEVERAGE_LABEL = 'Agua saborizada'
+const ADMIN_EXTRA_BEVERAGE_OPTION = {
+  id: 'admin-extra-bebida',
+  title: 'Bebida',
+  type: 'multiple_choice',
+  options: ['Agua', 'Soda', ADMIN_EXTRA_BEVERAGE_LABEL, 'Coca cola', 'Coca Zero'],
+  required: false,
+  active: true
+}
+
 const LATE_ADMIN_TIMEZONE = 'America/Argentina/San_Juan'
 
 const getArgentinaHour = () => {
@@ -232,6 +242,25 @@ const mergeFallbackFruitDessertOptions = ({
       required: true
     }))
   return [...options, ...additions]
+}
+
+const withAdminExtraBeverageOption = (options = []) => {
+  const normalizedOptions = Array.isArray(options) ? options : []
+  const beverageIndex = normalizedOptions.findIndex(isBeverageOption)
+  if (beverageIndex < 0) return [ADMIN_EXTRA_BEVERAGE_OPTION, ...normalizedOptions]
+
+  return normalizedOptions.map((option, index) => {
+    if (index !== beverageIndex) return option
+    const values = safeOptions(option)
+    const hasAguaSaborizada = values.some((value) =>
+      String(value || '').trim().toLowerCase() === ADMIN_EXTRA_BEVERAGE_LABEL.toLowerCase()
+    )
+    if (hasAguaSaborizada) return option
+    return {
+      ...option,
+      options: [...values, ADMIN_EXTRA_BEVERAGE_LABEL]
+    }
+  })
 }
 
 const CounterControl = ({ value = 0, onChange, min = 0, max = 99, ariaLabel }) => {
@@ -453,6 +482,8 @@ const AdminExtraOrderModal = ({
             idPrefix: companySlug
           })
         }
+        nextCustomOptions = withAdminExtraBeverageOption(nextCustomOptions)
+
         if (!cancelled) {
           setMenuItems(nextMenuItems)
           setCustomOptions(nextCustomOptions)
