@@ -185,4 +185,34 @@ describe('company-specific menu display', () => {
     expect(igarreta[4]).not.toBe(igarreta[5])
     expect(igarreta[4].id).not.toBe(igarreta[5].id)
   })
+
+  it('keeps all normal dishes from the current real menu shape without fabricating a third option', () => {
+    const currentMenuShape = [
+      { id: 'main-real', name: 'Menú principal', description: 'MILANESA CON PURE DE PAPAS' },
+      { id: 'bife-1-real', name: 'Opción 1', description: 'BIFE DE CARNE CON PURE DE CALABAZA' },
+      { id: 'omelette-real', name: 'Opción 2', description: 'OMELETTE DE ESPINACA RELLENO CON PURE DE PAPAS' },
+      { id: 'tarta-real', name: 'Opción 3', description: 'TARTA PASCUALINA' },
+      { id: 'bife-4-real', name: 'Opción 4', description: 'BIFE DE CARNE' },
+      { id: 'salad-real', name: 'Opción 5', description: 'ENSALADA MIX DE HOJAS' },
+      { id: 'celiac-real', name: 'Opción 6', description: 'CELIACO' }
+    ]
+
+    const result = filterOrderableMenuItems(currentMenuShape, 'isemar')
+    const display = result.map((item, index) => getMenuDisplay(item, index, 'isemar'))
+
+    expect(display).toEqual([
+      { label: 'Menú principal', dish: 'MILANESA CON PURE DE PAPAS', slotIndex: 0, isMainMenu: true },
+      { label: 'Opción 1', dish: 'OMELETTE DE ESPINACA RELLENO CON PURE DE PAPAS', slotIndex: 1, isMainMenu: false },
+      { label: 'Opción 2', dish: 'TARTA PASCUALINA', slotIndex: 2, isMainMenu: false },
+      { label: 'Opción 4', dish: 'ENSALADA MIX DE HOJAS', slotIndex: 4, isMainMenu: false },
+      { label: 'Opción 5', dish: 'Celíaco', slotIndex: 5, isMainMenu: false }
+    ])
+    expect(display.some((item) => item.label === 'Opción 3')).toBe(false)
+    expect(display.map((item) => item.dish)).toEqual(expect.arrayContaining([
+      'OMELETTE DE ESPINACA RELLENO CON PURE DE PAPAS',
+      'TARTA PASCUALINA'
+    ]))
+    expect(JSON.stringify(result)).not.toMatch(/bife/i)
+    expect(JSON.stringify(result).match(/Celíaco/g)).toHaveLength(1)
+  })
 })
