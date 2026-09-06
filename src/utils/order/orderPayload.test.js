@@ -181,10 +181,11 @@ describe('order payload', () => {
     expect(orderData.customer_name).toBe('Test User')
   })
 
-  it('persists Igarreta Opción 4 with the shared menu dish', () => {
-    const [selectedItem] = filterOrderableMenuItems([
-      { id: 'option-4', name: 'Opción 4', description: 'Bife del día', slotIndex: 4 }
-    ], 'igarreta')
+  it('persists Igarreta Opción 4 with the shared salad menu dish', () => {
+    const selectedItem = filterOrderableMenuItems([
+      { id: 'option-1', name: 'Opción 1', description: 'Bife del día', slotIndex: 1 },
+      { id: 'option-5', name: 'Opción 5', description: 'Ensalada del día', slotIndex: 5 }
+    ], 'igarreta').find((item) => item.slotIndex === 4)
 
     const { orderData } = buildOrderPayload({
       service: 'lunch',
@@ -202,9 +203,10 @@ describe('order payload', () => {
     })
 
     expect(orderData.items).toEqual([
-      { id: 'option-4', name: 'Opción 4 - Bife del día', quantity: 1, slotIndex: 4 }
+      { id: 'option-5', name: 'Opción 4 - Ensalada del día', quantity: 1, slotIndex: 4 }
     ])
-    expect(JSON.stringify(orderData)).toMatch(/Bife del d[ií]a/i)
+    expect(JSON.stringify(orderData)).toMatch(/Ensalada del d[ií]a/i)
+    expect(JSON.stringify(orderData)).not.toMatch(/Bife/i)
     expect(JSON.stringify(orderData)).not.toMatch(/Dieta/i)
   })
 })

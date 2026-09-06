@@ -140,6 +140,12 @@ const isHiddenOrderMenuSlot = (item = {}, companySlug = '') =>
 const isHiddenIgarretaMenuSlot = (item = {}, fallbackIndex = null) =>
   getMenuSlotIndex(item, fallbackIndex) > IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX
 
+const isIgarretaIsemarBifeMenuItem = (item = {}) =>
+  /bife\b/i.test(normalizeText(`${item?.name || ''} ${item?.displayName || ''} ${item?.description || ''}`))
+
+const isIgarretaIsemarCeliacMenuItem = (item = {}) =>
+  /cel[ií]aco/i.test(normalizeText(`${item?.name || ''} ${item?.displayName || ''} ${item?.description || ''}`))
+
 const withIgarretaIsemarMenuItem = (item = {}, fallbackIndex = null) => {
   const slotIndex = getMenuSlotIndex(item, fallbackIndex)
   if (slotIndex !== IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX) return item
@@ -153,31 +159,47 @@ const withIgarretaIsemarMenuItem = (item = {}, fallbackIndex = null) => {
 }
 
 const withIgarretaIsemarMenuItems = (items = []) => {
-  const saladItem = items.find((item, index) => getMenuSlotIndex(item, index) === IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX)
-  if (!saladItem) return items.filter((item, index) => getMenuSlotIndex(item, index) <= IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX)
+  const indexedItems = withMenuSlotIndex(items)
+  const mainMenu = indexedItems.find((item, index) => getMenuSlotIndex(item, index) === 0)
+  const saladSource = indexedItems.find((item, index) => getMenuSlotIndex(item, index) === IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX)
+  const allowedOptions = indexedItems
+    .filter((item, index) => {
+      const slotIndex = getMenuSlotIndex(item, index)
+      return slotIndex !== 0 &&
+        slotIndex !== IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX &&
+        !isIgarretaIsemarBifeMenuItem(item) &&
+        !isIgarretaIsemarCeliacMenuItem(item)
+    })
+    .slice(0, 3)
+    .map((item, index) => ({
+      ...item,
+      name: getMenuLabelByIndex(index + 1),
+      displayName: getMenuLabelByIndex(index + 1),
+      slotIndex: index + 1
+    }))
 
   const salad = {
-    ...saladItem,
+    ...(saladSource || {}),
+    id: saladSource?.id || 'igarreta-isemar-salad',
     name: getMenuLabelByIndex(IGARRETA_ISEMAR_SALAD_MENU_SLOT_INDEX),
     displayName: getMenuLabelByIndex(IGARRETA_ISEMAR_SALAD_MENU_SLOT_INDEX),
+    description: saladSource?.description || IGARRETA_ISEMAR_SALAD_DISH,
     slotIndex: IGARRETA_ISEMAR_SALAD_MENU_SLOT_INDEX
   }
   const celiac = {
-    ...saladItem,
-    id: `${saladItem.id || 'option-5'}-celiaco`,
+    id: `${saladSource?.id || 'igarreta-isemar'}-celiaco`,
     name: getMenuLabelByIndex(IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX),
     displayName: getMenuLabelByIndex(IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX),
     description: IGARRETA_ISEMAR_CELIAC_DISH,
     slotIndex: IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX
   }
 
-  return items
-    .filter((item, index) => {
-      const slotIndex = getMenuSlotIndex(item, index)
-      return slotIndex !== IGARRETA_ISEMAR_SALAD_MENU_SLOT_INDEX && slotIndex !== IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX && slotIndex < IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX
-    })
-    .concat(salad, celiac)
-    .sort((a, b) => getMenuSlotIndex(a) - getMenuSlotIndex(b))
+  return [
+    ...(mainMenu ? [{ ...mainMenu, slotIndex: 0 }] : []),
+    ...allowedOptions,
+    salad,
+    celiac
+  ]
 }
 
 const withCompanyMenuDisplay = (item = {}, companySlug = '', fallbackIndex = null) => {
