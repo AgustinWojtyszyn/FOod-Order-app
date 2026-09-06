@@ -146,6 +146,9 @@ const isIgarretaIsemarBifeMenuItem = (item = {}) =>
 const isIgarretaIsemarCeliacMenuItem = (item = {}) =>
   /cel[ií]aco/i.test(normalizeText(`${item?.name || ''} ${item?.displayName || ''} ${item?.description || ''}`))
 
+const isIgarretaIsemarSaladMenuItem = (item = {}) =>
+  /ensalada/i.test(normalizeText(`${item?.name || ''} ${item?.displayName || ''} ${item?.description || ''}`))
+
 const withIgarretaIsemarMenuItem = (item = {}, fallbackIndex = null) => {
   const slotIndex = getMenuSlotIndex(item, fallbackIndex)
   if (slotIndex !== IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX) return item
@@ -161,12 +164,15 @@ const withIgarretaIsemarMenuItem = (item = {}, fallbackIndex = null) => {
 const withIgarretaIsemarMenuItems = (items = []) => {
   const indexedItems = withMenuSlotIndex(items)
   const mainMenu = indexedItems.find((item, index) => getMenuSlotIndex(item, index) === 0)
-  const saladSource = indexedItems.find((item, index) => getMenuSlotIndex(item, index) === IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX)
+  const saladSource = indexedItems.find(isIgarretaIsemarSaladMenuItem) ||
+    indexedItems.find((item, index) => getMenuSlotIndex(item, index) === IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX)
+  const celiacSource = indexedItems.find(isIgarretaIsemarCeliacMenuItem)
   const allowedOptions = indexedItems
     .filter((item, index) => {
       const slotIndex = getMenuSlotIndex(item, index)
       return slotIndex !== 0 &&
-        slotIndex !== IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX &&
+        item !== saladSource &&
+        item !== celiacSource &&
         !isIgarretaIsemarBifeMenuItem(item) &&
         !isIgarretaIsemarCeliacMenuItem(item)
     })
@@ -187,7 +193,8 @@ const withIgarretaIsemarMenuItems = (items = []) => {
     slotIndex: IGARRETA_ISEMAR_SALAD_MENU_SLOT_INDEX
   }
   const celiac = {
-    id: `${saladSource?.id || 'igarreta-isemar'}-celiaco`,
+    ...(celiacSource || {}),
+    id: celiacSource?.id || `${saladSource?.id || 'igarreta-isemar'}-celiaco`,
     name: getMenuLabelByIndex(IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX),
     displayName: getMenuLabelByIndex(IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX),
     description: IGARRETA_ISEMAR_CELIAC_DISH,

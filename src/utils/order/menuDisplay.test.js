@@ -29,9 +29,10 @@ describe('company-specific menu display', () => {
       { id: 'option-1', name: 'Opción 1', description: 'BIFE DE CARNE', slotIndex: 1 },
       { id: 'option-2', name: 'Opción 2', description: 'Pollo', slotIndex: 2 },
       { id: 'option-3', name: 'Opción 3', description: 'Tarta', slotIndex: 3 },
-      { id: 'option-4', name: 'Opción 4', description: 'Celíaco', slotIndex: 4 },
+      { id: 'option-4', name: 'Opción 4', description: 'BIFE DE CARNE', slotIndex: 4 },
       { id: 'option-5', name: 'Opción 5', description: 'Mix de hojas verdes', slotIndex: 5 },
-      { id: 'option-6', name: 'Opción 6', description: 'Omelette', slotIndex: 6 }
+      { id: 'option-6', name: 'Opción 6', description: 'Celiaco', slotIndex: 6 },
+      { id: 'option-7', name: 'Opción 7', description: 'Omelette', slotIndex: 7 }
     ]
 
     const result = filterOrderableMenuItems(globalMenu, 'igarreta')
@@ -53,6 +54,7 @@ describe('company-specific menu display', () => {
     expect(display.filter((item) => item.dish === 'Celíaco')).toHaveLength(1)
     expect(display[5]).toMatchObject({ label: 'Opción 5', dish: 'Celíaco' })
     expect(display[4]).toMatchObject({ label: 'Opción 4', dish: 'Mix de hojas verdes' })
+    expect(result[5].id).toBe('option-6')
     expect(result[4]).not.toBe(result[5])
     expect(result[4].id).not.toBe(result[5].id)
   })
@@ -133,7 +135,7 @@ describe('company-specific menu display', () => {
       { id: 'option-3', name: 'Opción 3', description: 'Tarta', slotIndex: 3 },
       { id: 'option-4', name: 'Opción 4', description: 'Bife del día', slotIndex: 4 },
       { id: 'option-5', name: 'Opción 5', description: 'Mix de hojas verdes', slotIndex: 5 },
-      { id: 'option-6', name: 'Opción 6', description: 'Sándwich', slotIndex: 6 }
+      { id: 'option-6', name: 'Opción 6', description: 'Celiaco', slotIndex: 6 }
     ]
 
     const result = filterOrderableMenuItems(menu, 'isemar')
@@ -144,7 +146,7 @@ describe('company-specific menu display', () => {
       'option-2',
       'option-3',
       'option-5',
-      'option-5-celiaco'
+      'option-6'
     ])
     expect(result.map((item, index) => getMenuDisplay(item, index, 'isemar'))).toEqual([
       { label: 'Menú principal', dish: 'Milanesa', slotIndex: 0, isMainMenu: true },
@@ -162,9 +164,10 @@ describe('company-specific menu display', () => {
       { id: 'bife', name: 'Opción 1', description: 'BIFE DE CARNE con papas', slotIndex: 1 },
       { id: 'omelette', name: 'Opción 2', description: 'Omelette', slotIndex: 2 },
       { id: 'tarta', name: 'Opción 3', description: 'Tarta', slotIndex: 3 },
-      { id: 'celiac-source', name: 'Opción 4', description: 'Celíaco', slotIndex: 4 },
+      { id: 'bife-2', name: 'Opción 4', description: 'BIFE DE CARNE', slotIndex: 4 },
       { id: 'salad', name: 'Opción 5', description: 'Ensalada del día', slotIndex: 5 },
-      { id: 'rice', name: 'Opción 6', description: 'Arroz primavera', slotIndex: 6 }
+      { id: 'celiac-source', name: 'Opción 6', description: 'Celiaco', slotIndex: 6 },
+      { id: 'rice', name: 'Opción 7', description: 'Arroz primavera', slotIndex: 7 }
     ]
 
     const igarreta = filterOrderableMenuItems(menu, 'igarreta')
@@ -182,6 +185,7 @@ describe('company-specific menu display', () => {
     ])
     expect(JSON.stringify(igarreta)).not.toMatch(/bife/i)
     expect(igarreta.filter((item) => /cel[ií]aco/i.test(`${item.name} ${item.description}`))).toHaveLength(1)
+    expect(igarreta.map((item) => item.id)).toEqual(['main', 'omelette', 'tarta', 'rice', 'salad', 'celiac-source'])
     expect(igarreta[4]).not.toBe(igarreta[5])
     expect(igarreta[4].id).not.toBe(igarreta[5].id)
   })
@@ -207,6 +211,7 @@ describe('company-specific menu display', () => {
       { label: 'Opción 4', dish: 'ENSALADA MIX DE HOJAS', slotIndex: 4, isMainMenu: false },
       { label: 'Opción 5', dish: 'Celíaco', slotIndex: 5, isMainMenu: false }
     ])
+    expect(result.map((item) => item.id)).toEqual(['main-real', 'omelette-real', 'tarta-real', 'salad-real', 'celiac-real'])
     expect(display.some((item) => item.label === 'Opción 3')).toBe(false)
     expect(display.map((item) => item.dish)).toEqual(expect.arrayContaining([
       'OMELETTE DE ESPINACA RELLENO CON PURE DE PAPAS',
