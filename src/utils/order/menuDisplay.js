@@ -4,6 +4,7 @@ const HIDDEN_ORDER_MENU_SLOT_INDEX = 4
 const HIDDEN_ORDER_MENU_COMPANY_SLUG = 'epse'
 const IGARRETA_COMPANY_SLUG = 'igarreta'
 const ISEMAR_COMPANY_SLUG = 'isemar'
+const IGARRETA_ISEMAR_BIFE_DAY_SOURCE_SLOT_INDEX = 4
 const IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX = 5
 const IGARRETA_ISEMAR_SALAD_MENU_SLOT_INDEX = 4
 const IGARRETA_ISEMAR_CELIAC_DISH = 'Celíaco'
@@ -140,8 +141,8 @@ const isHiddenOrderMenuSlot = (item = {}, companySlug = '') =>
 const isHiddenIgarretaMenuSlot = (item = {}, fallbackIndex = null) =>
   getMenuSlotIndex(item, fallbackIndex) > IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX
 
-const isIgarretaIsemarBifeMenuItem = (item = {}) =>
-  /bife\b/i.test(normalizeText(`${item?.name || ''} ${item?.displayName || ''} ${item?.description || ''}`))
+const isIgarretaIsemarBifeDayMenuItem = (item = {}, fallbackIndex = null) =>
+  getMenuSlotIndex(item, fallbackIndex) === IGARRETA_ISEMAR_BIFE_DAY_SOURCE_SLOT_INDEX
 
 const isIgarretaIsemarCeliacMenuItem = (item = {}) =>
   /cel[ií]aco/i.test(normalizeText(`${item?.name || ''} ${item?.displayName || ''} ${item?.description || ''}`))
@@ -173,7 +174,7 @@ const withIgarretaIsemarMenuItems = (items = []) => {
       return slotIndex !== 0 &&
         item !== saladSource &&
         item !== celiacSource &&
-        !isIgarretaIsemarBifeMenuItem(item) &&
+        !isIgarretaIsemarBifeDayMenuItem(item, index) &&
         !isIgarretaIsemarCeliacMenuItem(item)
     })
     .slice(0, 3)
