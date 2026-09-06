@@ -23,7 +23,7 @@ describe('company-specific menu display', () => {
     expect(getMenuDisplay(item, 4, 'laja').dish).toBe('BIFE DEL DÍA CARNE')
   })
 
-  it('maps Igarreta to the shared salad and Celíaco options without Bife', () => {
+  it('maps Igarreta to continuous options while removing only the Bife del día slot', () => {
     const globalMenu = [
       { id: 'main', name: 'Menú principal', description: 'Milanesa', slotIndex: 0 },
       { id: 'option-1', name: 'Opción 1', description: 'BIFE DE CARNE', slotIndex: 1 },
@@ -41,16 +41,14 @@ describe('company-specific menu display', () => {
     expect(result).toHaveLength(6)
     expect(display).toEqual([
       { label: 'Menú principal', dish: 'Milanesa', slotIndex: 0, isMainMenu: true },
-      { label: 'Opción 1', dish: 'Pollo', slotIndex: 1, isMainMenu: false },
-      { label: 'Opción 2', dish: 'Tarta', slotIndex: 2, isMainMenu: false },
-      { label: 'Opción 3', dish: 'Omelette', slotIndex: 3, isMainMenu: false },
+      { label: 'Opción 1', dish: 'BIFE DE CARNE', slotIndex: 1, isMainMenu: false },
+      { label: 'Opción 2', dish: 'Pollo', slotIndex: 2, isMainMenu: false },
+      { label: 'Opción 3', dish: 'Tarta', slotIndex: 3, isMainMenu: false },
       { label: 'Opción 4', dish: 'Mix de hojas verdes', slotIndex: 4, isMainMenu: false },
       { label: 'Opción 5', dish: 'Celíaco', slotIndex: 5, isMainMenu: false }
     ])
-    const serialized = JSON.stringify(result)
-    expect(serialized).toContain('Mix de hojas verdes')
-    expect(serialized).not.toMatch(/bife/i)
-    expect(serialized).not.toMatch(/Dieta/i)
+    expect(result.map((item) => item.id)).toEqual(['main', 'option-1', 'option-2', 'option-3', 'option-5', 'option-6'])
+    expect(result.some((item) => item.id === 'option-4')).toBe(false)
     expect(display.filter((item) => item.dish === 'Celíaco')).toHaveLength(1)
     expect(display[5]).toMatchObject({ label: 'Opción 5', dish: 'Celíaco' })
     expect(display[4]).toMatchObject({ label: 'Opción 4', dish: 'Mix de hojas verdes' })
@@ -127,7 +125,7 @@ describe('company-specific menu display', () => {
     expect(filterOrderableMenuItems(menu, 'laja')).toEqual(menu)
   })
 
-  it('maps ISEMAR to the shared salad and Celíaco options without Bife', () => {
+  it('maps ISEMAR to the shared salad and Celíaco options without the Bife del día slot', () => {
     const menu = [
       { id: 'main', name: 'Menú principal', description: 'Milanesa', slotIndex: 0 },
       { id: 'option-1', name: 'Opción 1', description: 'Pastas', slotIndex: 1 },
@@ -158,39 +156,58 @@ describe('company-specific menu display', () => {
     ])
   })
 
-  it('builds the same final Igarreta and ISEMAR slot schema from shifted source options', () => {
+  it('keeps normal Bife dishes and removes only the source Bife del día slot for Igarreta and ISEMAR', () => {
     const menu = [
       { id: 'main', name: 'Menú principal', description: 'Menú del día', slotIndex: 0 },
-      { id: 'bife', name: 'Opción 1', description: 'BIFE DE CARNE con papas', slotIndex: 1 },
+      { id: 'bife-option', name: 'Opción 1', description: 'BIFE DE CARNE CON PURE DE CALABAZA', slotIndex: 1 },
       { id: 'omelette', name: 'Opción 2', description: 'Omelette', slotIndex: 2 },
       { id: 'tarta', name: 'Opción 3', description: 'Tarta', slotIndex: 3 },
-      { id: 'bife-2', name: 'Opción 4', description: 'BIFE DE CARNE', slotIndex: 4 },
+      { id: 'bife-day', name: 'Opción 4', description: 'BIFE DE CARNE', slotIndex: 4 },
       { id: 'salad', name: 'Opción 5', description: 'Ensalada del día', slotIndex: 5 },
-      { id: 'celiac-source', name: 'Opción 6', description: 'Celiaco', slotIndex: 6 },
-      { id: 'rice', name: 'Opción 7', description: 'Arroz primavera', slotIndex: 7 }
+      { id: 'celiac-source', name: 'Opción 6', description: 'Celiaco', slotIndex: 6 }
     ]
 
-    const igarreta = filterOrderableMenuItems(menu, 'igarreta')
-    const isemar = filterOrderableMenuItems(menu, 'isemar')
-    const toSchema = (companySlug) => (item, index) => getMenuDisplay(item, index, companySlug)
+    for (const companySlug of ['igarreta', 'isemar']) {
+      const result = filterOrderableMenuItems(menu, companySlug)
+      const display = result.map((item, index) => getMenuDisplay(item, index, companySlug))
 
-    expect(igarreta.map(toSchema('igarreta'))).toEqual(isemar.map(toSchema('isemar')))
-    expect(igarreta.map(toSchema('igarreta'))).toEqual([
-      { label: 'Menú principal', dish: 'Menú del día', slotIndex: 0, isMainMenu: true },
-      { label: 'Opción 1', dish: 'Omelette', slotIndex: 1, isMainMenu: false },
-      { label: 'Opción 2', dish: 'Tarta', slotIndex: 2, isMainMenu: false },
-      { label: 'Opción 3', dish: 'Arroz primavera', slotIndex: 3, isMainMenu: false },
-      { label: 'Opción 4', dish: 'Ensalada del día', slotIndex: 4, isMainMenu: false },
-      { label: 'Opción 5', dish: 'Celíaco', slotIndex: 5, isMainMenu: false }
-    ])
-    expect(JSON.stringify(igarreta)).not.toMatch(/bife/i)
-    expect(igarreta.filter((item) => /cel[ií]aco/i.test(`${item.name} ${item.description}`))).toHaveLength(1)
-    expect(igarreta.map((item) => item.id)).toEqual(['main', 'omelette', 'tarta', 'rice', 'salad', 'celiac-source'])
-    expect(igarreta[4]).not.toBe(igarreta[5])
-    expect(igarreta[4].id).not.toBe(igarreta[5].id)
+      expect(result.map((item) => item.id)).toEqual(['main', 'bife-option', 'omelette', 'tarta', 'salad', 'celiac-source'])
+      expect(result.some((item) => item.id === 'bife-day')).toBe(false)
+      expect(display.map((item) => item.slotIndex)).toEqual([0, 1, 2, 3, 4, 5])
+      expect(display).toEqual([
+        { label: 'Menú principal', dish: 'Menú del día', slotIndex: 0, isMainMenu: true },
+        { label: 'Opción 1', dish: 'BIFE DE CARNE CON PURE DE CALABAZA', slotIndex: 1, isMainMenu: false },
+        { label: 'Opción 2', dish: 'Omelette', slotIndex: 2, isMainMenu: false },
+        { label: 'Opción 3', dish: 'Tarta', slotIndex: 3, isMainMenu: false },
+        { label: 'Opción 4', dish: 'Ensalada del día', slotIndex: 4, isMainMenu: false },
+        { label: 'Opción 5', dish: 'Celíaco', slotIndex: 5, isMainMenu: false }
+      ])
+    }
   })
 
-  it('keeps all normal dishes from the current real menu shape without fabricating a third option', () => {
+  it('does not remove a normal option just because its dish name contains Bife', () => {
+    const menu = [
+      { id: 'main', name: 'Menú principal', description: 'Menú del día', slotIndex: 0 },
+      { id: 'pasta', name: 'Opción 1', description: 'Pastas', slotIndex: 1 },
+      { id: 'bife-criolla', name: 'Opción 2', description: 'BIFE A LA CRIOLLA', slotIndex: 2 },
+      { id: 'tarta', name: 'Opción 3', description: 'Tarta', slotIndex: 3 },
+      { id: 'bife-day', name: 'Opción 4', description: 'BIFE DEL DÍA', slotIndex: 4 },
+      { id: 'salad', name: 'Opción 5', description: 'Ensalada', slotIndex: 5 },
+      { id: 'celiac', name: 'Opción 6', description: 'Celíaco', slotIndex: 6 }
+    ]
+
+    const result = filterOrderableMenuItems(menu, 'isemar')
+
+    expect(result.map((item) => item.id)).toEqual(['main', 'pasta', 'bife-criolla', 'tarta', 'salad', 'celiac'])
+    expect(result.find((item) => item.id === 'bife-criolla')).toMatchObject({
+      name: 'Opción 2',
+      displayName: 'Opción 2',
+      slotIndex: 2
+    })
+    expect(result.some((item) => item.id === 'bife-day')).toBe(false)
+  })
+
+  it('keeps all normal dishes from the current real menu shape and keeps numbering continuous', () => {
     const currentMenuShape = [
       { id: 'main-real', name: 'Menú principal', description: 'MILANESA CON PURE DE PAPAS' },
       { id: 'bife-1-real', name: 'Opción 1', description: 'BIFE DE CARNE CON PURE DE CALABAZA' },
@@ -206,18 +223,15 @@ describe('company-specific menu display', () => {
 
     expect(display).toEqual([
       { label: 'Menú principal', dish: 'MILANESA CON PURE DE PAPAS', slotIndex: 0, isMainMenu: true },
-      { label: 'Opción 1', dish: 'OMELETTE DE ESPINACA RELLENO CON PURE DE PAPAS', slotIndex: 1, isMainMenu: false },
-      { label: 'Opción 2', dish: 'TARTA PASCUALINA', slotIndex: 2, isMainMenu: false },
+      { label: 'Opción 1', dish: 'BIFE DE CARNE CON PURE DE CALABAZA', slotIndex: 1, isMainMenu: false },
+      { label: 'Opción 2', dish: 'OMELETTE DE ESPINACA RELLENO CON PURE DE PAPAS', slotIndex: 2, isMainMenu: false },
+      { label: 'Opción 3', dish: 'TARTA PASCUALINA', slotIndex: 3, isMainMenu: false },
       { label: 'Opción 4', dish: 'ENSALADA MIX DE HOJAS', slotIndex: 4, isMainMenu: false },
       { label: 'Opción 5', dish: 'Celíaco', slotIndex: 5, isMainMenu: false }
     ])
-    expect(result.map((item) => item.id)).toEqual(['main-real', 'omelette-real', 'tarta-real', 'salad-real', 'celiac-real'])
-    expect(display.some((item) => item.label === 'Opción 3')).toBe(false)
-    expect(display.map((item) => item.dish)).toEqual(expect.arrayContaining([
-      'OMELETTE DE ESPINACA RELLENO CON PURE DE PAPAS',
-      'TARTA PASCUALINA'
-    ]))
-    expect(JSON.stringify(result)).not.toMatch(/bife/i)
-    expect(JSON.stringify(result).match(/Celíaco/g)).toHaveLength(1)
+    expect(result.map((item) => item.id)).toEqual(['main-real', 'bife-1-real', 'omelette-real', 'tarta-real', 'salad-real', 'celiac-real'])
+    expect(result.some((item) => item.id === 'bife-4-real')).toBe(false)
+    expect(display.map((item) => item.slotIndex)).toEqual([0, 1, 2, 3, 4, 5])
+    expect(display.filter((item) => item.dish === 'Celíaco')).toHaveLength(1)
   })
 })
