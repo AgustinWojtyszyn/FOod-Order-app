@@ -1,9 +1,9 @@
 import { CheckCircle, ChefHat } from 'lucide-react'
-import { filterOrderableMenuItems, getMenuDisplay } from '../../utils/order/menuDisplay'
+import { getMenuDisplay } from '../../utils/order/menuDisplay'
 import { isGreifRefrigerioMenuItem } from '../../utils/order/greifDefaultSnack'
 
 const OrderLunchMenuSection = ({ items, selectedItems, onToggleItem, companySlug }) => {
-  const orderableItems = filterOrderableMenuItems(items, companySlug)
+  const orderableItems = items || []
   const hasSelectedRefrigerio = orderableItems.some((item) =>
     isGreifRefrigerioMenuItem(item) && selectedItems[item.id] === true
   )
