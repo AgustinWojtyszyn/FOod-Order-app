@@ -2,7 +2,8 @@ import { getTomorrowISOInTimeZone } from '../dateUtils'
 
 const GENNEIA_OPTION_RULE_COMPANIES = new Set(['genneia', 'distro_cuyo'])
 const MENU_BEVERAGE_CHOICE_COMPANIES = new Set(['placo'])
-const FRUIT_DESSERT_CHOICE_COMPANIES = new Set(['genneia', 'distro_cuyo', 'igarreta'])
+const FRUIT_DESSERT_CHOICE_COMPANIES = new Set(['genneia', 'distro_cuyo'])
+const IGARRETA_ISEMAR_COMPANIES = new Set(['igarreta', 'isemar'])
 const POSTRE_DELIVERY_WEEKDAYS = new Set([2, 4])
 
 const normalizeCompanySlug = (value = '') =>
@@ -27,6 +28,20 @@ export const hasFruitDessertChoiceRules = (companyOrSlug) => {
     ? companyOrSlug
     : companyOrSlug?.slug
   return FRUIT_DESSERT_CHOICE_COMPANIES.has(normalizeCompanySlug(slug))
+}
+
+export const isIgarretaIsemarCompany = (companyOrSlug) => {
+  const slug = typeof companyOrSlug === 'string'
+    ? companyOrSlug
+    : companyOrSlug?.slug
+  return IGARRETA_ISEMAR_COMPANIES.has(normalizeCompanySlug(slug))
+}
+
+export const shouldHideIgarretaIsemarOption = (option = {}) => {
+  const text = [option.title, ...(Array.isArray(option.options) ? option.options : [])]
+    .join(' ')
+    .toLowerCase()
+  return text.includes('bebida') || text.includes('postre') || text.includes('fruta')
 }
 
 export const getMenuBeverageTitle = () => 'Bebidas (solo Genneia)'

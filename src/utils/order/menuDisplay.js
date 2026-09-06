@@ -5,7 +5,9 @@ const HIDDEN_ORDER_MENU_COMPANY_SLUG = 'epse'
 const IGARRETA_COMPANY_SLUG = 'igarreta'
 const ISEMAR_COMPANY_SLUG = 'isemar'
 const IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX = 5
+const IGARRETA_ISEMAR_SALAD_MENU_SLOT_INDEX = 4
 const IGARRETA_ISEMAR_CELIAC_DISH = 'Celíaco'
+const IGARRETA_ISEMAR_SALAD_DISH = 'Ensalada del día'
 const DIETA_COMPANY_SLUGS = new Set(['greif', 'placo', 'molinos'])
 
 const getMenuLabelByIndex = (index = 0) => (index === 0 ? 'Menú principal' : `Opción ${index}`)
@@ -108,6 +110,14 @@ const replaceDietaLabel = (value, companySlug) => {
 }
 
 const getCompanyMenuDisplay = (display, companySlug) => {
+  if (isIgarretaIsemarCompany(companySlug) && display?.slotIndex === IGARRETA_ISEMAR_SALAD_MENU_SLOT_INDEX) {
+    const isBife = /bife\s+del\s+d[ií]a/i.test(normalizeText(display.dish))
+    return {
+      ...display,
+      label: getMenuLabelByIndex(IGARRETA_ISEMAR_SALAD_MENU_SLOT_INDEX),
+      dish: isBife ? IGARRETA_ISEMAR_SALAD_DISH : display.dish
+    }
+  }
   if (isIgarretaIsemarCompany(companySlug) && display?.slotIndex === IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX) {
     return {
       ...display,
@@ -142,6 +152,34 @@ const withIgarretaIsemarMenuItem = (item = {}, fallbackIndex = null) => {
   }
 }
 
+const withIgarretaIsemarMenuItems = (items = []) => {
+  const saladItem = items.find((item, index) => getMenuSlotIndex(item, index) === IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX)
+  if (!saladItem) return items.filter((item, index) => getMenuSlotIndex(item, index) <= IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX)
+
+  const salad = {
+    ...saladItem,
+    name: getMenuLabelByIndex(IGARRETA_ISEMAR_SALAD_MENU_SLOT_INDEX),
+    displayName: getMenuLabelByIndex(IGARRETA_ISEMAR_SALAD_MENU_SLOT_INDEX),
+    slotIndex: IGARRETA_ISEMAR_SALAD_MENU_SLOT_INDEX
+  }
+  const celiac = {
+    ...saladItem,
+    id: `${saladItem.id || 'option-5'}-celiaco`,
+    name: getMenuLabelByIndex(IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX),
+    displayName: getMenuLabelByIndex(IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX),
+    description: IGARRETA_ISEMAR_CELIAC_DISH,
+    slotIndex: IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX
+  }
+
+  return items
+    .filter((item, index) => {
+      const slotIndex = getMenuSlotIndex(item, index)
+      return slotIndex !== IGARRETA_ISEMAR_SALAD_MENU_SLOT_INDEX && slotIndex !== IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX && slotIndex < IGARRETA_ISEMAR_LAST_MENU_SLOT_INDEX
+    })
+    .concat(salad, celiac)
+    .sort((a, b) => getMenuSlotIndex(a) - getMenuSlotIndex(b))
+}
+
 const withCompanyMenuDisplay = (item = {}, companySlug = '', fallbackIndex = null) => {
   if (isIgarretaIsemarCompany(companySlug)) return withIgarretaIsemarMenuItem(item, fallbackIndex)
   if (normalizeCompanySlug(companySlug) !== HIDDEN_ORDER_MENU_COMPANY_SLUG) return item
@@ -162,7 +200,7 @@ const withCompanyMenuDisplay = (item = {}, companySlug = '', fallbackIndex = nul
 }
 
 const filterOrderableMenuItems = (items = [], companySlug = '') =>
-  (items || [])
+  (isIgarretaIsemarCompany(companySlug) ? withIgarretaIsemarMenuItems(withMenuSlotIndex(items)) : (items || []))
     .filter((item, index) => {
       if (isIgarretaIsemarCompany(companySlug)) return !isHiddenIgarretaMenuSlot(item, index) && isMenuItemEnabledForCompany(item, companySlug, index)
       return !isHiddenOrderMenuSlot(item, companySlug) && isMenuItemEnabledForCompany(item, companySlug, index)

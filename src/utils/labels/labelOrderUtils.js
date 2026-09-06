@@ -6,6 +6,7 @@ import {
 import { getStatusText } from '../daily/dailyOrderFormatters'
 import { getAdminExtraOrderLabel } from '../daily/adminExtraOrders'
 import { normalizeOrderForReadOnly } from '../order/normalizeOrderForReadOnly'
+import { isIgarretaIsemarCompany } from '../order/companySpecialRules'
 
 const normalizeText = (value = '') =>
   String(value || '')
@@ -234,9 +235,9 @@ export const buildLabelOrder = (order = {}) => {
   const normalized = normalizeOrderForReadOnly(order)
   const preview = buildOrderPreview(order)
   const companySlug = String(order.company_slug || '').trim().toLowerCase()
-  const beverages = companySlug === 'epse' ? [] : getOrderBeverageLabels(order)
+  const beverages = companySlug === 'epse' ? [] : isIgarretaIsemarCompany(companySlug) ? [] : getOrderBeverageLabels(order)
   const responses = getRelevantResponses(order)
-  const fruitDessertChoice = getFruitDessertChoice(order)
+  const fruitDessertChoice = isIgarretaIsemarCompany(companySlug) ? '' : getFruitDessertChoice(order)
   const notes = getOrderNotesText(order)
   const totalItems = Number(order.total_items || 0) ||
     asArray(normalized.normalizedItems).reduce((sum, item) => sum + (Number(item?.quantity || item?.qty || 1) || 1), 0)

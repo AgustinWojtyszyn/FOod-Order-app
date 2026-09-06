@@ -123,6 +123,22 @@ describe('labelOrderUtils', () => {
     expect(buildLabelOrder({ ...orderWithDrink, company_slug: 'laja', company_name: 'La Laja' }).beverages).toEqual(['Agua'])
   })
 
+  it('oculta bebida y fruta/postre en etiquetas de ISEMAR e Igarreta', () => {
+    const order = {
+      company_slug: 'isemar',
+      company_name: 'ISEMAR',
+      custom_responses: [
+        { title: 'Bebida', response: 'Agua' },
+        { title: 'Fruta o postre', response: 'Fruta' }
+      ]
+    }
+
+    expect(buildLabelOrder(order).beverages).toEqual([])
+    expect(buildLabelOrder(order).fruitDessertChoice).toBe('')
+    expect(buildLabelOrder({ ...order, company_slug: 'igarreta' }).beverages).toEqual([])
+    expect(buildLabelOrder({ ...order, company_slug: 'igarreta' }).fruitDessertChoice).toBe('')
+  })
+
   it('filtra explícitamente por empresa sin confundir empresas representativas', () => {
     const orders = [
       { company_slug: 'genneia', company_name: 'Genneia' },

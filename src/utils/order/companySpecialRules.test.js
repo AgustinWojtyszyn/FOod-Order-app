@@ -3,8 +3,10 @@ import {
   getMenuBeverageTitle,
   hasFruitDessertChoiceRules,
   hasGenneiaOptionRules,
+  isIgarretaIsemarCompany,
   isPostreDeliveryDate,
-  requiresMenuBeverageChoice
+  requiresMenuBeverageChoice,
+  shouldHideIgarretaIsemarOption
 } from './companySpecialRules'
 
 describe('company special rules', () => {
@@ -17,12 +19,22 @@ describe('company special rules', () => {
     expect(hasGenneiaOptionRules('laja')).toBe(false)
   })
 
-  it('applies fruit or dessert choice rules to Igarreta without Genneia-only rules', () => {
-    expect(hasFruitDessertChoiceRules('igarreta')).toBe(true)
+  it('does not apply fruit or dessert choice rules to Igarreta or ISEMAR', () => {
+    expect(hasFruitDessertChoiceRules('igarreta')).toBe(false)
+    expect(hasFruitDessertChoiceRules('isemar')).toBe(false)
     expect(hasFruitDessertChoiceRules({ slug: 'genneia' })).toBe(true)
     expect(hasFruitDessertChoiceRules({ slug: 'distro_cuyo' })).toBe(true)
     expect(hasFruitDessertChoiceRules('laja')).toBe(false)
     expect(hasFruitDessertChoiceRules('placo')).toBe(false)
+  })
+
+  it('identifies Igarreta and ISEMAR options that must not render', () => {
+    expect(isIgarretaIsemarCompany('igarreta')).toBe(true)
+    expect(isIgarretaIsemarCompany('isemar')).toBe(true)
+    expect(isIgarretaIsemarCompany('laja')).toBe(false)
+    expect(shouldHideIgarretaIsemarOption({ title: 'Bebida', options: ['Agua'] })).toBe(true)
+    expect(shouldHideIgarretaIsemarOption({ title: 'Fruta o postre', options: ['Fruta'] })).toBe(true)
+    expect(shouldHideIgarretaIsemarOption({ title: 'Guarnición', options: ['Puré'] })).toBe(false)
   })
 
   it('requires a beverage choice for Placo without enabling Genneia dessert rules', () => {

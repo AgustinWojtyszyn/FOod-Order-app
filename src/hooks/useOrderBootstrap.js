@@ -8,7 +8,7 @@ import { buildSuggestionSummary, buildOptionsSummary } from '../utils/order/orde
 import { hasMainMenuSelected } from '../utils/order/orderSelectionHelpers'
 import { getTomorrowISOInTimeZone } from '../utils/dateUtils'
 import { withGreifRefrigerioMenuItem } from '../utils/order/greifDefaultSnack'
-import { getMenuBeverageTitle, hasFruitDessertChoiceRules, requiresMenuBeverageChoice } from '../utils/order/companySpecialRules'
+import { getMenuBeverageTitle, hasFruitDessertChoiceRules, isIgarretaIsemarCompany, requiresMenuBeverageChoice, shouldHideIgarretaIsemarOption } from '../utils/order/companySpecialRules'
 
 const DEFAULT_MENU_ITEMS = [
   { id: 1, name: 'Plato Principal 1', description: 'Delicioso plato principal' },
@@ -228,6 +228,9 @@ const useOrderBootstrap = ({
         return
       }
       let lunchOptions = filterByMealScope(data, 'lunch')
+      if (isIgarretaIsemarCompany(rawCompanySlug || companyOptionsSlug)) {
+        lunchOptions = lunchOptions.filter(option => !shouldHideIgarretaIsemarOption(option))
+      }
       if (requiresMenuBeverageChoice(rawCompanySlug || companyOptionsSlug) && !lunchOptions.some(isBeverageOption)) {
         const { data: fallbackData, error: fallbackError } = await db.getVisibleCustomOptions({
           company: 'genneia',
@@ -287,6 +290,9 @@ const useOrderBootstrap = ({
       }
       // Cena siempre se resuelve con su consulta específica, sin reutilizar catálogo de almuerzo.
       let dinnerOptions = filterByMealScope(data, 'dinner')
+      if (isIgarretaIsemarCompany(rawCompanySlug || companyOptionsSlug)) {
+        dinnerOptions = dinnerOptions.filter(option => !shouldHideIgarretaIsemarOption(option))
+      }
       if (requiresMenuBeverageChoice(rawCompanySlug || companyOptionsSlug) && !dinnerOptions.some(isBeverageOption)) {
         const { data: fallbackData, error: fallbackError } = await db.getVisibleCustomOptions({
           company: 'genneia',
