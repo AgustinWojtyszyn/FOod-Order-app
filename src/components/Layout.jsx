@@ -238,7 +238,7 @@ const Layout = ({ children, user, loading }) => {
           </div>
 
           <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-white px-3 pb-4 pt-4">
-            <div className="flex-1 space-y-5">
+            <div className="space-y-5">
               {menuSections.map((section) => (
                 <section key={section.label} aria-label={section.label}>
                   <p className="mb-1.5 px-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
@@ -249,50 +249,59 @@ const Layout = ({ children, user, loading }) => {
                   </ul>
                 </section>
               ))}
-            </div>
 
-            <div className="mt-5 space-y-2 border-t border-slate-200 pt-4">
-              <ul className="space-y-1">
-                {renderNavItem({ name: 'Mi Perfil', path: '/profile', icon: UserCircle })}
-              </ul>
+              <section aria-label="Cuenta y ayuda">
+                <p className="mb-1.5 px-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Cuenta y ayuda
+                </p>
+                <ul className="space-y-1">
+                  {renderNavItem({ name: 'Mi Perfil', path: '/profile', icon: UserCircle })}
 
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAdminTutorialOpen(true)
-                    setSidebarOpen(false)
-                  }}
-                  className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-sm font-bold text-purple-700 transition-colors hover:bg-purple-50"
-                >
-                  <Settings className="mr-3 h-5 w-5 shrink-0" />
-                  <span>Tutorial Admin</span>
-                </button>
-              )}
+                  {isAdmin && (
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdminTutorialOpen(true)
+                          setSidebarOpen(false)
+                        }}
+                        className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-sm font-bold text-purple-700 transition-colors hover:bg-purple-50"
+                      >
+                        <Settings className="mr-3 h-5 w-5 shrink-0" />
+                        <span>Tutorial Admin</span>
+                      </button>
+                    </li>
+                  )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  setTutorialOpen(true)
-                  setSidebarOpen(false)
-                }}
-                className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100"
-              >
-                <HelpCircle className="mr-3 h-5 w-5 shrink-0" />
-                <span>Ver Tutorial</span>
-              </button>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTutorialOpen(true)
+                        setSidebarOpen(false)
+                      }}
+                      className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100"
+                    >
+                      <HelpCircle className="mr-3 h-5 w-5 shrink-0" />
+                      <span>Ver Tutorial</span>
+                    </button>
+                  </li>
 
-              <button
-                type="button"
-                onClick={() => {
-                  handleLogout()
-                  setSidebarOpen(false)
-                }}
-                className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-sm font-bold text-red-700 transition-colors hover:bg-red-50"
-              >
-                <LogOut className="mr-3 h-5 w-5 shrink-0" />
-                <span>Cerrar Sesión</span>
-              </button>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleLogout()
+                        setSidebarOpen(false)
+                      }}
+                      className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-sm font-bold text-red-700 transition-colors hover:bg-red-50"
+                    >
+                      <LogOut className="mr-3 h-5 w-5 shrink-0" />
+                      <span>Cerrar Sesión</span>
+                    </button>
+                  </li>
+                </ul>
+              </section>
             </div>
           </nav>
         </aside>
