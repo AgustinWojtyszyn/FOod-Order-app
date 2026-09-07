@@ -58,4 +58,42 @@ describe('consumption report calculations', () => {
     expect(model.dailyTotals).toEqual({ '2026-01-01': 1, '2026-01-02': 2 })
     expect(model.grandTotal).toBe(3)
   })
+
+  it('groups ISEMAR rows by predio before sorting names inside each predio', () => {
+    const model = buildConsumptionReportModel([
+      {
+        person_key: 'predio2-ana',
+        customer_name: 'Ana',
+        delivery_date: '2026-01-01',
+        total_items: 1,
+        items: [],
+        company_slug: 'isemar',
+        location: 'ISEMAR - PREDIO 2'
+      },
+      {
+        person_key: 'predio1-zoe',
+        customer_name: 'Zoe',
+        delivery_date: '2026-01-01',
+        total_items: 1,
+        items: [],
+        company_slug: 'isemar',
+        location: 'ISEMAR - PREDIO 1'
+      },
+      {
+        person_key: 'predio1-beto',
+        customer_name: 'Beto',
+        delivery_date: '2026-01-01',
+        total_items: 1,
+        items: [],
+        company_slug: 'isemar',
+        location: 'ISEMAR - PREDIO 1'
+      }
+    ], ['2026-01-01'])
+
+    expect(model.rows.map((row) => `${row.locationLabel}:${row.name}`)).toEqual([
+      'ISEMAR - PREDIO 1:Beto',
+      'ISEMAR - PREDIO 1:Zoe',
+      'ISEMAR - PREDIO 2:Ana'
+    ])
+  })
 })
