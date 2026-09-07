@@ -62,7 +62,8 @@ begin
     o.id,
     o.delivery_date,
     case
-      when lower(coalesce(o.order_origin, 'user')) = 'admin_extra' then 'admin_extra'
+      when lower(coalesce(o.order_origin, 'user')) = 'admin_extra' then
+        'admin_extra:' || lower(coalesce(nullif(trim(o.customer_name), ''), 'varios'))
       else coalesce(
         o.user_id::text,
         nullif(lower(trim(o.customer_email)), ''),
@@ -70,7 +71,8 @@ begin
       )
     end,
     case
-      when lower(coalesce(o.order_origin, 'user')) = 'admin_extra' then 'Pedido extra administrativo'
+      when lower(coalesce(o.order_origin, 'user')) = 'admin_extra' then
+        coalesce(nullif(trim(o.customer_name), ''), 'Varios')
       else coalesce(
         nullif(trim(o.customer_name), ''),
         nullif(trim(u.full_name), ''),
