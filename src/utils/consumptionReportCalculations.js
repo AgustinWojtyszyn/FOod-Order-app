@@ -30,6 +30,41 @@ export const getConsumptionQuantity = (order = {}) => getOrderMenuTotal(order)
 export const resolveConsumptionLocationLabel = (order = {}) =>
   getOrderRemitoLocationLabel(order) || 'Sin sede'
 
+const normalizeLocationSortText = (value = '') =>
+  String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+
+const isIsemarConsumptionRow = (row = {}) =>
+  normalizeLocationSortText(row.locationLabel).includes('ISEMAR')
+
+const getIsemarPredioRank = (locationLabel = '') => {
+  const normalized = normalizeLocationSortText(locationLabel)
+  if (/PREDIO\s*1\b/.test(normalized)) return 1
+  if (/PREDIO\s*2\b/.test(normalized)) return 2
+  return 99
+}
+
+const sortConsumptionRows = (rows = []) => {
+  const onlyIsemarRows = rows.length > 0 && rows.every(isIsemarConsumptionRow)
+
+  return rows.sort((a, b) => {
+    if (onlyIsemarRows) {
+      return (
+        getIsemarPredioRank(a.locationLabel) - getIsemarPredioRank(b.locationLabel) ||
+        a.locationLabel.localeCompare(b.locationLabel, 'es') ||
+        a.name.localeCompare(b.name, 'es')
+      )
+    }
+
+    return (
+      a.name.localeCompare(b.name, 'es') ||
+      a.locationLabel.localeCompare(b.locationLabel, 'es')
+    )
+  })
+}
+
 export const buildConsumptionReportModel = (orders = [], dates = []) => {
   const people = new Map()
   const dailyTotals = Object.fromEntries(dates.map((date) => [date, 0]))
@@ -56,10 +91,7 @@ export const buildConsumptionReportModel = (orders = [], dates = []) => {
     people.set(rowKey, current)
   })
 
-  const rows = [...people.values()].sort((a, b) =>
-    a.name.localeCompare(b.name, 'es') ||
-    a.locationLabel.localeCompare(b.locationLabel, 'es')
-  )
+  const rows = sortConsumptionRows([...people.values()])
   return {
     dates,
     rows,
