@@ -11,6 +11,7 @@ import OrderSuccessConfetti from './order-form/OrderSuccessConfetti'
 import { useAuthContext } from '../contexts/authContextValue'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { OverlayLockProvider } from '../contexts/OverlayLockContext'
+
 const Layout = ({ children, user, loading }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [tutorialOpen, setTutorialOpen] = useState(false)
@@ -19,6 +20,7 @@ const Layout = ({ children, user, loading }) => {
   const { isAdmin, canAccessAdminPanel, canViewConsumptionReport } = useAuthContext()
   const navigate = useNavigate()
   const location = useLocation()
+
   // Helpers de diagnóstico disponibles solo en dev o con flag explícito.
   const _isScrollDebug = useMemo(() => {
     if (typeof import.meta === 'undefined') return false
@@ -27,10 +29,12 @@ const Layout = ({ children, user, loading }) => {
     const urlFlag = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('scrollDebug') === '1'
     return envFlag || isDev || urlFlag
   }, [])
+
   const registerExternalLock = useCallback(() => {
     setExternalLocks((count) => count + 1)
     return () => setExternalLocks((count) => Math.max(0, count - 1))
   }, [])
+
   const isAdminTutorialVisible = adminTutorialOpen && location.pathname === '/admin'
   const isAnyOverlayOpen = sidebarOpen || tutorialOpen || isAdminTutorialVisible || externalLocks > 0
 
@@ -112,38 +116,82 @@ const Layout = ({ children, user, loading }) => {
     navigate('/')
   }
 
-  const menuItems = [
-    { name: 'Panel Principal', path: '/dashboard', icon: User }
+  const operationItems = [
+    { name: 'Panel Principal', path: '/dashboard', icon: User },
+    { name: 'Nuevo Pedido', path: '/order', icon: ShoppingCart }
   ]
-
-  menuItems.push({ name: 'Nuevo Pedido', path: '/order', icon: ShoppingCart })
+  const reportsItems = []
+  const administrationItems = []
 
   if (isAdmin) {
-    menuItems.push({ name: 'Cafeteria', path: '/cafeteria', logoSrc: cafeteriaLogo })
-    menuItems.push({ 
-      name: 'Pedidos Diarios', 
-      path: '/daily-orders', 
-      icon: Calendar
-    })
-    menuItems.push({ name: 'Etiquetas', path: '/labels', icon: Tags })
-    menuItems.push({ name: 'Totalizadora', path: '/totalizadora', icon: Calculator })
-    menuItems.push({ name: 'Tendencias', path: '/tendencias', icon: BarChart3 })
-    menuItems.push({ name: 'Panel Mensual', path: '/monthly-panel', icon: Calendar })
-    menuItems.push({ name: 'Reporte de consumo', path: '/consumption-report', icon: FileSpreadsheet })
-    menuItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
-    menuItems.push({ name: 'Auditoría', path: '/auditoria', icon: ClipboardList })
+    operationItems.push({ name: 'Cafetería', path: '/cafeteria', logoSrc: cafeteriaLogo })
+    operationItems.push({ name: 'Pedidos Diarios', path: '/daily-orders', icon: Calendar })
+    operationItems.push({ name: 'Etiquetas', path: '/labels', icon: Tags })
+
+    reportsItems.push({ name: 'Totalizadora', path: '/totalizadora', icon: Calculator })
+    reportsItems.push({ name: 'Tendencias', path: '/tendencias', icon: BarChart3 })
+    reportsItems.push({ name: 'Panel Mensual', path: '/monthly-panel', icon: Calendar })
+    reportsItems.push({ name: 'Reporte de consumo', path: '/consumption-report', icon: FileSpreadsheet })
+
+    administrationItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
+    administrationItems.push({ name: 'Auditoría', path: '/auditoria', icon: ClipboardList })
   } else if (canAccessAdminPanel) {
-    menuItems.push({ name: 'Etiquetas', path: '/labels', icon: Tags })
-    menuItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
+    operationItems.push({ name: 'Etiquetas', path: '/labels', icon: Tags })
+    administrationItems.push({ name: 'Panel Admin', path: '/admin', icon: Settings })
     if (canViewConsumptionReport) {
-      menuItems.push({ name: 'Reporte de consumo', path: '/consumption-report', icon: FileSpreadsheet })
+      reportsItems.push({ name: 'Reporte de consumo', path: '/consumption-report', icon: FileSpreadsheet })
     }
   } else if (canViewConsumptionReport) {
-    menuItems.push({ name: 'Reporte de consumo', path: '/consumption-report', icon: FileSpreadsheet })
+    reportsItems.push({ name: 'Reporte de consumo', path: '/consumption-report', icon: FileSpreadsheet })
   }
 
-  // Add Profile option for all users
-  menuItems.push({ name: 'Mi Perfil', path: '/profile', icon: UserCircle })
+  const menuSections = [
+    { label: 'Operación', items: operationItems },
+    { label: 'Reportes y análisis', items: reportsItems },
+    { label: 'Administración', items: administrationItems }
+  ].filter((section) => section.items.length > 0)
+
+  const navItemClasses = ({ isActive }) => [
+    'flex min-h-11 items-center rounded-xl px-3 py-2.5 text-sm font-bold transition-colors duration-150',
+    isActive
+      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+      : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+  ].join(' ')
+
+  const handleNavClick = (event, item) => {
+    setSidebarOpen(false)
+
+    if (location.pathname === '/admin' && item.path !== '/admin') {
+      event.preventDefault()
+      window.location.assign(item.path)
+    }
+  }
+
+  const renderNavItem = (item) => {
+    const Icon = item.icon
+
+    return (
+      <li key={item.path}>
+        <NavLink
+          to={item.path}
+          className={navItemClasses}
+          onClick={(event) => handleNavClick(event, item)}
+        >
+          {item.logoSrc ? (
+            <img
+              src={item.logoSrc}
+              alt=""
+              aria-hidden="true"
+              className="mr-3 h-5 w-5 shrink-0 object-contain"
+            />
+          ) : (
+            <Icon className="mr-3 h-5 w-5 shrink-0" />
+          )}
+          <span className="min-w-0 flex-1 leading-tight">{item.name}</span>
+        </NavLink>
+      </li>
+    )
+  }
 
   return (
     <RequireUser user={user} loading={loading}>
@@ -161,7 +209,6 @@ const Layout = ({ children, user, loading }) => {
       )}
       <div className="flex flex-1 min-h-0">
         {/* Sidebar */}
-        {/* Overlay para mobile */}
         {sidebarOpen && (
           <div
             className="fixed inset-0 z-900 bg-black bg-opacity-40 md:hidden"
@@ -176,105 +223,77 @@ const Layout = ({ children, user, loading }) => {
           `}
           style={{ pointerEvents: sidebarOpen || window.innerWidth >= 768 ? 'auto' : 'none', boxSizing: 'border-box' }}
         >
-          {/* Botón cerrar solo en mobile */}
-          <div className="flex items-center justify-between h-16 px-4 border-b-2 border-primary-200 bg-linear-to-r from-primary-700 to-primary-800">
-            <span className="text-4xl font-extrabold drop-shadow-lg font-montserrat">
+          <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4">
+            <span className="font-montserrat text-4xl font-extrabold drop-shadow-sm">
               <span style={{ color: '#2563eb', fontSize: '2.8rem', lineHeight: 1 }}>Servi</span>
               <span style={{ color: '#EB6F24', fontSize: '2.8rem', lineHeight: 1 }}>Food</span>
             </span>
             <button
-              className="md:hidden p-2 rounded hover:bg-primary-700/10 text-primary-100"
+              className="md:hidden rounded-lg p-2 text-slate-600 hover:bg-slate-100"
               onClick={() => setSidebarOpen(false)}
               aria-label="Cerrar menú"
             >
-              <X className="h-7 w-7" />
+              <X className="h-6 w-6" />
             </button>
           </div>
-          <nav className="mt-8 px-4 bg-white flex flex-col flex-1 min-h-0 overflow-y-auto">
-            <ul className="space-y-2 flex-1 bg-white">
-              {menuItems.map((item) => {
-                const Icon = item.icon
-                return (
-                  <li key={item.path}>
-                    <NavLink
-                      to={item.path}
-                      className={({ isActive }) => {
-                        let classes = "flex items-center px-4 py-3 rounded-xl font-bold text-base transition-all duration-200 shadow-sm"
-                        if (isActive) {
-                          classes += " bg-blue-600 text-white shadow-lg"
-                        } else if (item.highlighted) {
-                          classes += " bg-linear-to-r from-blue-500 to-blue-600 text-white shadow-md animate-pulse-slow"
-                        } else {
-                          classes += " text-gray-800 hover:bg-blue-50"
-                        }
-                        return classes
-                      }}
-                      onClick={(event) => {
-                        setSidebarOpen(false)
 
-                        if (
-                          location.pathname === '/admin' &&
-                          item.path !== '/admin'
-                        ) {
-                          event.preventDefault()
-                          window.location.assign(item.path)
-                        }
-                      }}
-                    >
-                      {item.logoSrc ? (
-                        <img
-                          src={item.logoSrc}
-                          alt={`${item.name} logo`}
-                          className="h-6 w-6 mr-3 shrink-0 object-contain"
-                        />
-                      ) : (
-                        <Icon className="h-6 w-6 mr-3 shrink-0" />
-                      )}
-                      <span className="flex-1">{item.name}</span>
-                    </NavLink>
-                  </li>
-                )
-              })}
-              {/* Botones de tutorial y cerrar sesión en la barra lateral */}
+          <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-white px-3 pb-4 pt-4">
+            <div className="flex-1 space-y-5">
+              {menuSections.map((section) => (
+                <section key={section.label} aria-label={section.label}>
+                  <p className="mb-1.5 px-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    {section.label}
+                  </p>
+                  <ul className="space-y-1">
+                    {section.items.map(renderNavItem)}
+                  </ul>
+                </section>
+              ))}
+            </div>
+
+            <div className="mt-5 space-y-2 border-t border-slate-200 pt-4">
+              <ul className="space-y-1">
+                {renderNavItem({ name: 'Mi Perfil', path: '/profile', icon: UserCircle })}
+              </ul>
+
               {isAdmin && (
-                <li>
-                  <button
-                    onClick={() => {
-                      setAdminTutorialOpen(true)
-                      setSidebarOpen(false)
-                    }}
-                    className="group flex items-center w-full px-4 py-3 text-purple-700 rounded-xl bg-white font-bold text-base transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-lg border-2 border-purple-200 hover:border-transparent hover:bg-linear-to-r hover:from-purple-600 hover:to-purple-700 mt-4"
-                  >
-                    <Settings className="h-6 w-6 mr-3 shrink-0 group-hover:text-white transition-colors" />
-                    <span className="group-hover:text-white transition-colors">Tutorial Admin 👨‍💼</span>
-                  </button>
-                </li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdminTutorialOpen(true)
+                    setSidebarOpen(false)
+                  }}
+                  className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-sm font-bold text-purple-700 transition-colors hover:bg-purple-50"
+                >
+                  <Settings className="mr-3 h-5 w-5 shrink-0" />
+                  <span>Tutorial Admin</span>
+                </button>
               )}
-              <li>
-                <button
-                  onClick={() => {
-                    setTutorialOpen(true)
-                    setSidebarOpen(false)
-                  }}
-                  className="group flex items-center w-full px-4 py-3 rounded-xl bg-linear-to-r from-blue-600 to-blue-700 text-white font-bold text-base transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-xl border-2 border-blue-500 hover:border-blue-400 hover:from-blue-500 hover:to-blue-600"
-                >
-                  <HelpCircle className="h-6 w-6 mr-3 shrink-0 text-white" />
-                  <span className="text-white">Ver Tutorial</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => {
-                    handleLogout()
-                    setSidebarOpen(false)
-                  }}
-                  className="group flex items-center w-full px-4 py-3 text-red-700 rounded-xl bg-white font-bold text-base transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-lg border-2 border-red-200 hover:border-transparent hover:bg-linear-to-r hover:from-red-600 hover:to-red-700"
-                >
-                  <LogOut className="h-6 w-6 mr-3 shrink-0 group-hover:text-white transition-colors" />
-                  <span className="group-hover:text-white transition-colors">Cerrar Sesión</span>
-                </button>
-              </li>
-            </ul>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setTutorialOpen(true)
+                  setSidebarOpen(false)
+                }}
+                className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100"
+              >
+                <HelpCircle className="mr-3 h-5 w-5 shrink-0" />
+                <span>Ver Tutorial</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  handleLogout()
+                  setSidebarOpen(false)
+                }}
+                className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-sm font-bold text-red-700 transition-colors hover:bg-red-50"
+              >
+                <LogOut className="mr-3 h-5 w-5 shrink-0" />
+                <span>Cerrar Sesión</span>
+              </button>
+            </div>
           </nav>
         </aside>
 
