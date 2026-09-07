@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildConsumptionReportModel, getMonthDates } from './consumptionReportCalculations'
+import {
+  buildConsumptionReportModel,
+  buildConsumptionReportSummary,
+  getMonthDates,
+  resolveConsumptionPersonName
+} from './consumptionReportCalculations'
 
 describe('consumption report calculations', () => {
   it('builds all days, quantities, and totals', () => {
@@ -95,5 +100,25 @@ describe('consumption report calculations', () => {
       'ISEMAR - PREDIO 1:Zoe',
       'ISEMAR - PREDIO 2:Ana'
     ])
+  })
+
+  it('builds the monthly summary by company and ISEMAR predio', () => {
+    const summary = buildConsumptionReportSummary([
+      { company_slug: 'igarreta', total_items: 4, items: [], location: 'Igarreta Maquinas SA' },
+      { company_slug: 'isemar', total_items: 2, items: [], location: 'ISEMAR - PREDIO 1' },
+      { company_slug: 'isemar', total_items: 5, items: [], location: 'ISEMAR - PREDIO 2' }
+    ])
+
+    expect(summary).toEqual({
+      total: 11,
+      igarreta: 4,
+      isemarPredio1: 2,
+      isemarPredio2: 5,
+      isemarOther: 0
+    })
+  })
+
+  it('uses the RPC person_name when the order has no customer identity fields', () => {
+    expect(resolveConsumptionPersonName({ person_name: 'Pedido extra administrativo' })).toBe('Pedido extra administrativo')
   })
 })
