@@ -23,4 +23,12 @@ describe('ConsumptionReportPage', () => {
     expect(source).toContain('Predio / sede')
     expect(source).toContain('resolveConsumptionLocationLabel(order) === locationFilter')
   })
+
+  it('keeps both filters prominently visible and disables predio until ISEMAR is selected', () => {
+    expect(source).toContain('Filtros del reporte')
+    expect(source).toContain('Elegí la empresa y, para ISEMAR, el predio correspondiente.')
+    expect(source).toContain("disabled={companyFilter !== 'isemar'}")
+    expect(source).toContain("companyFilter === 'isemar' ? 'Todos los predios' : 'Disponible al elegir ISEMAR'")
+    expect(source).toContain('border-2 border-blue-200 bg-blue-50/80')
+  })
 })
