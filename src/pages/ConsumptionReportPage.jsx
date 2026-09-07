@@ -1,14 +1,16 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import ExcelJS from 'exceljs'
-import { Download, RefreshCw } from 'lucide-react'
+import { Download, RefreshCw, Search, X } from 'lucide-react'
 import { useAuthContext } from '../contexts/authContextValue'
 import { getIgarretaIsemarConsumptionOrders } from '../services/consumptionReportService'
 import {
   buildConsumptionReportModel,
   buildConsumptionReportSummary,
+  getIsemarPredioRank,
   getMonthDates,
   resolveConsumptionCompanySlug,
-  resolveConsumptionLocationLabel
+  resolveConsumptionLocationLabel,
+  resolveConsumptionPersonName
 } from '../utils/consumptionReportCalculations'
 import LoadingState from '../components/ui/LoadingState'
 
@@ -16,7 +18,14 @@ const pad = (value) => String(value).padStart(2, '0')
 const currentDate = new Date()
 const INITIAL_YEAR = currentDate.getFullYear()
 const INITIAL_MONTH = currentDate.getMonth() + 1
+const MONTH_LABELS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const formatDate = (date) => `${pad(Number(date.slice(8, 10)))}/${date.slice(5, 7)}`
+const normalizeSearchText = (value = '') =>
+  String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
 
 const ConsumptionReportPage = () => {
   const { isAdmin, canViewConsumptionReport } = useAuthContext()
@@ -25,6 +34,7 @@ const ConsumptionReportPage = () => {
   const [orders, setOrders] = useState([])
   const [companyFilter, setCompanyFilter] = useState('all')
   const [locationFilter, setLocationFilter] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -56,14 +66,35 @@ const ConsumptionReportPage = () => {
     return [...new Set(labels)].sort((a, b) => a.localeCompare(b, 'es'))
   }, [orders])
 
-  const filteredOrders = useMemo(() => orders.filter((order) => {
-    const companySlug = resolveConsumptionCompanySlug(order)
-    if (companyFilter !== 'all' && companySlug !== companyFilter) return false
-    if (companyFilter === 'isemar' && locationFilter !== 'all') {
-      return resolveConsumptionLocationLabel(order) === locationFilter
-    }
-    return true
-  }), [companyFilter, locationFilter, orders])
+  const predio1Location = useMemo(
+    () => isemarLocationOptions.find((label) => getIsemarPredioRank(label) === 1) || '',
+    [isemarLocationOptions]
+  )
+  const predio2Location = useMemo(
+    () => isemarLocationOptions.find((label) => getIsemarPredioRank(label) === 2) || '',
+    [isemarLocationOptions]
+  )
+
+  const filteredOrders = useMemo(() => {
+    const normalizedSearch = normalizeSearchText(searchQuery)
+
+    return orders.filter((order) => {
+      const companySlug = resolveConsumptionCompanySlug(order)
+      if (companyFilter !== 'all' && companySlug !== companyFilter) return false
+      if (companyFilter === 'isemar' && locationFilter !== 'all' && resolveConsumptionLocationLabel(order) !== locationFilter) return false
+
+      if (normalizedSearch) {
+        const searchableText = normalizeSearchText([
+          resolveConsumptionPersonName(order),
+          order?.customer_email,
+          order?.user_email
+        ].filter(Boolean).join(' '))
+        if (!searchableText.includes(normalizedSearch)) return false
+      }
+
+      return true
+    })
+  }, [companyFilter, locationFilter, orders, searchQuery])
 
   const model = useMemo(
     () => buildConsumptionReportModel(filteredOrders, dates),
@@ -75,6 +106,23 @@ const ConsumptionReportPage = () => {
     [orders]
   )
 
+  const activePeopleCount = useMemo(
+    () => new Set(model.rows.map((row) => normalizeSearchText(row.name)).filter(Boolean)).size,
+    [model.rows]
+  )
+
+  const activeFilterLabel = useMemo(() => {
+    if (companyFilter === 'igarreta') return 'Igarreta Maquinas SA'
+    if (companyFilter === 'isemar') return locationFilter === 'all' ? 'ISEMAR · Todos los predios' : locationFilter
+    return 'Igarreta + ISEMAR'
+  }, [companyFilter, locationFilter])
+
+  const applyQuickFilter = (company, location = 'all') => {
+    setCompanyFilter(company)
+    setLocationFilter(location)
+    setSearchQuery('')
+  }
+
   const showIsemarGroupSeparators = companyFilter === 'isemar' && locationFilter === 'all'
   const isemarGroupTotals = useMemo(() => {
     const totals = {}
@@ -83,6 +131,16 @@ const ConsumptionReportPage = () => {
       totals[row.locationLabel] = (totals[row.locationLabel] || 0) + row.monthlyTotal
     })
     return totals
+  }, [model.rows])
+
+  const isemarGroupPeople = useMemo(() => {
+    const people = {}
+    model.rows.forEach((row) => {
+      if (row.companySlug !== 'isemar') return
+      if (!people[row.locationLabel]) people[row.locationLabel] = new Set()
+      people[row.locationLabel].add(normalizeSearchText(row.name))
+    })
+    return Object.fromEntries(Object.entries(people).map(([location, names]) => [location, names.size]))
   }, [model.rows])
 
   const exportExcel = async () => {
@@ -211,30 +269,63 @@ const ConsumptionReportPage = () => {
             <button type="button" onClick={exportExcel} disabled={loading} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 font-bold text-white shadow-sm hover:bg-emerald-800 disabled:opacity-50"><Download size={17} /> Exportar Excel</button>
             <button type="button" onClick={loadReport} disabled={loading} aria-label="Actualizar reporte" className="min-h-11 rounded-lg border border-slate-300 bg-white p-3 text-slate-800 shadow-sm hover:bg-slate-100 disabled:opacity-50"><RefreshCw size={17} /></button>
           </div>
+
+          <label className="mt-3 block max-w-xl text-sm font-bold text-slate-800">
+            Buscar usuario
+            <div className="relative mt-1">
+              <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Nombre o email"
+                className="block min-h-11 w-full rounded-lg border-2 border-blue-200 bg-white py-2.5 pl-10 pr-10 text-base font-semibold text-slate-950 shadow-sm placeholder:font-normal placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+              {searchQuery && (
+                <button type="button" onClick={() => setSearchQuery('')} aria-label="Limpiar búsqueda" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900">
+                  <X size={17} />
+                </button>
+              )}
+            </div>
+          </label>
         </div>
       </header>
 
       {!loading && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
+          <button type="button" onClick={() => applyQuickFilter('all')} aria-pressed={companyFilter === 'all'} className={`rounded-xl border bg-blue-50 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${companyFilter === 'all' ? 'border-blue-500 ring-2 ring-blue-200' : 'border-blue-200'}`}>
             <p className="text-xs font-extrabold uppercase tracking-wide text-blue-700">Total mensual</p>
             <p className="mt-1 text-3xl font-black text-slate-950 tabular-nums">{summary.total}</p>
-            <p className="mt-1 text-xs font-semibold text-slate-600">Igarreta + ISEMAR</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+            <p className="mt-1 text-xs font-semibold text-slate-600">Igarreta + ISEMAR · ver todo</p>
+          </button>
+          <button type="button" onClick={() => applyQuickFilter('igarreta')} aria-pressed={companyFilter === 'igarreta'} className={`rounded-xl border bg-slate-50 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${companyFilter === 'igarreta' ? 'border-slate-500 ring-2 ring-slate-200' : 'border-slate-200'}`}>
             <p className="text-xs font-extrabold uppercase tracking-wide text-slate-600">Igarreta</p>
             <p className="mt-1 text-3xl font-black text-slate-950 tabular-nums">{summary.igarreta}</p>
-            <p className="mt-1 text-xs font-semibold text-slate-600">consumos del mes</p>
-          </div>
-          <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 shadow-sm">
+            <p className="mt-1 text-xs font-semibold text-slate-600">consumos del mes · filtrar</p>
+          </button>
+          <button type="button" onClick={() => predio1Location && applyQuickFilter('isemar', predio1Location)} disabled={!predio1Location} aria-pressed={companyFilter === 'isemar' && locationFilter === predio1Location} className={`rounded-xl border bg-sky-50 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 ${companyFilter === 'isemar' && locationFilter === predio1Location ? 'border-sky-500 ring-2 ring-sky-200' : 'border-sky-200'}`}>
             <p className="text-xs font-extrabold uppercase tracking-wide text-sky-700">ISEMAR · Predio 1</p>
             <p className="mt-1 text-3xl font-black text-slate-950 tabular-nums">{summary.isemarPredio1}</p>
-            <p className="mt-1 text-xs font-semibold text-slate-600">consumos del mes</p>
-          </div>
-          <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
+            <p className="mt-1 text-xs font-semibold text-slate-600">consumos del mes · filtrar</p>
+          </button>
+          <button type="button" onClick={() => predio2Location && applyQuickFilter('isemar', predio2Location)} disabled={!predio2Location} aria-pressed={companyFilter === 'isemar' && locationFilter === predio2Location} className={`rounded-xl border bg-indigo-50 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 ${companyFilter === 'isemar' && locationFilter === predio2Location ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-indigo-200'}`}>
             <p className="text-xs font-extrabold uppercase tracking-wide text-indigo-700">ISEMAR · Predio 2</p>
             <p className="mt-1 text-3xl font-black text-slate-950 tabular-nums">{summary.isemarPredio2}</p>
-            <p className="mt-1 text-xs font-semibold text-slate-600">consumos del mes</p>
+            <p className="mt-1 text-xs font-semibold text-slate-600">consumos del mes · filtrar</p>
+          </button>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Vista actual</p>
+            <p className="mt-0.5 font-extrabold text-slate-950">{activeFilterLabel} · {MONTH_LABELS[month - 1]} {year}</p>
+            {searchQuery.trim() && <p className="mt-0.5 text-xs font-semibold text-blue-700">Búsqueda: “{searchQuery.trim()}”</p>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-white px-3 py-1.5 text-sm font-extrabold text-slate-800 shadow-sm">{activePeopleCount} {activePeopleCount === 1 ? 'persona' : 'personas'}</span>
+            <span className="rounded-full bg-blue-700 px-3 py-1.5 text-sm font-extrabold text-white shadow-sm">{model.grandTotal} {model.grandTotal === 1 ? 'consumo' : 'consumos'}</span>
           </div>
         </div>
       )}
@@ -255,7 +346,7 @@ const ConsumptionReportPage = () => {
                         <td colSpan={model.dates.length + 3} className="border-b border-blue-200 px-5 py-3 text-left">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="font-extrabold uppercase tracking-wide text-blue-950">{row.locationLabel}</span>
-                            <span className="rounded-full bg-white px-3 py-1 text-xs font-extrabold text-blue-800 shadow-sm">{isemarGroupTotals[row.locationLabel] || 0} consumos</span>
+                            <span className="rounded-full bg-white px-3 py-1 text-xs font-extrabold text-blue-800 shadow-sm">{isemarGroupPeople[row.locationLabel] || 0} personas · {isemarGroupTotals[row.locationLabel] || 0} consumos</span>
                           </div>
                         </td>
                       </tr>
