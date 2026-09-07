@@ -233,8 +233,11 @@ export const resolveCompanyForOrder = (order = {}) => {
 export const isRemitoEligibleCompany = (company = {}) =>
   company?.slug && !EXCLUDED_REMITO_COMPANY_SLUGS.has(company.slug)
 
+const isAdminExtraOrder = (order = {}) =>
+  normalizeCompanyMatchText(order?.order_origin) === 'admin_extra'
+
 const allowsRemitoBeverages = (order = {}) =>
-  REMITO_BEVERAGE_COMPANY_SLUGS.has(resolveCompanyForOrder(order).slug)
+  isAdminExtraOrder(order) || REMITO_BEVERAGE_COMPANY_SLUGS.has(resolveCompanyForOrder(order).slug)
 
 const summarizeRemitoOperationalOrders = (orders = []) => {
   const operationalSummary = summarizeOperationalOrders(orders)
