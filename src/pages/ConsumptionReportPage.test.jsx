@@ -21,7 +21,7 @@ describe('ConsumptionReportPage', () => {
     expect(source).toContain('<option value="isemar">ISEMAR</option>')
     expect(source).toContain("companyFilter === 'isemar'")
     expect(source).toContain('Predio / sede')
-    expect(source).toContain('resolveConsumptionLocationLabel(order) === locationFilter')
+    expect(source).toContain('resolveConsumptionLocationLabel(order) !== locationFilter')
   })
 
   it('keeps both filters prominently visible and disables predio until ISEMAR is selected', () => {
@@ -45,6 +45,31 @@ describe('ConsumptionReportPage', () => {
     expect(source).toContain("companyFilter === 'isemar' && locationFilter === 'all'")
     expect(source).toContain('startsIsemarGroup')
     expect(source).toContain('isemarGroupTotals[row.locationLabel]')
+    expect(source).toContain('isemarGroupPeople[row.locationLabel]')
     expect(source).toContain('colSpan={model.dates.length + 3}')
+  })
+
+  it('makes summary cards clickable quick filters', () => {
+    expect(source).toContain("applyQuickFilter('all')")
+    expect(source).toContain("applyQuickFilter('igarreta')")
+    expect(source).toContain("applyQuickFilter('isemar', predio1Location)")
+    expect(source).toContain("applyQuickFilter('isemar', predio2Location)")
+    expect(source).toContain('aria-pressed={companyFilter')
+  })
+
+  it('filters by user search and clears the search from the input', () => {
+    expect(source).toContain("const [searchQuery, setSearchQuery] = useState('')")
+    expect(source).toContain('Buscar usuario')
+    expect(source).toContain('placeholder="Nombre o email"')
+    expect(source).toContain('resolveConsumptionPersonName(order)')
+    expect(source).toContain("onClick={() => setSearchQuery('')}")
+  })
+
+  it('shows a dynamic summary for the active view', () => {
+    expect(source).toContain('Vista actual')
+    expect(source).toContain('{activeFilterLabel}')
+    expect(source).toContain('{activePeopleCount}')
+    expect(source).toContain('{model.grandTotal}')
+    expect(source).toContain('Búsqueda: “{searchQuery.trim()}”')
   })
 })
