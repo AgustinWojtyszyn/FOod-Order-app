@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import ExcelJS from 'exceljs'
 import { Download, RefreshCw } from 'lucide-react'
 import { useAuthContext } from '../contexts/authContextValue'
 import { getIgarretaIsemarConsumptionOrders } from '../services/consumptionReportService'
 import {
   buildConsumptionReportModel,
+  buildConsumptionReportSummary,
   getMonthDates,
+  resolveConsumptionCompanySlug,
   resolveConsumptionLocationLabel
 } from '../utils/consumptionReportCalculations'
 import LoadingState from '../components/ui/LoadingState'
@@ -15,17 +17,6 @@ const currentDate = new Date()
 const INITIAL_YEAR = currentDate.getFullYear()
 const INITIAL_MONTH = currentDate.getMonth() + 1
 const formatDate = (date) => `${pad(Number(date.slice(8, 10)))}/${date.slice(5, 7)}`
-
-const resolveReportCompanySlug = (order = {}) => {
-  const companySlug = String(order?.company_slug || '').trim().toLowerCase()
-  if (companySlug.includes('isemar')) return 'isemar'
-  if (companySlug.includes('igarreta')) return 'igarreta'
-
-  const companyText = `${order?.company_name || ''} ${order?.organization || ''}`.toLowerCase()
-  if (companyText.includes('isemar')) return 'isemar'
-  if (companyText.includes('igarreta')) return 'igarreta'
-  return companySlug
-}
 
 const ConsumptionReportPage = () => {
   const { isAdmin, canViewConsumptionReport } = useAuthContext()
@@ -59,14 +50,14 @@ const ConsumptionReportPage = () => {
 
   const isemarLocationOptions = useMemo(() => {
     const labels = orders
-      .filter((order) => resolveReportCompanySlug(order) === 'isemar')
+      .filter((order) => resolveConsumptionCompanySlug(order) === 'isemar')
       .map((order) => resolveConsumptionLocationLabel(order))
       .filter((label) => label && label !== 'Sin sede')
     return [...new Set(labels)].sort((a, b) => a.localeCompare(b, 'es'))
   }, [orders])
 
   const filteredOrders = useMemo(() => orders.filter((order) => {
-    const companySlug = resolveReportCompanySlug(order)
+    const companySlug = resolveConsumptionCompanySlug(order)
     if (companyFilter !== 'all' && companySlug !== companyFilter) return false
     if (companyFilter === 'isemar' && locationFilter !== 'all') {
       return resolveConsumptionLocationLabel(order) === locationFilter
@@ -78,6 +69,21 @@ const ConsumptionReportPage = () => {
     () => buildConsumptionReportModel(filteredOrders, dates),
     [dates, filteredOrders]
   )
+
+  const summary = useMemo(
+    () => buildConsumptionReportSummary(orders),
+    [orders]
+  )
+
+  const showIsemarGroupSeparators = companyFilter === 'isemar' && locationFilter === 'all'
+  const isemarGroupTotals = useMemo(() => {
+    const totals = {}
+    model.rows.forEach((row) => {
+      if (row.companySlug !== 'isemar') return
+      totals[row.locationLabel] = (totals[row.locationLabel] || 0) + row.monthlyTotal
+    })
+    return totals
+  }, [model.rows])
 
   const exportExcel = async () => {
     const workbook = new ExcelJS.Workbook()
@@ -207,12 +213,59 @@ const ConsumptionReportPage = () => {
           </div>
         </div>
       </header>
+
+      {!loading && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-blue-700">Total mensual</p>
+            <p className="mt-1 text-3xl font-black text-slate-950 tabular-nums">{summary.total}</p>
+            <p className="mt-1 text-xs font-semibold text-slate-600">Igarreta + ISEMAR</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-slate-600">Igarreta</p>
+            <p className="mt-1 text-3xl font-black text-slate-950 tabular-nums">{summary.igarreta}</p>
+            <p className="mt-1 text-xs font-semibold text-slate-600">consumos del mes</p>
+          </div>
+          <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 shadow-sm">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-sky-700">ISEMAR · Predio 1</p>
+            <p className="mt-1 text-3xl font-black text-slate-950 tabular-nums">{summary.isemarPredio1}</p>
+            <p className="mt-1 text-xs font-semibold text-slate-600">consumos del mes</p>
+          </div>
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-indigo-700">ISEMAR · Predio 2</p>
+            <p className="mt-1 text-3xl font-black text-slate-950 tabular-nums">{summary.isemarPredio2}</p>
+            <p className="mt-1 text-xs font-semibold text-slate-600">consumos del mes</p>
+          </div>
+        </div>
+      )}
+
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {loading ? <LoadingState message="Cargando consumo..." /> : (
         <div className="max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="min-w-max border-separate border-spacing-0 text-sm text-slate-950">
             <thead className="sticky top-0 z-30 bg-slate-800 text-white"><tr><th className="sticky left-0 z-50 min-w-72 border-b border-r border-slate-600 bg-slate-800 px-5 py-4 text-left font-bold whitespace-nowrap">Usuario</th><th className="sticky left-72 z-40 min-w-64 border-b border-r border-slate-600 bg-slate-800 px-5 py-4 text-left font-bold whitespace-nowrap">Lugar / Sede</th>{model.dates.map((date) => <th key={date} className="min-w-20 border-b border-r border-slate-700 bg-slate-800 px-3 py-4 text-center font-semibold whitespace-nowrap">{formatDate(date)}</th>)}<th className="sticky right-0 z-50 min-w-36 border-b border-l border-slate-500 bg-slate-800 px-5 py-4 text-center font-bold whitespace-nowrap shadow-[-8px_0_14px_-14px_rgba(15,23,42,0.65)]">Total mensual</th></tr></thead>
-            <tbody>{model.rows.map((row) => <tr key={row.personKey} className="bg-white"><th className="sticky left-0 z-20 min-w-72 border-b border-r border-slate-200 bg-white px-5 py-3.5 text-left font-semibold text-slate-950 whitespace-nowrap shadow-[8px_0_14px_-16px_rgba(15,23,42,0.55)]">{row.name}</th><td className="sticky left-72 z-10 min-w-64 border-b border-r border-slate-200 bg-white px-5 py-3.5 text-left font-semibold text-slate-800 whitespace-nowrap">{row.locationLabel}</td>{model.dates.map((date) => <td key={date} className="min-w-20 border-b border-r border-slate-100 px-3 py-3.5 text-center text-slate-950 tabular-nums">{row.quantities[date] || ''}</td>)}<td className="sticky right-0 z-20 min-w-36 border-b border-l border-slate-300 bg-slate-50 px-5 py-3.5 text-center font-bold text-slate-950 tabular-nums shadow-[-8px_0_14px_-16px_rgba(15,23,42,0.55)]">{row.monthlyTotal}</td></tr>)}<tr className="bg-blue-50 font-bold text-slate-950"><th className="sticky left-0 z-20 min-w-72 border-t-2 border-r border-slate-300 bg-blue-50 px-5 py-4 text-left whitespace-nowrap shadow-[8px_0_14px_-16px_rgba(15,23,42,0.55)]">Total diario</th><td className="sticky left-72 z-10 min-w-64 border-t-2 border-r border-slate-300 bg-blue-50 px-5 py-4 text-left whitespace-nowrap"></td>{model.dates.map((date) => <td key={date} className="min-w-20 border-t-2 border-r border-slate-200 px-3 py-4 text-center text-slate-950 tabular-nums">{model.dailyTotals[date]}</td>)}<td className="sticky right-0 z-20 min-w-36 border-l border-t-2 border-slate-400 bg-blue-100 px-5 py-4 text-center font-extrabold text-slate-950 tabular-nums shadow-[-8px_0_14px_-16px_rgba(15,23,42,0.55)]">{model.grandTotal}</td></tr></tbody>
+            <tbody>
+              {model.rows.map((row, index) => {
+                const previousRow = model.rows[index - 1]
+                const startsIsemarGroup = showIsemarGroupSeparators && (!previousRow || previousRow.locationLabel !== row.locationLabel)
+                return (
+                  <Fragment key={row.personKey}>
+                    {startsIsemarGroup && (
+                      <tr className="bg-blue-100">
+                        <td colSpan={model.dates.length + 3} className="border-b border-blue-200 px-5 py-3 text-left">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-extrabold uppercase tracking-wide text-blue-950">{row.locationLabel}</span>
+                            <span className="rounded-full bg-white px-3 py-1 text-xs font-extrabold text-blue-800 shadow-sm">{isemarGroupTotals[row.locationLabel] || 0} consumos</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    <tr className="bg-white"><th className="sticky left-0 z-20 min-w-72 border-b border-r border-slate-200 bg-white px-5 py-3.5 text-left font-semibold text-slate-950 whitespace-nowrap shadow-[8px_0_14px_-16px_rgba(15,23,42,0.55)]">{row.name}</th><td className="sticky left-72 z-10 min-w-64 border-b border-r border-slate-200 bg-white px-5 py-3.5 text-left font-semibold text-slate-800 whitespace-nowrap">{row.locationLabel}</td>{model.dates.map((date) => <td key={date} className="min-w-20 border-b border-r border-slate-100 px-3 py-3.5 text-center text-slate-950 tabular-nums">{row.quantities[date] || ''}</td>)}<td className="sticky right-0 z-20 min-w-36 border-b border-l border-slate-300 bg-slate-50 px-5 py-3.5 text-center font-bold text-slate-950 tabular-nums shadow-[-8px_0_14px_-16px_rgba(15,23,42,0.55)]">{row.monthlyTotal}</td></tr>
+                  </Fragment>
+                )
+              })}
+              <tr className="bg-blue-50 font-bold text-slate-950"><th className="sticky left-0 z-20 min-w-72 border-t-2 border-r border-slate-300 bg-blue-50 px-5 py-4 text-left whitespace-nowrap shadow-[8px_0_14px_-16px_rgba(15,23,42,0.55)]">Total diario</th><td className="sticky left-72 z-10 min-w-64 border-t-2 border-r border-slate-300 bg-blue-50 px-5 py-4 text-left whitespace-nowrap"></td>{model.dates.map((date) => <td key={date} className="min-w-20 border-t-2 border-r border-slate-200 px-3 py-4 text-center text-slate-950 tabular-nums">{model.dailyTotals[date]}</td>)}<td className="sticky right-0 z-20 min-w-36 border-l border-t-2 border-slate-400 bg-blue-100 px-5 py-4 text-center font-extrabold text-slate-950 tabular-nums shadow-[-8px_0_14px_-16px_rgba(15,23,42,0.55)]">{model.grandTotal}</td></tr>
+            </tbody>
           </table>
         </div>
       )}
