@@ -14,4 +14,13 @@ describe('ConsumptionReportPage', () => {
     expect(source).toContain('worksheet.autoFilter')
     expect(source).toContain('to: { row: worksheet.rowCount, column: headers.length }')
   })
+
+  it('filters the report by Igarreta or ISEMAR and by ISEMAR predio', () => {
+    expect(source).toContain("const [companyFilter, setCompanyFilter] = useState('all')")
+    expect(source).toContain('<option value="igarreta">Igarreta Maquinas SA</option>')
+    expect(source).toContain('<option value="isemar">ISEMAR</option>')
+    expect(source).toContain("companyFilter === 'isemar'")
+    expect(source).toContain('Predio / sede')
+    expect(source).toContain('resolveConsumptionLocationLabel(order) === locationFilter')
+  })
 })

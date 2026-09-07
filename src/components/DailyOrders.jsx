@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Shield } from 'lucide-react'
 import RequireUser from './RequireUser'
-import { COMPANY_LIST, COMPANY_LOCATIONS } from '../constants/companyConfig'
+import { COMPANY_LOCATIONS } from '../constants/companyConfig'
 import DailyFilters from './daily/DailyFilters'
 import DailyHeader from './daily/DailyHeader'
 import DailyLoader from './daily/DailyLoader'
@@ -153,8 +153,8 @@ const DailyOrders = ({ user, loading }) => {
   const sortedOrdersUnits = countOperationalUnits(sortedOrders)
   const deliveryDateLabel = formatDeliveryDateLabel(operationalDate)
   const remitoCompanyOptions = useMemo(
-    () => COMPANY_LIST.map((company) => ({ value: company.slug, label: company.name })),
-    []
+    () => locations.map((location) => ({ value: location, label: location })),
+    [locations]
   )
   const dailyCloseStatus = useMemo(
     () => getDailyOperationalStatus({

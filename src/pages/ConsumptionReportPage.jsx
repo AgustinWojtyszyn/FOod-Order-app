@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import ExcelJS from 'exceljs'
 import { Download, RefreshCw } from 'lucide-react'
 import { useAuthContext } from '../contexts/authContextValue'
 import { getIgarretaIsemarConsumptionOrders } from '../services/consumptionReportService'
-import { buildConsumptionReportModel, getMonthDates } from '../utils/consumptionReportCalculations'
+import {
+  buildConsumptionReportModel,
+  getMonthDates,
+  resolveConsumptionLocationLabel
+} from '../utils/consumptionReportCalculations'
 import LoadingState from '../components/ui/LoadingState'
 
 const pad = (value) => String(value).padStart(2, '0')
@@ -12,24 +16,39 @@ const INITIAL_YEAR = currentDate.getFullYear()
 const INITIAL_MONTH = currentDate.getMonth() + 1
 const formatDate = (date) => `${pad(Number(date.slice(8, 10)))}/${date.slice(5, 7)}`
 
+const resolveReportCompanySlug = (order = {}) => {
+  const companySlug = String(order?.company_slug || '').trim().toLowerCase()
+  if (companySlug.includes('isemar')) return 'isemar'
+  if (companySlug.includes('igarreta')) return 'igarreta'
+
+  const companyText = `${order?.company_name || ''} ${order?.organization || ''}`.toLowerCase()
+  if (companyText.includes('isemar')) return 'isemar'
+  if (companyText.includes('igarreta')) return 'igarreta'
+  return companySlug
+}
+
 const ConsumptionReportPage = () => {
   const { isAdmin, canViewConsumptionReport } = useAuthContext()
   const [year, setYear] = useState(INITIAL_YEAR)
   const [month, setMonth] = useState(INITIAL_MONTH)
-  const [model, setModel] = useState(() => buildConsumptionReportModel([], getMonthDates(INITIAL_YEAR, INITIAL_MONTH)))
+  const [orders, setOrders] = useState([])
+  const [companyFilter, setCompanyFilter] = useState('all')
+  const [locationFilter, setLocationFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const dates = useMemo(() => getMonthDates(year, month), [month, year])
+
   const loadReport = useCallback(async () => {
-    const dates = getMonthDates(year, month)
+    const reportDates = getMonthDates(year, month)
     setLoading(true)
     setError('')
-    const result = await getIgarretaIsemarConsumptionOrders({ startDate: dates[0], endDate: dates.at(-1) })
+    const result = await getIgarretaIsemarConsumptionOrders({ startDate: reportDates[0], endDate: reportDates.at(-1) })
     if (result.error) {
-      setModel(buildConsumptionReportModel([], dates))
+      setOrders([])
       setError('No se pudo cargar el reporte de consumo.')
     } else {
-      setModel(buildConsumptionReportModel(result.data, dates))
+      setOrders(result.data)
     }
     setLoading(false)
   }, [month, year])
@@ -37,6 +56,28 @@ const ConsumptionReportPage = () => {
   useEffect(() => {
     if (isAdmin || canViewConsumptionReport) loadReport()
   }, [loadReport, isAdmin, canViewConsumptionReport])
+
+  const isemarLocationOptions = useMemo(() => {
+    const labels = orders
+      .filter((order) => resolveReportCompanySlug(order) === 'isemar')
+      .map((order) => resolveConsumptionLocationLabel(order))
+      .filter((label) => label && label !== 'Sin sede')
+    return [...new Set(labels)].sort((a, b) => a.localeCompare(b, 'es'))
+  }, [orders])
+
+  const filteredOrders = useMemo(() => orders.filter((order) => {
+    const companySlug = resolveReportCompanySlug(order)
+    if (companyFilter !== 'all' && companySlug !== companyFilter) return false
+    if (companyFilter === 'isemar' && locationFilter !== 'all') {
+      return resolveConsumptionLocationLabel(order) === locationFilter
+    }
+    return true
+  }), [companyFilter, locationFilter, orders])
+
+  const model = useMemo(
+    () => buildConsumptionReportModel(filteredOrders, dates),
+    [dates, filteredOrders]
+  )
 
   const exportExcel = async () => {
     const workbook = new ExcelJS.Workbook()
@@ -106,7 +147,8 @@ const ConsumptionReportPage = () => {
     const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = `consumo_igarreta_isemar_${year}-${pad(month)}.xlsx`
+    const companySuffix = companyFilter === 'all' ? 'igarreta_isemar' : companyFilter
+    anchor.download = `consumo_${companySuffix}_${year}-${pad(month)}.xlsx`
     anchor.click()
     URL.revokeObjectURL(url)
   }
@@ -119,6 +161,10 @@ const ConsumptionReportPage = () => {
           <h1 className="mt-1 text-2xl font-bold text-slate-900">Reporte de consumo · IGARRETA + ISEMAR</h1>
         </div>
         <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-slate-50 p-2 sm:p-3">
+          <label className="text-sm font-semibold text-slate-700">Empresa<select value={companyFilter} onChange={(event) => { setCompanyFilter(event.target.value); setLocationFilter('all') }} className="mt-1 block min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 shadow-xs"><option value="all">Todas</option><option value="igarreta">Igarreta Maquinas SA</option><option value="isemar">ISEMAR</option></select></label>
+          {companyFilter === 'isemar' && (
+            <label className="text-sm font-semibold text-slate-700">Predio / sede<select value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} className="mt-1 block min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 shadow-xs"><option value="all">Todos los predios</option>{isemarLocationOptions.map((location) => <option key={location} value={location}>{location}</option>)}</select></label>
+          )}
           <label className="text-sm font-semibold text-slate-700">Mes<select value={month} onChange={(event) => setMonth(Number(event.target.value))} className="mt-1 block min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 shadow-xs"><option value={1}>Enero</option><option value={2}>Febrero</option><option value={3}>Marzo</option><option value={4}>Abril</option><option value={5}>Mayo</option><option value={6}>Junio</option><option value={7}>Julio</option><option value={8}>Agosto</option><option value={9}>Septiembre</option><option value={10}>Octubre</option><option value={11}>Noviembre</option><option value={12}>Diciembre</option></select></label>
           <label className="text-sm font-semibold text-slate-700">Año<input type="number" min="2020" max="2100" value={year} onChange={(event) => setYear(Number(event.target.value) || INITIAL_YEAR)} className="mt-1 block min-h-10 w-24 rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 shadow-xs" /></label>
           <button type="button" onClick={exportExcel} disabled={loading} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 font-semibold text-white shadow-xs hover:bg-emerald-800 disabled:opacity-50"><Download size={17} /> Exportar Excel</button>
