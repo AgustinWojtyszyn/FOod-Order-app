@@ -31,4 +31,20 @@ describe('ConsumptionReportPage', () => {
     expect(source).toContain("companyFilter === 'isemar' ? 'Todos los predios' : 'Disponible al elegir ISEMAR'")
     expect(source).toContain('border-2 border-blue-200 bg-blue-50/80')
   })
+
+  it('shows a four-card monthly summary', () => {
+    expect(source).toContain('buildConsumptionReportSummary(orders)')
+    expect(source).toContain('Igarreta + ISEMAR')
+    expect(source).toContain('ISEMAR · Predio 1')
+    expect(source).toContain('ISEMAR · Predio 2')
+    expect(source).toContain('{summary.total}')
+    expect(source).toContain('{summary.igarreta}')
+  })
+
+  it('adds visible group separators for all ISEMAR predios', () => {
+    expect(source).toContain("companyFilter === 'isemar' && locationFilter === 'all'")
+    expect(source).toContain('startsIsemarGroup')
+    expect(source).toContain('isemarGroupTotals[row.locationLabel]')
+    expect(source).toContain('colSpan={model.dates.length + 3}')
+  })
 })
