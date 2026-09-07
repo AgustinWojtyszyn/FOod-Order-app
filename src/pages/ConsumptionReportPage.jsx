@@ -155,20 +155,56 @@ const ConsumptionReportPage = () => {
 
   return (
     <section className="w-full space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
+      <header className="space-y-4 border-b border-slate-200 pb-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Consumo mensual</p>
           <h1 className="mt-1 text-2xl font-bold text-slate-900">Reporte de consumo · IGARRETA + ISEMAR</h1>
         </div>
-        <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-slate-50 p-2 sm:p-3">
-          <label className="text-sm font-semibold text-slate-700">Empresa<select value={companyFilter} onChange={(event) => { setCompanyFilter(event.target.value); setLocationFilter('all') }} className="mt-1 block min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 shadow-xs"><option value="all">Todas</option><option value="igarreta">Igarreta Maquinas SA</option><option value="isemar">ISEMAR</option></select></label>
-          {companyFilter === 'isemar' && (
-            <label className="text-sm font-semibold text-slate-700">Predio / sede<select value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} className="mt-1 block min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 shadow-xs"><option value="all">Todos los predios</option>{isemarLocationOptions.map((location) => <option key={location} value={location}>{location}</option>)}</select></label>
-          )}
-          <label className="text-sm font-semibold text-slate-700">Mes<select value={month} onChange={(event) => setMonth(Number(event.target.value))} className="mt-1 block min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 shadow-xs"><option value={1}>Enero</option><option value={2}>Febrero</option><option value={3}>Marzo</option><option value={4}>Abril</option><option value={5}>Mayo</option><option value={6}>Junio</option><option value={7}>Julio</option><option value={8}>Agosto</option><option value={9}>Septiembre</option><option value={10}>Octubre</option><option value={11}>Noviembre</option><option value={12}>Diciembre</option></select></label>
-          <label className="text-sm font-semibold text-slate-700">Año<input type="number" min="2020" max="2100" value={year} onChange={(event) => setYear(Number(event.target.value) || INITIAL_YEAR)} className="mt-1 block min-h-10 w-24 rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 shadow-xs" /></label>
-          <button type="button" onClick={exportExcel} disabled={loading} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 font-semibold text-white shadow-xs hover:bg-emerald-800 disabled:opacity-50"><Download size={17} /> Exportar Excel</button>
-          <button type="button" onClick={loadReport} disabled={loading} aria-label="Actualizar reporte" className="min-h-10 rounded-md border border-slate-300 bg-white p-2.5 text-slate-800 shadow-xs hover:bg-slate-100 disabled:opacity-50"><RefreshCw size={17} /></button>
+
+        <div className="rounded-xl border-2 border-blue-200 bg-blue-50/80 p-3 shadow-sm sm:p-4">
+          <div className="mb-3">
+            <p className="text-sm font-extrabold uppercase tracking-wide text-blue-900">Filtros del reporte</p>
+            <p className="mt-0.5 text-xs font-medium text-blue-800">Elegí la empresa y, para ISEMAR, el predio correspondiente.</p>
+          </div>
+
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="min-w-52 flex-1 text-sm font-bold text-slate-800 sm:max-w-64">
+              Empresa
+              <select value={companyFilter} onChange={(event) => { setCompanyFilter(event.target.value); setLocationFilter('all') }} className="mt-1 block min-h-11 w-full rounded-lg border-2 border-blue-300 bg-white px-3 py-2.5 text-base font-semibold text-slate-950 shadow-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200">
+                <option value="all">Todas</option>
+                <option value="igarreta">Igarreta Maquinas SA</option>
+                <option value="isemar">ISEMAR</option>
+              </select>
+            </label>
+
+            <label className="min-w-52 flex-1 text-sm font-bold text-slate-800 sm:max-w-72">
+              Predio / sede
+              <select
+                value={locationFilter}
+                onChange={(event) => setLocationFilter(event.target.value)}
+                disabled={companyFilter !== 'isemar'}
+                className="mt-1 block min-h-11 w-full rounded-lg border-2 border-blue-300 bg-white px-3 py-2.5 text-base font-semibold text-slate-950 shadow-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500"
+              >
+                <option value="all">{companyFilter === 'isemar' ? 'Todos los predios' : 'Disponible al elegir ISEMAR'}</option>
+                {isemarLocationOptions.map((location) => <option key={location} value={location}>{location}</option>)}
+              </select>
+            </label>
+
+            <label className="text-sm font-bold text-slate-800">
+              Mes
+              <select value={month} onChange={(event) => setMonth(Number(event.target.value))} className="mt-1 block min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-950 shadow-sm">
+                <option value={1}>Enero</option><option value={2}>Febrero</option><option value={3}>Marzo</option><option value={4}>Abril</option><option value={5}>Mayo</option><option value={6}>Junio</option><option value={7}>Julio</option><option value={8}>Agosto</option><option value={9}>Septiembre</option><option value={10}>Octubre</option><option value={11}>Noviembre</option><option value={12}>Diciembre</option>
+              </select>
+            </label>
+
+            <label className="text-sm font-bold text-slate-800">
+              Año
+              <input type="number" min="2020" max="2100" value={year} onChange={(event) => setYear(Number(event.target.value) || INITIAL_YEAR)} className="mt-1 block min-h-11 w-24 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-950 shadow-sm" />
+            </label>
+
+            <button type="button" onClick={exportExcel} disabled={loading} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 font-bold text-white shadow-sm hover:bg-emerald-800 disabled:opacity-50"><Download size={17} /> Exportar Excel</button>
+            <button type="button" onClick={loadReport} disabled={loading} aria-label="Actualizar reporte" className="min-h-11 rounded-lg border border-slate-300 bg-white p-3 text-slate-800 shadow-sm hover:bg-slate-100 disabled:opacity-50"><RefreshCw size={17} /></button>
+          </div>
         </div>
       </header>
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
