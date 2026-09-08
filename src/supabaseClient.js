@@ -7,6 +7,7 @@ import { createCustomOptionsService } from './services/customOptions/customOptio
 import { createCompanyAdminService } from './services/companies/companyAdminService'
 import { createUsersService } from './services/users/usersService'
 import { createAnalyticsService } from './services/analytics/analyticsService'
+import { createAuditLogger } from './services/auditWriter'
 import { clearSupabaseStorage } from './utils/clearSupabaseStorage'
 export { supabase, clearSupabaseStorage }
 
@@ -139,40 +140,8 @@ export const auth = {
 // Funciones de base de datos
 import { Archive as ArchiveIcon } from 'lucide-react'
 
-// --- Auditoría básica (inserta registros en audit_logs) ---
-const logAudit = async ({
-  action,
-  details = '',
-  target_id = null,
-  target_email = null,
-  target_name = null,
-  metadata = null,
-  request_id = null
-}) => {
-  try {
-    const { data: { session } } = await supabase.auth.getSession()
-    const actor = session?.user
-    const payload = {
-      action,
-      details,
-      actor_id: actor?.id || null,
-      actor_email: actor?.email || null,
-      actor_name: actor?.user_metadata?.full_name || actor?.email || 'Administrador',
-      target_id,
-      target_email,
-      target_name,
-      metadata,
-      created_at: new Date().toISOString(),
-      request_id: request_id || null
-    }
-    // Idempotencia por request_id + action
-    await supabase.from('audit_logs').upsert([payload], { onConflict: 'request_id,action' })
-  } catch (err) {
-    if (import.meta.env.DEV) {
-      console.warn('[audit][logAudit] no se pudo registrar auditoría:', err?.message || err)
-    }
-  }
-}
+// Auditoría del cliente: siempre pasa por RPC; el actor se deriva de auth.uid().
+const logAudit = createAuditLogger(supabase)
 
 const menuService = createMenuService({
   supabase,
