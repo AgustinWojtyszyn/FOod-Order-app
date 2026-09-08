@@ -14,15 +14,6 @@ import {
   resolveEditOrderOptionsSlug
 } from '../../utils/orderEdit/editOrderCompany'
 
-const DEFAULT_MENU_ITEMS = [
-  { id: 1, name: 'Plato Principal 1', description: 'Delicioso plato principal' },
-  { id: 2, name: 'Plato Principal 2', description: 'Otro plato delicioso' },
-  { id: 3, name: 'Plato Principal 3', description: 'Plato especial del día' },
-  { id: 4, name: 'Plato Principal 4', description: 'Plato vegetariano' },
-  { id: 5, name: 'Plato Principal 5', description: 'Plato de la casa' },
-  { id: 6, name: 'Plato Principal 6', description: 'Plato recomendado' }
-]
-
 const resolveOrderCompanySlug = (order = {}) => {
   return normalizeCompanySlug(resolveEditOrderCompanySlug(order) || order?.company_slug || order?.company || order?.company_id || '')
 }
@@ -57,29 +48,21 @@ export const useEditOrderBootstrap = ({ order, user, navigate, isAdmin = false }
           : Promise.resolve({ data: [], error: null })
       ])
 
-      if (globalError && (!shouldFetchCompanyMenu || companyResult?.error)) {
-        console.error('Error fetching menu:', globalError)
+      if (globalError || companyResult?.error) {
+        if (globalError) console.error('Error fetching global menu:', globalError)
         if (companyResult?.error) console.error('Error fetching company menu:', companyResult.error)
-        setMenuItems(withGreifRefrigerioMenuItem({
-          companySlug: normalizedCompanySlug,
-          items: filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS)), normalizedCompanySlug)
-        }))
+        setMenuItems([])
         return
       }
 
-      if (globalError) console.error('Error fetching global menu:', globalError)
-      if (companyResult?.error) console.error('Error fetching company menu:', companyResult.error)
-
-      const mergedItems = mergeCompanyMenuItems(
-        globalError ? [] : (globalData || []),
-        companyResult?.error ? [] : (companyResult?.data || [])
-      )
+      const mergedItems = mergeCompanyMenuItems(globalData || [], companyResult?.data || [])
       setMenuItems(withGreifRefrigerioMenuItem({
         companySlug: normalizedCompanySlug,
         items: filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(mergedItems)), normalizedCompanySlug)
       }))
     } catch (err) {
       console.error('Error:', err)
+      setMenuItems([])
     }
   }, [order])
 
