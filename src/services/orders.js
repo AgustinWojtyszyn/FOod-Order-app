@@ -4,6 +4,15 @@ import { db, supabase } from '../supabaseClient'
 // The canonical order service is createOrdersService, exposed through db.
 const ORDER_USER_SELECT = '*, users(*)'
 const DELETED_USER_FALLBACK = 'Usuario eliminado'
+const OWNER_EDIT_FIELDS = [
+  'location',
+  'customer_name',
+  'customer_email',
+  'customer_phone',
+  'items',
+  'comments',
+  'custom_responses'
+]
 
 const normalizeOrderUserFallback = (order) => {
   if (!order || typeof order !== 'object') return order
@@ -32,6 +41,13 @@ const createRequestId = (prefix) => {
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`
   return `${prefix}-${random}`
 }
+
+const pickOwnerEditUpdates = (updates = {}) => OWNER_EDIT_FIELDS.reduce((result, field) => {
+  if (Object.prototype.hasOwnProperty.call(updates || {}, field)) {
+    result[field] = updates[field]
+  }
+  return result
+}, {})
 
 const getOrders = async (userId = null, options = {}) => {
   const {
@@ -101,12 +117,10 @@ const updateOrder = async (orderId, updates, { adminAudit = false, reason = null
     return { data, error }
   }
 
-  const { data, error } = await supabase
-    .from('orders')
-    .update({ ...(updates || {}), updated_at: new Date().toISOString() })
-    .eq('id', orderId)
-    .select()
-    .single()
+  const { data, error } = await supabase.rpc('update_own_pending_order', {
+    p_order_id: orderId,
+    p_updates: pickOwnerEditUpdates(updates)
+  })
 
   return { data, error }
 }
