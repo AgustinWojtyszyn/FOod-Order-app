@@ -1,5 +1,4 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
-import ExcelJS from 'exceljs'
 import { Download, RefreshCw, Search, X } from 'lucide-react'
 import { useAuthContext } from '../contexts/authContextValue'
 import { getIgarretaIsemarConsumptionOrders } from '../services/consumptionReportService'
@@ -12,6 +11,7 @@ import {
   resolveConsumptionLocationLabel,
   resolveConsumptionPersonName
 } from '../utils/consumptionReportCalculations'
+import { loadExcelJS } from '../utils/loadExcelJS'
 import LoadingState from '../components/ui/LoadingState'
 
 const pad = (value) => String(value).padStart(2, '0')
@@ -144,6 +144,7 @@ const ConsumptionReportPage = () => {
   }, [model.rows])
 
   const exportExcel = async () => {
+    const ExcelJS = await loadExcelJS()
     const workbook = new ExcelJS.Workbook()
     workbook.creator = 'ServiFood'
     workbook.created = new Date()
