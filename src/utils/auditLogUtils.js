@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs'
+import { loadExcelJS } from './loadExcelJS'
 
 const toLower = (value) => (value || '').toString().trim().toLowerCase()
 
@@ -247,6 +247,7 @@ export const exportAuditXlsx = async (rows = [], fileName = 'auditoria.xlsx') =>
   const safeRows = Array.isArray(rows) ? rows : []
   if (safeRows.length === 0) return false
 
+  const ExcelJS = await loadExcelJS()
   const workbook = new ExcelJS.Workbook()
   const sheet = workbook.addWorksheet('Auditoria')
   const headers = Object.keys(safeRows[0])
