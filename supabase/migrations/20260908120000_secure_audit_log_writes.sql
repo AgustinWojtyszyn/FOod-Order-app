@@ -1,70 +1,104 @@
 begin;
 
--- Client-side audit writes are only needed by current admin/company-admin
--- menu/role flows. Remove the historical policy that allowed every
--- authenticated user to insert arbitrary audit rows.
+-- Remove the historical policy/grant that allowed every authenticated user
+-- to insert arbitrary rows into audit_logs.
 drop policy if exists audit_logs_insert_auth on public.audit_logs;
 drop policy if exists audit_logs_insert_admin_context on public.audit_logs;
 
--- Always derive the actor identity server-side before RLS validates the row.
--- This prevents a client from impersonating another actor in audit_logs.
-create or replace function public.audit_log_set_verified_actor()
-returns trigger
+revoke insert, update, delete on table public.audit_logs from public;
+revoke insert, update, delete on table public.audit_logs from anon;
+revoke insert, update, delete on table public.audit_logs from authenticated;
+
+create or replace function public.log_audit(
+  p_action text,
+  p_details text default null,
+  p_target_id uuid default null,
+  p_target_email text default null,
+  p_target_name text default null,
+  p_metadata jsonb default null,
+  p_request_id text default null
+)
+returns uuid
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
 declare
+  v_uid uuid := auth.uid();
   v_actor public.users%rowtype;
+  v_action text := lower(trim(coalesce(p_action, '')));
+  v_request_id text := nullif(trim(coalesce(p_request_id, '')), '');
+  v_existing_id uuid;
+  v_log_id uuid;
 begin
-  -- Internal maintenance/migration writes without an auth context keep their
-  -- explicitly supplied actor. Authenticated application writes are verified.
-  if auth.uid() is null then
-    return new;
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  if not public.has_company_admin_access() then
+    raise exception 'not_authorized';
+  end if;
+
+  if v_action not in ('role_changed', 'menu_updated', 'menu_options_added') then
+    raise exception 'audit_action_not_allowed';
   end if;
 
   select *
   into v_actor
   from public.users
-  where id = auth.uid();
+  where id = v_uid;
 
   if v_actor.id is null then
     raise exception 'actor_not_found';
   end if;
 
-  new.actor_id := v_actor.id;
-  new.actor_email := v_actor.email;
-  new.actor_name := coalesce(nullif(trim(v_actor.full_name), ''), v_actor.email, 'Administrador');
-  new.created_at := now();
+  if v_request_id is not null then
+    select a.id
+    into v_existing_id
+    from public.audit_logs a
+    where a.request_id = v_request_id
+      and a.action = v_action
+    limit 1;
 
-  return new;
+    if v_existing_id is not null then
+      return v_existing_id;
+    end if;
+  end if;
+
+  insert into public.audit_logs (
+    action,
+    details,
+    actor_id,
+    actor_email,
+    actor_name,
+    target_id,
+    target_email,
+    target_name,
+    metadata,
+    request_id,
+    created_at
+  )
+  values (
+    v_action,
+    p_details,
+    v_actor.id,
+    v_actor.email,
+    coalesce(nullif(trim(v_actor.full_name), ''), v_actor.email, 'Administrador'),
+    p_target_id,
+    nullif(trim(coalesce(p_target_email, '')), ''),
+    nullif(trim(coalesce(p_target_name, '')), ''),
+    p_metadata,
+    v_request_id,
+    now()
+  )
+  returning id into v_log_id;
+
+  return v_log_id;
 end;
 $$;
 
-revoke all on function public.audit_log_set_verified_actor() from public;
-revoke all on function public.audit_log_set_verified_actor() from anon;
-revoke all on function public.audit_log_set_verified_actor() from authenticated;
-
-drop trigger if exists trg_audit_log_set_verified_actor on public.audit_logs;
-create trigger trg_audit_log_set_verified_actor
-before insert on public.audit_logs
-for each row
-execute function public.audit_log_set_verified_actor();
-
--- Keep the existing client audit helper working for legitimate admin flows,
--- but ordinary authenticated users can no longer create audit events.
--- Restrict direct client writes to the three actions currently emitted by
--- frontend logAudit helpers; sensitive order/remito/discount audit events are
--- created inside security-definer RPCs and do not depend on this policy.
-create policy audit_logs_insert_admin_context
-on public.audit_logs
-for insert
-to authenticated
-with check (
-  auth.uid() is not null
-  and actor_id = auth.uid()
-  and public.has_company_admin_access()
-  and action in ('role_changed', 'menu_updated', 'menu_options_added')
-);
+revoke all on function public.log_audit(text, text, uuid, text, text, jsonb, text) from public;
+revoke all on function public.log_audit(text, text, uuid, text, text, jsonb, text) from anon;
+grant execute on function public.log_audit(text, text, uuid, text, text, jsonb, text) to authenticated;
 
 commit;
