@@ -13,7 +13,16 @@ export const isTransientPermissionError = (error) => {
   const status = Number(error.status || error.code)
   if ([408, 429, 500, 502, 503, 504].includes(status)) return true
 
-  const message = String(error.message || error.name || error.code || error).toLowerCase()
+  const searchableErrorText = [
+    error.message,
+    error.name,
+    error.code,
+    String(error)
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+
   return [
     'permission_validation_timeout',
     'failed to fetch',
@@ -23,7 +32,7 @@ export const isTransientPermissionError = (error) => {
     'networkerror',
     'timeout',
     'timed out'
-  ].some((pattern) => message.includes(pattern))
+  ].some((pattern) => searchableErrorText.includes(pattern))
 }
 
 export const withPermissionTimeout = (promise, timeoutMs, createError = createPermissionTimeoutError) => {
