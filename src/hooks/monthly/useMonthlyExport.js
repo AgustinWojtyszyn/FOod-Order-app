@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs'
+import { loadExcelJS } from '../../utils/loadExcelJS'
 import { notifyInfo } from '../../utils/notice'
 import { formatDateDMY } from '../../utils/monthly/monthlyOrderFormatters'
 import {
@@ -328,6 +328,7 @@ export const useMonthlyExport = ({
   const handleExportExcel = async () => {
     if (!metrics || !metrics.empresas) return
     const model = createExportModel()
+    const ExcelJS = await loadExcelJS()
     const wb = new ExcelJS.Workbook()
     addSummarySheet(wb, model)
     const fileName = `panel-mensual-${dateRange.start || 'inicio'}-a-${dateRange.end || 'fin'}.xlsx`
@@ -340,6 +341,7 @@ export const useMonthlyExport = ({
       return
     }
     const model = createExportModel()
+    const ExcelJS = await loadExcelJS()
     const wb = new ExcelJS.Workbook()
     const ws = addDailySheet(wb, model)
     addMetadata(ws)
@@ -350,6 +352,7 @@ export const useMonthlyExport = ({
   const handleExportAllExcel = async () => {
     if (!metrics || !metrics.empresas) return
     const model = createExportModel()
+    const ExcelJS = await loadExcelJS()
     const wb = new ExcelJS.Workbook()
     addSummarySheet(wb, model)
     addDailySheet(wb, model)
