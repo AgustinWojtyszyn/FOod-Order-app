@@ -2,6 +2,7 @@ import { supabase, supabaseService, sanitizeQuery } from './supabase'
 import { handleError } from '../utils'
 import { USER_ROLES } from '../types'
 import { updateUserRoleWithRpc } from './users/roleUpdates'
+import { createAuditLogger } from './auditWriter'
 
 const PUBLIC_USER_COLUMNS = new Set(['full_name'])
 
@@ -9,38 +10,7 @@ const pickPublicUserColumns = (updates = {}) => Object.fromEntries(
   Object.entries(updates).filter(([column]) => PUBLIC_USER_COLUMNS.has(column))
 )
 
-const logAudit = async ({
-  action,
-  details = '',
-  target_id = null,
-  target_email = null,
-  target_name = null,
-  metadata = null,
-  request_id = null
-}) => {
-  try {
-    const { data: { session } } = await supabase.auth.getSession()
-    const actor = session?.user
-    const payload = {
-      action,
-      details,
-      actor_id: actor?.id || null,
-      actor_email: actor?.email || null,
-      actor_name: actor?.user_metadata?.full_name || actor?.email || 'Administrador',
-      target_id,
-      target_email,
-      target_name,
-      metadata,
-      created_at: new Date().toISOString(),
-      request_id: request_id || null
-    }
-    await supabase.from('audit_logs').upsert([payload], { onConflict: 'request_id,action' })
-  } catch (err) {
-    if (import.meta.env.DEV) {
-      console.warn('[audit][logAudit] no se pudo registrar auditoría:', err?.message || err)
-    }
-  }
-}
+const logAudit = createAuditLogger(supabase)
 
 class UsersService {
   // Obtener usuarios con cache
