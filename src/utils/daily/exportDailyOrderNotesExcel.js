@@ -1,4 +1,3 @@
-import ExcelJS from 'exceljs'
 import { db } from '../../supabaseClient'
 import logoUrl from '../../assets/servifood logo.jpg'
 import { getCompanyByLocationOrSlug } from '../../constants/companyConfig'
@@ -8,6 +7,7 @@ import {
   formatDateOnly,
   getOrderLocation
 } from './dailyOrdersExportModel'
+import { loadExcelJS } from '../loadExcelJS'
 import { notifyError, notifyInfo, notifySuccess } from '../notice'
 import { getUserFriendlyErrorMessage } from '../index'
 import {
@@ -1257,6 +1257,7 @@ export const remitoFromSnapshot = (snapshot = {}, fallback = {}) => {
 }
 
 export const buildRemitoWorkbook = async (remitos = []) => {
+  const ExcelJS = await loadExcelJS()
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'ServiFood'
   workbook.created = new Date()
@@ -1383,6 +1384,7 @@ export async function exportDailyOrderNotesExcel({
       })
     }
 
+    const ExcelJS = await loadExcelJS()
     const workbook = new ExcelJS.Workbook()
     workbook.creator = 'ServiFood'
     workbook.created = new Date()
