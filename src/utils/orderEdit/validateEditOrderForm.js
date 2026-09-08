@@ -1,4 +1,4 @@
-import { hasHiddenOrderMenuSelection } from '../order/menuDisplay'
+import { hasHiddenOrderMenuSelection, hasSyntheticFallbackMenuSelection } from '../order/menuDisplay'
 
 export const validateEditOrderForm = ({
   user,
@@ -25,6 +25,10 @@ export const validateEditOrderForm = ({
 
   const originalItems = Array.isArray(originalOrder?.items) ? originalOrder.items : []
   const preservesHiddenHistoricalItem = selectedItemsList?.length === 0 && hasHiddenOrderMenuSelection(originalItems)
+
+  if (hasSyntheticFallbackMenuSelection(selectedItemsList)) {
+    return { ok: false, error: 'El menú quedó desactualizado o no está disponible. Recargá la página e intentá nuevamente.' }
+  }
 
   if (!selectedItemsList || selectedItemsList.length === 0) {
     if (preservesHiddenHistoricalItem) return { ok: true, error: null }
