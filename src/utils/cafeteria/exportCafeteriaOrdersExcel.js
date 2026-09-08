@@ -1,6 +1,6 @@
-import ExcelJS from 'exceljs'
 import { CAFETERIA_PLANS } from '../../cafeteria/cafeteriaPlans'
 import { downloadWorkbook } from '../daily/dailyOrderCalculations'
+import { loadExcelJS } from '../loadExcelJS'
 import { notifyError, notifyInfo, notifySuccess } from '../notice'
 
 const normalizeOrderRow = (order) => {
@@ -53,6 +53,7 @@ export async function exportCafeteriaOrdersExcel(orders = [], companyFilter = 'a
       }
     })
 
+    const ExcelJS = await loadExcelJS()
     const workbook = new ExcelJS.Workbook()
     const ws = workbook.addWorksheet('Cafeteria')
     ws.columns = [
