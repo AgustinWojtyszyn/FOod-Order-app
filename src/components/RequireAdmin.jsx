@@ -116,7 +116,7 @@ export default function RequireAdmin({ children }) {
         <AccessDeniedScreen
           variant="validation-error"
           onRetry={retryPermissionValidation}
-          retrying={permissionLoading}
+          retrying={false}
         />
       )
     }
