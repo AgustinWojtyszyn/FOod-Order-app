@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { BarChart3 } from 'lucide-react'
-import ExcelJS from 'exceljs'
 import { ALL_COMPANY_LIST as COMPANY_LIST } from '../constants/companyConfig'
 import excelLogo from '../assets/logoexcel.png'
 import { useTrendsData } from '../hooks/analytics/useTrendsData'
@@ -8,6 +7,7 @@ import TrendsFilters from '../components/analytics/TrendsFilters'
 import TrendsSummaryCards from '../components/analytics/TrendsSummaryCards'
 import TrendsCharts, { RankingComparisonText } from '../components/analytics/TrendsCharts'
 import { buildRankingComparisonItems, COMPARISON_MODES, getComparisonRange } from '../utils/analytics/trendsHelpers'
+import { loadExcelJS } from '../utils/loadExcelJS'
 
 const getDefaultRange = () => {
   const now = new Date()
@@ -276,6 +276,7 @@ const TendenciasPage = () => {
   }
 
   const handleExport = async () => {
+    const ExcelJS = await loadExcelJS()
     const wb = new ExcelJS.Workbook()
     const summary = wb.addWorksheet('Resumen')
     summary.columns = [
