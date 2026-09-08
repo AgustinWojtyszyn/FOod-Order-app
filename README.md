@@ -201,4 +201,4 @@ curl -X POST "$FUNCTION_URL" \
 
 Interfaz principal del sistema de pedidos utilizada por los usuarios para seleccionar su menú diario.
 
-<img width="1920" height="4081" alt="screencapture-servifoodapp-site-order-ccp-2026-03-17-10_07_54" src="https://github.com/user-attachments/assets/fcb25a81-79cd-42a2-b555-1d64453f6e75" />
+<img width="1919" height="4512" alt="screencapture-servifoodapp-site-order-administracion-servifood-2026-09-08-10_10_26" src="https://github.com/user-attachments/assets/ccd822b0-3311-498f-8109-abb1c3185352" />"/>
