@@ -10,6 +10,14 @@ const IGARRETA_ISEMAR_SALAD_MENU_SLOT_INDEX = 4
 const IGARRETA_ISEMAR_CELIAC_DISH = 'Celíaco'
 const IGARRETA_ISEMAR_SALAD_DISH = 'Ensalada del día'
 const DIETA_COMPANY_SLUGS = new Set(['greif', 'placo', 'molinos'])
+const SYNTHETIC_FALLBACK_MENU = new Map([
+  [1, 'Delicioso plato principal'],
+  [2, 'Otro plato delicioso'],
+  [3, 'Plato especial del día'],
+  [4, 'Plato vegetariano'],
+  [5, 'Plato de la casa'],
+  [6, 'Plato recomendado']
+])
 
 const getMenuLabelByIndex = (index = 0) => (index === 0 ? 'Menú principal' : `Opción ${index}`)
 
@@ -27,6 +35,16 @@ const getSlotIndexFromTitle = (title = '') => {
   if (optionMatch) return Number(optionMatch[1])
   return null
 }
+
+const isSyntheticFallbackMenuItem = (item = {}) => {
+  const id = Number(item?.id)
+  if (!Number.isInteger(id) || !SYNTHETIC_FALLBACK_MENU.has(id)) return false
+  return normalizeSlotTitle(item?.name) === `plato principal ${id}` &&
+    normalizeSlotTitle(item?.description) === normalizeSlotTitle(SYNTHETIC_FALLBACK_MENU.get(id))
+}
+
+const hasSyntheticFallbackMenuSelection = (items = []) =>
+  (items || []).some(isSyntheticFallbackMenuItem)
 
 const getMenuDish = (item = {}, labelUsesTitle = false) => {
   const description = normalizeText(item.description)
@@ -229,13 +247,15 @@ const withCompanyMenuDisplay = (item = {}, companySlug = '', fallbackIndex = nul
   }
 }
 
-const filterOrderableMenuItems = (items = [], companySlug = '') =>
-  (isIgarretaIsemarCompany(companySlug) ? withIgarretaIsemarMenuItems(withMenuSlotIndex(items)) : (items || []))
+const filterOrderableMenuItems = (items = [], companySlug = '') => {
+  const safeItems = (items || []).filter((item) => !isSyntheticFallbackMenuItem(item))
+  return (isIgarretaIsemarCompany(companySlug) ? withIgarretaIsemarMenuItems(withMenuSlotIndex(safeItems)) : safeItems)
     .filter((item, index) => {
       if (isIgarretaIsemarCompany(companySlug)) return !isHiddenIgarretaMenuSlot(item, index) && isMenuItemEnabledForCompany(item, companySlug, index)
       return !isHiddenOrderMenuSlot(item, companySlug) && isMenuItemEnabledForCompany(item, companySlug, index)
     })
     .map((item, index) => withCompanyMenuDisplay(item, companySlug, index))
+}
 
 const hasHiddenOrderMenuSelection = (items = [], companySlug = '') =>
   (items || []).some((item) => isHiddenOrderMenuSlot(item, companySlug))
@@ -249,6 +269,8 @@ export {
   getSlotIndexFromTitle,
   filterOrderableMenuItems,
   hasHiddenOrderMenuSelection,
+  hasSyntheticFallbackMenuSelection,
+  isSyntheticFallbackMenuItem,
   isHiddenOrderMenuSlot,
   withMenuSlotIndex,
   isMainMenuSlot
