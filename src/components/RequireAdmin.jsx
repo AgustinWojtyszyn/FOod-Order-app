@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuthContext } from '../contexts/authContextValue'
 import serviFoodLogo from '../assets/servifood_logo_white_text_HQ.png'
 
-const PERMISSION_VALIDATION_TIMEOUT_MS = 7000
+const PERMISSION_VALIDATION_TIMEOUT_MS = 12000
 
 const AdminLoader = () => (
   <div
@@ -17,7 +17,7 @@ const AdminLoader = () => (
   </div>
 )
 
-const AccessDeniedScreen = ({ variant = 'denied' }) => {
+const AccessDeniedScreen = ({ variant = 'denied', onRetry = null, retrying = false }) => {
   const isValidationError = variant === 'validation-error'
 
   return (
@@ -41,7 +41,7 @@ const AccessDeniedScreen = ({ variant = 'denied' }) => {
           </h1>
           <p className="mt-4 text-base leading-7 text-white/90">
             {isValidationError
-              ? 'No pudimos validar tus permisos. Volvé al inicio e intentá nuevamente.'
+              ? 'No pudimos validar tus permisos. Podés reintentar sin cerrar sesión.'
               : 'No tenés permisos para acceder a esta sección.'}
           </p>
           {!isValidationError && (
@@ -50,13 +50,26 @@ const AccessDeniedScreen = ({ variant = 'denied' }) => {
             </p>
           )}
 
-          <Link
-            to="/dashboard"
-            replace
-            className="mt-7 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-black/15 transition hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-900 sm:w-auto"
-          >
-            Ir al dashboard
-          </Link>
+          <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            {isValidationError && typeof onRetry === 'function' && (
+              <button
+                type="button"
+                onClick={onRetry}
+                disabled={retrying}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-emerald-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-black/15 transition hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-70 sm:w-auto"
+              >
+                {retrying ? 'Validando...' : 'Reintentar permisos'}
+              </button>
+            )}
+
+            <Link
+              to="/dashboard"
+              replace
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-black/15 transition hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-900 sm:w-auto"
+            >
+              Ir al dashboard
+            </Link>
+          </div>
         </section>
       </main>
     </div>
@@ -64,7 +77,17 @@ const AccessDeniedScreen = ({ variant = 'denied' }) => {
 }
 
 export default function RequireAdmin({ children }) {
-  const { user, loading, permissionLoading, isAdmin, isCompanyAdmin, canAccessAdminPanel, canViewConsumptionReport, permissionError } = useAuthContext()
+  const {
+    user,
+    loading,
+    permissionLoading,
+    isAdmin,
+    isCompanyAdmin,
+    canAccessAdminPanel,
+    canViewConsumptionReport,
+    permissionError,
+    refreshPermissions
+  } = useAuthContext()
   const location = useLocation()
   const [validationTimedOut, setValidationTimedOut] = useState(false)
   const isValidating = loading || permissionLoading
@@ -82,9 +105,20 @@ export default function RequireAdmin({ children }) {
     return () => window.clearTimeout(timeoutId)
   }, [isValidating])
 
+  const retryPermissionValidation = async () => {
+    setValidationTimedOut(false)
+    await refreshPermissions?.()
+  }
+
   if (isValidating) {
     if (validationTimedOut) {
-      return <AccessDeniedScreen variant="validation-error" />
+      return (
+        <AccessDeniedScreen
+          variant="validation-error"
+          onRetry={retryPermissionValidation}
+          retrying={permissionLoading}
+        />
+      )
     }
 
     return <AdminLoader />
@@ -96,7 +130,13 @@ export default function RequireAdmin({ children }) {
   }
 
   if (permissionError) {
-    return <AccessDeniedScreen variant="validation-error" />
+    return (
+      <AccessDeniedScreen
+        variant="validation-error"
+        onRetry={retryPermissionValidation}
+        retrying={permissionLoading}
+      />
+    )
   }
 
   const isConsumptionReportPath = location.pathname === '/consumption-report'
