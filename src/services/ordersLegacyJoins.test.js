@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockState = vi.hoisted(() => ({
   calls: [],
-  queue: []
+  queue: [],
+  dbOrdersResult: { data: [], error: null }
 }))
 
 class QueryBuilder {
@@ -50,25 +51,38 @@ class QueryBuilder {
   }
 }
 
-vi.mock('./supabase', () => ({
+vi.mock('../supabaseClient', () => ({
   supabase: {
     from(table) {
       mockState.calls.push(['from', table])
       return new QueryBuilder(mockState.queue.shift() || { data: [], error: null })
+    },
+    rpc(name, args) {
+      mockState.calls.push(['rpc', name, args])
+      return Promise.resolve({ data: null, error: null })
     }
   },
-  supabaseService: {
-    cachedQuery: vi.fn((_key, queryFn) => queryFn()),
-    withRetry: vi.fn((operation) => operation()),
-    invalidateCache: vi.fn()
-  },
-  sanitizeQuery: vi.fn((value) => value),
-  instrumentRpc: vi.fn()
-}))
-
-vi.mock('./users', () => ({
-  usersService: {
-    getUserById: vi.fn()
+  db: {
+    getOrders(...args) {
+      mockState.calls.push(['db.getOrders', ...args])
+      return Promise.resolve(mockState.dbOrdersResult)
+    },
+    createOrder(...args) {
+      mockState.calls.push(['db.createOrder', ...args])
+      return Promise.resolve({ data: null, error: null })
+    },
+    updateOrderStatus(...args) {
+      mockState.calls.push(['db.updateOrderStatus', ...args])
+      return Promise.resolve({ data: null, error: null })
+    },
+    deleteOrder(...args) {
+      mockState.calls.push(['db.deleteOrder', ...args])
+      return Promise.resolve({ data: null, error: null })
+    },
+    deleteArchivedOrders(...args) {
+      mockState.calls.push(['db.deleteArchivedOrders', ...args])
+      return Promise.resolve({ data: null, error: null })
+    }
   }
 }))
 
@@ -102,13 +116,33 @@ const missingProfileOrder = {
   users: null
 }
 
-describe('legacy orders user joins', () => {
+describe('orders canonical compatibility facade', () => {
   beforeEach(() => {
     mockState.calls = []
     mockState.queue = []
+    mockState.dbOrdersResult = { data: [], error: null }
   })
 
-  it('lista pedidos con relacion de usuario opcional sin excluir huerfanos', async () => {
+  it('delega la lista normal al servicio canonico db', async () => {
+    mockState.dbOrdersResult = { data: [orderWithUser], error: null }
+
+    const result = await ordersService.getOrders('user-1', {
+      status: 'pending',
+      deliveryDate: '2026-09-08',
+      service: 'lunch',
+      limit: 20
+    })
+
+    expect(mockState.calls).toContainEqual([
+      'db.getOrders',
+      'user-1',
+      { status: 'pending', deliveryDate: '2026-09-08', service: 'lunch', limit: 20 }
+    ])
+    expect(mockState.calls.some(([method]) => method === 'from')).toBe(false)
+    expect(result.data).toHaveLength(1)
+  })
+
+  it('mantiene el join opcional solo para compatibilidad includeUserData', async () => {
     mockState.queue = [{ data: [orderWithUser, orphanOrder, missingProfileOrder], error: null }]
 
     const result = await ordersService.getOrders(null, {
@@ -117,8 +151,7 @@ describe('legacy orders user joins', () => {
       deliveryDate: '2026-07-20',
       service: 'lunch',
       limit: 25,
-      offset: 0,
-      force: true
+      offset: 0
     })
 
     expect(mockState.calls).toContainEqual(['select', '*, users(*)'])
@@ -142,7 +175,7 @@ describe('legacy orders user joins', () => {
     })
   })
 
-  it('obtiene detalle editable de pedido huerfano sin fallback de consulta base', async () => {
+  it('obtiene detalle editable de pedido huerfano', async () => {
     mockState.queue = [{ data: orphanOrder, error: null }]
 
     const result = await ordersService.getOrderById('orphan-order')
