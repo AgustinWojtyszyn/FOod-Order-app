@@ -4,39 +4,57 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation }
 import SplashScreen from './components/SplashScreen'
 import './styles/app.css'
 
-// Importaciones inmediatas (críticas para la carga inicial)
+// Importaciones inmediatas: solo el camino crítico de inicio y navegación diaria.
 import Layout from './components/Layout'
 import Login from './components/Login'
 import LandingPage from './components/LandingPage'
 import { useScreenMetrics } from './hooks/useScreenMetrics'
-import AdminPanel from './components/AdminPanel'
 import Dashboard from './components/Dashboard'
-import DailyOrders from './components/DailyOrders'
 import OrderCompanySelector from './components/OrderCompanySelector'
 import NoticeHost from './components/NoticeHost'
 import ConfirmHost from './components/ConfirmHost'
 import RequireAdmin from './components/RequireAdmin'
 import InstallAppButton from './components/InstallAppButton'
-import CafeteriaDashboardPage from './components/cafeteria/CafeteriaDashboardPage'
-import TendenciasPage from './pages/TendenciasPage'
-import ConsumptionReportPage from './pages/ConsumptionReportPage'
+
+// Loaders reutilizables: permiten lazy loading y precarga ociosa sin meter
+// estas pantallas pesadas en el bundle inicial.
+const loadOrderForm = () => import('./components/OrderForm')
+const loadAdminPanel = () => import('./components/AdminPanel')
+const loadDailyOrders = () => import('./components/DailyOrders')
+const loadCafeteriaDashboardPage = () => import('./components/cafeteria/CafeteriaDashboardPage')
+const loadTendenciasPage = () => import('./pages/TendenciasPage')
+const loadConsumptionReportPage = () => import('./pages/ConsumptionReportPage')
 
 // Lazy loading de componentes (carga diferida)
 const Register = lazy(() => import('./components/Register'))
 const ForgotPassword = lazy(() => import('./components/ForgotPassword'))
 const ResetPassword = lazy(() => import('./components/ResetPassword'))
 const AuthCallback = lazy(() => import('./pages/AuthCallback'))
-const OrderForm = lazy(() => import('./components/OrderForm'))
+const OrderForm = lazy(loadOrderForm)
 const EditOrderForm = lazy(() => import('./components/EditOrderForm'))
 const Profile = lazy(() => import('./components/Profile'))
 const MonthlyPanel = lazy(() => import('./components/MonthlyPanel'))
 const AuditLogs = lazy(() => import('./components/AuditLogs'))
 const OrderDetails = lazy(() => import('./components/OrderDetails'))
 const OrderLabelsPage = lazy(() => import('./components/OrderLabelsPage'))
+const CafeteriaDashboardPage = lazy(loadCafeteriaDashboardPage)
 const CafeteriaNewOrderPage = lazy(() => import('./components/cafeteria/CafeteriaNewOrderPage'))
 const CafeteriaCurrentOrderPage = lazy(() => import('./components/cafeteria/CafeteriaCurrentOrderPage'))
 const CafeteriaSuccessPage = lazy(() => import('./components/cafeteria/CafeteriaSuccessPage'))
+const AdminPanel = lazy(loadAdminPanel)
+const DailyOrders = lazy(loadDailyOrders)
+const TendenciasPage = lazy(loadTendenciasPage)
 const TotalizerPage = lazy(() => import('./pages/TotalizerPage'))
+const ConsumptionReportPage = lazy(loadConsumptionReportPage)
+
+const IDLE_ROUTE_PRELOADERS = [
+  loadOrderForm,
+  loadDailyOrders,
+  loadAdminPanel,
+  loadConsumptionReportPage,
+  loadTendenciasPage,
+  loadCafeteriaDashboardPage
+]
 
 const ADMIN_ROUTE_PATHS = [
   '/cafeteria',
@@ -169,6 +187,52 @@ const RouteSwitch = ({ user, loading }) => {
 
 function App() {
   const { user, loading } = useAuthContext()
+
+  // Una vez que la app crítica ya cargó, calentamos en segundo plano las rutas
+  // más probables. No bloquea el primer render y se desactiva en conexiones
+  // con ahorro de datos o muy lentas.
+  useEffect(() => {
+    if (loading || !user || typeof window === 'undefined') return undefined
+
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection
+    const shouldAvoidBackgroundPreload = connection?.saveData || /(^|-)2g$/.test(connection?.effectiveType || '')
+    if (shouldAvoidBackgroundPreload) return undefined
+
+    let cancelled = false
+    let idleId = null
+    let timeoutId = null
+    let index = 0
+
+    const scheduleNext = () => {
+      if (cancelled || index >= IDLE_ROUTE_PRELOADERS.length) return
+
+      const run = () => {
+        if (cancelled || index >= IDLE_ROUTE_PRELOADERS.length) return
+        const preload = IDLE_ROUTE_PRELOADERS[index]
+        index += 1
+        Promise.resolve(preload()).catch(() => {})
+        scheduleNext()
+      }
+
+      if ('requestIdleCallback' in window) {
+        idleId = window.requestIdleCallback(run, { timeout: 3500 })
+      } else {
+        timeoutId = window.setTimeout(run, 1200)
+      }
+    }
+
+    scheduleNext()
+
+    return () => {
+      cancelled = true
+      if (idleId !== null && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(idleId)
+      }
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [loading, user])
 
   useEffect(() => {
     if (!import.meta.env.DEV) return
