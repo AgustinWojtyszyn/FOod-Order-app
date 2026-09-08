@@ -1,8 +1,16 @@
 -- Secure owner edits for pending orders.
 -- Normal users keep the existing 15-minute edit window, but edits now go through
 -- a SECURITY DEFINER RPC with an explicit whitelist of user-editable fields.
+-- Direct owner UPDATE policies are removed so a crafted PostgREST request cannot
+-- mutate administrative metadata that was added after the original edit trigger.
 
 begin;
+
+-- Preserve the admin-only UPDATE policy, but remove every historical owner UPDATE
+-- policy. Owner edits continue only through update_own_pending_order().
+drop policy if exists orders_update_owner_or_admin on public.orders;
+drop policy if exists orders_update_owner_pending_within_window on public.orders;
+drop policy if exists orders_update_owner_pending_edit_window on public.orders;
 
 create or replace function public.update_own_pending_order(
   p_order_id uuid,
@@ -27,6 +35,7 @@ declare
     'custom_responses'
   ];
   v_unknown_key text;
+  v_new_total integer;
 begin
   if v_uid is null then
     raise exception 'not_authenticated';
@@ -72,29 +81,45 @@ begin
     raise exception 'order_update_window_expired';
   end if;
 
+  if v_updates ? 'items' then
+    if jsonb_typeof(v_updates->'items') <> 'array' then
+      raise exception 'order_items_must_be_array';
+    end if;
+
+    select coalesce(sum(
+      case
+        when jsonb_typeof(item) = 'object'
+          and nullif(item->>'quantity', '') ~ '^[0-9]+$'
+          then greatest((item->>'quantity')::integer, 0)
+        when jsonb_typeof(item) = 'object' then 1
+        else 0
+      end
+    ), 0)::integer
+    into v_new_total
+    from jsonb_array_elements(v_updates->'items') as item;
+
+    -- The existing edit flow changes the selected item, not the ordered quantity.
+    -- Keeping total_items immutable also remains compatible with the existing
+    -- enforce_safe_order_owner_update trigger.
+    if v_new_total <> coalesce(v_order.total_items, 0) then
+      raise exception 'order_update_quantity_not_allowed';
+    end if;
+  end if;
+
+  if v_updates ? 'custom_responses'
+     and jsonb_typeof(v_updates->'custom_responses') <> 'array' then
+    raise exception 'order_custom_responses_must_be_array';
+  end if;
+
   update public.orders
   set
     location = case when v_updates ? 'location' then nullif(v_updates->>'location', '') else location end,
     customer_name = case when v_updates ? 'customer_name' then nullif(v_updates->>'customer_name', '') else customer_name end,
     customer_email = case when v_updates ? 'customer_email' then nullif(v_updates->>'customer_email', '') else customer_email end,
     customer_phone = case when v_updates ? 'customer_phone' then nullif(v_updates->>'customer_phone', '') else customer_phone end,
-    items = case when v_updates ? 'items' then coalesce(v_updates->'items', '[]'::jsonb) else items end,
+    items = case when v_updates ? 'items' then v_updates->'items' else items end,
     comments = case when v_updates ? 'comments' then nullif(v_updates->>'comments', '') else comments end,
-    custom_responses = case when v_updates ? 'custom_responses' then coalesce(v_updates->'custom_responses', '[]'::jsonb) else custom_responses end,
-    total_items = case
-      when v_updates ? 'items' then (
-        select coalesce(sum(
-          case
-            when jsonb_typeof(item) = 'object'
-              and nullif(item->>'quantity', '') ~ '^[0-9]+$'
-              then greatest((item->>'quantity')::integer, 0)
-            else 0
-          end
-        ), 0)::integer
-        from jsonb_array_elements(coalesce(v_updates->'items', '[]'::jsonb)) as item
-      )
-      else total_items
-    end,
+    custom_responses = case when v_updates ? 'custom_responses' then v_updates->'custom_responses' else custom_responses end,
     updated_at = now()
   where id = p_order_id
   returning * into v_order;
