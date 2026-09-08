@@ -10,15 +10,6 @@ import { getTomorrowISOInTimeZone } from '../utils/dateUtils'
 import { withGreifRefrigerioMenuItem } from '../utils/order/greifDefaultSnack'
 import { getMenuBeverageTitle, hasFruitDessertChoiceRules, isIgarretaIsemarCompany, requiresMenuBeverageChoice, shouldHideIgarretaIsemarOption } from '../utils/order/companySpecialRules'
 
-const DEFAULT_MENU_ITEMS = [
-  { id: 1, name: 'Plato Principal 1', description: 'Delicioso plato principal' },
-  { id: 2, name: 'Plato Principal 2', description: 'Otro plato delicioso' },
-  { id: 3, name: 'Plato Principal 3', description: 'Plato especial del día' },
-  { id: 4, name: 'Plato Principal 4', description: 'Plato vegetariano' },
-  { id: 5, name: 'Plato Principal 5', description: 'Plato de la casa' },
-  { id: 6, name: 'Plato Principal 6', description: 'Plato recomendado' }
-]
-
 const filterByMealScope = (options = [], meal) =>
   (options || []).filter(opt => {
     const scope = opt?.meal_scope || (opt?.dinner_only ? 'dinner' : 'both')
@@ -188,29 +179,21 @@ const useOrderBootstrap = ({
           : Promise.resolve({ data: [], error: null })
       ])
 
-      if (globalError && (!shouldFetchCompanyMenu || companyResult?.error)) {
-        console.error('Error fetching menu:', globalError)
+      if (globalError || companyResult?.error) {
+        if (globalError) console.error('Error fetching global menu:', globalError)
         if (companyResult?.error) console.error('Error fetching company menu:', companyResult.error)
-        setMenuItems(withGreifRefrigerioMenuItem({
-          companySlug: normalizedCompanySlug,
-          items: filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(DEFAULT_MENU_ITEMS)), companyConfig || normalizedCompanySlug)
-        }))
+        setMenuItems([])
         return
       }
 
-      if (globalError) console.error('Error fetching global menu:', globalError)
-      if (companyResult?.error) console.error('Error fetching company menu:', companyResult.error)
-
-      const mergedItems = mergeCompanyMenuItems(
-        globalError ? [] : (globalData || []),
-        companyResult?.error ? [] : (companyResult?.data || [])
-      )
+      const mergedItems = mergeCompanyMenuItems(globalData || [], companyResult?.data || [])
       setMenuItems(withGreifRefrigerioMenuItem({
         companySlug: normalizedCompanySlug,
         items: filterOrderableMenuItems(withMenuSlotIndex(sortMenuItems(mergedItems)), companyConfig || normalizedCompanySlug)
       }))
     } catch (err) {
       console.error('Error:', err)
+      setMenuItems([])
     }
   }, [companyConfig, companyOptionsSlug, rawCompanySlug, setMenuItems])
 
@@ -361,21 +344,16 @@ const useOrderBootstrap = ({
           ? db.getMenuItemsByDate(deliveryDate, normalizedCompanySlug)
           : Promise.resolve({ data: [], error: null })
       ])
-      if (globalLunchMenuError && (!shouldFetchCompanyMenu || companyLunchMenuResult?.error)) {
-        console.error('Error fetching base menu for dinner:', globalLunchMenuError)
+
+      if (globalLunchMenuError || companyLunchMenuResult?.error) {
+        if (globalLunchMenuError) console.error('Error fetching global base menu for dinner:', globalLunchMenuError)
         if (companyLunchMenuResult?.error) console.error('Error fetching company base menu for dinner:', companyLunchMenuResult.error)
         setDinnerMenuItems([])
         setDinnerMenuSpecial(null)
         return
       }
 
-      if (globalLunchMenuError) console.error('Error fetching global base menu for dinner:', globalLunchMenuError)
-      if (companyLunchMenuResult?.error) console.error('Error fetching company base menu for dinner:', companyLunchMenuResult.error)
-
-      const mergedLunchMenu = mergeCompanyMenuItems(
-        globalLunchMenuError ? [] : (globalLunchMenuData || []),
-        companyLunchMenuResult?.error ? [] : (companyLunchMenuResult?.data || [])
-      )
+      const mergedLunchMenu = mergeCompanyMenuItems(globalLunchMenuData || [], companyLunchMenuResult?.data || [])
       const normalizedLunchMenu = filterOrderableMenuItems(
         withMenuSlotIndex(sortMenuItems(mergedLunchMenu)),
         companyConfig || normalizedCompanySlug
