@@ -249,6 +249,8 @@ const withCompanyMenuDisplay = (item = {}, companySlug = '', fallbackIndex = nul
 
 const filterOrderableMenuItems = (items = [], companySlug = '') => {
   const safeItems = (items || []).filter((item) => !isSyntheticFallbackMenuItem(item))
+  if (safeItems.length === 0) return []
+
   return (isIgarretaIsemarCompany(companySlug) ? withIgarretaIsemarMenuItems(withMenuSlotIndex(safeItems)) : safeItems)
     .filter((item, index) => {
       if (isIgarretaIsemarCompany(companySlug)) return !isHiddenIgarretaMenuSlot(item, index) && isMenuItemEnabledForCompany(item, companySlug, index)
