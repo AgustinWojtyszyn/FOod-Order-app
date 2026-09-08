@@ -21,12 +21,12 @@ const userServiceSources = [
 ].join('\n')
 
 describe('user services anti-regression guards', () => {
-  it('mantiene una unica implementacion canonica de cambio de rol', () => {
+  it('mantiene el cambio de rol en la implementacion canonica', () => {
     expect(usersServiceSource).toContain('updateUserRoleWithRpc({')
-    expect(legacyUsersSource).toContain('updateUserRoleWithRpc({')
     expect(roleUpdatesSource).toContain("rpc('admin_update_user_role'")
-    expect(usersServiceSource).not.toContain("supabase.rpc('admin_update_user_role'")
-    expect(legacyUsersSource).not.toContain("supabase.rpc('admin_update_user_role'")
+    expect(legacyUsersSource).toContain('db.updateUserRole(...args)')
+    expect(legacyUsersSource).not.toContain('updateUserRoleWithRpc({')
+    expect(legacyUsersSource).not.toContain('class UsersService')
   })
 
   it('no reintroduce updates directos de role en servicios de usuarios', () => {
@@ -34,8 +34,11 @@ describe('user services anti-regression guards', () => {
     expect(userServiceSources).not.toMatch(/\.update\(\s*\{[^}]*\brole\b/)
   })
 
-  it('getUserById usa columnas explicitas y no select star', () => {
+  it('el facade legacy solo conserva el lookup puntual de usuario', () => {
     expect(legacyUsersSource).toContain(".select('id, email, full_name, role, created_at, email_confirmed_at')")
+    expect(legacyUsersSource).toContain('db.getAdminAccessContext(...args)')
+    expect(legacyUsersSource).toContain('db.deleteUser(...args)')
+    expect(legacyUsersSource).not.toContain('supabaseService')
     expect(legacyUsersSource).not.toContain(".select('*')")
   })
 
