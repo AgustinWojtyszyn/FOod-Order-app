@@ -2,24 +2,16 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { authService } from '../services/auth'
 import { usersService } from '../services/users'
 import { setTelemetryAuthState } from '../services/supabase'
+import {
+  createPermissionTimeoutError,
+  fetchPermissionAccessContext,
+  withPermissionTimeout
+} from '../utils/authPermissionValidation'
 
 const ROLE_VALIDATION_TIMEOUT_MS = 7000
-
-const createPermissionTimeoutError = () => new Error('No pudimos validar tus permisos a tiempo.')
-
-const withTimeout = (promise, timeoutMs, createError) => {
-  let timeoutId
-
-  const timeoutPromise = new Promise((_, reject) => {
-    timeoutId = window.setTimeout(() => {
-      reject(createError())
-    }, timeoutMs)
-  })
-
-  return Promise.race([promise, timeoutPromise]).finally(() => {
-    window.clearTimeout(timeoutId)
-  })
-}
+const ACCESS_CONTEXT_TIMEOUT_MS = 5000
+const ACCESS_CONTEXT_RETRY_ATTEMPTS = 2
+const ACCESS_CONTEXT_RETRY_DELAY_MS = 350
 
 export const useAuth = () => {
   const [user, setUser] = useState(null)
@@ -47,7 +39,10 @@ export const useAuth = () => {
   const validateUserRole = useCallback(async (authUser) => {
     const requestId = roleRequestIdRef.current + 1
     roleRequestIdRef.current = requestId
-    if (!mountedRef.current) return
+    if (!mountedRef.current) {
+      return { data: null, error: null, cancelled: true }
+    }
+
     setPermissionLoading(true)
     setPermissionError(null)
     setIsAdmin(false)
@@ -62,39 +57,49 @@ export const useAuth = () => {
       if (import.meta.env.DEV) {
         console.log('[Auth] validateUserRole start', authUser?.id)
       }
+
       let roleFromDb = null
       let roleError = null
       let accessContext = null
+      let accessContextError = null
+      let accessContextAttempts = 0
 
       if (authUser?.id) {
-        try {
-          const { data, error } = await withTimeout(
-            usersService.getUserById(authUser.id),
-            ROLE_VALIDATION_TIMEOUT_MS,
-            createPermissionTimeoutError
-          )
-          roleError = error || null
-          roleFromDb = data?.role || null
-        } catch (err) {
-          roleError = err
-          if (import.meta.env.DEV) {
-            console.warn('[Auth][role-debug] error fetching role from db', err)
+        const roleRequest = withPermissionTimeout(
+          usersService.getUserById(authUser.id),
+          ROLE_VALIDATION_TIMEOUT_MS,
+          createPermissionTimeoutError
+        )
+          .then(({ data, error }) => ({ data: data || null, error: error || null }))
+          .catch((error) => ({ data: null, error }))
+
+        const accessContextRequest = fetchPermissionAccessContext(
+          () => usersService.getAdminAccessContext(),
+          {
+            attempts: ACCESS_CONTEXT_RETRY_ATTEMPTS,
+            timeoutMs: ACCESS_CONTEXT_TIMEOUT_MS,
+            retryDelayMs: ACCESS_CONTEXT_RETRY_DELAY_MS
           }
+        )
+
+        const [roleResult, accessResult] = await Promise.all([
+          roleRequest,
+          accessContextRequest
+        ])
+
+        roleError = roleResult.error || null
+        roleFromDb = roleResult.data?.role || null
+        accessContextError = accessResult.error || null
+        accessContext = accessResult.data || null
+        accessContextAttempts = accessResult.attempts || 0
+
+        if (roleError && import.meta.env.DEV) {
+          console.warn('[Auth][role-debug] error fetching role from db', roleError)
         }
 
-        try {
-          const { data, error } = await withTimeout(
-            usersService.getAdminAccessContext(),
-            ROLE_VALIDATION_TIMEOUT_MS,
-            createPermissionTimeoutError
-          )
-          if (!error) accessContext = data || null
-        } catch (err) {
-          if (import.meta.env.DEV) {
-            console.warn('[Auth][role-debug] error fetching admin access context', err)
-          }
+        if (accessContextError && import.meta.env.DEV) {
+          console.warn('[Auth][role-debug] error fetching admin access context', accessContextError)
         }
-
       }
 
       const normalizedRole = roleFromDb || null
@@ -110,11 +115,16 @@ export const useAuth = () => {
         id: authUser?.id,
         email: authUser?.email,
         roleFromDb,
+        roleError,
+        accessContextAttempts,
+        accessContextError,
         app_metadata: authUser?.app_metadata,
         user_metadata: authUser?.user_metadata
       })
 
-      if (!mountedRef.current || roleRequestIdRef.current !== requestId) return
+      if (!mountedRef.current || roleRequestIdRef.current !== requestId) {
+        return { data: null, error: null, cancelled: true }
+      }
 
       setUser((prev) => (prev ? { ...prev, ...authUser, role: normalizedRole } : { ...authUser, role: normalizedRole }))
       setIsAdmin(isAdminRole)
@@ -124,7 +134,10 @@ export const useAuth = () => {
       setCanManageLateExtraHistory(canManageLateHistory)
       setCanManageOrderDiscounts(canManageDiscounts)
       setAdminCompanies(contextCompanies)
-      setPermissionError(roleError)
+
+      // Access context is the canonical source for protected-route permissions.
+      // A failure here must never be interpreted as "the user has no permission".
+      setPermissionError(accessContextError)
 
       logRoleDebug('computed flags', {
         isAdmin: isAdminRole,
@@ -134,11 +147,28 @@ export const useAuth = () => {
         canManageLateExtraHistory: canManageLateHistory,
         canManageOrderDiscounts: canManageDiscounts,
         adminCompanies: contextCompanies,
-        permissionError: roleError
+        permissionError: accessContextError
       })
+
+      return {
+        data: {
+          user: authUser,
+          isAdmin: isAdminRole,
+          isCompanyAdmin: isCompanyAdminRole,
+          canViewConsumptionReport: canViewConsumption,
+          canCreateLateAdminExtraOrder: canCreateLateExtra,
+          canManageLateExtraHistory: canManageLateHistory,
+          canManageOrderDiscounts: canManageDiscounts,
+          adminCompanies: contextCompanies
+        },
+        error: accessContextError
+      }
     } catch (error) {
       console.error('Error validating user role:', error)
-      if (!mountedRef.current || roleRequestIdRef.current !== requestId) return
+      if (!mountedRef.current || roleRequestIdRef.current !== requestId) {
+        return { data: null, error, cancelled: true }
+      }
+
       setUser((prev) => prev || authUser)
       setIsAdmin(false)
       setIsCompanyAdmin(false)
@@ -148,6 +178,7 @@ export const useAuth = () => {
       setCanManageOrderDiscounts(false)
       setAdminCompanies([])
       setPermissionError(error)
+      return { data: null, error }
     } finally {
       if (mountedRef.current && roleRequestIdRef.current === requestId) {
         setPermissionLoading(false)
@@ -245,16 +276,16 @@ export const useAuth = () => {
     initializeAuth()
 
     // Listener para cambios de autenticación
-    const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = authService.onAuthStateChange(async (event, nextSession) => {
       if (import.meta.env.DEV) {
-        console.log('[Auth] onAuthStateChange', event, session ? 'has session' : 'no session')
+        console.log('[Auth] onAuthStateChange', event, nextSession ? 'has session' : 'no session')
       }
-      if (event === 'SIGNED_IN' && session?.access_token && session?.user) {
-        setUser(session.user)
-        setSession(session)
-        setTelemetryAuthState({ initialized: true, session, user: session.user })
+      if (event === 'SIGNED_IN' && nextSession?.access_token && nextSession?.user) {
+        setUser(nextSession.user)
+        setSession(nextSession)
+        setTelemetryAuthState({ initialized: true, session: nextSession, user: nextSession.user })
         setLoading(false)
-        validateUserRole(session.user)
+        validateUserRole(nextSession.user)
       } else if (event === 'SIGNED_OUT') {
         roleRequestIdRef.current += 1
         setUser(null)
@@ -264,6 +295,7 @@ export const useAuth = () => {
         setCanViewConsumptionReport(false)
         setCanCreateLateAdminExtraOrder(false)
         setCanManageLateExtraHistory(false)
+        setCanManageOrderDiscounts(false)
         setAdminCompanies([])
         setPermissionError(null)
         setPermissionLoading(false)
@@ -405,17 +437,12 @@ export const useAuth = () => {
 
   const refreshPermissions = useCallback(async () => {
     if (!user) return { data: null, error: new Error('Usuario no autenticado') }
-    try {
-      await validateUserRole(user)
-      return { data: { user }, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    return validateUserRole(user)
   }, [user, validateUserRole])
 
   useEffect(() => {
     if (import.meta.env.DEV) {
-        console.log('[Auth] state', { user, loading, permissionLoading, isAdmin, isCompanyAdmin, canViewConsumptionReport, canCreateLateAdminExtraOrder, canManageLateExtraHistory, canManageOrderDiscounts, adminCompanies, permissionError })
+      console.log('[Auth] state', { user, loading, permissionLoading, isAdmin, isCompanyAdmin, canViewConsumptionReport, canCreateLateAdminExtraOrder, canManageLateExtraHistory, canManageOrderDiscounts, adminCompanies, permissionError })
     }
   }, [user, loading, permissionLoading, isAdmin, isCompanyAdmin, canViewConsumptionReport, canCreateLateAdminExtraOrder, canManageLateExtraHistory, canManageOrderDiscounts, adminCompanies, permissionError])
 
