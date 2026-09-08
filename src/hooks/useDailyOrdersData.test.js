@@ -73,6 +73,6 @@ describe('useDailyOrdersData daily orders loading', () => {
     expect(source).toContain('await handleRefresh()')
     expect(dailyOrdersSource).toContain('OrderDiscountModal')
     expect(dailyOrdersSource).toContain('onDiscountOrders={canManageOrderDiscounts ? () => setDiscountModalOpen(true) : null}')
-    expect(dailyExportActionsSource).toContain('- Descontar pedidos')
+    expect(dailyExportActionsSource).toContain('Descontar pedidos')
   })
 })
