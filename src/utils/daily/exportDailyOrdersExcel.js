@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs'
+import { loadExcelJS } from '../loadExcelJS'
 import { downloadWorkbook, filterOrdersByCompany } from './dailyOrderCalculations'
 import {
   buildDailyOrdersExcelDetailRows,
@@ -181,6 +181,7 @@ export async function exportDailyOrdersExcel({
 
   try {
     const summary = buildDailyOrdersSummary(ordersToExport, selectedStatus)
+    const ExcelJS = await loadExcelJS()
     const workbook = new ExcelJS.Workbook()
     workbook.creator = 'ServiFood Pedidos'
     workbook.created = new Date()
