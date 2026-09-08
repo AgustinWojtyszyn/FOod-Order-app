@@ -1,4 +1,3 @@
-import ExcelJS from 'exceljs'
 import { supabase } from './supabase'
 import {
   getOrderRemitoLocationKey,
@@ -6,6 +5,7 @@ import {
   resolveCompanyForOrder
 } from '../utils/daily/exportDailyOrderNotesExcel'
 import { buildSideBucketsFromOrders } from '../utils/analytics/trendsHelpers'
+import { loadExcelJS } from '../utils/loadExcelJS'
 import { normalizeLabel } from '../utils/monthly/monthlyOrderFormatters'
 
 const PAGE_SIZE = 1000
@@ -446,6 +446,7 @@ const downloadWorkbook = async (workbook, filename) => {
 }
 
 export const exportTotalizerWorkbook = async ({ fromDate, toDate, service, rows, companies, dates, sideRows = [] }) => {
+  const ExcelJS = await loadExcelJS()
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'ServiFood'
   workbook.created = new Date()
