@@ -3,10 +3,11 @@ import { buildIdempotencyStorageKey, generateIdempotencyKey } from './orderIdemp
 import { buildOrderPayload } from './orderPayload'
 import { hasDinnerOverrideInResponses } from './orderBusinessRules'
 import { normalizeOrderItemsForService } from './orderItemNormalization'
-import { hasHiddenOrderMenuSelection } from './menuDisplay'
+import { hasHiddenOrderMenuSelection, hasSyntheticFallbackMenuSelection } from './menuDisplay'
 
 const ACTIVE_ORDER_STATUSES = new Set(['pending'])
 const DUPLICATE_ORDER_MESSAGE = 'Ya tenés un pedido registrado para esta fecha y servicio.'
+const INVALID_MENU_MESSAGE = 'El menú quedó desactualizado o no está disponible. Recargá la página e intentá nuevamente.'
 
 const hasActiveOrderForDelivery = (orders = [], deliveryDate, service) =>
   orders.some(order => {
@@ -62,7 +63,15 @@ const submitOrders = async ({
     const itemsForService = normalizeOrderItemsForService(service, rawItemsForService)
     const responsesForService = isDinner ? customResponsesDinnerArray : customResponsesArray
 
-    if (hasHiddenOrderMenuSelection(itemsForService)) {
+    if (hasSyntheticFallbackMenuSelection(rawItemsForService)) {
+      return {
+        ok: false,
+        errorMessage: INVALID_MENU_MESSAGE,
+        forceLunchOnly: false
+      }
+    }
+
+    if (hasHiddenOrderMenuSelection(itemsForService, companySlug)) {
       return {
         ok: false,
         errorMessage: 'Esa opción de menú no está disponible para pedidos.',
