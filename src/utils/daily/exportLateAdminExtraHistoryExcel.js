@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs'
+import { loadExcelJS } from '../loadExcelJS'
 import { downloadWorkbook } from './dailyOrderCalculations'
 
 const HEADER_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111827' } }
@@ -96,7 +96,8 @@ const autoFitColumns = (worksheet, minWidth = 12, maxWidth = 52) => {
   })
 }
 
-const buildWorkbook = ({ operationalDate, rows = [], closure = null, status = 'open' } = {}) => {
+const buildWorkbook = async ({ operationalDate, rows = [], closure = null, status = 'open' } = {}) => {
+  const ExcelJS = await loadExcelJS()
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'ServiFood'
   workbook.created = new Date()
@@ -194,7 +195,7 @@ const buildWorkbook = ({ operationalDate, rows = [], closure = null, status = 'o
 }
 
 export const downloadLateAdminExtraHistoryExcel = async ({ operationalDate, rows = [], closure = null, status = 'open' } = {}) => {
-  const workbook = buildWorkbook({ operationalDate, rows, closure, status })
+  const workbook = await buildWorkbook({ operationalDate, rows, closure, status })
   const fileName = `Pedidos_Extra_${formatFileDate(operationalDate)}.xlsx`
   await downloadWorkbook(workbook, fileName)
   return { fileName }
