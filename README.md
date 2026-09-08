@@ -1,204 +1,325 @@
-# ServiFood — Sistema de Gestión de Pedidos de Comida
+# 🍽️ ServiFood Order System
 
-ServiFood es una aplicación web diseñada para gestionar pedidos de comida de forma simple y organizada dentro de empresas o equipos de trabajo.
+<p align="center">
+  <strong>Plataforma web full-stack para la gestión integral de pedidos corporativos de alimentación.</strong>
+</p>
 
-Permite a los usuarios solicitar su comida diaria mediante un sistema de menú dinámico, mientras que los administradores pueden gestionar usuarios, pedidos y opciones del menú desde un panel de control.
+<p align="center">
+  Pedidos · Multiempresa · Administración · Reportes · Auditoría · Automatizaciones
+</p>
 
-El proyecto está orientado a demostrar el desarrollo de una aplicación web full stack con autenticación, gestión de datos y panel administrativo.
-
----
-
-## Características principales
-
-- Registro e inicio de sesión de usuarios
-- Sistema de pedidos de comida
-- Selección dinámica de menú
-- Historial de pedidos
-- Panel administrativo para gestión de usuarios y pedidos
-- Interfaz responsive para distintos dispositivos
-- Gestión centralizada de pedidos
-
----
-
-## Tecnologías utilizadas
-
-### Frontend
-
-- React
-- Vite
-- Tailwind CSS
-
-### Servicios y backend
-
-- Supabase (base de datos y autenticación)
-
-### Otras herramientas
-
-- React Router
-- Lucide Icons
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" />
+  <img src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white" />
+  <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?logo=supabase&logoColor=white" />
+  <img src="https://img.shields.io/badge/Tailwind-CSS-06B6D4?logo=tailwindcss&logoColor=white" />
+  <img src="https://img.shields.io/badge/Vitest-Testing-6E9F18?logo=vitest&logoColor=white" />
+  <img src="https://img.shields.io/badge/Render-Deploy-46E3B7?logo=render&logoColor=white" />
+</p>
 
 ---
 
-## Objetivo del proyecto
+## 🚀 Vista general
 
-Este proyecto simula una plataforma utilizada por empresas para organizar y gestionar pedidos de comida diarios de sus empleados.
+**ServiFood Order System** es una plataforma web desarrollada para centralizar y automatizar la operación diaria de pedidos corporativos de alimentación.
 
-Sirve como ejemplo de:
+Permite administrar desde un único sistema:
 
-- Desarrollo de aplicaciones web full stack
-- Autenticación y gestión de usuarios
-- Interacción con bases de datos
-- Paneles administrativos
-- Interfaces modernas y responsive
+- pedidos diarios;
+- menús dinámicos;
+- múltiples empresas y sedes;
+- usuarios, roles y permisos;
+- cafetería;
+- etiquetas;
+- reportes operativos;
+- reportes de consumo;
+- estadísticas y tendencias;
+- totalización;
+- auditoría;
+- monitoreo de salud;
+- exportaciones;
+- automatizaciones server-side.
 
----
+La aplicación está desarrollada con **React + Vite** y utiliza **Supabase** como plataforma backend para autenticación, PostgreSQL, políticas de seguridad, RPCs y Edge Functions.
 
-## Estructura general del proyecto
-
-
-public/
-src/
-supabase/
-
-
----
-
-## Nota
-
-Algunos detalles técnicos y configuraciones internas fueron omitidos del repositorio público para simplificar la documentación y proteger información sensible del sistema.
+El deploy productivo se realiza mediante **Render**.
 
 ---
 
-## Autor
+# 🖥️ Interfaz
 
-Agustin Wojtyszyn  
-Desarrollador Web Full Stack
+## Vista general del sistema
 
----
-
-## Arquitectura general
-
-La aplicación sigue una arquitectura web moderna:
-
-- Frontend SPA construido con React
-- Backend y base de datos gestionados mediante Supabase
-- Autenticación integrada para control de acceso
-- Panel administrativo para gestión del sistema
-
-### Order normalization (read-only)
-
-`normalizeOrderForReadOnly(order)` se usa únicamente en analytics, daily y monthly.
-
-- No modifica `order.items` ni `order.custom_responses`
-- Agrega: `normalizedItems`, `normalizedCustomResponses`
-- Uso exclusivo para lectura
-- Prohibido usar en submit, edición o idempotencia
-
-Motivo:  
-Unificar lectura sin afectar el contrato persistido ni romper pedidos existentes
+<p align="center">
+  <img
+    src="https://github.com/user-attachments/assets/ccd822b0-3311-498f-8109-abb1c3185352"
+    alt="ServiFood Order System"
+    width="100%"
+  />
+</p>
 
 ---
 
-## Estado del proyecto
+## 🏠 Panel principal
 
-Proyecto en desarrollo activo.
+El dashboard concentra el estado del usuario y proporciona acceso directo a los principales módulos del sistema.
 
-Incluye mejoras continuas en:
+Desde esta vista es posible consultar:
 
-- experiencia de usuario
-- optimización del sistema
-- nuevas funcionalidades administrativas
+- estado del pedido;
+- horario operativo;
+- pedidos del día;
+- pedidos pendientes;
+- pedidos archivados;
+- empresa activa;
+- accesos administrativos;
+- reportes y análisis.
 
-## Auditorías técnicas
+### 📸 Captura
 
-- [Auditoría completa de la app - 2026-06-19](./AUDITORIA_COMPLETA_APP_2026-06-19.txt)
-- [Auditoría general de riesgos](./AUDITORIA_GENERAL_RIESGOS.txt)
-- [Auditoría de protección de rutas admin](./AUDITORIA_PROTECCION_RUTAS_ADMIN.txt)
-- [Auditoría quirúrgica de pedidos ServiFood](./AUDITORIA_QUIRURGICA_SERVIFOOD_ORDERS.txt)
+<!--
+ARRASTRÁ ACÁ LA CAPTURA DEL PANEL PRINCIPAL DESDE TU PC.
 
-## Reporte diario por email
+GitHub va a generar algo parecido a:
 
-La función Supabase Edge `daily-orders-report` envía el Excel `.xlsx` y el resumen diario de pedidos pendientes. Es server-side, usa `SUPABASE_SERVICE_ROLE_KEY` solo dentro de la función, exige el header `x-cron-secret` y registra idempotencia en `daily_report_runs`.
+![Panel principal](https://github.com/user-attachments/assets/XXXXXXXX)
 
-Variables requeridas en Supabase Edge:
+Borrá este comentario cuando esté subida.
+-->
 
-```bash
-DAILY_REPORT_RECIPIENTS=sarmientoclaudia985@gmail.com,agustinwojtyszyn99@gmail.com
-MAIL_FROM="ServiFood Pedidos <reportes@tu-dominio.com>"
-EMAIL_PROVIDER_API_KEY=...
-SERVIFOOD_LOGO_URL=https://url-publica/logo-servifood.png
-TEST_REPORT_RECIPIENT=agustinwojtyszyn99@gmail.com
-CRON_SECRET=...
-SUPABASE_URL=...
-SUPABASE_SERVICE_ROLE_KEY=...
-```
+---
 
-El proveedor implementado es Resend vía `EMAIL_PROVIDER_API_KEY`. No configurar secretos ni service role en el frontend. `SERVIFOOD_LOGO_URL` es opcional y debe apuntar a una URL pública HTTPS del logo, por ejemplo Supabase Storage público o un asset público del frontend deployado; si no está configurado, el email muestra el texto `ServiFood Catering`.
+## 🩺 Salud del sistema
 
-La ejecución real debe programarse todos los días a las `01:10 UTC`, que equivale a `22:10 ART` en Argentina. A esa hora la fecha objetivo default es `delivery_date = día siguiente` en `America/Argentina/Buenos_Aires`.
+El sistema incorpora herramientas administrativas de monitoreo para comprobar el estado de la aplicación y de los servicios asociados.
 
-Cron recomendado:
+Incluye controles sobre:
+
+- disponibilidad de Supabase;
+- conectividad;
+- última ejecución;
+- pedidos creados durante el día;
+- eventos de health check;
+- errores HTTP;
+- latencia;
+- request ID;
+- historial de verificaciones.
+
+### 📸 Captura
+
+<!--
+ARRASTRÁ ACÁ LA CAPTURA "SALUD DEL SISTEMA".
+
+GitHub generará automáticamente la URL pública.
+-->
+
+---
+
+## ⚙️ Panel de administración
+
+El panel administrativo centraliza las herramientas necesarias para gestionar la operación de ServiFood.
+
+Incluye módulos para:
+
+- usuarios;
+- menú;
+- cena;
+- opciones;
+- empresas;
+- cafetería;
+- roles;
+- permisos;
+- configuración operativa.
+
+### 📸 Captura
+
+<!--
+ARRASTRÁ ACÁ LA CAPTURA "PANEL DE ADMINISTRACIÓN".
+-->
+
+---
+
+# ✨ Funcionalidades
+
+## 🛒 Gestión de pedidos
+
+- Creación de pedidos diarios.
+- Selección dinámica de menú.
+- Modificación controlada.
+- Historial de pedidos.
+- Estados operativos.
+- Validación de horarios.
+- Restricciones según empresa.
+- Control de cantidades.
+- Manejo de opciones especiales.
+- Pedidos administrativos.
+- Gestión de pedidos posteriores al reporte.
+
+---
+
+## 🏢 Arquitectura multiempresa
+
+ServiFood permite operar múltiples organizaciones desde una única plataforma.
+
+Cada empresa puede disponer de:
+
+- menú propio;
+- reglas operativas;
+- horarios;
+- sedes;
+- configuración;
+- permisos;
+- reportes;
+- lógica específica.
+
+El sistema también permite combinar menús globales con configuraciones particulares por empresa.
+
+---
+
+## 👥 Usuarios, roles y permisos
+
+La aplicación incorpora distintos niveles de acceso.
+
+Entre ellos:
+
+- usuarios estándar;
+- administradores;
+- administradores por empresa;
+- acceso restringido a reportes;
+- permisos específicos para acciones sensibles.
+
+La autorización no depende únicamente del frontend.
+
+Las operaciones críticas también son verificadas mediante:
+
+- PostgreSQL;
+- RPCs;
+- Row Level Security;
+- funciones server-side.
+
+---
+
+# 📊 Reportes y análisis
+
+ServiFood incorpora distintas herramientas para analizar la operación.
+
+## Pedidos diarios
+
+Permite consultar y administrar los pedidos correspondientes a una jornada.
+
+## Totalizadora
+
+Agrupa cantidades de platos y opciones para facilitar la preparación.
+
+## Panel mensual
+
+Permite analizar actividad y consumo durante períodos mensuales.
+
+## Reportes de consumo
+
+Generación de información consolidada por:
+
+- usuario;
+- empresa;
+- período;
+- día;
+- tipo de pedido.
+
+## Tendencias
+
+Visualización y análisis de la evolución de pedidos.
+
+---
+
+# 🏷️ Sistema de etiquetas
+
+La aplicación dispone de un módulo específico para preparar e imprimir etiquetas operativas.
+
+Permite:
+
+- filtrar pedidos;
+- seleccionar etiquetas;
+- identificar empresa;
+- identificar sede solicitante;
+- controlar impresión;
+- procesar pedidos individualmente.
+
+---
+
+# ☕ Cafetería
+
+ServiFood incluye un módulo independiente para gestionar operaciones relacionadas con cafetería.
+
+Esto permite mantener los flujos de cafetería integrados dentro de la misma plataforma operativa.
+
+---
+
+# 📄 Generación de documentos
+
+El sistema puede generar distintos documentos operativos.
+
+Entre ellos:
+
+- archivos Excel;
+- reportes;
+- documentos PDF;
+- etiquetas;
+- remitos.
+
+Tecnologías utilizadas:
+
+- **ExcelJS**
+- **jsPDF**
+
+---
+
+# 🤖 Automatizaciones
+
+ServiFood incorpora procesos automáticos ejecutados fuera del frontend.
+
+Entre ellos:
+
+- generación de reportes;
+- envío de emails;
+- procesamiento diario;
+- archivado automático;
+- tareas programadas;
+- verificaciones de ejecución.
+
+Los procesos importantes utilizan mecanismos de **idempotencia** para evitar ejecuciones duplicadas.
+
+---
+
+# 🏗️ Arquitectura
 
 ```text
-10 1 * * *
-```
-
-Cron de archivado condicional posterior al envío:
-
-```text
-15 1 * * *
-```
-
-Este segundo cron llama la misma Edge Function con `mode=archiveAfterSuccessfulReport`. No envía email ni genera Excel; solo archiva pedidos `pending` de `delivery_date = reportDate` si existe un `daily_report_runs` reciente con `report_type = daily_orders`, `status = sent` y `sent_at` informado.
-
-Payload soportado:
-
-```json
-{
-  "mode": "send",
-  "reportDate": "2026-06-23",
-  "force": false,
-  "allowEmpty": true,
-  "sendTo": "email-opcional-solo-pruebas@example.com"
-}
-```
-
-Ejemplos de prueba:
-
-```bash
-curl -X POST "$FUNCTION_URL" \
-  -H "Content-Type: application/json" \
-  -H "x-cron-secret: $CRON_SECRET" \
-  -d '{"mode":"dryRun","reportDate":"2026-06-23"}'
-```
-
-```bash
-curl -X POST "$FUNCTION_URL" \
-  -H "Content-Type: application/json" \
-  -H "x-cron-secret: $CRON_SECRET" \
-  -d '{"mode":"testEmail","sendTo":"agustinwojtyszyn99@gmail.com"}'
-```
-
-```bash
-curl -X POST "$FUNCTION_URL" \
-  -H "Content-Type: application/json" \
-  -H "x-cron-secret: $CRON_SECRET" \
-  -d '{"mode":"testEmailReal","reportDate":"2026-06-25"}'
-```
-
-```bash
-curl -X POST "$FUNCTION_URL" \
-  -H "Content-Type: application/json" \
-  -H "x-cron-secret: $CRON_SECRET" \
-  -d '{"mode":"send","reportDate":"2026-06-23","force":true,"allowEmpty":true}'
-```
-
-`mode=dryRun` no envía email ni registra envío exitoso. `mode=testEmail` usa pedidos mock internos, marca el asunto/cuerpo/Excel como prueba y por defecto solo envía a `TEST_REPORT_RECIPIENT` o `agustinwojtyszyn99@gmail.com`. `mode=testEmailReal` consulta pedidos reales pendientes para `delivery_date = reportDate`, envía solo al destinatario de prueba y no escribe `daily_report_runs` ni archiva pedidos. `mode=send` consulta `orders_with_person_key` con `status = 'pending'` y `delivery_date = reportDate`, genera el Excel y respeta idempotencia; solo reenvía si `force=true`.
-
----
-
-## Vista del sistema
-
-Interfaz principal del sistema de pedidos utilizada por los usuarios para seleccionar su menú diario.
-
-<img width="1919" height="4512" alt="screencapture-servifoodapp-site-order-administracion-servifood-2026-09-08-10_10_26" src="https://github.com/user-attachments/assets/ccd822b0-3311-498f-8109-abb1c3185352" />"/>
+┌──────────────────────────────────────┐
+│               Usuario                │
+│        Desktop / Tablet / Mobile     │
+└──────────────────┬───────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────┐
+│           React 19 + Vite 7          │
+│                                      │
+│ UI · Routing · State · Validation    │
+└──────────────────┬───────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────┐
+│               Supabase               │
+│                                      │
+│ Auth · PostgreSQL · RLS · RPC        │
+│ Edge Functions · Realtime            │
+└──────────────┬─────────────┬─────────┘
+               │             │
+               ▼             ▼
+      ┌────────────────┐  ┌───────────────┐
+      │ Automatización │  │   Reportes    │
+      │   Cron / Jobs  │  │  Excel / PDF  │
+      └────────┬───────┘  └───────────────┘
+               │
+               ▼
+      ┌────────────────┐
+      │ Email / Operación │
+      └────────────────┘
