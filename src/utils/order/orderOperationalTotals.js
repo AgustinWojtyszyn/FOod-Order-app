@@ -225,6 +225,9 @@ const getResponseRows = (response = {}, kind, menuTotal) => {
   return rows
 }
 
+const shouldBackfillDefaultResponse = (order = {}, kind = '') =>
+  !(kind === 'beverage' && normalizeOperationalLabel(order?.order_origin) === 'admin_extra')
+
 export const getOrderResponseBreakdown = (order = {}, kind) => {
   const { normalizedCustomResponses } = normalizeOrderForReadOnly(order)
   const menuTotal = getOrderMenuTotal(order)
@@ -239,7 +242,7 @@ export const getOrderResponseBreakdown = (order = {}, kind) => {
 
   const countedTotal = [...totals.values()].reduce((sum, row) => sum + row.quantity, 0)
   const missingTotal = menuTotal - countedTotal
-  if (missingTotal > 0) {
+  if (missingTotal > 0 && shouldBackfillDefaultResponse(order, kind)) {
     incrementMap(totals, defaultLabel, missingTotal)
   }
 

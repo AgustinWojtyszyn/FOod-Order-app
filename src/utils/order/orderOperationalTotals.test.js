@@ -150,7 +150,7 @@ describe('orderOperationalTotals', () => {
     expect(getOrderDessertBreakdown(order)).toEqual([{ label: DEFAULT_DESSERT_LABEL, quantity: 12 }])
   })
 
-  it('D: contabiliza pedidos extra sin usuario desde total_items', () => {
+  it('D: contabiliza pedidos extra sin usuario sin inventar bebida por defecto', () => {
     const order = baseOrder({
       user_id: null,
       order_origin: 'admin_extra',
@@ -163,9 +163,28 @@ describe('orderOperationalTotals', () => {
     expect(summarizeOperationalOrder(order)).toMatchObject({
       menuTotal: 8,
       menuBreakdown: [{ label: 'Opción 2', quantity: 8 }],
-      beverageBreakdown: [{ label: DEFAULT_BEVERAGE_LABEL, quantity: 8 }],
+      beverageBreakdown: [],
       dessertBreakdown: [{ label: DEFAULT_DESSERT_LABEL, quantity: 8 }]
     })
+  })
+
+  it('en pedidos extra remite solo las bebidas elegidas y no completa el resto con agua sin gas', () => {
+    const order = baseOrder({
+      user_id: null,
+      order_origin: 'admin_extra',
+      total_items: 4,
+      items: [{ name: 'Menú principal', quantity: 4 }],
+      custom_responses: [
+        { title: 'Bebida', quantities: { 'Agua saborizada': 2 } }
+      ]
+    })
+
+    expect(getOrderBeverageBreakdown(order)).toEqual([
+      { label: 'Agua saborizada', quantity: 2 }
+    ])
+    expect(getOrderDessertBreakdown(order)).toEqual([
+      { label: DEFAULT_DESSERT_LABEL, quantity: 4 }
+    ])
   })
 
   it('does not count Greif Refrigerio as a menu or add beverage/dessert defaults', () => {
