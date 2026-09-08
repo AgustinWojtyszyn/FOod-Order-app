@@ -6,21 +6,22 @@ const migrationPath = fileURLToPath(new URL('./20260908120000_secure_audit_log_w
 const source = readFileSync(migrationPath, 'utf8').toLowerCase()
 
 describe('audit log write hardening migration', () => {
-  it('removes the broad authenticated insert policy', () => {
+  it('removes direct client writes to audit_logs', () => {
     expect(source).toContain('drop policy if exists audit_logs_insert_auth on public.audit_logs')
+    expect(source).toContain('revoke insert, update, delete on table public.audit_logs from authenticated')
     expect(source).not.toContain('with check (true)')
   })
 
-  it('derives actor identity from auth.uid on the server', () => {
-    expect(source).toContain('create or replace function public.audit_log_set_verified_actor()')
-    expect(source).toContain('new.actor_id := v_actor.id')
-    expect(source).toContain('where id = auth.uid()')
-    expect(source).toContain('before insert on public.audit_logs')
+  it('exposes a security-definer rpc that derives the actor from auth.uid', () => {
+    expect(source).toContain('create or replace function public.log_audit(')
+    expect(source).toContain('security definer')
+    expect(source).toContain('v_uid uuid := auth.uid()')
+    expect(source).toContain('v_actor.id')
+    expect(source).toContain('grant execute on function public.log_audit')
   })
 
-  it('only permits direct client audit writes for admin contexts and known actions', () => {
+  it('only accepts known admin audit actions', () => {
     expect(source).toContain('public.has_company_admin_access()')
-    expect(source).toContain('actor_id = auth.uid()')
-    expect(source).toContain("action in ('role_changed', 'menu_updated', 'menu_options_added')")
+    expect(source).toContain("v_action not in ('role_changed', 'menu_updated', 'menu_options_added')")
   })
 })
