@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { buildLateAdminExtraHistoryWorkbook } from './exportLateAdminExtraHistoryExcel'
 
 describe('late admin extra history Excel', () => {
-  it('builds the closure workbook from the immutable closure snapshot and marks deleted rows', () => {
-    const workbook = buildLateAdminExtraHistoryWorkbook({
+  it('builds the closure workbook from the immutable closure snapshot and marks deleted rows', async () => {
+    const workbook = await buildLateAdminExtraHistoryWorkbook({
       operationalDate: '2026-08-21',
       status: 'closed',
       closure: {
