@@ -17,7 +17,7 @@ describe('Totalizer export module', () => {
     expect(appSource).toContain("const TotalizerPage = lazy(() => import('./pages/TotalizerPage'))")
     expect(appSource).toContain("'/totalizadora'")
     expect(appSource).toContain('<Route path="/totalizadora" element={<TotalizerPage />} />')
-    expect(layoutSource).toContain("menuItems.push({ name: 'Totalizadora', path: '/totalizadora'")
+    expect(layoutSource).toContain("reportsItems.push({ name: 'Totalizadora', path: '/totalizadora'")
     expect(requireAdminSource).not.toContain("'/totalizadora'")
   })
 
