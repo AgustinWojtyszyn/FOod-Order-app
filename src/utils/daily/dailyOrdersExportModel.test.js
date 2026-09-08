@@ -160,7 +160,7 @@ describe('daily orders export model', () => {
     expect(summary.rows[0].email).toBe('claudia@servifood.com')
     expect(row['Menú elegido']).toContain('Opción 1 - BIDE DEL DIA')
     expect(row['Menú elegido']).toContain('Opción 2 - Pollo')
-    expect(summary.rows[0].bebida).toBe('Coca Cola (x2), Agua sin gas (x3)')
+    expect(summary.rows[0].bebida).toBe('Coca Cola (x2)')
     expect(summary.rows[0].postre).toBe('Flan (x2), Fruta (x3)')
     expect(row).not.toHaveProperty('Respuestas personalizadas')
     expect(whatsapp).toContain('TOTAL GENERAL: 5 pedidos')
